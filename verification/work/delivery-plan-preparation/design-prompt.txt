@@ -1,0 +1,367 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: delivery-plan-preparation
+
+=== contract.yaml ===
+service_name: delivery-plan-preparation
+display_name: Delivery plan preparation
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:delivery-planning
+binding:
+  skill: delivery-planning
+  skill_path: workspace/mymilo-build/skills/delivery-planning/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: delivery_plan_preparation
+  prefix: atm_1_delivery_plan_preparation_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Multi-step project planning
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Delivery plan preparation — `delivery-plan-preparation`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Plan and run delivery in phases — plan gates, milestones, risk register, decision log, and honest status.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Multi-step project planning**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the delivery-plan manifest
+
+The caller submits one JSON manifest: a declared delivery plan
+record for one project. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`DELIVERY_PLAN_NOT_READY`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `plan` (string; carried into the verdict output, not itself checked) | — |
+| `framing.goal_declared` | framing_and_approval |
+| `framing.deliverable_declared` | framing_and_approval |
+| `framing.constraints_declared` | framing_and_approval |
+| `framing.definition_of_done_declared` | framing_and_approval |
+| `framing.plan_approved_before_build` | framing_and_approval |
+| `framing.build_started_before_approval` (must be `false` to pass — charter violation) | framing_and_approval |
+| `phases` (list of phase-row objects, each `{name, owner, exit_criteria_declared, start_date, end_date, depends_on, size, assumptions_declared}` — see the eight entry fields below; computed, see below) | phases_milestones_and_dependencies |
+| `phases[].name` (string; names the row in the computed outputs and is the name other rows' `depends_on` entries and milestones' `phase` fields must equal to resolve) | phases_milestones_and_dependencies |
+| `phases[].owner` (string; must be a non-empty string for the row to pass the computed owner check — an absent field is missing evidence, an empty string fails) | phases_milestones_and_dependencies |
+| `phases[].exit_criteria_declared` | phases_milestones_and_dependencies |
+| `phases[].start_date` (string; strict ISO `YYYY-MM-DD` — must parse as a real calendar date for the row to pass the computed date checks; an absent field is missing evidence, an unparseable or impossible date such as `2027-02-30` fails) | phases_milestones_and_dependencies |
+| `phases[].end_date` (string; strict ISO `YYYY-MM-DD`, same rule as `start_date`; the end must not fall before the start) | phases_milestones_and_dependencies |
+| `phases[].depends_on` (list of strings; each entry must name a declared phase — see the computed dependency checks below; an empty list declares no dependencies and passes) | phases_milestones_and_dependencies |
+| `phases[].size` (string; must be one of the skill's own size vocabulary — `S`, `M` or `L` — for the row to pass the computed size check; any other string fails, an absent field is missing evidence) | phases_milestones_and_dependencies |
+| `phases[].assumptions_declared` | risks_estimates_and_decisions |
+| `milestones` (list of milestone-row objects, each `{name, phase, owner, due_date}` — see the four entry fields below; computed, see below) | phases_milestones_and_dependencies |
+| `milestones[].name` (string; names the row in the computed outputs) | phases_milestones_and_dependencies |
+| `milestones[].phase` (string; must name a declared phase for the row to pass the computed phase-resolution and due-date checks) | phases_milestones_and_dependencies |
+| `milestones[].owner` (string; must be a non-empty string for the row to pass the computed owner check — an absent field is missing evidence, an empty string fails) | phases_milestones_and_dependencies |
+| `milestones[].due_date` (string; strict ISO `YYYY-MM-DD`, same date rule as the phase dates; must fall within the named phase's declared start and end dates, inclusive) | phases_milestones_and_dependencies |
+| `estimation.least_known_item_flagged_as_top_risk` | risks_estimates_and_decisions |
+| `risks` (list of risk-row objects, each `{name, mitigation_declared, trigger_declared}` — see the three entry fields below; computed, see below) | risks_estimates_and_decisions |
+| `risks[].name` (string; names the row in the computed `risks_without_*` outputs) | risks_estimates_and_decisions |
+| `risks[].mitigation_declared` | risks_estimates_and_decisions |
+| `risks[].trigger_declared` | risks_estimates_and_decisions |
+| `risk_management.register_reviewed_each_phase` | risks_estimates_and_decisions |
+| `decisions` (list of decision-log entry objects, each `{date, decision, rationale_declared, alternatives_declared}` — see the four entry fields below; computed, see below) | risks_estimates_and_decisions |
+| `decisions[].date` (string; strict ISO `YYYY-MM-DD`, same date rule as the phase dates; must parse as a real calendar date for the entry to pass the computed completeness check) | risks_estimates_and_decisions |
+| `decisions[].decision` (string; must be a non-empty string for the entry to pass the computed completeness check, and names the entry in the computed `decisions_incomplete` output) | risks_estimates_and_decisions |
+| `decisions[].rationale_declared` | risks_estimates_and_decisions |
+| `decisions[].alternatives_declared` | risks_estimates_and_decisions |
+| `decision_log.append_only` | risks_estimates_and_decisions |
+| `decision_log.logged_at_decision_time` | risks_estimates_and_decisions |
+| `execution.wip_limit_declared` | execution_discipline_and_status |
+| `execution.one_worked_item_per_lane` | execution_discipline_and_status |
+| `execution.plan_updates_through_approval` | execution_discipline_and_status |
+| `execution.silent_rescoping_present` (must be `false` to pass — skill red line) | execution_discipline_and_status |
+| `execution.deploys_hitl_approved` | execution_discipline_and_status |
+| `execution.direct_to_production_change_present` (must be `false` to pass — charter violation) | execution_discipline_and_status |
+| `status.phase_declared` | execution_discipline_and_status |
+| `status.done_declared` | execution_discipline_and_status |
+| `status.next_declared` | execution_discipline_and_status |
+| `status.blockers_declared` | execution_discipline_and_status |
+| `status.confidence_declared` | execution_discipline_and_status |
+
+Most checks are computed from the declared rows, using only the
+consistency of the declared record itself and schedule
+arithmetic over the declared dates — no outside threshold is
+imported:
+
+- **Phases declared:** the declared `phases` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Owner per phase:** every declared phase row must name an
+  owner (a non-empty `owner` string). A row with the field
+  absent is missing evidence; a row naming an empty string
+  fails.
+- **Exit criteria per phase:** every declared phase row must
+  declare `exit_criteria_declared: true` (the skill's quality
+  gate: every phase has exit criteria and an owner). A row with
+  the field absent is missing evidence.
+- **Size per phase:** every declared phase row must carry a
+  size from the skill's own vocabulary — `S`, `M` or `L` (the
+  skill's "sizes (S/M/L)"). Any other string fails; a row with
+  the field absent is missing evidence.
+- **Phase dates valid and in order:** every declared phase row
+  must carry a `start_date` and an `end_date` that parse as
+  strict ISO calendar dates, with the end not before the start.
+  An unparseable or impossible date fails.
+- **Dependencies resolve:** every name in a phase's declared
+  `depends_on` list must name a declared phase (matched on the
+  phase rows' `name` strings). An unresolvable name fails and
+  is reported in `unknown_dependencies` as
+  `dependent->dependency`.
+- **Dependencies precede dependents:** schedule arithmetic over
+  the declared dates — a dependency's declared `end_date` must
+  not fall after the dependent phase's declared `start_date`.
+  A violation fails and is reported in
+  `dependency_order_violations` as `dependent->dependency`.
+  The check is missing evidence when any phase row lacks a
+  `depends_on`, `start_date` or `end_date` field, or a named
+  phase lacks an `end_date`.
+- **Milestones declared:** the declared `milestones` list
+  passes only when it is present and non-empty.
+- **Milestone phase resolution:** every declared milestone's
+  `phase` string must name a declared phase; an unresolvable
+  name fails and is reported in
+  `milestones_with_unknown_phase`.
+- **Owner per milestone:** every declared milestone row must
+  name a non-empty `owner` string, on the same rule as phases.
+- **Milestone due within phase dates:** schedule arithmetic —
+  every milestone's declared `due_date` must parse and fall
+  within its named phase's declared start and end dates,
+  inclusive. A milestone due outside, or with an unparseable
+  due date, fails and is reported in
+  `milestones_due_outside_phase_dates`. The check is missing
+  evidence when any milestone lacks `phase` or `due_date`, or
+  any phase lacks `start_date` or `end_date`.
+- **Assumptions per phase:** every declared phase row must
+  declare `assumptions_declared: true` (the skill: sizes come
+  with assumptions listed).
+- **Risks declared:** the declared `risks` list passes only
+  when it is present and non-empty.
+- **Mitigation and trigger per risk:** every declared risk row
+  must declare `mitigation_declared: true` and
+  `trigger_declared: true` (the skill's quality gate: risks
+  have triggers and mitigations).
+- **Decisions declared:** the declared `decisions` list passes
+  only when it is present and non-empty.
+- **Decision entry completeness:** every declared decision-log
+  entry must carry the skill's log shape — a `date` that
+  parses as a strict ISO calendar date, a non-empty `decision`
+  string, `rationale_declared: true` and
+  `alternatives_declared: true`. An incomplete entry fails and
+  is reported in `decisions_incomplete` under its `decision`
+  text.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the six primary computed checks — phases declared, owner per
+phase, exit criteria per phase, dependencies resolve, phase
+dates valid and in order, dependencies precede dependents —
+cannot be completed), the counts `phases_count`,
+`milestones_count`, `risks_count` and `decisions_count` (the
+declared list lengths, or null when the list is not declared —
+counts are reported as integers, exactly), the row-name lists
+`phases_without_owner`, `phases_without_exit_criteria`,
+`phases_with_date_problems`, `unknown_dependencies`,
+`dependency_order_violations`, `milestones_without_owner`,
+`milestones_with_unknown_phase`,
+`milestones_due_outside_phase_dates`,
+`risks_without_mitigation`, `risks_without_trigger` and
+`decisions_incomplete` (each null when its underlying list —
+or, for the milestone-phase lists, either list — is not
+declared), `total_duration_days` (the exact integer day count
+from the earliest declared phase start to the latest declared
+phase end; null unless every declared phase carries both dates
+and both parse), and the three coverage ratios
+`owner_coverage` (phases naming an owner ÷ declared phases),
+`dependency_coverage` (dependency references naming a declared
+phase ÷ declared dependency references) and
+`milestone_phase_coverage` (milestones naming a declared phase
+÷ declared milestones).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly four decimal places, produced in both
+implementations by the same rule — round half up to 4dp,
+`floor(v * 10000 + 0.5) / 10000`, then format with exactly four
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty (and, for
+dependency coverage, when no phase declares any dependency;
+for milestone phase coverage, when either list is absent).
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric threshold — no WIP number, no
+phase, milestone, risk or decision count, no confidence scale,
+and no duration limit — so no numeric threshold check is
+invented. Quantities are computed and reported; the only bar
+on the computed rows is completeness and internal consistency
+over the caller's own declared rows (every declared phase,
+milestone, risk and decision entry), exactly as stated above.
+Declined thresholds, named: a numeric WIP limit (the skill
+says "finish phases; don't parallelize beyond capacity" and
+states no number — only that a limit is declared is checked);
+a minimum or maximum phase count; a minimum or maximum
+milestone count; a minimum risk-register size; a minimum
+decision-log entry count beyond non-empty; a confidence scale
+or percentage (the skill requires confidence be *reported*,
+and names no scale, so only that declaration is checked); a
+maximum total plan duration or phase duration; an estimate
+accuracy tolerance (the skill requires honest sizes with
+assumptions, not a variance bound).
+
+The verdict is one of `DELIVERY_PLAN_READY` (all 38 checks
+pass), `DELIVERY_PLAN_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across four sections: framing_and_approval,
+phases_milestones_and_dependencies,
+risks_estimates_and_decisions,
+execution_discipline_and_status.
+
+## Honest scoping
+
+This atom audits a **declared** delivery plan record — it
+writes no plan, sequences no work, estimates nothing, reads no
+`PLAN.md` / `RISKS.md` files or project trackers, and does not
+verify that a declared control actually happens. A plan is
+ready *on the caller's declared evidence*: a manifest that
+declares an approved plan, owned phases with exit criteria,
+and mitigated risks passes those checks even if the real
+project has none of it. It is a completeness and consistency
+audit of the record the skill requires, **not a project
+management service or a delivery certification**: it never
+judges whether the goal is the right goal, whether the phases
+are the right decomposition, whether a size is honest, whether
+a mitigation would actually work, or whether the reported
+confidence is warranted — only that the record contains what
+the skill's method, quality gates and red lines demand, and
+that its declared rows are internally consistent over the
+declared dates.
+
+Non-reducible parts, named — these remain caller declarations
+only, and the atom states plainly that it does not judge them:
+whether the goal and deliverable are the right ones; whether
+the constraints list is complete for the real project; whether
+an exit criterion is strong enough to gate on; whether a size
+estimate is honest or accurate (only that a size from the
+skill's vocabulary and declared assumptions are present);
+whether the flagged least-known item truly is the least known
+(only that the flag is declared); whether a risk's mitigation
+or trigger is adequate (only that both are declared); whether
+a decision's rationale is sound or its alternatives were
+genuinely considered (only that both are declared, in an
+append-only log shape); what the caller's actual capacity is,
+and therefore what WIP limit is right (only that a limit is
+declared); and whether the reported status and confidence are
+honest rather than status theater (only that phase, done,
+next, blockers and confidence are all declared reported).
+Named exclusions: no numeric thresholds (see the declined
+list above); no critical-path computation beyond the declared
+dependency-order arithmetic (the skill requires dependencies
+and sequencing be planned, and states no critical-path
+method); no check that a phase's dates are realistic; no live
+verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

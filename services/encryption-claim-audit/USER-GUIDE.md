@@ -1,5 +1,7 @@
 # Encryption claim audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You make (or are reviewing) encryption claims for a product. This atom reads a short evidence manifest describing the claims and the construction behind them — claim specificity, standard construction, key management, derivation and randomness, coverage, and claim consistency — and returns one deterministic verdict across six sections with per-check evidence. It spots weak or vague crypto claims: the symmetric construction must be AES-256-GCM (`claims.algorithm` = `AES`, `claims.mode` = `GCM`, `claims.key_length_bits` = 256), asymmetric key exchange `X25519` with `Ed25519` signatures, key storage `platform_keystore` or `memory_only`, and randomness source `os_csprng`: **CLAIMS_SOUND**, **CLAIMS_UNSOUND**, or

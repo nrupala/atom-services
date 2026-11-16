@@ -1,0 +1,1212 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: document-operations-service
+
+=== contract.yaml ===
+service_name: document-operations-service
+display_name: Document operations service
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:document-operations
+binding:
+  skill: document-operations
+  skill_path: workspace/mymilo-build/skills/document-operations/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- agent
+keys:
+  namespace: document_operations_service
+  prefix: atm_1_document_operations_service_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Client document revision work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Document operations service — `document-operations-service`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Read, write, revise and convert documents, PDFs, spreadsheets and presentations — with findings tied to source locations and output verified after every change
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Writing & documents who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Client document revision work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the document-operations manifest
+
+The caller submits one JSON manifest: a declared document-operations
+record for one completed operation. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`DOCUMENT_OPERATIONS_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `operation` (string; carried into the verdict output, not itself checked) | — |
+| `source.file_format_and_home_identified` | source_and_extraction |
+| `source.authoritative_copy_opened` | source_and_extraction |
+| `source.read_in_source_order` | source_and_extraction |
+| `documents` (list of document-row objects, each `{name, output_reopened_and_checked}` — see the two entry fields below; computed, see below) | source_and_extraction, conversion_and_verification |
+| `documents[].name` (string; names the row in the computed `documents_without_output_verification` output) | conversion_and_verification |
+| `documents[].output_reopened_and_checked` | conversion_and_verification |
+| `findings` (list of finding-row objects, each `{name, location, quoted_exactly_before_interpretation}` — see the three entry fields below; computed, see below) | source_and_extraction |
+| `findings[].name` (string; names the row in the computed `findings_without_*` outputs) | source_and_extraction |
+| `findings[].location` (string; must be a non-empty string for the row to pass the computed location check — an absent field is missing evidence, an empty string fails) | source_and_extraction |
+| `findings[].quoted_exactly_before_interpretation` | source_and_extraction |
+| `extraction.every_number_has_source_location` | source_and_extraction |
+| `extraction.numbers_quoted_exactly_then_interpreted_separately` | source_and_extraction |
+| `extraction.figure_quoted_without_location_present` (must be `false` to pass — skill red line) | source_and_extraction |
+| `extraction.unreadable_or_missing_sections_named` | source_and_extraction |
+| `editing.edits_performed` (gates the change-list check below) | delivery_and_hygiene |
+| `editing.edits_on_editable_source` | editing_and_preservation |
+| `editing.headings_tables_styles_preserved` | editing_and_preservation |
+| `editing.rewrite_requested` (inverted gate for the tracked-structure check below: the check binds when no rewrite is declared requested, and passes as not applicable when a rewrite is declared requested) | editing_and_preservation |
+| `editing.tracked_structure_intact` (required when no rewrite is declared requested; otherwise the check passes as not applicable) | editing_and_preservation |
+| `preservation.editable_source_saved_alongside_output` | editing_and_preservation |
+| `preservation.revisable_deliverable_present` (gates the editable-source-kept check below) | editing_and_preservation |
+| `preservation.editable_source_kept_for_revisable` (required when a revisable deliverable is declared; otherwise the check passes as not applicable) | editing_and_preservation |
+| `preservation.only_editable_source_overwritten_with_flattened_export_present` (must be `false` to pass — skill red line) | editing_and_preservation |
+| `conversion.conversion_performed` (gates the three conversion checks below) | conversion_and_verification |
+| `conversion.output_reopened_and_compared_section_by_section` (required when a conversion is declared performed; otherwise the check passes as not applicable) | conversion_and_verification |
+| `conversion.headings_tables_lists_figures_totals_survive` (required when a conversion is declared performed; otherwise the check passes as not applicable) | conversion_and_verification |
+| `conversion.content_loss_detected` (gates the loss-handling check below) | conversion_and_verification |
+| `conversion.loss_fixed_or_reported_plainly` (required when a content loss is declared detected; otherwise the check passes as not applicable) | conversion_and_verification |
+| `conversion.conversion_with_dropped_content_shipped_present` (must be `false` to pass when a conversion is declared performed — skill red line; passes as not applicable when no conversion is declared) | conversion_and_verification |
+| `verification.output_reopened_and_checked_after_edit_or_conversion` | conversion_and_verification |
+| `verification.headings_tables_totals_match_source_and_output` | conversion_and_verification |
+| `deliverable.shared_externally` (gates the two send-format checks below) | delivery_and_hygiene |
+| `deliverable.send_copy_is_docx_not_markdown` (required when an externally shared deliverable is declared; otherwise the check passes as not applicable) | delivery_and_hygiene |
+| `deliverable.markdown_sent_as_external_deliverable_present` (must be `false` to pass when an externally shared deliverable is declared — skill red line; passes as not applicable when none is declared) | delivery_and_hygiene |
+| `deliverable.draft_banners_comments_tracked_changes_stripped` | delivery_and_hygiene |
+| `deliverable.send_copy_contains_draft_marks_present` (must be `false` to pass — skill quality gate) | delivery_and_hygiene |
+| `delivery.findings_first_in_decision_order_with_locations` | delivery_and_hygiene |
+| `delivery.change_list_provided` (required when edits are declared performed; otherwise the check passes as not applicable) | delivery_and_hygiene |
+| `delivery.finished_file_in_send_format_plus_editable_source` | delivery_and_hygiene |
+| `delivery.loss_gap_unreadable_stated_in_delivery_note` | delivery_and_hygiene |
+
+Five checks are computed from the declared rows, using only the
+consistency of the declared record itself — no outside threshold
+is imported:
+
+- **Documents declared:** the declared `documents` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Findings declared:** the declared `findings` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Location per finding:** every declared finding row must record
+  a source location (a non-empty `location` string). A row with
+  the field absent is missing evidence; a row naming an empty
+  string fails.
+- **Exact quote per finding:** every declared finding row must
+  declare `quoted_exactly_before_interpretation: true`. A row with
+  the field absent is missing evidence.
+- **Output verification per document:** every declared document
+  row must declare `output_reopened_and_checked: true`. A row with
+  the field absent is missing evidence.
+
+Five check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Tracked structure:** the skill binds its preservation rule to
+  the absence of a rewrite request ("keep tracked structure
+  intact unless you were asked to rewrite").
+  `tracked_structure_intact` is therefore required when
+  `editing.rewrite_requested` is declared `false` **or absent**
+  (no rewrite requested); when a rewrite is declared requested,
+  the check passes as not applicable.
+- **Conversion comparison and survival:** the skill binds its
+  re-open-and-compare rule to conversions ("for conversion,
+  convert, then re-open the output and compare section by
+  section"). Both checks — and the dropped-content red line — are
+  therefore required only when `conversion.conversion_performed`
+  is declared `true`; when no conversion is declared, they pass
+  as not applicable.
+- **Conversion loss handling:** the skill binds its fix-or-report
+  rule to a detected loss ("if conversion drops content, garbles
+  a table, or loses formatting that carries meaning, treat it as
+  failed — fix it or report the loss plainly").
+  `loss_fixed_or_reported_plainly` is therefore required only
+  when `conversion.content_loss_detected` is declared `true`;
+  when no loss is declared detected, the check passes as not
+  applicable.
+- **Shared-deliverable format:** the skill binds its proper-.docx
+  rule to deliverables meant for people outside the caller's
+  systems ("never send Markdown when the deliverable is meant for
+  people outside your systems"). Both format checks are therefore
+  required only when `deliverable.shared_externally` is declared
+  `true`; when no external sharing is declared, they pass as not
+  applicable.
+- **Editable source kept, and change list:** the skill binds its
+  source-keeping gate to deliverables likely to be revised again
+  ("an editable source is kept for anything likely to be revised
+  again"), so `editable_source_kept_for_revisable` is required
+  only when `preservation.revisable_deliverable_present` is
+  declared `true`; and its change-list delivery shape to edits
+  ("a short change list for edits"), so
+  `delivery.change_list_provided` is required only when
+  `editing.edits_performed` is declared `true`. Each passes as
+  not applicable when its gate is declared `false`.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`documents_count` and `findings_count` (the declared list
+lengths, or null when the list is not declared — counts are
+reported as integers, exactly), the row-name lists
+`documents_without_output_verification`,
+`findings_without_location` and
+`findings_not_quoted_exactly_first` (null when the underlying
+list is not declared), and the three coverage ratios
+`output_verification_coverage` (documents declaring a re-opened,
+checked output ÷ declared documents), `location_coverage`
+(findings recording a location ÷ declared findings) and
+`exact_quote_coverage` (findings declaring an exact quote before
+interpretation ÷ declared findings).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly four decimal places, produced in both
+implementations by the same rule — round half up to 4dp,
+`floor(v * 10000 + 0.5) / 10000`, then format with exactly four
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric threshold — no finding or document
+count, no coverage percentage, no page, sheet or section count —
+so no numeric threshold check is invented. Quantities are
+computed and reported; the only bar on the computed rows is
+completeness over the caller's own declared rows (every declared
+finding, every declared document), exactly as stated above.
+Declined thresholds, named: a minimum or maximum finding/document
+count; a coverage percentage below completeness; a numeric limit
+on unreadable or missing sections; a file-size or page-count
+limit; a naming convention for documents, findings or files, and
+a versioning scheme for revisions (the skill names neither — it
+requires only that the editable source be kept alongside the
+output, which is checked); a retention period for kept editable
+sources (the skill requires the source be kept, and states no
+duration).
+
+The verdict is one of `DOCUMENT_OPERATIONS_SOUND` (all 32 checks
+pass), `DOCUMENT_OPERATIONS_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across four sections: source_and_extraction,
+editing_and_preservation, conversion_and_verification,
+delivery_and_hygiene.
+
+## Honest scoping
+
+This atom audits a **declared** document-operations record — it
+opens no file, reads no document, extracts no figure, performs no
+edit or conversion, and does not verify that a declared control
+actually happened. An operation is sound *on the caller's
+declared evidence*: a manifest that declares located findings,
+verified outputs and stripped send copies passes those checks
+even if the real work did none of it. It is a completeness and
+consistency audit of the record the skill requires, **not a
+document-processing service or a fidelity certification**: it
+never judges whether a quoted figure is actually correct,
+whether a recorded location actually contains the finding,
+whether a conversion truly preserved meaning, or whether the
+summary is faithful — only that the record contains what the
+skill's method, quality gates, red lines and delivery shape
+demand, and that its declared rows are internally consistent.
+
+The non-reducible parts of the skill are caller declarations
+only, stated plainly: the actual extraction, editing and
+conversion craft (reading a scanned or awkward PDF, recovering
+its content, judging whether formatting "carries meaning",
+matching a presentation's claims back to its sources, and
+summarising faithfully while keeping key figures) is performed
+by the caller, never by this atom — the atom checks only the
+declared attestations and row consistency named above. Named
+exclusions: no numeric thresholds (see the declined list above);
+no naming or versioning posture is checked (the skill states
+none); no retention duration is checked (the skill states none);
+no inspection of any document, spreadsheet, deck or output file;
+no check that a location string is a well-formed page, cell or
+slide reference beyond being a non-empty declared string (the
+skill names the reference kinds, and states no grammar for
+them); no live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Commodity document handling
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "document-operations-service",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DOCUMENT_OPERATIONS_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 32 checks pass; documents_count=1, findings_count=1, coverages 1.0000, computed_status within_stated_limits_on_declared_evidence. [Tester correction R2: designer carried computed quantities only in prose notes with no structured computed_spot_checks; added structured block.]",
+        "computed_spot_checks": {
+          "documents_count": 1,
+          "findings_count": 1,
+          "documents_without_output_verification": [],
+          "findings_without_location": [],
+          "findings_not_quoted_exactly_first": [],
+          "output_verification_coverage": "1.0000",
+          "location_coverage": "1.0000",
+          "exact_quote_coverage": "1.0000",
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "operation": "annual_report_audit",
+        "source": {
+          "file_format_and_home_identified": true,
+          "authoritative_copy_opened": true,
+          "read_in_source_order": true
+        },
+        "documents": [
+          {
+            "name": "doc_01",
+            "output_reopened_and_checked": true
+          }
+        ],
+        "findings": [
+          {
+            "name": "finding_01",
+            "location": "page_12",
+            "quoted_exactly_before_interpretation": true
+          }
+        ],
+        "extraction": {
+          "every_number_has_source_location": true,
+          "numbers_quoted_exactly_then_interpreted_separately": true,
+          "figure_quoted_without_location_present": false,
+          "unreadable_or_missing_sections_named": true
+        },
+        "editing": {
+          "edits_performed": false,
+          "edits_on_editable_source": true,
+          "headings_tables_styles_preserved": true,
+          "rewrite_requested": false,
+          "tracked_structure_intact": true
+        },
+        "preservation": {
+          "editable_source_saved_alongside_output": true,
+          "revisable_deliverable_present": false,
+          "editable_source_kept_for_revisable": true,
+          "only_editable_source_overwritten_with_flattened_export_present": false
+        },
+        "conversion": {
+          "conversion_performed": false,
+          "output_reopened_and_compared_section_by_section": true,
+          "headings_tables_lists_figures_totals_survive": true,
+          "content_loss_detected": false,
+          "loss_fixed_or_reported_plainly": true,
+          "conversion_with_dropped_content_shipped_present": false
+        },
+        "verification": {
+          "output_reopened_and_checked_after_edit_or_conversion": true,
+          "headings_tables_totals_match_source_and_output": true
+        },
+        "deliverable": {
+          "shared_externally": false,
+          "send_copy_is_docx_not_markdown": true,
+          "markdown_sent_as_external_deliverable_present": false,
+          "draft_banners_comments_tracked_changes_stripped": true,
+          "send_copy_contains_draft_marks_present": false
+        },
+        "delivery": {
+          "findings_first_in_decision_order_with_locations": true,
+          "change_list_provided": true,
+          "finished_file_in_send_format_plus_editable_source": true,
+          "loss_gap_unreadable_stated_in_delivery_note": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "document-operations-service",
+        "atom_version": "0.1.0",
+        "operation": "annual_report_audit",
+        "verdict": "DOCUMENT_OPERATIONS_SOUND",
+        "sections": {
+          "source_and_extraction": "pass",
+          "editing_and_preservation": "pass",
+          "conversion_and_verification": "pass",
+          "delivery_and_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "source_and_extraction",
+            "check": "file_format_and_home_identified",
+            "status": "pass",
+            "evidence": "method: the file, its format, and its home \u2014 Vault, Drive, Docs, Notion, Box, or Dropbox \u2014 are identified"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "authoritative_copy_opened",
+            "status": "pass",
+            "evidence": "method: the authoritative copy is opened, not a stale download"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "read_in_source_order",
+            "status": "pass",
+            "evidence": "method: extraction reads in source order and keeps locations attached to everything pulled"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "documents_declared",
+            "status": "pass",
+            "evidence": "method: the declared operation record names its documents \u2014 the documents list is present and non-empty"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "findings_declared",
+            "status": "pass",
+            "evidence": "method: the declared operation record names its findings \u2014 the findings list is present and non-empty"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_finding_has_location_recorded",
+            "status": "pass",
+            "evidence": "method / quality gate: every declared finding row records its location \u2014 page for PDFs and docs, sheet and cell for spreadsheets, slide number for decks"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_finding_quoted_exactly_before_interpretation",
+            "status": "pass",
+            "evidence": "method: every declared finding row declares its numbers were quoted exactly as written first, before any interpretation"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_quoted_number_carries_source_location",
+            "status": "pass",
+            "evidence": "quality gate / red line: every quoted number carries a page, sheet/cell, or slide reference"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "numbers_quoted_exactly_then_interpreted_separately",
+            "status": "pass",
+            "evidence": "method: numbers are quoted exactly as written first, then interpreted separately \u2014 a figure and its reading are never merged into one line"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "no_figure_quoted_without_location",
+            "status": "pass",
+            "evidence": "red line: no figure is quoted from a document without its source location"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "unreadable_or_missing_sections_named",
+            "status": "pass",
+            "evidence": "quality gate / method: unreadable or missing sections are named, not skipped over \u2014 the report states any pages, sheets, or sections that could not be read"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "edits_made_on_editable_source",
+            "status": "pass",
+            "evidence": "method: edits are worked on the editable source"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "headings_tables_styles_preserved",
+            "status": "pass",
+            "evidence": "method: headings, tables, and styles are preserved in edits"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "tracked_structure_intact_unless_rewrite_requested",
+            "status": "pass",
+            "evidence": "method: tracked structure is kept intact \u2014 no rewrite was requested"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "editable_source_saved_alongside_output",
+            "status": "pass",
+            "evidence": "method: the revised editable source is saved alongside the output, so the next edit starts from a real source, not a flattened export"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "editable_source_kept_when_revisable",
+            "status": "pass",
+            "evidence": "no revisable deliverable declared"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "only_editable_source_not_overwritten_with_flattened_export",
+            "status": "pass",
+            "evidence": "red line: the only editable source is never overwritten with a flattened export"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "every_document_output_reopened_and_checked",
+            "status": "pass",
+            "evidence": "quality gate: every declared document row declares its output file was re-opened and checked after editing or conversion \u2014 the finished file is verified, not the file that was intended"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "output_reopened_and_checked_after_edit_or_conversion",
+            "status": "pass",
+            "evidence": "quality gate: the output file was re-opened and checked after editing or conversion"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "headings_tables_totals_match_source_and_output",
+            "status": "pass",
+            "evidence": "quality gate: headings, tables, and totals match between source and output"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_output_reopened_and_compared_when_converted",
+            "status": "pass",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_content_survives_when_converted",
+            "status": "pass",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_loss_fixed_or_reported_when_detected",
+            "status": "pass",
+            "evidence": "no conversion content loss declared detected"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "no_conversion_with_dropped_content_shipped",
+            "status": "pass",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "send_copy_is_docx_not_markdown_when_shared",
+            "status": "pass",
+            "evidence": "no externally shared deliverable declared"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "no_markdown_sent_as_external_deliverable",
+            "status": "pass",
+            "evidence": "no externally shared deliverable declared"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "draft_banners_comments_tracked_changes_stripped",
+            "status": "pass",
+            "evidence": "method: draft banners, review marks, comments, and tracked changes are stripped from the send copy"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "send_copy_free_of_draft_marks",
+            "status": "pass",
+            "evidence": "quality gate: send copies have zero draft banners, comments, or tracked changes"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "findings_first_in_decision_order_with_locations",
+            "status": "pass",
+            "evidence": "delivery: findings come first, in the order the decision needs them, locations attached"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "change_list_provided_when_edits_performed",
+            "status": "pass",
+            "evidence": "no edits declared performed"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "finished_file_in_send_format_plus_editable_source",
+            "status": "pass",
+            "evidence": "delivery: the finished file is delivered in its send format, plus the editable source kept beside it"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "loss_gap_unreadable_stated_in_delivery_note",
+            "status": "pass",
+            "evidence": "delivery: any loss, gap, or unreadable section is stated in the delivery note itself"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "documents_count": 1,
+        "documents_without_output_verification": [],
+        "output_verification_coverage": "1.0000",
+        "findings_count": 1,
+        "findings_without_location": [],
+        "location_coverage": "1.0000",
+        "findings_not_quoted_exactly_first": [],
+        "exact_quote_coverage": "1.0000",
+        "summary": "32 pass, 0 fail, 0 missing of 32 checks across four sections.",
+        "stamp": "DOCUMENT OPERATIONS SERVICE\noperation: annual_report_audit\nVERDICT: DOCUMENT_OPERATIONS_SOUND\n  source_and_extraction                pass\n  editing_and_preservation             pass\n  conversion_and_verification          pass\n  delivery_and_hygiene                 pass\n32 pass, 0 fail, 0 missing of 32 checks across four sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DOCUMENT_OPERATIONS_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_document_output_reopened_and_checked",
+          "every_finding_has_location_recorded",
+          "every_finding_quoted_exactly_before_interpretation",
+          "no_figure_quoted_without_location"
+        ],
+        "notes": "Full manifest carrying exactly 4 planted violations: documents[0].output_reopened_and_checked=false fails every_document_output_reopened_and_checked; findings[0].location='' fails every_finding_has_location_recorded; findings[0].quoted_exactly_before_interpretation=false fails every_finding_quoted_exactly_before_interpretation; extraction.figure_quoted_without_location_present=true fails no_figure_quoted_without_location; computed_status outside_stated_limits_on_declared_evidence, all coverages 0.0000. [Tester corrections: R1 designer named field paths (output_reopened_and_checked, location, quoted_exactly_before_interpretation, figure_quoted_without_location_present) instead of exact check names - corrected to the 4 exact register names; R2 computed quantities only in prose - added structured block; R3 violations input was sparse - rebuilt as full manifest from full-pass changing only planted values.]",
+        "computed_spot_checks": {
+          "documents_count": 1,
+          "findings_count": 1,
+          "documents_without_output_verification": [
+            "bad_doc"
+          ],
+          "findings_without_location": [
+            "bad_finding"
+          ],
+          "findings_not_quoted_exactly_first": [
+            "bad_finding"
+          ],
+          "output_verification_coverage": "0.0000",
+          "location_coverage": "0.0000",
+          "exact_quote_coverage": "0.0000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "operation": "bad_audit",
+        "source": {
+          "file_format_and_home_identified": true,
+          "authoritative_copy_opened": true,
+          "read_in_source_order": true
+        },
+        "documents": [
+          {
+            "name": "bad_doc",
+            "output_reopened_and_checked": false
+          }
+        ],
+        "findings": [
+          {
+            "name": "bad_finding",
+            "location": "",
+            "quoted_exactly_before_interpretation": false
+          }
+        ],
+        "extraction": {
+          "every_number_has_source_location": true,
+          "numbers_quoted_exactly_then_interpreted_separately": true,
+          "figure_quoted_without_location_present": true,
+          "unreadable_or_missing_sections_named": true
+        },
+        "editing": {
+          "edits_performed": false,
+          "edits_on_editable_source": true,
+          "headings_tables_styles_preserved": true,
+          "rewrite_requested": false,
+          "tracked_structure_intact": true
+        },
+        "preservation": {
+          "editable_source_saved_alongside_output": true,
+          "revisable_deliverable_present": false,
+          "editable_source_kept_for_revisable": true,
+          "only_editable_source_overwritten_with_flattened_export_present": false
+        },
+        "conversion": {
+          "conversion_performed": false,
+          "output_reopened_and_compared_section_by_section": true,
+          "headings_tables_lists_figures_totals_survive": true,
+          "content_loss_detected": false,
+          "loss_fixed_or_reported_plainly": true,
+          "conversion_with_dropped_content_shipped_present": false
+        },
+        "verification": {
+          "output_reopened_and_checked_after_edit_or_conversion": true,
+          "headings_tables_totals_match_source_and_output": true
+        },
+        "deliverable": {
+          "shared_externally": false,
+          "send_copy_is_docx_not_markdown": true,
+          "markdown_sent_as_external_deliverable_present": false,
+          "draft_banners_comments_tracked_changes_stripped": true,
+          "send_copy_contains_draft_marks_present": false
+        },
+        "delivery": {
+          "findings_first_in_decision_order_with_locations": true,
+          "change_list_provided": true,
+          "finished_file_in_send_format_plus_editable_source": true,
+          "loss_gap_unreadable_stated_in_delivery_note": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "document-operations-service",
+        "atom_version": "0.1.0",
+        "operation": "bad_audit",
+        "verdict": "DOCUMENT_OPERATIONS_NOT_SOUND",
+        "sections": {
+          "source_and_extraction": "fail",
+          "editing_and_preservation": "pass",
+          "conversion_and_verification": "fail",
+          "delivery_and_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "source_and_extraction",
+            "check": "file_format_and_home_identified",
+            "status": "pass",
+            "evidence": "method: the file, its format, and its home \u2014 Vault, Drive, Docs, Notion, Box, or Dropbox \u2014 are identified"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "authoritative_copy_opened",
+            "status": "pass",
+            "evidence": "method: the authoritative copy is opened, not a stale download"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "read_in_source_order",
+            "status": "pass",
+            "evidence": "method: extraction reads in source order and keeps locations attached to everything pulled"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "documents_declared",
+            "status": "pass",
+            "evidence": "method: the declared operation record names its documents \u2014 the documents list is present and non-empty"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "findings_declared",
+            "status": "pass",
+            "evidence": "method: the declared operation record names its findings \u2014 the findings list is present and non-empty"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_finding_has_location_recorded",
+            "status": "fail",
+            "evidence": "method / quality gate: every declared finding row records its location \u2014 page for PDFs and docs, sheet and cell for spreadsheets, slide number for decks"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_finding_quoted_exactly_before_interpretation",
+            "status": "fail",
+            "evidence": "method: every declared finding row declares its numbers were quoted exactly as written first, before any interpretation"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_quoted_number_carries_source_location",
+            "status": "pass",
+            "evidence": "quality gate / red line: every quoted number carries a page, sheet/cell, or slide reference"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "numbers_quoted_exactly_then_interpreted_separately",
+            "status": "pass",
+            "evidence": "method: numbers are quoted exactly as written first, then interpreted separately \u2014 a figure and its reading are never merged into one line"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "no_figure_quoted_without_location",
+            "status": "fail",
+            "evidence": "red line: no figure is quoted from a document without its source location"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "unreadable_or_missing_sections_named",
+            "status": "pass",
+            "evidence": "quality gate / method: unreadable or missing sections are named, not skipped over \u2014 the report states any pages, sheets, or sections that could not be read"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "edits_made_on_editable_source",
+            "status": "pass",
+            "evidence": "method: edits are worked on the editable source"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "headings_tables_styles_preserved",
+            "status": "pass",
+            "evidence": "method: headings, tables, and styles are preserved in edits"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "tracked_structure_intact_unless_rewrite_requested",
+            "status": "pass",
+            "evidence": "method: tracked structure is kept intact \u2014 no rewrite was requested"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "editable_source_saved_alongside_output",
+            "status": "pass",
+            "evidence": "method: the revised editable source is saved alongside the output, so the next edit starts from a real source, not a flattened export"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "editable_source_kept_when_revisable",
+            "status": "pass",
+            "evidence": "no revisable deliverable declared"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "only_editable_source_not_overwritten_with_flattened_export",
+            "status": "pass",
+            "evidence": "red line: the only editable source is never overwritten with a flattened export"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "every_document_output_reopened_and_checked",
+            "status": "fail",
+            "evidence": "quality gate: every declared document row declares its output file was re-opened and checked after editing or conversion \u2014 the finished file is verified, not the file that was intended"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "output_reopened_and_checked_after_edit_or_conversion",
+            "status": "pass",
+            "evidence": "quality gate: the output file was re-opened and checked after editing or conversion"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "headings_tables_totals_match_source_and_output",
+            "status": "pass",
+            "evidence": "quality gate: headings, tables, and totals match between source and output"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_output_reopened_and_compared_when_converted",
+            "status": "pass",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_content_survives_when_converted",
+            "status": "pass",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_loss_fixed_or_reported_when_detected",
+            "status": "pass",
+            "evidence": "no conversion content loss declared detected"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "no_conversion_with_dropped_content_shipped",
+            "status": "pass",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "send_copy_is_docx_not_markdown_when_shared",
+            "status": "pass",
+            "evidence": "no externally shared deliverable declared"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "no_markdown_sent_as_external_deliverable",
+            "status": "pass",
+            "evidence": "no externally shared deliverable declared"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "draft_banners_comments_tracked_changes_stripped",
+            "status": "pass",
+            "evidence": "method: draft banners, review marks, comments, and tracked changes are stripped from the send copy"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "send_copy_free_of_draft_marks",
+            "status": "pass",
+            "evidence": "quality gate: send copies have zero draft banners, comments, or tracked changes"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "findings_first_in_decision_order_with_locations",
+            "status": "pass",
+            "evidence": "delivery: findings come first, in the order the decision needs them, locations attached"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "change_list_provided_when_edits_performed",
+            "status": "pass",
+            "evidence": "no edits declared performed"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "finished_file_in_send_format_plus_editable_source",
+            "status": "pass",
+            "evidence": "delivery: the finished file is delivered in its send format, plus the editable source kept beside it"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "loss_gap_unreadable_stated_in_delivery_note",
+            "status": "pass",
+            "evidence": "delivery: any loss, gap, or unreadable section is stated in the delivery note itself"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "documents_count": 1,
+        "documents_without_output_verification": [
+          "bad_doc"
+        ],
+        "output_verification_coverage": "0.0000",
+        "findings_count": 1,
+        "findings_without_location": [
+          "bad_finding"
+        ],
+        "location_coverage": "0.0000",
+        "findings_not_quoted_exactly_first": [
+          "bad_finding"
+        ],
+        "exact_quote_coverage": "0.0000",
+        "summary": "28 pass, 4 fail, 0 missing of 32 checks across four sections.",
+        "stamp": "DOCUMENT OPERATIONS SERVICE\noperation: bad_audit\nVERDICT: DOCUMENT_OPERATIONS_NOT_SOUND\n  source_and_extraction                fail\n  editing_and_preservation             pass\n  conversion_and_verification          fail\n  delivery_and_hygiene                 pass\n28 pass, 4 fail, 0 missing of 32 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists and fields; results in insufficient evidence."
+      },
+      "input": {
+        "operation": "minimal_test"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "document-operations-service",
+        "atom_version": "0.1.0",
+        "operation": "minimal_test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "source_and_extraction": "insufficient_evidence",
+          "editing_and_preservation": "insufficient_evidence",
+          "conversion_and_verification": "insufficient_evidence",
+          "delivery_and_hygiene": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "source_and_extraction",
+            "check": "file_format_and_home_identified",
+            "status": "missing",
+            "evidence": "method: the file, its format, and its home \u2014 Vault, Drive, Docs, Notion, Box, or Dropbox \u2014 are identified"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "authoritative_copy_opened",
+            "status": "missing",
+            "evidence": "method: the authoritative copy is opened, not a stale download"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "read_in_source_order",
+            "status": "missing",
+            "evidence": "method: extraction reads in source order and keeps locations attached to everything pulled"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "documents_declared",
+            "status": "missing",
+            "evidence": "method: the declared operation record names its documents \u2014 the documents list is present and non-empty"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "findings_declared",
+            "status": "missing",
+            "evidence": "method: the declared operation record names its findings \u2014 the findings list is present and non-empty"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_finding_has_location_recorded",
+            "status": "missing",
+            "evidence": "method / quality gate: every declared finding row records its location \u2014 page for PDFs and docs, sheet and cell for spreadsheets, slide number for decks"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_finding_quoted_exactly_before_interpretation",
+            "status": "missing",
+            "evidence": "method: every declared finding row declares its numbers were quoted exactly as written first, before any interpretation"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "every_quoted_number_carries_source_location",
+            "status": "missing",
+            "evidence": "quality gate / red line: every quoted number carries a page, sheet/cell, or slide reference"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "numbers_quoted_exactly_then_interpreted_separately",
+            "status": "missing",
+            "evidence": "method: numbers are quoted exactly as written first, then interpreted separately \u2014 a figure and its reading are never merged into one line"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "no_figure_quoted_without_location",
+            "status": "missing",
+            "evidence": "red line: no figure is quoted from a document without its source location"
+          },
+          {
+            "section": "source_and_extraction",
+            "check": "unreadable_or_missing_sections_named",
+            "status": "missing",
+            "evidence": "quality gate / method: unreadable or missing sections are named, not skipped over \u2014 the report states any pages, sheets, or sections that could not be read"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "edits_made_on_editable_source",
+            "status": "missing",
+            "evidence": "method: edits are worked on the editable source"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "headings_tables_styles_preserved",
+            "status": "missing",
+            "evidence": "method: headings, tables, and styles are preserved in edits"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "tracked_structure_intact_unless_rewrite_requested",
+            "status": "missing",
+            "evidence": "method: tracked structure is kept intact \u2014 no rewrite was requested"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "editable_source_saved_alongside_output",
+            "status": "missing",
+            "evidence": "method: the revised editable source is saved alongside the output, so the next edit starts from a real source, not a flattened export"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "editable_source_kept_when_revisable",
+            "status": "missing",
+            "evidence": "no revisable deliverable declared"
+          },
+          {
+            "section": "editing_and_preservation",
+            "check": "only_editable_source_not_overwritten_with_flattened_export",
+            "status": "missing",
+            "evidence": "red line: the only editable source is never overwritten with a flattened export"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "every_document_output_reopened_and_checked",
+            "status": "missing",
+            "evidence": "quality gate: every declared document row declares its output file was re-opened and checked after editing or conversion \u2014 the finished file is verified, not the file that was intended"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "output_reopened_and_checked_after_edit_or_conversion",
+            "status": "missing",
+            "evidence": "quality gate: the output file was re-opened and checked after editing or conversion"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "headings_tables_totals_match_source_and_output",
+            "status": "missing",
+            "evidence": "quality gate: headings, tables, and totals match between source and output"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_output_reopened_and_compared_when_converted",
+            "status": "missing",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_content_survives_when_converted",
+            "status": "missing",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "conversion_loss_fixed_or_reported_when_detected",
+            "status": "missing",
+            "evidence": "no conversion content loss declared detected"
+          },
+          {
+            "section": "conversion_and_verification",
+            "check": "no_conversion_with_dropped_content_shipped",
+            "status": "missing",
+            "evidence": "no conversion declared performed"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "send_copy_is_docx_not_markdown_when_shared",
+            "status": "missing",
+            "evidence": "no externally shared deliverable declared"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "no_markdown_sent_as_external_deliverable",
+            "status": "missing",
+            "evidence": "no externally shared deliverable declared"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "draft_banners_comments_tracked_changes_stripped",
+            "status": "missing",
+            "evidence": "method: draft banners, review marks, comments, and tracked changes are stripped from the send copy"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "send_copy_free_of_draft_marks",
+            "status": "missing",
+            "evidence": "quality gate: send copies have zero draft banners, comments, or tracked changes"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "findings_first_in_decision_order_with_locations",
+            "status": "missing",
+            "evidence": "delivery: findings come first, in the order the decision needs them, locations attached"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "change_list_provided_when_edits_performed",
+            "status": "missing",
+            "evidence": "no edits declared performed"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "finished_file_in_send_format_plus_editable_source",
+            "status": "missing",
+            "evidence": "delivery: the finished file is delivered in its send format, plus the editable source kept beside it"
+          },
+          {
+            "section": "delivery_and_hygiene",
+            "check": "loss_gap_unreadable_stated_in_delivery_note",
+            "status": "missing",
+            "evidence": "delivery: any loss, gap, or unreadable section is stated in the delivery note itself"
+          }
+        ],
+        "computed_status": null,
+        "documents_count": null,
+        "documents_without_output_verification": null,
+        "output_verification_coverage": null,
+        "findings_count": null,
+        "findings_without_location": null,
+        "location_coverage": null,
+        "findings_not_quoted_exactly_first": null,
+        "exact_quote_coverage": null,
+        "summary": "0 pass, 0 fail, 32 missing of 32 checks across four sections.",
+        "stamp": "DOCUMENT OPERATIONS SERVICE\noperation: minimal_test\nVERDICT: INSUFFICIENT_EVIDENCE\n  source_and_extraction                insufficient_evidence\n  editing_and_preservation             insufficient_evidence\n  conversion_and_verification          insufficient_evidence\n  delivery_and_hygiene                 insufficient_evidence\n0 pass, 0 fail, 32 missing of 32 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Exactly one type violation of a documented typed field: documents expects a list, received a string. Expect HTTP 422 invalid_input on field documents."
+      },
+      "input": {
+        "operation": "type_error",
+        "documents": "not_a_list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "documents",
+        "detail": "documents must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

@@ -1,5 +1,7 @@
 # Lean4 formal proof — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You hold a Lean 4 formal proof you want to trust. This atom does not prove theorems — it audits a *declared* proof artifact: you submit one manifest declaring the proof's setup (pinned toolchain and versions, green lake build), statement integrity, total and executable definitions, proof integrity, per-theorem declarations (sorry counts, axioms, kernel-check status — five checks are computed from the theorems list, not declared), build attestation and model alignment, and it returns one deterministic verdict across seven sections with per-check evidence: **VERIFIED**, **NOT_VERIFIED**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out.

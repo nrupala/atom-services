@@ -1,5 +1,7 @@
 # Network exposure audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You run networked systems and need the exposure story straight. This atom reads a short evidence manifest describing your network posture — a current endpoint inventory, segmentation into trust zones, TLS everywhere with valid certs, DNS/email authentication, edge access controls, and egress/logging evidence — and returns one deterministic verdict across six sections (inventory, segmentation, tls, dns_email, edge_access, egress_evidence) with per-check evidence: **SOUND**, **UNSOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out.

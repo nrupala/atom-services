@@ -1,5 +1,7 @@
 # Community support operations — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a support/community operations artifact — its intake channels and SLA targets, its declared intake and triage counts, its help-doc and top-theme record, its triage categories, its response-craft and red-line record, its release and incident comms record, its community norms, and its measurement record. This atom reads one declared manifest and returns one deterministic verdict across seven sections: **COMMUNITY_SUPPORT_READY**, **COMMUNITY_SUPPORT_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared artifact's completeness and internal consistency only — it does not run a support desk or a community, answer a ticket, moderate a community, verify that a declared value is true, or judge whether users are actually well served. Computed checks: the SLA targets must respect severity order (outage target shorter than broken, broken shorter than question — no hour value itself is judged); the tracked message count must equal the received count, with a positive received count; the top-theme count must be the 10 the skill names and the themes with a doc or backlog entry must equal it; the triage categories used must contain all four stated entries — `bug`, `feature`, `usage`, `noise`; and the threads closed with a resolution or tracked item must equal the thread total, with a positive total. Same manifest in → same verdict out.

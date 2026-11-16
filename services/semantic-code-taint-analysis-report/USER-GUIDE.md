@@ -1,5 +1,7 @@
 # Semantic code taint analysis report — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You export a code graph from your own analyser — nodes (sources of

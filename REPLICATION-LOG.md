@@ -1994,3 +1994,227 @@ listing names from the start.
 Differentials total **2,508 cases, 0 mismatches**. Distinct-ground statements recorded in SERVICE.md for the two sibling-adjacent atoms: electrical-machines-expert-advice (SME advice record vs the live electrical-machinery-engineering-check's machinery manifest; zero check overlap) and finance-education-article (article-production record vs finance-content-compliance-check's compliance posture; no shared checks). One builder-found oracle bug fixed during authoring (edge-platform-engineering: storage-rationale double-count). Declined thresholds named per atom in SERVICE.md (no invented numeric limits anywhere; efficient-web-build-standard's computed checks use only the skill's own stated numbers). Noted for a future house ruling (no action taken): the F1 error class convention — oracles raise a FieldTypeError subclassing both ValueError and TypeError; gateway behavior (422) is unaffected.
 
 **Program state after Batch 13 staging:** 162 = **79 live** (all externally PASSING through Wave 6; Batch 12's seven await Wave 7 first-test) + **7 staged** (Batch 13) + **6 parked** (Tier A set, owner's ruling outstanding) + **8 G2 passed over** + **62 Tier B G1 unwalked**. All batches RC, soak to 2026-11-22. All contract rates null.
+
+## Batch 13 — DEPLOYED (2026-11-15)
+
+**Deploy (house path: declare → deploy2 → certify → close):**
+gateway suite on the final tree (commit `ec48d31` content) —
+**3689/3689 green**; site-integrity declaration
+`ea897b3d-2efa-4831-b4a9-e4b3da53c08c` opened and closed after
+certify; bindings read from LIVE worker settings and passed
+through unchanged (DB → atoms-state D1, PUBLIC_BASE_URL=
+https://atoms.pipavia.com, **STRIPE_MODE stays `test`**, three
+pack price IDs intact), all rates still `null`; deploy2 upload —
+**deployment `5cf70cb60526415d89b4db5e5cd02744`, certified sha256
+`c48a008621ac01028de010a6d01b692cf741548713c7ba832b1addb9db4531e4`**
+(sign request `e190286e-7abe-4abd-ba0c-3c76138f7055`). D1 seeding
+for Batch 13: 7 `atom_enabled` rows + 7 internal-key scopes
+inserted; read back **86 enabled / 86 internal scopes**; `/health`
+lists 86 atoms; catalogue `/api.json` carries 86.
+
+Live probes (internal key via D1-seeded session → real
+GET /v1/keys; session deleted after; probe script shredded):
+**21/21 PASS** — Batch 13 ×7: golden fixture → 200 with the
+oracle's verdict (EDGE_PLATFORM_SOUND /
+EFFICIENT_WEB_BUILD_STANDARD_MET / SOUND / BUDGET_PACK_READY /
+WORK_PACKAGE_STRUCTURED / FARE_CONSTRUCTION_SAVINGS_STRATEGY_READY
+/ ARTICLE_READY, each matched against the Python oracle run on the
+same manifest); spec-derived first-field corruption (`project` /
+`site` / `advice_id` / `entity` / `package` / `trip_label` /
+`article` set to a number) → 422 `invalid_input` naming the field;
+keyless → 401.
+
+Listings: Batch 13's seven `org.aimlds/<atom>` records flipped to
+"live — release candidate since 2026-11-15 (one-week soak to
+2026-11-22)", published via mcp-publisher (fresh DNS login), and
+read back from the registry API — all seven `active`, `isLatest`,
+content identical to the repo server.json copies. The 79 existing
+listings unchanged. **Listing completion caveat (owner's
+remediation program):** Batch 13's listings count COMPLETE only
+when their WS1 documentation pass lands — see the process counts
+below.
+
+**Process-binding counts for Batch 13 (per-atom lines, owner
+ruling 2026-11-15 20:40 MST):**
+- N-10 documentation: PROVEN 0 / OPEN 0 / WAIVED 0 / **NOT RUN 7**
+  (no DOCUMENTATION.md yet for the seven; WS1 pass is the named
+  next step. WS1's own record for the prior fleet: PROVEN 79 /
+  OPEN 0 / WAIVED 0 / NOT RUN 0 in its scope.)
+- R-18 per-atom gate verdict: PROVEN 0 / OPEN 0 / WAIVED 0 /
+  **NOT RUN 7** (the WS2 per-atom gate run of 2026-11-15 covers
+  the 79 prior atoms; its repo GATE-VERDICT records had not landed
+  at this entry's writing, and Batch 13 is outside that run's
+  scope.)
+- Guardian Mesh disposition: PROVEN 0 / OPEN 0 / WAIVED 0 /
+  **NOT RUN 7** (WS2's run files GM disposition NOT RUN for every
+  atom in its scope, with Spec Inputs GMSI-157…174; Batch 13 is
+  outside that scope and is stated NOT RUN here.)
+
+**Catalogue doc-link (WS1 staged change,
+`documentation/CATALOGUE-DOC-LINK-STAGED-CHANGE.md`, committed
+`08d48bd`):** did NOT ride this deploy — the deploy2 upload
+completed before the carry instruction reached this lane (point
+of no return passed). It rides Batch 14's deploy. Guard state at
+this entry: DOCUMENTATION.md present for 79 of 86 live atoms —
+Batch 13's seven outstanding (WS1). Ruling needed before Batch
+14's deploy: the staged guard iterates the catalogue; a deploying
+batch's own atoms cannot carry WS1 documentation before they are
+live + externally verified, so the guard's scope must be read as
+the atoms live before the deploying batch (or WS1 coverage of
+Batch 13 + 14 must land first) — parent's call, named here so the
+Batch 14 deploy does not discover it at build time.
+
+Program state: **86 of 162 atoms live** (all release candidates,
+soak to 2026-11-22), 6 parked with evidence, 8 G2 passed over in
+queue order, 55 Tier B G1 atoms not yet walked. All contract
+rates remain `null`. Next: Batch 14 authoring in census queue
+order + the source-hygiene cleanup queued by the parent
+(SERVICE.md status lines, contract.yaml endpoints alignment,
+zero-trust-evaluation-verdict inputSchema alignment,
+portfolio-risk-analytics-report guide/SERVICE alignment).
+
+## Batch 14 — AUTHORED + TEST-GREEN, STAGED (2026-11-15, coordinator session)
+
+**7 taken, 0 parked** (census Tier B queue order after
+finance-education-article; all G1 with bound skills). F1 type
+validation built into every core from the start AND every
+SERVICE.md field type documented at authoring. Python suites
+re-run by the coordinator: **275/275**. Full gateway suite on the
+integrated tree: **4013/4013** (3689 Batch 13 + 324 new: 275
+ported oracle tests + 49 golden-fixture parity). Registry rows
++7 (93 total); handlers +7 with properties generated from each
+oracle's own MANIFEST_SPEC; sync-rates regenerated (93 atoms,
+every rate null/pending); frozen files
+(billing/store/callpath/index/validate) untouched. NOT deployed —
+staged for the next deploy go (after Wave 8 verification of
+Batch 13).
+
+| atom | checks/sections | verdicts | Py | TS | differential |
+|---|---|---|---|---|---|
+| finance-tool-design-advisory | 32 / 5 | FINANCE_TOOL_DESIGN_SOUND / _NOT_SOUND / INSUFFICIENT_EVIDENCE | 35 | 42 | 142/142 |
+| forecast-confidence-scoreboard | 26 / 5 | CONFIDENCE_SCOREBOARD_SOUND / _NOT_SOUND / INSUFFICIENT_EVIDENCE | 40 | 47 | 229/229 |
+| framework-adoption-adr | 30 / 5 | FRAMEWORK_ADOPTION_SOUND / _NOT_SOUND / INSUFFICIENT_EVIDENCE | 43 | 50 | 192/192 |
+| frontend-implementation | 39 / 5 | FRONTEND_SOUND / _NOT_SOUND / INSUFFICIENT_EVIDENCE | 37 | 44 | 228/228 |
+| full-stack-app-build-pack | 57 / 6 | FULL_STACK_BUILD_SOUND / _NOT_SOUND / INSUFFICIENT_EVIDENCE | 34 | 41 | 255/255 |
+| grpc-service-design | 39 / 5 | GRPC_SERVICE_SOUND / _NOT_SOUND / INSUFFICIENT_EVIDENCE | 46 | 53 | 211/211 |
+| home-shortlist-carrying-cost-comparison | 25 / 5 | HOME_SHORTLIST_COMPARISON_READY / _NOT_READY / INSUFFICIENT_EVIDENCE | 40 | 47 | 219/219 |
+
+Differentials total **1,476 cases, 0 mismatches**. Distinct-ground
+statements recorded in SERVICE.md for the two sibling-adjacent
+atoms (forecast-confidence-scoreboard vs forecast-with-ranges —
+human-forecaster calibration ledger vs a single forecast artifact,
+zero shared checks/fields/quantities; framework-adoption-adr vs
+architecture-decision-record — framework adoption only, the
+sibling's 2–3 alternatives rule deliberately NOT imported).
+Declined thresholds named per atom in SERVICE.md (no invented
+numeric limits anywhere). One coordinator hygiene fix during
+integration: grpc-service-design's TS port carried two raw NUL
+bytes as an internal map-key separator — replaced with `\u0000`
+escapes (identical runtime string; the port's 53 tests in the full
+suite re-prove it). **Listing completion caveat (remediation
+program):** Batch 14's listings count COMPLETE only when their
+WS1 documentation pass lands — see process counts below.
+
+**Process-binding counts for Batch 14 (per-atom lines):**
+- N-10 documentation: PROVEN 0 / OPEN 0 / WAIVED 0 / **NOT RUN 7**
+  (WS1 pass follows live + external verification, per the program).
+- R-18 per-atom gate verdict: PROVEN 0 / OPEN 0 / WAIVED 0 /
+  **NOT RUN 7**.
+- Guardian Mesh disposition: PROVEN 0 / OPEN 0 / WAIVED 0 /
+  **NOT RUN 7**.
+
+## Source-hygiene cleanup — DONE (2026-11-15, Batch 14 stream; ships with the next deploy)
+
+Queued by the parent from WS1's record; each fix verified against
+recorded evidence; re-diff after edits: **0 mismatches remaining**.
+
+- **(a) SERVICE.md status lines — 86 files corrected.** Ten
+  distinct stale wordings found (all claiming built-locally /
+  scaffolded / no endpoint live); every live atom's status now
+  reads live on Conduit Atoms as a release candidate since
+  2026-11-15, soak to 2026-11-22 (tier preserved per file).
+  Special case: release-readiness-verdict carries no `## Status`
+  section — its stale "Endpoints (when live — none are yet)"
+  heading was corrected in place.
+- **(b) contract.yaml endpoints — 65 contracts aligned, 21
+  already correct.** Additions only (49 API + 65 MCP lines; 0
+  removed/changed; pricing untouched, rate null everywhere): 49
+  atoms were missing both API and MCP surfaces, 16 were missing
+  MCP only (incl. the named prediction-model-leakage-calibration-
+  audit), 0 missing API only. Verified against the live /api.json
+  feed (86 atoms, both surfaces each). Batch 7's cohort resolves
+  exactly as WS1 named it (5 of 7 understated).
+- **(c) zero-trust-evaluation-verdict MCP inputSchema — fixed.**
+  The schema lives in the shared registry
+  (`rails/gateway/src/atoms-registry.ts`, that atom's manifestAtom
+  entry only): `findings` was declared `arr(...)`; every piece of
+  recorded evidence (oracle MANIFEST_SPEC, TS port spec, 6/6
+  fixtures, all recorded verification cases, SERVICE.md field
+  paths) carries `findings` as an OBJECT of five booleans. One
+  line changed: `arr(...)` → `obj(...)`. Re-proven: spec-corruption
+  differential 311 cases, 0 mismatches (both shapes probed
+  explicitly — array forms now reject identically in oracle and
+  port); the atom's gateway test standalone 39/39; the compiled
+  handler now serves `findings: {type: "object"}` and 422s the
+  array shape. **The live gateway still serves the old array
+  schema until the next deploy carries this line.**
+- **(d) portfolio-risk-analytics-report docs — aligned to
+  recorded behavior.** USER-GUIDE.md's empty input table filled
+  (all 21 fields with types, house shape). SERVICE.md's `complete`
+  definition was stricter than the atom's own recorded full-pass
+  run (evidence 2026-11-15T23:53:46Z: verdict `complete`, 0 gaps,
+  with two layers absent and four computed blocks null — absence
+  of an unsubmitted optional section adds no gap); the status
+  paragraph + layers bullet now state the implemented rule
+  verbatim (status is a function of the returns series + the gaps
+  list alone), confirmed against the oracle's evaluate(). Docs
+  only; no code touched.
+
+## Catalogue doc-link — disposition for Batch 14's deploy (2026-11-15)
+
+Did NOT ride Batch 13's deploy (upload completed before the carry
+instruction arrived). **Implementation now built and proven** in a
+scratch tree by the coordinator: `tools/sync-docs.mjs` (committed
+in this stream, rails/gateway/tools/), the renderer + page
+(`documentation/docs.ts.reference`, to be copied to
+`rails/gateway/src/docs.ts` at apply time), the index.ts
+`/docs/<atom>` route, the catalogue.ts `documentation` feed field
++ row link, and the staged change's three test assertions —
+**full suite 4014/4014** with a proof emit over the 79 documented
+atoms; rendered pages verified (H1 title, tables/code/headings,
+seller strip). **The guard is the blocker, by design:** run
+against the current 93-atom catalogue, sync-docs exits non-zero
+naming exactly 14 atoms — Batch 13's seven + Batch 14's seven —
+with no DOCUMENTATION.md. The wiring therefore rides the first
+deploy at which the guard passes; that needs (i) WS1 coverage of
+Batch 13's seven (they are live + verified-eligible now) and
+(ii) a ruling on the guard's scope for a deploying batch's own
+atoms, which cannot carry WS1 documentation before they are live
++ externally verified (named in the Batch 13 entry; parent's
+call). Until then the staged tree deliberately carries NO
+docs wiring, so Batch 14 stays deployable on its own go.
+
+**Program state after Batch 14 staging:** 162 = **86 live** +
+**7 staged** (Batch 14) + **6 parked** (Tier A set, owner's ruling
+outstanding) + **8 G2 passed over** + **55 Tier B G1 unwalked**.
+All live batches RC, soak to 2026-11-22. All contract rates null;
+STRIPE_MODE stays test.
+
+
+## CI root placement (2026-11-15)
+
+The defined workflow sat only at `rails/gateway/.github/workflows/ci.yml`
+— a nested path GitHub Actions never discovers (the F-G1 run confirmed
+0 workflows / 0 runs on the published repo, and the file declared no
+`workflow_dispatch`). A repo-root copy now exists at
+`.github/workflows/ci.yml`: identical job (ubuntu-latest, checkout@v4,
+setup-node@v4 Node "24", working-directory `rails/gateway`,
+`npm ci` → `npm test` → `npm run build`) plus a `workflow_dispatch`
+trigger; the nested copy is retained for subtree locality. YAML
+validated; the job block is structurally identical to the nested
+definition — the same steps run green verbatim on the published
+snapshot in the F-G1 CI run record (gate pack
+`atoms-per-atom-gate-2026-11-15/pack.md`: 3689/3689, Node v24.22.1).
+This lands in HEAD for the Product Atoms lane's follow-up push; after
+that push, a hosted Actions run on HEAD is expected and must be
+verified (F-G1 stays OPEN until then).

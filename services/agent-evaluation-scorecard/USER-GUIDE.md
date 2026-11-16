@@ -1,5 +1,7 @@
 # Agent Evaluation Scorecard — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are about to trust an AI agent with real work. This atom reads a

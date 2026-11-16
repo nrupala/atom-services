@@ -1,5 +1,7 @@
 # Finance content compliance check — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are about to publish finance-education content. This atom reads a short evidence manifest describing the content — advice-vs-education boundary, dated and primary-sourced figures, risk framing, calculator honesty, commercial disclosures, privacy and corrections practice — and returns one deterministic verdict across six sections (advice_boundary, accuracy_and_sourcing, risk_framing, calculators_and_tools, commercial_honesty, compliance_and_corrections) with per-check evidence: **COMPLIANT**, **NON_COMPLIANT**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out.

@@ -1,5 +1,7 @@
 # Data analysis deliverable — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a data-analysis deliverable record — the question and its framing, the data sources and their provenance, the analysis method evidence, the declared result figures, the statistical-care record, the recommendation, and the reporting / close-the-loop record. This atom reads one declared manifest and returns one deterministic verdict across six sections: **DELIVERABLE_COMPLETE**, **DELIVERABLE_NOT_COMPLETE**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared record's completeness and internal consistency only — it does not run the analysis, source or inspect the data, or judge whether the conclusions are right. Computed checks: the declared data-source list must be present and non-empty; the stated total must equal the sum of the declared segment values; the stated mean must equal the mean of the same values; and the stated percent change must equal (current − prior) / prior × 100 over the declared comparable-window values, with a non-zero prior window. No thresholds the bound skill does not state are imposed — no minimum sample size, significance level, or source count beyond a non-empty list. Same manifest in → same verdict out.

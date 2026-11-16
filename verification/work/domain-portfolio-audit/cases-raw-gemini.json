@@ -1,0 +1,133 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "portfolio": "test-portfolio",
+        "evaluation_date": "2023-01-01",
+        "inventory": {
+          "inventory_current": true,
+          "single_source_of_truth": true,
+          "version_controlled": true,
+          "secrets_in_inventory_present": false,
+          "redirect_map_as_code": true,
+          "redirect_map_reviewed_in_diffs": true
+        },
+        "domains": [
+          {
+            "name": "example.com",
+            "registrar": "registrar-a",
+            "renewal_date": "2024-01-01",
+            "status": "active",
+            "purpose": "primary",
+            "owner": "team-a",
+            "brand_cluster": "cluster-1",
+            "is_canonical": true,
+            "is_personal_brand": false,
+            "sends_email": false
+          }
+        ],
+        "dns": {
+          "zones_version_controlled": true,
+          "ttl_policy_defined": true,
+          "wildcard_dns_present": false,
+          "change_protocol_followed": true,
+          "silent_changes_present": false
+        },
+        "redirects": {
+          "redirect_map_tested": true
+        },
+        "email_auth": {
+          "dmarc_monitoring_rua_configured": true,
+          "dmarc_progression_toward_quarantine": true,
+          "tested_after_dns_changes": true
+        },
+        "tls": {
+          "certs_auto_renew": true,
+          "hsts_enabled_once_stable": true,
+          "changes_dual_verified": true,
+          "cert_expiry_monitored": true,
+          "uptime_and_redirect_chains_monitored": true,
+          "wildcard_dns_and_cert_combo_without_review_present": false
+        },
+        "renewals": {
+          "alerts_configured": true,
+          "alert_window_days": 30,
+          "payment_method_expiry_tracked": true,
+          "expiry_monitors_live": true
+        },
+        "audit": {
+          "quarterly_audit_executed": true,
+          "quarterly_audit_logged": true,
+          "dead_redirects_checked": true,
+          "dangling_dns_records_checked": true,
+          "dmarc_reports_reviewed": true
+        }
+      },
+      "expect": {
+        "outcome": "DOMAIN_PORTFOLIO_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: domains_count=1, purpose_coverage=1.0000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "portfolio": "bad-portfolio",
+        "evaluation_date": "2023-01-01",
+        "domains": [
+          {
+            "name": "bad.com",
+            "registrar": "",
+            "renewal_date": "2022-01-01",
+            "status": "active",
+            "purpose": "test",
+            "owner": "test",
+            "brand_cluster": "c1",
+            "is_canonical": true,
+            "is_personal_brand": false
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "DOMAIN_PORTFOLIO_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "registrar",
+          "renewals_not_lapsed"
+        ],
+        "notes": "Registrar is empty string (fail) and renewal date is before evaluation date (fail)."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "portfolio": "empty-portfolio"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing domains list and most required fields; results in insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "portfolio": 12345,
+        "domains": "not-a-list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Portfolio is integer instead of string, domains is string instead of list."
+      }
+    }
+  ]
+}

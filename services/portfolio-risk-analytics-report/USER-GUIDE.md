@@ -1,5 +1,7 @@
 # Portfolio risk analytics report — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You hold a portfolio and want its risk numbers computed, not narrated. This atom takes a returns series (plus optional benchmark returns, holdings, factors, holding series, stress scenarios and a decision journal) and computes a risk analytics report: total and annualized return, volatility, max drawdown, historical VaR/CVaR, Sharpe and Sortino, benchmark beta/alpha/correlation/tracking error, concentration, factor decomposition and stress results — each layer reported, and anything that cannot be computed from what you submitted is named as a gap, never invented. The status is **complete** (everything computable, no gaps), **partial** (a report was computed but some layers are gaps), or **insufficient_evidence** (fewer than 2 valid numeric returns — nothing can be computed). Same input in → same report out.
@@ -21,13 +23,31 @@ You hold a portfolio and want its risk numbers computed, not narrated. This atom
 - **REST:** `POST https://atoms.pipavia.com/v1/portfolio-risk-analytics-report`
   — body = the input object; same `Authorization` header.
 
-## Input
+## Input — the portfolio manifest
 
-The full field table lives in the atom's `SERVICE.md`; the fields are:
-
-| Field |
-|---|
-
+| Field | Meaning |
+|---|---|
+| `portfolio` (string) | carried into the output, not itself analysed |
+| `returns` (list of numbers) | portfolio periodic simple returns, e.g. `0.01` = +1% — the core series; non-numeric entries are counted in `counts.invalid_return_entries` and excluded |
+| `benchmark_returns` (list of numbers) | benchmark periodic returns, aligned period-for-period with `returns` |
+| `periods_per_year` (number > 0) | annualization parameter — absent = annualized metrics are gaps, no default is applied |
+| `risk_free_per_period` (number) | per-period risk-free return — the Sharpe/Sortino excess target and Jensen-alpha baseline; absent = those metrics are gaps |
+| `var_confidence` (number strictly between 0 and 1) | confidence for historical VaR/CVaR; absent = VaR/CVaR are gaps |
+| `holdings` (list of entries, below) | declared holdings |
+| `holdings[].id` (string) | carried into concentration / carry / stress rows |
+| `holdings[].weight` (number) | holding weight in any consistent unit — shares are weight ÷ weight sum; an entry without a numeric weight is counted in `counts.invalid_holdings` and excluded |
+| `holdings[].currency` (string) | groups the currency-share breakdown; absence groups under null |
+| `holdings[].leveraged` (boolean) | `true` marks a leveraged holding for carry analysis |
+| `holdings[].income_per_period` (number) | carry input for leveraged holdings — net carry = income − financing |
+| `holdings[].financing_per_period` (number) | carry input for leveraged holdings — net carry = income − financing |
+| `factors` (list of `{name, returns}`) | factor return series aligned with `returns` — OLS decomposition in submission order |
+| `holding_returns` (list of `{id, returns}`) | per-holding return series aligned with `returns` — pairwise correlations |
+| `correlation_window` (integer, 2..periods) | also compute correlations over the last this-many periods |
+| `stress_scenarios` (list of entries, below) | caller-submitted stress scenarios |
+| `stress_scenarios[].name` (string) | carried into the stress row |
+| `stress_scenarios[].portfolio_return` (number) | a portfolio-level scenario return, used directly when numeric |
+| `stress_scenarios[].shocks` (list of `{holding_id, return}`) | per-holding scenario returns, weighted by current shares — every holding needs a shock |
+| `decision_journal` (list of `{confidence, correct}`) | confidence a number in [0, 1], correct a boolean — invalid entries are counted and excluded |
 
 Only `returns` is strictly required to compute anything (at least 2
 valid numeric observations); every other input adds a layer, and any

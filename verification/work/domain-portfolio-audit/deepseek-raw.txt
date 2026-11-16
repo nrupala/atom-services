@@ -1,0 +1,71 @@
+# Independent recompute — domain-portfolio-audit
+
+I recompute every computed quantity from the recorded inputs, using the rules in SERVICE.md, and compare to the artifacts.
+
+## Case 1: `full-pass`
+
+Input: `evaluation_date = 2023-01-01`, one domain `example.com`, `renewal_date = 2024-01-01`, `sends_email: false`, `status: active`, `is_personal_brand: false`, `purpose: "primary"`, `alert_window_days: 30`.
+
+**domains_count** = length of `domains` list = 1. Artifact: `1`. **MATCH**
+
+**domains_without_purpose** = rows whose `purpose` is absent or empty. `example.com` has `"primary"` (non-empty) → `[]`. Artifact: `[]`. **MATCH**
+
+**purpose_coverage** = domains naming a purpose ÷ declared domains = 1 ÷ 1 = 1.0.
+Serialization: `floor(1.0 * 10000 + 0.5)/10000 = floor(10000.5)/10000 = 10000/10000 = 1.0` → `"1.0000"`. Artifact: `"1.0000"`. **MATCH**
+
+**email_auth_coverage** = sending domains declaring SPF+DKIM+DMARC ÷ sending domains. Sending domains = 0 (the only row has `sends_email: false`). Denominator empty → null. Artifact: `null`. **MATCH**
+
+**domains_missing_email_auth** = sending domains with all three auth fields present but not all true. No sending domains → `[]`. Artifact: `[]`. **MATCH**
+
+**domains_lapsed** = rows with valid renewal date before evaluation date. `2024-01-01` vs `2023-01-01`: 2024-01-01 ≥ 2023-01-01, not lapsed → `[]`. Artifact: `[]`. **MATCH**
+
+**nearest_renewal_days** = min(renewal − evaluation) over valid-date rows. Days from 2023-01-01 to 2024-01-01: 2023 is not a leap year, so 365 days. min = 365. Artifact: `365`. **MATCH**
+
+**domains_within_alert_window** = rows with 0 ≤ (renewal − evaluation) ≤ alert_window_days (30). 365 > 30 → not within window → `[]`. Artifact: `[]`. **MATCH**
+
+**redirect_loop_domains** = redirect domains whose chains loop. No redirect rows → `[]`. Artifact: `[]`. **MATCH**
+
+**computed_status**: all six primary computed checks (domains declared, purpose/owner/registrar, canonical, redirect target/301, email auth, spoofing, renewals, personal-brand) complete and pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+**verdict / summary**: 44 checks, all pass → `DOMAIN_PORTFOLIO_SOUND`, "44 pass, 0 fail, 0 missing of 44". Artifact: same. **MATCH**
+
+## Case 2: `violations`
+
+Input: `evaluation_date = 2023-01-01`, one domain `bad.com`, `registrar: ""` (empty), `renewal_date = 2022-01-01`, `status: active`, `purpose: "primary"`, `sends_email: false`, `is_personal_brand: false`, `alert_window_days: 30`.
+
+**domains_count** = 1. Artifact: `1`. **MATCH**
+
+**domains_without_purpose** = `[]` (purpose `"primary"` non-empty). Artifact: `[]`. **MATCH**
+
+**purpose_coverage** = 1 ÷ 1 = 1.0 → `"1.0000"`. Artifact: `"1.0000"`. **MATCH**
+
+**email_auth_coverage** = 0 sending domains → null. Artifact: `null`. **MATCH**
+
+**domains_missing_email_auth** = `[]` (no sending domains). Artifact: `[]`. **MATCH**
+
+**domains_lapsed** = rows with valid renewal date before evaluation date. `2022-01-01` < `2023-01-01` → lapsed → `["bad.com"]`. Artifact: `["bad.com"]`. **MATCH**
+
+**nearest_renewal_days** = min(renewal − evaluation). 2022-01-01 − 2023-01-01 = −365 days (2022 not a leap year). min = −365. Artifact: `-365`. **MATCH**
+
+**domains_within_alert_window** = rows with 0 ≤ delta ≤ 30. −365 < 0 → not within → `[]`. Artifact: `[]`. **MATCH**
+
+**redirect_loop_domains** = `[]` (no redirect rows). Artifact: `[]`. **MATCH**
+
+**computed_status**: the registrar check fails (empty string is a fail, not missing evidence) and the renewal check fails (lapsed) → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+**verdict / summary**: 2 fails → `DOMAIN_PORTFOLIO_NOT_SOUND`, "42 pass, 2 fail, 0 missing of 44". Artifact: same. **MATCH**
+
+### Planted-wrong-value confirmation (violations case)
+
+The planted wrong values are: `registrar: ""` and `renewal_date: "2022-01-01"` (before evaluation date). Expected failing checks:
+
+- `every_domain_has_registrar` — empty registrar string → **fail**. Artifact: `fail`. ✓
+- `every_domain_renewal_not_lapsed` — 2022-01-01 < 2023-01-01 → **fail**. Artifact: `fail`. ✓
+
+All other checks should pass: `purpose`/`owner` non-empty (pass), canonical cluster has exactly one `is_canonical: true` (pass), no redirect rows (redirect checks pass as N/A), no sending rows (email auth pass as N/A), no parked rows (spoofing pass as N/A), no personal-brand rows (lock/auto-renew pass as N/A), all portfolio-level booleans true. So exactly 2 fails, matching the artifact's 2 fails. **Confirmed — the failing set is exactly the planted wrong values.**
+
+## Summary
+
+Every computed quantity in both cases (domains_count, domains_without_purpose, purpose_coverage, email_auth_coverage, domains_missing_email_auth, domains_lapsed, nearest_renewal_days, domains_within_alert_window, redirect_loop_domains, computed_status, verdict, summary counts) recomputes to the artifact's value. The violations case's failing checks are exactly the two planted wrong values.
+
+AGREEMENT: full

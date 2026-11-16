@@ -1,5 +1,7 @@
 # License compliance check — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You ship a product built from licensed components. This atom reads a short licence-evidence manifest — licence files, dependency compatibility, contributor terms, and claims and contracts — and returns one deterministic verdict across four sections with per-check evidence. (Scan-based; not legal advice.): **COMPLIANT**, **NON_COMPLIANT**, or

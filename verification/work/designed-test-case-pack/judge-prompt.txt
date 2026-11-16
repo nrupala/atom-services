@@ -1,0 +1,1151 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: designed-test-case-pack
+
+=== contract.yaml ===
+service_name: designed-test-case-pack
+display_name: Designed test case pack
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:test-design
+binding:
+  skill: test-design
+  skill_path: workspace/mymilo-build/skills/test-design/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: designed_test_case_pack
+  prefix: atm_1_designed_test_case_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Test planning for product builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Designed test case pack — `designed-test-case-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Design test cases that find real bugs — partitioning, boundaries, decision tables, state machines, pairwise.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Test planning for product builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the designed-test-case-pack manifest
+
+The caller submits one JSON manifest: a declared test-case pack
+record for one feature or system. Every field below is read by
+the named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`TEST_CASE_PACK_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `pack` (string; carried into the verdict output, not itself checked) | — |
+| `requirements` (list of requirement-row objects, each `{id}` — see the entry field below; computed, see below) | traceability_and_case_format |
+| `requirements[].id` (string; the identifier a case's `requirement_ids` must name for the requirement to count as traced; must be a non-empty string) | traceability_and_case_format |
+| `cases` (list of test-case-row objects, each `{id, requirement_ids, level, preconditions_declared, steps_declared, expected_result, expected_result_written_before_execution, covers_boundary, covers_negative}` — see the entry fields below; computed, see below) | traceability_and_case_format, technique_coverage, negative_and_risk_selection |
+| `cases[].id` (string; names the row in the computed `cases_without_*` outputs; must be a non-empty string and unique across the pack) | traceability_and_case_format |
+| `cases[].requirement_ids` (list of strings; the declared requirements this case traces to — at least one entry must name a declared requirement `id` for the case to pass the computed traceability check; an absent field is missing evidence, an empty list fails) | traceability_and_case_format |
+| `cases[].level` (string; must be a non-empty string for the row to pass the computed level check — an absent field is missing evidence, an empty string fails; no level vocabulary is imposed, see the declined thresholds) | traceability_and_case_format |
+| `cases[].preconditions_declared` | traceability_and_case_format |
+| `cases[].steps_declared` | traceability_and_case_format |
+| `cases[].expected_result` (string; must be a non-empty string for the row to pass the computed expected-result check — an absent field is missing evidence, an empty string fails) | traceability_and_case_format |
+| `cases[].expected_result_written_before_execution` | traceability_and_case_format |
+| `cases[].covers_boundary` | technique_coverage |
+| `cases[].covers_negative` | negative_and_risk_selection |
+| `technique_application.equivalence_partitioning_applied` | technique_coverage |
+| `technique_application.equivalence_representative_and_edges_per_class` | technique_coverage |
+| `technique_application.boundary_value_analysis_applied` | technique_coverage |
+| `technique_application.boundary_just_below_at_and_above_covered` | technique_coverage |
+| `technique_application.decision_tables_applicable` (gates the decision-table check below) | technique_coverage |
+| `technique_application.decision_table_rules_covered_including_awkward` (required when decision tables are declared applicable; otherwise the check passes as not applicable) | technique_coverage |
+| `technique_application.stateful_behaviour_present` (gates the state-transition check below) | technique_coverage |
+| `technique_application.state_transitions_allowed_forbidden_and_interrupts_tested` (required when stateful behaviour is declared present; otherwise the check passes as not applicable) | technique_coverage |
+| `technique_application.many_config_axes_present` (gates the pairwise check below) | technique_coverage |
+| `technique_application.pairwise_pair_coverage_used` (required when many configuration axes are declared present; otherwise the check passes as not applicable) | technique_coverage |
+| `negative_and_error_guessing.negative_cases_designed` | negative_and_risk_selection |
+| `negative_and_error_guessing.invalid_inputs_covered` | negative_and_risk_selection |
+| `negative_and_error_guessing.wrong_order_retries_and_partial_failure_covered` | negative_and_risk_selection |
+| `risk_selection.risk_based_selection_applied` | negative_and_risk_selection |
+| `risk_selection.cases_ranked_by_damage_and_likelihood` | negative_and_risk_selection |
+| `risk_selection.highest_risk_cases_selected_first` | negative_and_risk_selection |
+| `risk_selection.not_tested_stated_explicitly` | negative_and_risk_selection |
+| `coverage.coverage_gaps_stated_explicitly` | coverage_gaps_and_suite_hygiene |
+| `coverage.duplicate_path_suites_present` (must be `false` to pass — skill red line) | coverage_gaps_and_suite_hygiene |
+| `coverage.happy_path_only_suite_present` (must be `false` to pass — skill quality gate) | coverage_gaps_and_suite_hygiene |
+| `coverage.cases_written_before_execution` | coverage_gaps_and_suite_hygiene |
+
+Twelve checks are computed from the declared rows, using only
+the consistency of the declared record itself — no outside
+threshold is imported:
+
+- **Requirements declared:** the declared `requirements` list
+  passes only when it is present and non-empty; an absent list
+  is missing evidence, an empty list fails.
+- **Cases declared:** the declared `cases` list passes only
+  when it is present and non-empty.
+- **Every requirement traced:** every declared requirement row
+  whose `id` is a non-empty string must be named by at least
+  one declared case's `requirement_ids`. A requirement row with
+  the `id` field absent, or a case row with `requirement_ids`
+  absent, is missing evidence.
+- **Every case traces:** every declared case row must name at
+  least one requirement that is actually declared — an entry in
+  `requirement_ids` equal to a declared requirement `id`. A
+  case with `requirement_ids` absent is missing evidence and
+  does not appear in `cases_without_traceability`; a case whose
+  declared references name no declared requirement fails and is
+  named there.
+- **Unique case ids:** every declared case row must carry a
+  non-empty `id` string, and no id may be declared twice; ids
+  declared more than once are reported in `duplicate_case_ids`.
+  A row with the field absent is missing evidence.
+- **Level per case:** every declared case row must declare a
+  non-empty `level` string. A row with the field absent is
+  missing evidence; a row naming an empty string fails.
+- **Preconditions per case:** every declared case row must
+  declare `preconditions_declared: true`. A row with the field
+  absent is missing evidence.
+- **Steps per case:** every declared case row must declare
+  `steps_declared: true`. A row with the field absent is
+  missing evidence.
+- **Expected result per case:** every declared case row must
+  name a non-empty `expected_result` string (the skill's red
+  line: no case without an expected result). A row with the
+  field absent is missing evidence; a row naming an empty
+  string fails.
+- **Expected result written before execution, per case:** every
+  declared case row must declare
+  `expected_result_written_before_execution: true`. A row with
+  the field absent is missing evidence.
+- **At least one boundary case:** at least one declared case
+  row must declare `covers_boundary: true`. A row with the
+  field absent is missing evidence for the check.
+- **At least one negative case:** at least one declared case
+  row must declare `covers_negative: true`. A row with the
+  field absent is missing evidence for the check.
+
+Three check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Decision-table rules:** the skill binds decision tables to
+  condition combinations ("enumerate condition combinations;
+  cover the interesting rules, including the awkward ones").
+  `decision_table_rules_covered_including_awkward` is therefore
+  required only when `technique_application.decision_tables_applicable`
+  is declared `true`; when decision tables are not declared
+  applicable, the check passes as not applicable.
+- **State transitions:** the skill binds state transition
+  testing to a state model ("model the states; test allowed
+  transitions, forbidden transitions, and interrupts").
+  `state_transitions_allowed_forbidden_and_interrupts_tested`
+  is therefore required only when
+  `technique_application.stateful_behaviour_present` is declared
+  `true`; when no stateful behaviour is declared, the check
+  passes as not applicable.
+- **Pairwise coverage:** the skill binds pairwise to many
+  configuration axes ("for many config axes, cover all pairs
+  instead of the full cross-product").
+  `pairwise_pair_coverage_used` is therefore required only when
+  `technique_application.many_config_axes_present` is declared
+  `true`; when not many axes are declared, the check passes as
+  not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the six primary computed checks above cannot be completed),
+`requirements_count` and `cases_count` (the declared list
+lengths, or null when the list is not declared — counts are
+reported as integers, exactly), the row-name lists
+`untraced_requirements`, `cases_without_expected_result` and
+`cases_without_traceability` (null when an underlying list is
+not declared), `duplicate_case_ids` (null when the cases list
+is not declared), and the two coverage ratios
+`requirement_trace_coverage` (requirements traced to at least
+one case ÷ declared requirements) and
+`expected_result_coverage` (cases naming a non-empty expected
+result ÷ declared cases).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly four decimal places, produced in both
+implementations by the same rule — round half up to 4dp,
+`floor(v * 10000 + 0.5) / 10000`, then format with exactly four
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty (and, for
+requirement trace coverage, when the cases list is absent).
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric threshold — no case count, no
+coverage percentage below its own every-requirement gate, no
+boundary count, and no risk-score cut-off — so no numeric
+threshold check is invented. Quantities are computed and
+reported; the only bar on the computed rows is completeness
+over the caller's own declared rows (every declared
+requirement, every declared case), exactly as stated above.
+Declined thresholds, named: a minimum or maximum case count; a
+minimum or maximum requirement count; a coverage percentage
+below completeness (the skill's gate is *every* requirement
+traced, so 100% traceability over the declared rows is the
+skill's own bar, not an invented one); a number of cases per
+requirement beyond the skill's at-least-one; a boundary-case
+count or a per-boundary case count beyond the skill's
+presence gate; a negative-case count beyond presence; a
+decision-table rule-coverage percentage; a pairwise strength
+beyond the skill's all-pairs definition; a numeric
+damage × likelihood risk-score cut-off for selection; a
+test-level vocabulary (the skill requires a case's level be
+declared, and names no allowed values, so only its presence is
+checked); and a duplicate-path repetition count — the red
+line's "five times" is an illustration of copy-paste suites,
+not a stated limit, so duplicate paths are checked by the
+caller's declaration and by computed duplicate case ids, never
+by an invented repetition threshold.
+
+The verdict is one of `TEST_CASE_PACK_SOUND` (all 30 checks
+pass), `TEST_CASE_PACK_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across four sections: traceability_and_case_format,
+technique_coverage, negative_and_risk_selection,
+coverage_gaps_and_suite_hygiene.
+
+## Honest scoping
+
+This atom audits a **declared** test-case pack record — it
+writes no test cases, executes no case, reads no requirements
+document or test suite, and does not verify that a declared
+case actually exists as written or would catch any bug. A pack
+is sound *on the caller's declared evidence*: a manifest that
+declares traced requirements, boundary and negative cases, and
+stated coverage gaps passes those checks even if the real suite
+does none of it. It is a completeness and consistency audit of
+the record the skill requires, **not a test-design service or
+a test-quality certification**: it never judges whether the
+equivalence classes are the right classes, whether a declared
+expected result is the correct oracle for its case, whether
+the decision-table rules chosen are truly the interesting or
+awkward ones, whether the state model is complete, or whether
+the risk ranking (damage × likelihood) is wise — case quality
+and oracle wisdom are caller declarations only, checked for
+presence and consistency, never for correctness.
+
+Named exclusions: no numeric thresholds (see the declined list
+above); no check that partitioning is genuinely correct beyond
+the declarations; no execution or pass/fail result of any case
+is read or reported — the atom audits the design record, not a
+test run; no requirement text is read — traceability is over
+declared requirement ids only; duplicate-path detection beyond
+duplicate declared case ids and the caller's duplicate-suite
+declaration (two differently-id'd cases re-testing the same
+path cannot be detected from the declared record); no live
+verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "designed-test-case-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "TEST_CASE_PACK_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All mandatory fields present, consistency checks pass. Computed: requirements_count=1, cases_count=1, requirement_trace_coverage=1.0000, expected_result_coverage=1.0000, computed_status within_stated_limits_on_declared_evidence. [Tester correction R2: designer carried computed quantities only in prose notes with no structured computed_spot_checks; added the structured spot-check block.]",
+        "computed_spot_checks": {
+          "requirements_count": 1,
+          "cases_count": 1,
+          "requirement_trace_coverage": "1.0000",
+          "expected_result_coverage": "1.0000",
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "untraced_requirements": [],
+          "cases_without_expected_result": [],
+          "cases_without_traceability": [],
+          "duplicate_case_ids": []
+        }
+      },
+      "input": {
+        "pack": "Login Feature Suite",
+        "requirements": [
+          {
+            "id": "REQ-01"
+          }
+        ],
+        "cases": [
+          {
+            "id": "TC-01",
+            "requirement_ids": [
+              "REQ-01"
+            ],
+            "level": "L1",
+            "preconditions_declared": true,
+            "steps_declared": true,
+            "expected_result": "User logged in",
+            "expected_result_written_before_execution": true,
+            "covers_boundary": true,
+            "covers_negative": true
+          }
+        ],
+        "technique_application": {
+          "equivalence_partitioning_applied": true,
+          "equivalence_representative_and_edges_per_class": true,
+          "boundary_value_analysis_applied": true,
+          "boundary_just_below_at_and_above_covered": true,
+          "decision_tables_applicable": false,
+          "stateful_behaviour_present": false,
+          "many_config_axes_present": false
+        },
+        "negative_and_error_guessing": {
+          "negative_cases_designed": true,
+          "invalid_inputs_covered": true,
+          "wrong_order_retries_and_partial_failure_covered": true
+        },
+        "risk_selection": {
+          "risk_based_selection_applied": true,
+          "cases_ranked_by_damage_and_likelihood": true,
+          "highest_risk_cases_selected_first": true,
+          "not_tested_stated_explicitly": true
+        },
+        "coverage": {
+          "coverage_gaps_stated_explicitly": true,
+          "duplicate_path_suites_present": false,
+          "happy_path_only_suite_present": false,
+          "cases_written_before_execution": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "designed-test-case-pack",
+        "atom_version": "0.1.0",
+        "pack": "Login Feature Suite",
+        "verdict": "TEST_CASE_PACK_SOUND",
+        "sections": {
+          "traceability_and_case_format": "pass",
+          "technique_coverage": "pass",
+          "negative_and_risk_selection": "pass",
+          "coverage_gaps_and_suite_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "traceability_and_case_format",
+            "check": "requirements_declared",
+            "status": "pass",
+            "evidence": "case format: the declared pack record names its requirements \u2014 the requirements list is present and non-empty"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "cases_declared",
+            "status": "pass",
+            "evidence": "case format: the declared pack record names its test cases \u2014 the cases list is present and non-empty"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_requirement_traced_to_at_least_one_case",
+            "status": "pass",
+            "evidence": "quality gate: every requirement is traced to at least one case"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_traces_to_at_least_one_requirement",
+            "status": "pass",
+            "evidence": "case format: every declared case is traceable to at least one declared requirement"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_has_unique_nonempty_id",
+            "status": "pass",
+            "evidence": "case format: every declared case carries an id, and no id is declared twice"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_level",
+            "status": "pass",
+            "evidence": "case format: every declared case declares its level"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_preconditions",
+            "status": "pass",
+            "evidence": "case format: every declared case declares its preconditions"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_steps",
+            "status": "pass",
+            "evidence": "case format: every declared case declares its steps"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_has_expected_result",
+            "status": "pass",
+            "evidence": "red line: no case without an expected result \u2014 every declared case names a non-empty expected result"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_expected_result_written_before_execution",
+            "status": "pass",
+            "evidence": "quality gate: expected results are written before execution \u2014 every declared case declares its expected result was written before running"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "equivalence_partitioning_applied",
+            "status": "pass",
+            "evidence": "equivalence partitioning: inputs are grouped into classes"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "equivalence_representative_and_edges_per_class",
+            "status": "pass",
+            "evidence": "equivalence partitioning: one representative plus the edges per class \u2014 not every value"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "boundary_value_analysis_applied",
+            "status": "pass",
+            "evidence": "boundary value analysis: boundaries are tested"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "boundary_just_below_at_and_above_covered",
+            "status": "pass",
+            "evidence": "boundary value analysis: just-below / at / just-above each boundary is covered"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "at_least_one_boundary_case_declared",
+            "status": "pass",
+            "evidence": "quality gate: boundaries are present \u2014 at least one declared case is declared a boundary case"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "decision_table_rules_covered_when_applicable",
+            "status": "pass",
+            "evidence": "decision tables not declared applicable"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "state_transitions_tested_when_stateful",
+            "status": "pass",
+            "evidence": "no stateful behaviour declared present"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "pairwise_coverage_used_when_many_config_axes",
+            "status": "pass",
+            "evidence": "not many configuration axes declared present"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "negative_cases_designed",
+            "status": "pass",
+            "evidence": "negative + error guessing: negative cases are designed \u2014 accidents and attackers live here"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "invalid_inputs_covered",
+            "status": "pass",
+            "evidence": "negative + error guessing: invalid inputs are covered"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "wrong_order_retries_and_partial_failure_covered",
+            "status": "pass",
+            "evidence": "negative + error guessing: wrong order, retries, and partial failure are covered"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "at_least_one_negative_case_declared",
+            "status": "pass",
+            "evidence": "quality gate: negatives are present \u2014 at least one declared case is declared a negative case"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "risk_based_selection_applied",
+            "status": "pass",
+            "evidence": "risk-based selection: techniques and cases are chosen by risk"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "cases_ranked_by_damage_and_likelihood",
+            "status": "pass",
+            "evidence": "risk-based selection: cases are ranked by damage times likelihood"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "highest_risk_cases_selected_first",
+            "status": "pass",
+            "evidence": "risk-based selection: the highest-risk cases are selected first"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "not_tested_stated_explicitly",
+            "status": "pass",
+            "evidence": "risk-based selection: what is NOT tested is stated explicitly"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "coverage_gaps_stated_explicitly",
+            "status": "pass",
+            "evidence": "quality gate: coverage gaps are stated explicitly"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "no_duplicate_path_suites",
+            "status": "pass",
+            "evidence": "red line: no copy-paste suites that re-test the same path"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "not_happy_path_only",
+            "status": "pass",
+            "evidence": "quality gate: the suite is not happy paths only \u2014 boundaries and negatives are present"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "cases_written_before_execution",
+            "status": "pass",
+            "evidence": "case format: cases are written BEFORE running"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "requirements_count": 1,
+        "cases_count": 1,
+        "untraced_requirements": [],
+        "requirement_trace_coverage": "1.0000",
+        "cases_without_expected_result": [],
+        "expected_result_coverage": "1.0000",
+        "cases_without_traceability": [],
+        "duplicate_case_ids": [],
+        "summary": "30 pass, 0 fail, 0 missing of 30 checks across four sections.",
+        "stamp": "DESIGNED TEST CASE PACK\npack: Login Feature Suite\nVERDICT: TEST_CASE_PACK_SOUND\n  traceability_and_case_format         pass\n  technique_coverage                   pass\n  negative_and_risk_selection          pass\n  coverage_gaps_and_suite_hygiene      pass\n30 pass, 0 fail, 0 missing of 30 checks across four sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "TEST_CASE_PACK_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_requirement_traced_to_at_least_one_case",
+          "every_case_traces_to_at_least_one_requirement",
+          "every_case_has_expected_result",
+          "at_least_one_boundary_case_declared",
+          "at_least_one_negative_case_declared"
+        ],
+        "notes": "Full manifest carrying exactly the planted violations: cases[0].requirement_ids=[MISSING-REQ] fails every_requirement_traced_to_at_least_one_case and every_case_traces_to_at_least_one_requirement; cases[0].expected_result='' fails every_case_has_expected_result; covers_boundary=false on all cases fails at_least_one_boundary_case_declared; covers_negative=false on all cases fails at_least_one_negative_case_declared. Computed: requirements_count=1, cases_count=1, requirement_trace_coverage=0.0000, expected_result_coverage=0.0000, untraced_requirements=[REQ-01], cases_without_expected_result=[TC-01], cases_without_traceability=[TC-01], duplicate_case_ids=[], computed_status outside_stated_limits_on_declared_evidence. [Tester corrections: R1 designer listed descriptive titles ('Every case traces','Expected result per case','At least one boundary case','At least one negative case') instead of exact check names and omitted the every_requirement_traced check the trace violation also plants \u2014 corrected to the 5 exact register names; R2 designer carried computed quantities only in prose \u2014 added structured spot-check block; R3 designer input was sparse, missing all technique/negative/risk/coverage sections \u2014 expanded to a full manifest identical in structure to full-pass carrying exactly the planted violations.]",
+        "computed_spot_checks": {
+          "requirements_count": 1,
+          "cases_count": 1,
+          "requirement_trace_coverage": "0.0000",
+          "expected_result_coverage": "0.0000",
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "untraced_requirements": [
+            "REQ-01"
+          ],
+          "cases_without_expected_result": [
+            "TC-01"
+          ],
+          "cases_without_traceability": [
+            "TC-01"
+          ],
+          "duplicate_case_ids": []
+        }
+      },
+      "input": {
+        "pack": "Broken Suite",
+        "requirements": [
+          {
+            "id": "REQ-01"
+          }
+        ],
+        "cases": [
+          {
+            "id": "TC-01",
+            "requirement_ids": [
+              "MISSING-REQ"
+            ],
+            "level": "L1",
+            "preconditions_declared": true,
+            "steps_declared": true,
+            "expected_result": "",
+            "expected_result_written_before_execution": true,
+            "covers_boundary": false,
+            "covers_negative": false
+          }
+        ],
+        "technique_application": {
+          "equivalence_partitioning_applied": true,
+          "equivalence_representative_and_edges_per_class": true,
+          "boundary_value_analysis_applied": true,
+          "boundary_just_below_at_and_above_covered": true,
+          "decision_tables_applicable": false,
+          "stateful_behaviour_present": false,
+          "many_config_axes_present": false
+        },
+        "negative_and_error_guessing": {
+          "negative_cases_designed": true,
+          "invalid_inputs_covered": true,
+          "wrong_order_retries_and_partial_failure_covered": true
+        },
+        "risk_selection": {
+          "risk_based_selection_applied": true,
+          "cases_ranked_by_damage_and_likelihood": true,
+          "highest_risk_cases_selected_first": true,
+          "not_tested_stated_explicitly": true
+        },
+        "coverage": {
+          "coverage_gaps_stated_explicitly": true,
+          "duplicate_path_suites_present": false,
+          "happy_path_only_suite_present": false,
+          "cases_written_before_execution": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "designed-test-case-pack",
+        "atom_version": "0.1.0",
+        "pack": "Broken Suite",
+        "verdict": "TEST_CASE_PACK_NOT_SOUND",
+        "sections": {
+          "traceability_and_case_format": "fail",
+          "technique_coverage": "fail",
+          "negative_and_risk_selection": "fail",
+          "coverage_gaps_and_suite_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "traceability_and_case_format",
+            "check": "requirements_declared",
+            "status": "pass",
+            "evidence": "case format: the declared pack record names its requirements \u2014 the requirements list is present and non-empty"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "cases_declared",
+            "status": "pass",
+            "evidence": "case format: the declared pack record names its test cases \u2014 the cases list is present and non-empty"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_requirement_traced_to_at_least_one_case",
+            "status": "fail",
+            "evidence": "quality gate: every requirement is traced to at least one case"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_traces_to_at_least_one_requirement",
+            "status": "fail",
+            "evidence": "case format: every declared case is traceable to at least one declared requirement"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_has_unique_nonempty_id",
+            "status": "pass",
+            "evidence": "case format: every declared case carries an id, and no id is declared twice"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_level",
+            "status": "pass",
+            "evidence": "case format: every declared case declares its level"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_preconditions",
+            "status": "pass",
+            "evidence": "case format: every declared case declares its preconditions"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_steps",
+            "status": "pass",
+            "evidence": "case format: every declared case declares its steps"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_has_expected_result",
+            "status": "fail",
+            "evidence": "red line: no case without an expected result \u2014 every declared case names a non-empty expected result"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_expected_result_written_before_execution",
+            "status": "pass",
+            "evidence": "quality gate: expected results are written before execution \u2014 every declared case declares its expected result was written before running"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "equivalence_partitioning_applied",
+            "status": "pass",
+            "evidence": "equivalence partitioning: inputs are grouped into classes"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "equivalence_representative_and_edges_per_class",
+            "status": "pass",
+            "evidence": "equivalence partitioning: one representative plus the edges per class \u2014 not every value"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "boundary_value_analysis_applied",
+            "status": "pass",
+            "evidence": "boundary value analysis: boundaries are tested"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "boundary_just_below_at_and_above_covered",
+            "status": "pass",
+            "evidence": "boundary value analysis: just-below / at / just-above each boundary is covered"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "at_least_one_boundary_case_declared",
+            "status": "fail",
+            "evidence": "quality gate: boundaries are present \u2014 at least one declared case is declared a boundary case"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "decision_table_rules_covered_when_applicable",
+            "status": "pass",
+            "evidence": "decision tables not declared applicable"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "state_transitions_tested_when_stateful",
+            "status": "pass",
+            "evidence": "no stateful behaviour declared present"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "pairwise_coverage_used_when_many_config_axes",
+            "status": "pass",
+            "evidence": "not many configuration axes declared present"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "negative_cases_designed",
+            "status": "pass",
+            "evidence": "negative + error guessing: negative cases are designed \u2014 accidents and attackers live here"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "invalid_inputs_covered",
+            "status": "pass",
+            "evidence": "negative + error guessing: invalid inputs are covered"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "wrong_order_retries_and_partial_failure_covered",
+            "status": "pass",
+            "evidence": "negative + error guessing: wrong order, retries, and partial failure are covered"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "at_least_one_negative_case_declared",
+            "status": "fail",
+            "evidence": "quality gate: negatives are present \u2014 at least one declared case is declared a negative case"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "risk_based_selection_applied",
+            "status": "pass",
+            "evidence": "risk-based selection: techniques and cases are chosen by risk"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "cases_ranked_by_damage_and_likelihood",
+            "status": "pass",
+            "evidence": "risk-based selection: cases are ranked by damage times likelihood"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "highest_risk_cases_selected_first",
+            "status": "pass",
+            "evidence": "risk-based selection: the highest-risk cases are selected first"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "not_tested_stated_explicitly",
+            "status": "pass",
+            "evidence": "risk-based selection: what is NOT tested is stated explicitly"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "coverage_gaps_stated_explicitly",
+            "status": "pass",
+            "evidence": "quality gate: coverage gaps are stated explicitly"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "no_duplicate_path_suites",
+            "status": "pass",
+            "evidence": "red line: no copy-paste suites that re-test the same path"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "not_happy_path_only",
+            "status": "pass",
+            "evidence": "quality gate: the suite is not happy paths only \u2014 boundaries and negatives are present"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "cases_written_before_execution",
+            "status": "pass",
+            "evidence": "case format: cases are written BEFORE running"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "requirements_count": 1,
+        "cases_count": 1,
+        "untraced_requirements": [
+          "REQ-01"
+        ],
+        "requirement_trace_coverage": "0.0000",
+        "cases_without_expected_result": [
+          "TC-01"
+        ],
+        "expected_result_coverage": "0.0000",
+        "cases_without_traceability": [
+          "TC-01"
+        ],
+        "duplicate_case_ids": [],
+        "summary": "25 pass, 5 fail, 0 missing of 30 checks across four sections.",
+        "stamp": "DESIGNED TEST CASE PACK\npack: Broken Suite\nVERDICT: TEST_CASE_PACK_NOT_SOUND\n  traceability_and_case_format         fail\n  technique_coverage                   fail\n  negative_and_risk_selection          fail\n  coverage_gaps_and_suite_hygiene      pass\n25 pass, 5 fail, 0 missing of 30 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists 'requirements' and 'cases' results in insufficient evidence."
+      },
+      "input": {
+        "pack": "Empty Pack"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "designed-test-case-pack",
+        "atom_version": "0.1.0",
+        "pack": "Empty Pack",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "traceability_and_case_format": "insufficient_evidence",
+          "technique_coverage": "insufficient_evidence",
+          "negative_and_risk_selection": "insufficient_evidence",
+          "coverage_gaps_and_suite_hygiene": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "traceability_and_case_format",
+            "check": "requirements_declared",
+            "status": "missing",
+            "evidence": "case format: the declared pack record names its requirements \u2014 the requirements list is present and non-empty"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "cases_declared",
+            "status": "missing",
+            "evidence": "case format: the declared pack record names its test cases \u2014 the cases list is present and non-empty"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_requirement_traced_to_at_least_one_case",
+            "status": "missing",
+            "evidence": "quality gate: every requirement is traced to at least one case"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_traces_to_at_least_one_requirement",
+            "status": "missing",
+            "evidence": "case format: every declared case is traceable to at least one declared requirement"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_has_unique_nonempty_id",
+            "status": "missing",
+            "evidence": "case format: every declared case carries an id, and no id is declared twice"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_level",
+            "status": "missing",
+            "evidence": "case format: every declared case declares its level"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_preconditions",
+            "status": "missing",
+            "evidence": "case format: every declared case declares its preconditions"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_declares_steps",
+            "status": "missing",
+            "evidence": "case format: every declared case declares its steps"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_has_expected_result",
+            "status": "missing",
+            "evidence": "red line: no case without an expected result \u2014 every declared case names a non-empty expected result"
+          },
+          {
+            "section": "traceability_and_case_format",
+            "check": "every_case_expected_result_written_before_execution",
+            "status": "missing",
+            "evidence": "quality gate: expected results are written before execution \u2014 every declared case declares its expected result was written before running"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "equivalence_partitioning_applied",
+            "status": "missing",
+            "evidence": "equivalence partitioning: inputs are grouped into classes"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "equivalence_representative_and_edges_per_class",
+            "status": "missing",
+            "evidence": "equivalence partitioning: one representative plus the edges per class \u2014 not every value"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "boundary_value_analysis_applied",
+            "status": "missing",
+            "evidence": "boundary value analysis: boundaries are tested"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "boundary_just_below_at_and_above_covered",
+            "status": "missing",
+            "evidence": "boundary value analysis: just-below / at / just-above each boundary is covered"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "at_least_one_boundary_case_declared",
+            "status": "missing",
+            "evidence": "quality gate: boundaries are present \u2014 at least one declared case is declared a boundary case"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "decision_table_rules_covered_when_applicable",
+            "status": "missing",
+            "evidence": "decision tables not declared applicable"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "state_transitions_tested_when_stateful",
+            "status": "missing",
+            "evidence": "no stateful behaviour declared present"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "pairwise_coverage_used_when_many_config_axes",
+            "status": "missing",
+            "evidence": "not many configuration axes declared present"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "negative_cases_designed",
+            "status": "missing",
+            "evidence": "negative + error guessing: negative cases are designed \u2014 accidents and attackers live here"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "invalid_inputs_covered",
+            "status": "missing",
+            "evidence": "negative + error guessing: invalid inputs are covered"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "wrong_order_retries_and_partial_failure_covered",
+            "status": "missing",
+            "evidence": "negative + error guessing: wrong order, retries, and partial failure are covered"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "at_least_one_negative_case_declared",
+            "status": "missing",
+            "evidence": "quality gate: negatives are present \u2014 at least one declared case is declared a negative case"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "risk_based_selection_applied",
+            "status": "missing",
+            "evidence": "risk-based selection: techniques and cases are chosen by risk"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "cases_ranked_by_damage_and_likelihood",
+            "status": "missing",
+            "evidence": "risk-based selection: cases are ranked by damage times likelihood"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "highest_risk_cases_selected_first",
+            "status": "missing",
+            "evidence": "risk-based selection: the highest-risk cases are selected first"
+          },
+          {
+            "section": "negative_and_risk_selection",
+            "check": "not_tested_stated_explicitly",
+            "status": "missing",
+            "evidence": "risk-based selection: what is NOT tested is stated explicitly"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "coverage_gaps_stated_explicitly",
+            "status": "missing",
+            "evidence": "quality gate: coverage gaps are stated explicitly"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "no_duplicate_path_suites",
+            "status": "missing",
+            "evidence": "red line: no copy-paste suites that re-test the same path"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "not_happy_path_only",
+            "status": "missing",
+            "evidence": "quality gate: the suite is not happy paths only \u2014 boundaries and negatives are present"
+          },
+          {
+            "section": "coverage_gaps_and_suite_hygiene",
+            "check": "cases_written_before_execution",
+            "status": "missing",
+            "evidence": "case format: cases are written BEFORE running"
+          }
+        ],
+        "computed_status": null,
+        "requirements_count": null,
+        "cases_count": null,
+        "untraced_requirements": null,
+        "requirement_trace_coverage": null,
+        "cases_without_expected_result": null,
+        "expected_result_coverage": null,
+        "cases_without_traceability": null,
+        "duplicate_case_ids": null,
+        "summary": "0 pass, 0 fail, 30 missing of 30 checks across four sections.",
+        "stamp": "DESIGNED TEST CASE PACK\npack: Empty Pack\nVERDICT: INSUFFICIENT_EVIDENCE\n  traceability_and_case_format         insufficient_evidence\n  technique_coverage                   insufficient_evidence\n  negative_and_risk_selection          insufficient_evidence\n  coverage_gaps_and_suite_hygiene      insufficient_evidence\n0 pass, 0 fail, 30 missing of 30 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Exactly one type violation of a documented typed field: requirements expects a list, received a string. Expect HTTP 422 invalid_input on field requirements. [Tester correction R4: designer supplied TWO type violations (requirements as a string instead of a list, plus cases as a number (123) instead of a list); reduced to exactly one violation on requirements.]"
+      },
+      "input": {
+        "pack": "Malformed",
+        "requirements": "not-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "requirements",
+        "detail": "requirements must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

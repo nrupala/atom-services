@@ -1,5 +1,7 @@
 # Agent context packaging — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are packaging context/config for an agent to travel. This atom reads a declared context-pack manifest — scope, redaction, structure/manifest, reproducibility/signing, handoff dossier, and freshness/privacy — and returns one deterministic verdict across six sections (scope_declaration, redaction, structure_and_manifest, reproducibility_and_signing, handoff_dossier, freshness_and_privacy): **PACK_SOUND**, **PACK_NOT_SOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out. It audits declared evidence only; it does not open the pack or scan it.

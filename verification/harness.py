@@ -12,9 +12,17 @@ Cases file: {"cases":[{"id","kind","input":<json value>|null,
                         "expect":{...}}, ...]}
 For kind "full-pass" the harness additionally runs the REST call a second
 time (determinism, byte-compare) and the same input via MCP tools/call
-(face parity, structuredContent vs REST artifact deep-compare)."""
-import argparse, json, os, time, urllib.request, urllib.error
+(face parity, structuredContent vs REST artifact deep-compare).
+
+Pre-flight (Wave 7): every case file is validated by validate_cases.py
+BEFORE any call is made; a rejected file is not executed at all. The
+validation report is written next to the evidence file as
+validation.json."""
+import argparse, json, os, sys, time, urllib.request, urllib.error
 from datetime import datetime, timezone
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import validate_cases
 
 BASE = "https://atoms.pipavia.com"
 STATE = os.path.expanduser("~/.tools-state/atoms-external-verification.json")
@@ -61,7 +69,19 @@ def mcp_call(atom, key, tool_name, args):
 def run_atom(atom, cases_path, out_path):
     key, prefix, last4 = load_key()
     with open(cases_path) as f:
-        cases = json.load(f)["cases"]
+        cases_doc = json.load(f)
+    vreport = validate_cases.validate(atom, cases_doc)
+    vpath = os.path.join(os.path.dirname(os.path.abspath(out_path)),
+                         "validation.json")
+    with open(vpath, "w") as f:
+        json.dump(vreport, f, indent=2)
+    if not vreport["ok"]:
+        print(json.dumps({"atom": atom, "EXECUTION REFUSED":
+                          "case file rejected by validate_cases.py",
+                          "validation_report": vpath,
+                          "rejections": vreport["rejections"]}, indent=2))
+        raise SystemExit(1)
+    cases = cases_doc["cases"]
     hstatus, htext = http("GET", f"{BASE}/health")
     health = jparse(htext) or {}
     tstatus, tools = mcp_tools_list(atom, key)
@@ -100,6 +120,9 @@ def run_atom(atom, cases_path, out_path):
         "mcp_tools_list_status": tstatus,
         "mcp_tool_name": tool_name,
         "mcp_tools": tools,
+        "case_validation": {"ok": True,
+                            "validator": vreport["validator"],
+                            "register_size": vreport["register_size"]},
         "cases": out_cases,
     }
     with open(out_path, "w") as f:

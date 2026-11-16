@@ -1,4 +1,5 @@
 # Electrical test record preparation — user guide
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
 
 ## What it does
 

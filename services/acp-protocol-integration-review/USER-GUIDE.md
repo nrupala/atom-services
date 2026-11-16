@@ -1,5 +1,7 @@
 # ACP protocol integration review — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are integrating an agent protocol. This atom reads a declared ACP integration manifest — which ACP flavour, adapter architecture, protocol surface, lifecycle, streaming, security, honesty/tests and upgrade path — and returns one deterministic verdict across seven sections (disambiguation_and_scope, adapter_architecture, protocol_surface, lifecycle_correctness, streaming_discipline, security, honesty_tests_and_upgrade_path): **INTEGRATION_SOUND**, **INTEGRATION_NOT_SOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It also reports the computed `flavor_status` (`acp_client` / `acp_comm` / `unrecognized` / null). Same manifest in → same verdict out. It reviews declared evidence only; it does not connect to or run the integration.

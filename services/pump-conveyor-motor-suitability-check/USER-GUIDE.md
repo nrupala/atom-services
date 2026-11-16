@@ -1,5 +1,7 @@
 # Pump / conveyor motor suitability check — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are sizing (or reviewing) a motor and drive for a pump or a

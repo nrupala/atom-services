@@ -1,5 +1,7 @@
 # Release-readiness verdict — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are about to ship a release. This atom reads a short evidence

@@ -1,5 +1,7 @@
 # Applied ml validation — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are validating an ML project. This atom reads a declared evidence

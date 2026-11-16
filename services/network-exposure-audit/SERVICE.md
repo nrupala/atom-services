@@ -80,4 +80,4 @@ The caller submits ONE JSON object. Every field below is read by at least one ch
 
 ## Status
 
-Tier A · status: **built-locally** — deterministic core built and verified locally (Python oracle + byte-identical TypeScript port); no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier A · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.

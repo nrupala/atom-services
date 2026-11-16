@@ -1,5 +1,7 @@
 # RAG retrieval evaluation & tuning — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You run a retrieval-augmented generation (RAG) system. This atom reads

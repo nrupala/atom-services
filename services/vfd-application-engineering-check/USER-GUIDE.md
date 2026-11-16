@@ -1,5 +1,7 @@
 # VFD application engineering check — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are applying (or reviewing) a variable-frequency drive / adjustable

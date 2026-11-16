@@ -1,5 +1,7 @@
 # Firewall rules audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You operate a firewall ruleset. This atom reads a short evidence manifest describing the ruleset — baseline default-deny, least-privilege rules, explicit egress, documentation and change control, and assurance (logging, testing, review cadence) — and returns one deterministic verdict across five sections (20 checks) with per-check evidence. Note the baseline requires both a `deny` default policy in each direction **and** an explicit deny-any rule in the `rules` list: **SOUND**, **UNSOUND**, or

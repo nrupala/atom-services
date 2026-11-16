@@ -1,5 +1,7 @@
 # Codebase Structural Query — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a code graph (from your own indexer) and a structural

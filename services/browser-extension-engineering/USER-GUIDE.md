@@ -1,5 +1,7 @@
 # Browser extension engineering — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are putting one browser extension design through a careful engineering audit — MV3 architecture, least-privilege permissions, messaging, UX honesty, privacy, distribution and security. This atom reads one declared extension design/build manifest and returns one deterministic verdict across seven sections: **EXTENSION_DESIGN_SOUND**, **EXTENSION_DESIGN_DEFICIENT**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Computed checks: every requested permission must appear in the justified-in-writing list, and every target browser must appear in the tested list or the difference-documented list (with at least one target declared). Same manifest in → same verdict out. It audits the declared design only — it does not write extension code, inspect a real extension package, or verify that a declared value is true.

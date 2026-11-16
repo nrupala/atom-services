@@ -1,5 +1,7 @@
 # Data ml pipeline engineering — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a data/ML pipeline design record — its source datasets and contracts, idempotency and orchestration record, quality gates, lineage and reproducibility record, feature/label, split and leakage record, lifecycle and serving record, and monitoring record. This atom reads one declared manifest and returns one deterministic verdict across seven sections: **DATA_ML_PIPELINE_READY**, **DATA_ML_PIPELINE_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared record's completeness and internal consistency only — it does not design or build a pipeline, train a model, or judge whether the declared checks would catch real bad data. Computed checks: every declared source dataset entry must carry a non-empty name and numeric rows, and the declared total source rows must equal the sum of the per-dataset rows; the declared split total must equal train + eval + test rows (no split ratio is imposed — the skill states none); and the declared estimated latency and monthly cost must not exceed the latency and cost budgets you yourself declare (no latency or cost limit is imposed — the skill states none). Same manifest in → same verdict out.

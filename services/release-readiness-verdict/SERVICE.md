@@ -72,7 +72,7 @@ We are the first buyer — our own release-gate program is the
 prototype (self-use workflow: **release gates run on every
 product**).
 
-## Endpoints (when live — none are yet)
+## Endpoints (live on Conduit Atoms — atoms.pipavia.com — as a release candidate since 2026-11-15, one-week soak to 2026-11-22)
 
 MCP tool + `POST /v1/release-readiness-verdict`, gated by this atom's
 own key (namespace `release_readiness_verdict`). Human face: the

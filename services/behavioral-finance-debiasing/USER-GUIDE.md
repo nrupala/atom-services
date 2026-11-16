@@ -1,4 +1,5 @@
 # Behavioral finance debiasing — user guide
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
 
 ## What it does
 

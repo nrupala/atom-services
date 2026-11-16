@@ -1,5 +1,7 @@
 # Agentic coding practice — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are running coding agents. This atom reads a declared agentic-coding practice manifest — spec/slicing, hooks/events, feedback loop, guardrails, context/tools, and delegation/access — and returns one deterministic verdict across six sections (spec_and_slicing, hooks_and_events, feedback_loop, guardrails, context_and_tools, delegation_and_access): **RELIABLE_PRACTICE**, **NOT_RELIABLE_PRACTICE**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out. It evaluates declared evidence only; it does not inspect a repository or watch an agent run.

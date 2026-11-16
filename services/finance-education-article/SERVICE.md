@@ -94,7 +94,7 @@ never judges the prose itself and never claims to have read the article.
 
 ## Status
 
-Tier B · status: **built-locally** — deterministic core, Python oracle, TypeScript port, golden fixtures and differential sweep complete 2026-11-15; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
 
 ## Named doubt (from the register)
 

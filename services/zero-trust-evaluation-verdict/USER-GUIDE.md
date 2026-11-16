@@ -1,5 +1,7 @@
 # Zero trust evaluation verdict — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a zero-trust claim for a system — never trust, always verify,

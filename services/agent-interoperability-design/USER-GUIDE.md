@@ -1,5 +1,7 @@
 # Agent interoperability design — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are designing how agents interoperate. This atom reads a declared interoperability design manifest — protocol selection per integration, bridge architecture, gateway/remote access, handoff contracts, identity/credentials, versioning/discovery, audit/provenance, and handshake testing/red lines — and returns one deterministic verdict across eight sections: **DESIGN_SOUND**, **DESIGN_NOT_SOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It also reports the computed `protocol_status` and `integration_count`. Same manifest in → same verdict out. It evaluates declared evidence only; it does not connect to any agent or run a handshake.

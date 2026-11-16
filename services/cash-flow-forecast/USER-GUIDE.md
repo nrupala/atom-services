@@ -1,5 +1,7 @@
 # Cash flow forecast — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a cash-flow forecast artifact — a 13-week rolling forecast with its flow map, reserve target, runway declaration, stress record and reporting record. This atom reads one declared manifest and returns one deterministic verdict across six sections: **CASH_FLOW_FORECAST_READY**, **CASH_FLOW_FORECAST_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared artifact's completeness and internal consistency only — it does not build a forecast or judge whether the numbers are realistic. Computed checks: the forecast must declare exactly 13 weekly buckets and every declared weekly closing balance must equal the opening balance plus cumulative inflows minus outflows; the declared reserve target must equal target months × monthly fixed costs (no minimum months is imposed); the declared runway must equal cash on hand ÷ burn, with a positive burn (no minimum runway is imposed — the 6/3-month figures are alert thresholds, not pass marks); and the stress record must cover the three stated cases — revenue −20%, collections +30 days late, surprise capex. Same manifest in → same verdict out.

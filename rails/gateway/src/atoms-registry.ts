@@ -45,6 +45,13 @@ import { evaluate as evaluateEngineeringProjectBudgetPack, stamp as stampEnginee
 import { evaluate as evaluateEngineeringWorkPackageStructuring, stamp as stampEngineeringWorkPackageStructuring } from "./atoms/engineering-work-package-structuring.js";
 import { evaluate as evaluateFareConstructionSavingsStrategy, stamp as stampFareConstructionSavingsStrategy } from "./atoms/fare-construction-savings-strategy.js";
 import { evaluate as evaluateFinanceEducationArticle, stamp as stampFinanceEducationArticle } from "./atoms/finance-education-article.js";
+import { evaluate as evaluateFinanceToolDesignAdvisory, stamp as stampFinanceToolDesignAdvisory } from "./atoms/finance-tool-design-advisory.js";
+import { evaluate as evaluateForecastConfidenceScoreboard, stamp as stampForecastConfidenceScoreboard } from "./atoms/forecast-confidence-scoreboard.js";
+import { evaluate as evaluateFrameworkAdoptionAdr, stamp as stampFrameworkAdoptionAdr } from "./atoms/framework-adoption-adr.js";
+import { evaluate as evaluateFrontendImplementation, stamp as stampFrontendImplementation } from "./atoms/frontend-implementation.js";
+import { evaluate as evaluateFullStackAppBuildPack, stamp as stampFullStackAppBuildPack } from "./atoms/full-stack-app-build-pack.js";
+import { evaluate as evaluateGrpcServiceDesign, stamp as stampGrpcServiceDesign } from "./atoms/grpc-service-design.js";
+import { evaluate as evaluateHomeShortlistCarryingCostComparison, stamp as stampHomeShortlistCarryingCostComparison } from "./atoms/home-shortlist-carrying-cost-comparison.js";
 import { evaluate as evaluateFirewallRules, stamp as stampFirewallRules } from "./atoms/firewall-rules-audit.js";
 import { evaluate as evaluateLicenseCompliance, stamp as stampLicenseCompliance } from "./atoms/license-compliance-check.js";
 import { evaluate as evaluateAgentEvaluation, stamp as stampAgentEvaluation } from "./atoms/agent-evaluation-scorecard.js";
@@ -804,6 +811,49 @@ const financeContentComplianceCheck = manifestAtom({
   stampFn: stampFinanceContent
 });
 
+const financeToolDesignAdvisory = manifestAtom({
+  serviceName: "finance-tool-design-advisory",
+  namespace: "finance_tool_design_advisory",
+  displayName: "Finance tool design advisory",
+  description:
+    "Submits a finance-tool design record (advice boundary and compliance framing, quant fundamentals, reproducibility, privacy and open finance, business model and behavioural design, anti-patterns) and returns a deterministic FINANCE_TOOL_DESIGN_SOUND / FINANCE_TOOL_DESIGN_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed feature-consistency and scenario/traceability coverage checks, with per-check evidence. Audits the declared design record; it gives no financial advice.",
+  schemaDescription: "The finance-tool design manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    tool: str("Finance tool being designed."),
+    compliance: obj("Compliance evidence."),
+    margin: obj("Margin evidence."),
+    quant: obj("Quant evidence."),
+    features: arr("Declared features: {name, shows_scenarios_and_tradeoffs, implies_advice_present, figures_traceable, is_backtest, overfit_and_survivorship_addressed}."),
+    open_building_blocks: obj("Open building blocks evidence."),
+    privacy: obj("Privacy evidence."),
+    business_model: obj("Business model evidence."),
+    behavioral: obj("Behavioral evidence."),
+    anti_patterns: obj("Anti patterns evidence.")
+  },
+  evaluateFn: evaluateFinanceToolDesignAdvisory,
+  stampFn: stampFinanceToolDesignAdvisory
+});
+
+const forecastConfidenceScoreboard = manifestAtom({
+  serviceName: "forecast-confidence-scoreboard",
+  namespace: "forecast_confidence_scoreboard",
+  displayName: "Confidence scoreboard",
+  description:
+    "Submits a forecast-confidence scoreboard record (a ledger of resolved binary probabilistic forecasts by named forecasters, per-forecaster scoreboard rows, calibration reporting, ranking and honesty in use) and returns a deterministic CONFIDENCE_SCOREBOARD_SOUND / CONFIDENCE_SCOREBOARD_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including recomputed per-forecaster Brier score, hit rate and calibration-gap checks, with per-check evidence. Scores the declared ledger; it makes no forecast.",
+  schemaDescription: "The forecast-confidence scoreboard manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    subject: str("Scoreboard subject (the forecaster population / forecast programme)."),
+    record: obj("Record evidence."),
+    forecasts: arr("Declared forecasts: {forecaster, claim, stated_probability, outcome}."),
+    scoreboard: arr("Declared scoreboard: {forecaster, forecasts_count, mean_stated_probability, hit_rate, calibration_gap, brier_score, rank}."),
+    confidence_reporting: obj("Confidence reporting evidence."),
+    scoreboard_use: obj("Scoreboard use evidence."),
+    honesty: obj("Honesty evidence.")
+  },
+  evaluateFn: evaluateForecastConfidenceScoreboard,
+  stampFn: stampForecastConfidenceScoreboard
+});
+
 const forecastWithRangesAndScorecard = manifestAtom({
   serviceName: "forecast-with-ranges-and-scorecard",
   namespace: "forecast_with_ranges_and_scorecard",
@@ -825,6 +875,117 @@ const forecastWithRangesAndScorecard = manifestAtom({
   },
   evaluateFn: evaluateForecastRanges,
   stampFn: stampForecastRanges
+});
+
+const frameworkAdoptionAdr = manifestAtom({
+  serviceName: "framework-adoption-adr",
+  namespace: "framework_adoption_adr",
+  displayName: "Framework adoption adr",
+  description:
+    "Submits a framework-adoption ADR record (the adoption decision and candidate fit assessments, house-stack conformity, pinning and upgrades, runtime explicitness, plugins and deprecations) and returns a deterministic FRAMEWORK_ADOPTION_SOUND / FRAMEWORK_ADOPTION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed candidate-fit and plugin-compliance coverage checks, with per-check evidence. Audits the declared adoption record; it adopts nothing.",
+  schemaDescription: "The framework-adoption ADR manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project adopting the framework."),
+    framework: str("Framework being adopted."),
+    adr: obj("Adr evidence."),
+    candidates: arr("Declared candidates: {name, team_familiarity_assessed, maintenance_health_assessed, ecosystem_assessed, performance_assessed, exit_cost_assessed, selected}."),
+    house_stack: obj("House stack evidence."),
+    versions: obj("Versions evidence."),
+    runtime: obj("Runtime evidence."),
+    plugins: obj("Plugins evidence."),
+    deprecations: obj("Deprecations evidence.")
+  },
+  evaluateFn: evaluateFrameworkAdoptionAdr,
+  stampFn: stampFrameworkAdoptionAdr
+});
+
+const frontendImplementation = manifestAtom({
+  serviceName: "frontend-implementation",
+  namespace: "frontend_implementation",
+  displayName: "Frontend implementation",
+  description:
+    "Submits a frontend implementation record (structure and components, states and data layer, responsive and accessibility, performance and errors, verification and red lines) and returns a deterministic FRONTEND_SOUND / FRONTEND_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed data-view state-coverage checks, with per-check evidence. Audits the declared record; it builds and renders nothing.",
+  schemaDescription: "The frontend implementation manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Frontend project being audited."),
+    structure: obj("Structure evidence."),
+    framework: obj("Framework evidence."),
+    data_views: arr("Declared data views: {name, loading_implemented, empty_implemented, error_implemented, success_implemented}."),
+    interactions: obj("Interactions evidence."),
+    data_layer: obj("Data layer evidence."),
+    verification: obj("Verification evidence."),
+    responsive: obj("Responsive evidence."),
+    accessibility: obj("Accessibility evidence."),
+    performance: obj("Performance evidence."),
+    errors: obj("Errors evidence."),
+    security: obj("Security evidence.")
+  },
+  evaluateFn: evaluateFrontendImplementation,
+  stampFn: stampFrontendImplementation
+});
+
+const fullStackAppBuildPack = manifestAtom({
+  serviceName: "full-stack-app-build-pack",
+  namespace: "full_stack_app_build_pack",
+  displayName: "Full stack app build pack",
+  description:
+    "Submits a full-stack app build record (approach and contracts, frontend, backend and data, security, testing and quality, deploy and delivery) and returns a deterministic FULL_STACK_BUILD_SOUND / FULL_STACK_BUILD_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed end-to-end slice coverage checks, with per-check evidence. Audits the declared build record; it builds no app.",
+  schemaDescription: "The full-stack build-pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("App build being audited."),
+    approach: obj("Approach evidence."),
+    slices: arr("Declared slices: {name, end_to_end_complete}."),
+    frontend: obj("Frontend evidence."),
+    backend: obj("Backend evidence."),
+    data: obj("Data evidence."),
+    security: obj("Security evidence."),
+    testing: obj("Testing evidence."),
+    deploy: obj("Deploy evidence.")
+  },
+  evaluateFn: evaluateFullStackAppBuildPack,
+  stampFn: stampFullStackAppBuildPack
+});
+
+const grpcServiceDesign = manifestAtom({
+  serviceName: "grpc-service-design",
+  namespace: "grpc_service_design",
+  displayName: "Grpc service design",
+  description:
+    "Submits a gRPC service design record (contract and compatibility, API shape and deadlines, server hygiene, security and transport, observability, testing and interop) and returns a deterministic GRPC_SERVICE_SOUND / GRPC_SERVICE_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed method deadline and streaming-boundedness and proto field-number checks, with per-check evidence. Audits the declared design record; it serves no RPCs.",
+  schemaDescription: "The gRPC service design manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("gRPC service / platform being designed."),
+    contract: obj("Contract evidence."),
+    methods: arr("Declared methods: {name, streaming_mode, deadline_set, stream_bounded}."),
+    proto_fields: arr("Declared proto fields: {message, name, number}."),
+    api_shape: obj("Api shape evidence."),
+    server: obj("Server evidence."),
+    security: obj("Security evidence."),
+    observability: obj("Observability evidence."),
+    testing: obj("Testing evidence."),
+    interop: obj("Interop evidence.")
+  },
+  evaluateFn: evaluateGrpcServiceDesign,
+  stampFn: stampGrpcServiceDesign
+});
+
+const homeShortlistCarryingCostComparison = manifestAtom({
+  serviceName: "home-shortlist-carrying-cost-comparison",
+  namespace: "home_shortlist_carrying_cost_comparison",
+  displayName: "Home shortlist carrying cost comparison",
+  description:
+    "Submits a home-shortlist carrying-cost comparison record (criteria declared before search, candidate home records, declared monthly carrying-cost components, tracking and ranking) and returns a deterministic HOME_SHORTLIST_COMPARISON_READY / HOME_SHORTLIST_COMPARISON_NOT_READY / INSUFFICIENT_EVIDENCE verdict across five sections, including recomputed per-home carrying-cost totals, spread and budget-coverage figures, with per-check evidence. Compares the declared figures; it fetches no listings and values no homes.",
+  schemaDescription: "The home-shortlist comparison manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    search_name: str("Name of the home search / shortlist."),
+    currency: str("Currency all declared figures are in."),
+    criteria: obj("Criteria evidence."),
+    homes: arr("Declared homes: {name, listing_source, fetch_date, status, ruled_out_reason, asking_price, monthly_housing_payment, monthly_property_tax, monthly_utilities_estimate, monthly_condo_or_hoa_fees, declared_monthly_carrying_cost, open_questions, meets_criteria}."),
+    tracking: obj("Tracking evidence."),
+    presentation: obj("Presentation evidence.")
+  },
+  evaluateFn: evaluateHomeShortlistCarryingCostComparison,
+  stampFn: stampHomeShortlistCarryingCostComparison
 });
 
 const lean4FormalProof = manifestAtom({
@@ -1193,7 +1354,7 @@ const zeroTrustEvaluationVerdict = manifestAtom({
     gauntlet: obj("Authentication and server-trust gauntlet evidence."),
     identity: obj("Identity evidence (checked before access, proof method named)."),
     cryptography: obj("Cryptography evidence (password KDF, declared minimum secret length — computed against the skill's stated values)."),
-    findings: arr("Declared privilege/segmentation and verification findings."),
+    findings: obj("Declared privilege/segmentation and verification findings."),
     inventory: obj("Trust-inventory evidence (trusted components enumerated)."),
     limits: obj("Honest-limits evidence (compromised-endpoint and residual-trust statements)."),
   },
@@ -2166,6 +2327,13 @@ const HANDLERS: Record<string, AtomHandler> = {
   [engineeringWorkPackageStructuring.serviceName]: engineeringWorkPackageStructuring,
   [fareConstructionSavingsStrategy.serviceName]: fareConstructionSavingsStrategy,
   [financeEducationArticle.serviceName]: financeEducationArticle,
+  [financeToolDesignAdvisory.serviceName]: financeToolDesignAdvisory,
+  [forecastConfidenceScoreboard.serviceName]: forecastConfidenceScoreboard,
+  [frameworkAdoptionAdr.serviceName]: frameworkAdoptionAdr,
+  [frontendImplementation.serviceName]: frontendImplementation,
+  [fullStackAppBuildPack.serviceName]: fullStackAppBuildPack,
+  [grpcServiceDesign.serviceName]: grpcServiceDesign,
+  [homeShortlistCarryingCostComparison.serviceName]: homeShortlistCarryingCostComparison,
   [releaseReadiness.serviceName]: releaseReadiness,
   [agentSafetyGuardrailAudit.serviceName]: agentSafetyGuardrailAudit,
   [appendOnlyLedgerDesignAudit.serviceName]: appendOnlyLedgerDesignAudit,

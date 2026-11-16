@@ -1,0 +1,1084 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: decision-ready-research-brief
+
+=== contract.yaml ===
+service_name: decision-ready-research-brief
+display_name: Decision ready research brief
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:research-tooling
+binding:
+  skill: research-tooling
+  skill_path: workspace/mymilo-build/skills/research-tooling/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REPORT
+endpoints:
+- agent
+keys:
+  namespace: decision_ready_research_brief
+  prefix: atm_1_decision_ready_research_brief_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Deep research for product decisions
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Decision ready research brief — `decision-ready-research-brief`
+
+**Deliverable type:** REPORT. This atom sells the report it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Run research rigorously — question scoping, source triangulation, evidence notes, decision-ready reports.
+
+A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this report on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Deep research for product decisions**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the research-brief manifest
+
+The caller submits one JSON manifest: a declared research-brief
+record for one brief. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`RESEARCH_BRIEF_NOT_DECISION_READY`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `brief` (string; carried into the verdict output, not itself checked) | — |
+| `scope.decision_named` | scoping_and_sources |
+| `scope.questions_ranked` | scoping_and_sources |
+| `scope.timebox_declared` | scoping_and_sources |
+| `scope.timebox_respected` | scoping_and_sources |
+| `scope.enough_criteria_defined` | scoping_and_sources |
+| `questions` (list of question-row objects, each `{name}` — see the entry field below; computed, see below) | scoping_and_sources |
+| `questions[].name` (string; names the question row — the row's presence in the list is what the computed questions check counts) | scoping_and_sources |
+| `source_strategy.primary_preferred_over_secondary_and_tertiary` | scoping_and_sources |
+| `sources` (list of source-row objects, each `{name, link, date, quote, source_type, incentives_noted}` — see the six entry fields below; computed, see below) | scoping_and_sources |
+| `sources[].name` (string; the name a claim's `supporting_source_names` entry must equal for that source to count as supporting the claim) | scoping_and_sources |
+| `sources[].link` (string; must be a non-empty string for the row to pass the computed link check — an absent field is missing evidence, an empty string fails) | scoping_and_sources |
+| `sources[].date` (string; must be a non-empty string for the row to pass the computed date check — an absent field is missing evidence, an empty string fails; the string is never parsed or compared to any clock, see the freshness note below) | scoping_and_sources |
+| `sources[].quote` (string; must be a non-empty string for the row to pass the computed quote check — an absent field is missing evidence, an empty string fails) | scoping_and_sources |
+| `sources[].source_type` (string; must be a non-empty string for the row to pass the computed source-type check — no vocabulary is imposed: the skill ranks primary > secondary > tertiary as a strategy, and names no allowed values for a row, so only that a type is declared is checked) | scoping_and_sources |
+| `sources[].incentives_noted` | scoping_and_sources |
+| `evidence.notes_question_oriented` | evidence_and_notes |
+| `evidence.evidence_table_present` | evidence_and_notes |
+| `evidence.fact_estimate_opinion_separated` | evidence_and_notes |
+| `evidence.gaps_recorded` | evidence_and_notes |
+| `claims` (list of claim-row objects, each `{name, kind, material, important, supporting_source_names, confidence_stated}` — see the six entry fields below; computed, see below) | evidence_and_notes |
+| `claims[].name` (string; names the row in the computed `material_claims_without_sources` and `important_claims_not_triangulated` outputs) | evidence_and_notes |
+| `claims[].kind` (string; must be a non-empty string for the row to pass the computed kind check — no vocabulary is imposed: the skill requires fact / estimate / opinion be separated, and only that each claim is labelled is checked) | evidence_and_notes |
+| `claims[].material` (gates the computed sourcing check below: only material claims are required to name a supporting source) | evidence_and_notes |
+| `claims[].important` (gates the computed triangulation check below: only important claims are required to name two distinct supporting sources) | evidence_and_notes |
+| `claims[].supporting_source_names` (list of strings; each entry counts only when it equals a declared source's `name`, and distinct matching names are counted — an absent field on a material or important claim is missing evidence; an absent field on a claim that is neither is not required) | evidence_and_notes |
+| `claims[].confidence_stated` | evidence_and_notes |
+| `synthesis.structured_by_question` | synthesis_and_report_structure |
+| `synthesis.opposing_view_steelmanned` | synthesis_and_report_structure |
+| `synthesis.quantified_where_possible` | synthesis_and_report_structure |
+| `synthesis.confidence_stated` | synthesis_and_report_structure |
+| `synthesis.unknowns_stated_explicitly` | synthesis_and_report_structure |
+| `report_sections` (list of strings; computed, see below — must equal the skill's report format exactly and in order: `bluf`, `findings`, `evidence`, `risks`, `open_questions`, `sources`) | synthesis_and_report_structure |
+| `report.version` (string; must be a non-empty string to pass the computed version check — an absent field is missing evidence, an empty string fails) | synthesis_and_report_structure |
+| `report.date` (string; must be a non-empty string to pass the computed date check — an absent field is missing evidence, an empty string fails; the string is never parsed or compared to any clock) | synthesis_and_report_structure |
+| `report.open_questions_listed` | synthesis_and_report_structure |
+| `reuse.notes_archived_for_reuse` | reuse_verification_and_red_lines |
+| `reuse.updates_via_changelog` | reuse_verification_and_red_lines |
+| `reuse.silent_edits_present` (must be `false` to pass — skill anti-pattern) | reuse_verification_and_red_lines |
+| `tooling.automation_does_not_replace_verification` | reuse_verification_and_red_lines |
+| `tooling.ai_summaries_used` (gates the two AI-summary checks below) | reuse_verification_and_red_lines |
+| `tooling.ai_summaries_cite_sources` (required when AI summaries are declared in use; otherwise the check passes as not applicable) | reuse_verification_and_red_lines |
+| `tooling.ai_summaries_spot_checked` (required when AI summaries are declared in use; otherwise the check passes as not applicable) | reuse_verification_and_red_lines |
+| `tooling.seo_spam_and_content_farms_screened` | reuse_verification_and_red_lines |
+| `tooling.scraped_or_automated_data_used` (gates the quality check below) | reuse_verification_and_red_lines |
+| `tooling.scraped_or_automated_data_quality_checked` (required when scraped or automated data is declared in use; otherwise the check passes as not applicable) | reuse_verification_and_red_lines |
+| `disclosure.conflicts_present` (gates the disclosure check below) | reuse_verification_and_red_lines |
+| `disclosure.conflicts_disclosed` (required when conflicts are declared present; otherwise the check passes as not applicable) | reuse_verification_and_red_lines |
+| `disclosure.unsourced_claims_present` (must be `false` to pass — skill red line) | reuse_verification_and_red_lines |
+| `disclosure.single_source_conclusions_on_important_facts_present` (must be `false` to pass — skill red line) | reuse_verification_and_red_lines |
+
+Nine checks are computed from the declared rows, using only the
+consistency of the declared record itself — no outside threshold
+is imported:
+
+- **Questions, sources and claims declared:** each declared list
+  passes only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Provenance per source:** every declared source row must name
+  a non-empty `link`, a non-empty `date` and a non-empty `quote`
+  (the skill's provenance triple: link + date + quote), declare a
+  non-empty `source_type`, and declare `incentives_noted: true`.
+  A row with a field absent is missing evidence for that field's
+  check; a row naming an empty string fails it.
+- **Sourcing per material claim:** every claim declared
+  `material: true` must name at least one supporting source that
+  is actually declared — an entry in `supporting_source_names`
+  counts only when it equals a declared source's `name`. A
+  material claim with the field absent is missing evidence.
+- **Triangulation per important claim:** every claim declared
+  `important: true` must name at least **two distinct**
+  supporting sources that are actually declared. Two is the
+  skill's own bar, not an imported threshold: the skill requires
+  important claims be triangulated across independent sources
+  and its red line forbids single-source conclusions on
+  important facts, so one matching source cannot pass. Duplicate
+  entries of the same source name count once. An important claim
+  with the field absent is missing evidence.
+- **Confidence and kind per claim:** every declared claim row
+  must declare `confidence_stated: true` and a non-empty `kind`
+  string. A row with the field absent is missing evidence.
+- **Report sections in skill order:** the declared
+  `report_sections` list passes only when it equals the skill's
+  report format exactly and in order — `bluf`, `findings`,
+  `evidence`, `risks`, `open_questions`, `sources`.
+- **Report version and date declared:** the declared `report`
+  record must name a non-empty `version` string and a non-empty
+  `date` string (the skill: version + date on every report). An
+  absent field is missing evidence; an empty string fails.
+
+Four check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **AI summaries cite sources / are spot-checked:** the skill
+  binds both rules to AI summaries ("AI summaries must cite
+  sources and get spot-checked"). Both target fields are
+  therefore required only when `tooling.ai_summaries_used` is
+  declared `true`; when no AI summaries are declared, both
+  checks pass as not applicable.
+- **Scraped / automated data quality-checked:** the skill binds
+  its quality-check rule to scraped and automated data
+  ("quality-check scraped/automated data before use").
+  `scraped_or_automated_data_quality_checked` is therefore
+  required only when `tooling.scraped_or_automated_data_used`
+  is declared `true`; otherwise the check passes as not
+  applicable.
+- **Conflicts disclosed:** the skill's red line is "disclose
+  conflicts". `conflicts_disclosed` is therefore required only
+  when `disclosure.conflicts_present` is declared `true`; when
+  no conflicts are declared present, the check passes as not
+  applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the six primary computed checks — questions declared, sources
+declared, claims declared, material-claim sourcing,
+important-claim triangulation, report sections in skill order —
+cannot be completed), `questions_count`, `sources_count` and
+`claims_count` (the declared list lengths, or null when the list
+is not declared — counts are reported as integers, exactly), the
+row-name lists `sources_without_complete_provenance` (null when
+the sources list is not declared),
+`material_claims_without_sources` and
+`important_claims_not_triangulated` (null when either underlying
+list — claims or sources — is not declared; a material or
+important claim whose `supporting_source_names` field is absent
+is missing evidence and does not appear in these lists), and the
+three coverage ratios `source_provenance_coverage` (sources
+with a complete link + date + quote provenance triple ÷ declared
+sources), `material_claim_source_coverage` (material claims
+naming at least one matching declared source ÷ declared material
+claims) and `important_claim_triangulation_coverage` (important
+claims naming at least two distinct matching declared sources ÷
+declared important claims).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly four decimal places, produced in both
+implementations by the same rule — round half up to 4dp,
+`floor(v * 10000 + 0.5) / 10000`, then format with exactly four
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty (and, for the claim
+ratios, when the sources list is absent, or when no claim is
+declared material / important respectively). That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric threshold — no source count, claim
+count, or question count, no confidence level, no timebox
+duration, no source-age or freshness limit for a source's
+declared date, and no rate at which findings must be quantified
+— so no numeric threshold check is invented. Quantities are
+computed and reported; the only bars on the computed rows are
+completeness over the caller's own declared rows (every declared
+source, every material claim, every important claim) and the
+skill's own two-source triangulation bar, exactly as stated
+above. Declined thresholds, named: a minimum or maximum
+source/claim/question count; a minimum confidence level or a
+confidence vocabulary (the skill requires confidence be
+*stated*, and names no scale or allowed values, so only that
+attestation and the per-claim stated flag are checked); a
+numeric timebox duration or a measured overrun (only that a
+timebox is declared and respected is checked); a maximum source
+age / freshness window — source and report `date` strings are
+declared evidence of provenance only, never parsed and never
+compared to a clock, because the skill states no freshness
+limit and this core has no clock dependence; a numeric
+quantification rate for "quantify where possible"; a
+source-type vocabulary (primary / secondary / tertiary is the
+skill's preference order, checked as the strategy attestation,
+not imposed as row values); a claim-kind vocabulary (fact /
+estimate / opinion names the separation the skill requires,
+checked as the separation attestation plus each claim being
+labelled, not imposed as row values).
+
+The verdict is one of `RESEARCH_BRIEF_DECISION_READY` (all 42 checks
+pass), `RESEARCH_BRIEF_NOT_DECISION_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across four sections: scoping_and_sources, evidence_and_notes,
+synthesis_and_report_structure, reuse_verification_and_red_lines.
+
+## Honest scoping
+
+This atom audits a **declared** research-brief record — it
+performs no research, fetches no source, opens no link, reads no
+notes, and does not verify that a declared source exists, says
+what its quote claims, or supports the claim that names it. A
+brief is decision-ready *on the caller's declared evidence*: a
+manifest that declares triangulated claims, complete provenance,
+and a steelmanned opposing view passes those checks even if the
+real brief does none of it. It is a completeness and consistency
+audit of the record the skill requires, **not a research service
+or a truth certification**: it never judges whether a source is
+actually good, independent, or correctly typed (source quality
+is a caller declaration only — the declared `source_type` string
+and the preference-order attestation are all that is checked),
+whether two declared sources are genuinely independent of each
+other (independence is asserted by the caller's triangulation
+declaration; only that two *distinct declared names* are cited
+is computed), whether the synthesis is actually sound or the
+steelman actually strong (synthesis judgment is a caller
+declaration only), whether a claim is truly material or
+important (those flags are the caller's declarations and gate
+the computed checks), or whether the stated confidence is
+warranted — only that the record contains what the skill's
+sections, quality gates and red lines demand, and that its
+declared rows are internally consistent.
+
+Named exclusions: no numeric thresholds (see the declined list
+above); no fetching, resolving or spot-checking of any declared
+link, quote or source; no date parsing or freshness comparison
+against any clock; no independence verification between declared
+sources beyond distinct declared names; no check that a named
+supporting source's content actually supports the claim; the
+skill's conditional scope rule — "No decision → question the
+research" — is not reduced to a separate gated check, because
+the record's `decision_named` attestation already covers the
+decision being named and the record declares no separate
+decision-absent flag to gate a questioning attestation on, so
+it is excluded rather than force-fit; research quality,
+source quality and synthesis quality beyond the declarations
+above.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "brief": "Market entry strategy",
+      "scope": {
+        "decision_named": true,
+        "questions_ranked": true,
+        "timebox_declared": true,
+        "timebox_respected": true,
+        "enough_criteria_defined": true
+      },
+      "questions": [
+        {
+          "name": "Q1"
+        }
+      ],
+      "source_strategy": {
+        "primary_preferred_over_secondary_and_tertiary": true
+      },
+      "sources": [
+        {
+          "name": "S1",
+          "link": "http://a.com",
+          "date": "2023-01-01",
+          "quote": "A",
+          "source_type": "primary",
+          "incentives_noted": true
+        },
+        {
+          "name": "S2",
+          "link": "http://b.com",
+          "date": "2023-01-01",
+          "quote": "B",
+          "source_type": "primary",
+          "incentives_noted": true
+        }
+      ],
+      "evidence": {
+        "notes_question_oriented": true,
+        "evidence_table_present": true,
+        "fact_estimate_opinion_separated": true,
+        "gaps_recorded": true
+      },
+      "claims": [
+        {
+          "name": "C1",
+          "kind": "fact",
+          "material": true,
+          "important": true,
+          "supporting_source_names": [
+            "S1",
+            "S2"
+          ],
+          "confidence_stated": true
+        }
+      ],
+      "synthesis": {
+        "structured_by_question": true,
+        "opposing_view_steelmanned": true,
+        "quantified_where_possible": true,
+        "confidence_stated": true,
+        "unknowns_stated_explicitly": true
+      },
+      "report_sections": [
+        "bluf",
+        "findings",
+        "evidence",
+        "risks",
+        "open_questions",
+        "sources"
+      ],
+      "report": {
+        "version": "1.0",
+        "date": "2023-01-02",
+        "open_questions_listed": true
+      },
+      "reuse": {
+        "notes_archived_for_reuse": true,
+        "updates_via_changelog": true,
+        "silent_edits_present": false
+      },
+      "tooling": {
+        "automation_does_not_replace_verification": true,
+        "ai_summaries_used": false,
+        "seo_spam_and_content_farms_screened": true,
+        "scraped_or_automated_data_used": false
+      },
+      "disclosure": {
+        "conflicts_present": false,
+        "unsourced_claims_present": false,
+        "single_source_conclusions_on_important_facts_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "decision-ready-research-brief",
+      "atom_version": "0.1.0",
+      "brief": "Market entry strategy",
+      "verdict": "RESEARCH_BRIEF_DECISION_READY",
+      "sections": {
+        "scoping_and_sources": "pass",
+        "evidence_and_notes": "pass",
+        "synthesis_and_report_structure": "pass",
+        "reuse_verification_and_red_lines": "pass"
+      },
+      "checks": [
+        {
+          "section": "scoping_and_sources",
+          "check": "decision_named",
+          "status": "pass",
+          "evidence": "scope first: the decision this research serves is named \u2014 no decision, the research is questioned"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "questions_ranked",
+          "status": "pass",
+          "evidence": "scope first: the questions are ranked"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "questions_declared",
+          "status": "pass",
+          "evidence": "scope first: the declared brief record names its questions \u2014 the questions list is present and non-empty"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "timebox_declared",
+          "status": "pass",
+          "evidence": "scope first: a timebox is declared"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "timebox_respected",
+          "status": "pass",
+          "evidence": "quality gate: the timebox is respected"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "enough_criteria_defined",
+          "status": "pass",
+          "evidence": "scope first: what \"enough\" looks like is defined"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "primary_sources_preferred",
+          "status": "pass",
+          "evidence": "source strategy: primary sources (filings, docs, data) are preferred over secondary, and secondary over tertiary"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "sources_declared",
+          "status": "pass",
+          "evidence": "source strategy: the declared brief record names its sources \u2014 the sources list is present and non-empty"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_has_link",
+          "status": "pass",
+          "evidence": "source strategy / provenance: every declared source row names a non-empty link \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_has_date",
+          "status": "pass",
+          "evidence": "source strategy / provenance: every declared source row names a non-empty date \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_has_quote",
+          "status": "pass",
+          "evidence": "source strategy / provenance: every declared source row names a non-empty quote \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_declares_source_type",
+          "status": "pass",
+          "evidence": "source strategy / provenance: every declared source row declares its source type \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_incentives_noted",
+          "status": "pass",
+          "evidence": "source strategy: every declared source row declares its incentives noted"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "claims_declared",
+          "status": "pass",
+          "evidence": "notes discipline: the declared brief record names its claims \u2014 the claims list is present and non-empty"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "notes_question_oriented",
+          "status": "pass",
+          "evidence": "notes discipline: notes are question-oriented, not dumps"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "evidence_table_present",
+          "status": "pass",
+          "evidence": "notes discipline: an evidence table is present \u2014 claim to sources to confidence to gaps"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "fact_estimate_opinion_separated",
+          "status": "pass",
+          "evidence": "notes discipline: fact, estimate and opinion are separated"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "gaps_recorded",
+          "status": "pass",
+          "evidence": "notes discipline: gaps are recorded in the evidence table"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_material_claim_sourced_from_declared_sources",
+          "status": "pass",
+          "evidence": "quality gate / red line: every material claim is sourced \u2014 it names at least one supporting source that is actually declared; no unsourced claims"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_important_claim_triangulated_across_declared_sources",
+          "status": "pass",
+          "evidence": "source strategy / red line: every important claim is triangulated \u2014 it names at least two distinct supporting sources that are actually declared; no single-source conclusions on important facts"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_claim_confidence_stated",
+          "status": "pass",
+          "evidence": "quality gate: every declared claim row declares its confidence stated"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_claim_kind_declared",
+          "status": "pass",
+          "evidence": "notes discipline: every declared claim row declares a non-empty kind \u2014 the fact / estimate / opinion separation starts from each claim being labelled"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "synthesis_structured_by_question",
+          "status": "pass",
+          "evidence": "synthesis: the brief is structured by question"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "opposing_view_steelmanned",
+          "status": "pass",
+          "evidence": "synthesis / quality gate: opposing views are presented as a steelman"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "quantified_where_possible",
+          "status": "pass",
+          "evidence": "synthesis: findings are quantified where possible"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "synthesis_confidence_stated",
+          "status": "pass",
+          "evidence": "synthesis: confidence is stated explicitly"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "unknowns_stated_explicitly",
+          "status": "pass",
+          "evidence": "synthesis: unknowns are stated explicitly"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "report_sections_in_skill_order",
+          "status": "pass",
+          "evidence": "report format: the declared report sections are exactly the skill's format in order \u2014 bluf, findings, evidence, risks, open_questions, sources"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "report_version_declared",
+          "status": "pass",
+          "evidence": "report format: the report declares a non-empty version \u2014 version and date go on every report"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "report_date_declared",
+          "status": "pass",
+          "evidence": "report format: the report declares a non-empty date \u2014 version and date go on every report"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "open_questions_listed",
+          "status": "pass",
+          "evidence": "quality gate: open questions are listed"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "notes_archived_for_reuse",
+          "status": "pass",
+          "evidence": "reuse: notes are stored and archived for future questions"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "updates_via_changelog",
+          "status": "pass",
+          "evidence": "reuse: reports are updated when facts change via a changelog"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "no_silent_edits",
+          "status": "pass",
+          "evidence": "reuse / anti-pattern: no silent edits \u2014 updates are a changelog, not silent edits"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "automation_does_not_replace_verification",
+          "status": "pass",
+          "evidence": "tooling discipline: automation speeds collection but never replaces verification"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "ai_summaries_cite_sources_when_used",
+          "status": "pass",
+          "evidence": "no AI summaries declared in use"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "ai_summaries_spot_checked_when_used",
+          "status": "pass",
+          "evidence": "no AI summaries declared in use"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "seo_spam_and_content_farms_screened",
+          "status": "pass",
+          "evidence": "tooling discipline: results are watched for SEO spam and content farms"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "scraped_or_automated_data_quality_checked_when_used",
+          "status": "pass",
+          "evidence": "no scraped or automated data declared in use"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "conflicts_disclosed_when_present",
+          "status": "pass",
+          "evidence": "no conflicts declared present"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "no_unsourced_claims",
+          "status": "pass",
+          "evidence": "red line: no unsourced claims"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "no_single_source_conclusions_on_important_facts",
+          "status": "pass",
+          "evidence": "red line: no single-source conclusions on important facts"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "questions_count": 1,
+      "sources_count": 2,
+      "sources_without_complete_provenance": [],
+      "source_provenance_coverage": "1.0000",
+      "claims_count": 1,
+      "material_claims_without_sources": [],
+      "material_claim_source_coverage": "1.0000",
+      "important_claims_not_triangulated": [],
+      "important_claim_triangulation_coverage": "1.0000",
+      "summary": "42 pass, 0 fail, 0 missing of 42 checks across four sections.",
+      "stamp": "DECISION-READY RESEARCH BRIEF\nbrief: Market entry strategy\nVERDICT: RESEARCH_BRIEF_DECISION_READY\n  scoping_and_sources                  pass\n  evidence_and_notes                   pass\n  synthesis_and_report_structure       pass\n  reuse_verification_and_red_lines     pass\n42 pass, 0 fail, 0 missing of 42 checks across four sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "brief": "Bad brief",
+      "scope": {
+        "decision_named": true,
+        "questions_ranked": true,
+        "timebox_declared": true,
+        "timebox_respected": true,
+        "enough_criteria_defined": true
+      },
+      "questions": [
+        {
+          "name": "Q1"
+        }
+      ],
+      "source_strategy": {
+        "primary_preferred_over_secondary_and_tertiary": true
+      },
+      "sources": [
+        {
+          "name": "S1",
+          "link": "",
+          "date": "2023-01-01",
+          "quote": "A",
+          "source_type": "primary",
+          "incentives_noted": true
+        },
+        {
+          "name": "S2",
+          "link": "http://b.com",
+          "date": "2023-01-01",
+          "quote": "B",
+          "source_type": "primary",
+          "incentives_noted": true
+        }
+      ],
+      "evidence": {
+        "notes_question_oriented": true,
+        "evidence_table_present": true,
+        "fact_estimate_opinion_separated": true,
+        "gaps_recorded": true
+      },
+      "claims": [
+        {
+          "name": "C1",
+          "kind": "fact",
+          "material": true,
+          "important": true,
+          "supporting_source_names": [
+            "S1"
+          ],
+          "confidence_stated": true
+        }
+      ],
+      "synthesis": {
+        "structured_by_question": true,
+        "opposing_view_steelmanned": true,
+        "quantified_where_possible": true,
+        "confidence_stated": true,
+        "unknowns_stated_explicitly": true
+      },
+      "report_sections": [
+        "bluf",
+        "findings",
+        "evidence",
+        "risks",
+        "open_questions",
+        "sources"
+      ],
+      "report": {
+        "version": "1.0",
+        "date": "2023-01-02",
+        "open_questions_listed": true
+      },
+      "reuse": {
+        "notes_archived_for_reuse": true,
+        "updates_via_changelog": true,
+        "silent_edits_present": true
+      },
+      "tooling": {
+        "automation_does_not_replace_verification": true,
+        "ai_summaries_used": false,
+        "seo_spam_and_content_farms_screened": true,
+        "scraped_or_automated_data_used": false
+      },
+      "disclosure": {
+        "conflicts_present": false,
+        "unsourced_claims_present": false,
+        "single_source_conclusions_on_important_facts_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "decision-ready-research-brief",
+      "atom_version": "0.1.0",
+      "brief": "Bad brief",
+      "verdict": "RESEARCH_BRIEF_NOT_DECISION_READY",
+      "sections": {
+        "scoping_and_sources": "fail",
+        "evidence_and_notes": "fail",
+        "synthesis_and_report_structure": "pass",
+        "reuse_verification_and_red_lines": "fail"
+      },
+      "checks": [
+        {
+          "section": "scoping_and_sources",
+          "check": "decision_named",
+          "status": "pass",
+          "evidence": "scope first: the decision this research serves is named \u2014 no decision, the research is questioned"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "questions_ranked",
+          "status": "pass",
+          "evidence": "scope first: the questions are ranked"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "questions_declared",
+          "status": "pass",
+          "evidence": "scope first: the declared brief record names its questions \u2014 the questions list is present and non-empty"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "timebox_declared",
+          "status": "pass",
+          "evidence": "scope first: a timebox is declared"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "timebox_respected",
+          "status": "pass",
+          "evidence": "quality gate: the timebox is respected"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "enough_criteria_defined",
+          "status": "pass",
+          "evidence": "scope first: what \"enough\" looks like is defined"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "primary_sources_preferred",
+          "status": "pass",
+          "evidence": "source strategy: primary sources (filings, docs, data) are preferred over secondary, and secondary over tertiary"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "sources_declared",
+          "status": "pass",
+          "evidence": "source strategy: the declared brief record names its sources \u2014 the sources list is present and non-empty"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_has_link",
+          "status": "fail",
+          "evidence": "source strategy / provenance: every declared source row names a non-empty link \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_has_date",
+          "status": "pass",
+          "evidence": "source strategy / provenance: every declared source row names a non-empty date \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_has_quote",
+          "status": "pass",
+          "evidence": "source strategy / provenance: every declared source row names a non-empty quote \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_declares_source_type",
+          "status": "pass",
+          "evidence": "source strategy / provenance: every declared source row declares its source type \u2014 provenance is tracked as link + date + quote"
+        },
+        {
+          "section": "scoping_and_sources",
+          "check": "every_source_incentives_noted",
+          "status": "pass",
+          "evidence": "source strategy: every declared source row declares its incentives noted"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "claims_declared",
+          "status": "pass",
+          "evidence": "notes discipline: the declared brief record names its claims \u2014 the claims list is present and non-empty"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "notes_question_oriented",
+          "status": "pass",
+          "evidence": "notes discipline: notes are question-oriented, not dumps"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "evidence_table_present",
+          "status": "pass",
+          "evidence": "notes discipline: an evidence table is present \u2014 claim to sources to confidence to gaps"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "fact_estimate_opinion_separated",
+          "status": "pass",
+          "evidence": "notes discipline: fact, estimate and opinion are separated"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "gaps_recorded",
+          "status": "pass",
+          "evidence": "notes discipline: gaps are recorded in the evidence table"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_material_claim_sourced_from_declared_sources",
+          "status": "pass",
+          "evidence": "quality gate / red line: every material claim is sourced \u2014 it names at least one supporting source that is actually declared; no unsourced claims"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_important_claim_triangulated_across_declared_sources",
+          "status": "fail",
+          "evidence": "source strategy / red line: every important claim is triangulated \u2014 it names at least two distinct supporting sources that are actually declared; no single-source conclusions on important facts"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_claim_confidence_stated",
+          "status": "pass",
+          "evidence": "quality gate: every declared claim row declares its confidence stated"
+        },
+        {
+          "section": "evidence_and_notes",
+          "check": "every_claim_kind_declared",
+          "status": "pass",
+          "evidence": "notes discipline: every declared claim row declares a non-empty kind \u2014 the fact / estimate / opinion separation starts from each claim being labelled"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "synthesis_structured_by_question",
+          "status": "pass",
+          "evidence": "synthesis: the brief is structured by question"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "opposing_view_steelmanned",
+          "status": "pass",
+          "evidence": "synthesis / quality gate: opposing views are presented as a steelman"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "quantified_where_possible",
+          "status": "pass",
+          "evidence": "synthesis: findings are quantified where possible"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "synthesis_confidence_stated",
+          "status": "pass",
+          "evidence": "synthesis: confidence is stated explicitly"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "unknowns_stated_explicitly",
+          "status": "pass",
+          "evidence": "synthesis: unknowns are stated explicitly"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "report_sections_in_skill_order",
+          "status": "pass",
+          "evidence": "report format: the declared report sections are exactly the skill's format in order \u2014 bluf, findings, evidence, risks, open_questions, sources"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "report_version_declared",
+          "status": "pass",
+          "evidence": "report format: the report declares a non-empty version \u2014 version and date go on every report"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "report_date_declared",
+          "status": "pass",
+          "evidence": "report format: the report declares a non-empty date \u2014 version and date go on every report"
+        },
+        {
+          "section": "synthesis_and_report_structure",
+          "check": "open_questions_listed",
+          "status": "pass",
+          "evidence": "quality gate: open questions are listed"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "notes_archived_for_reuse",
+          "status": "pass",
+          "evidence": "reuse: notes are stored and archived for future questions"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "updates_via_changelog",
+          "status": "pass",
+          "evidence": "reuse: reports are updated when facts change via a changelog"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "no_silent_edits",
+          "status": "fail",
+          "evidence": "reuse / anti-pattern: no silent edits \u2014 updates are a changelog, not silent edits"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "automation_does_not_replace_verification",
+          "status": "pass",
+          "evidence": "tooling discipline: automation speeds collection but never replaces verification"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "ai_summaries_cite_sources_when_used",
+          "status": "pass",
+          "evidence": "no AI summaries declared in use"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "ai_summaries_spot_checked_when_used",
+          "status": "pass",
+          "evidence": "no AI summaries declared in use"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "seo_spam_and_content_farms_screened",
+          "status": "pass",
+          "evidence": "tooling discipline: results are watched for SEO spam and content farms"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "scraped_or_automated_data_quality_checked_when_used",
+          "status": "pass",
+          "evidence": "no scraped or automated data declared in use"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "conflicts_disclosed_when_present",
+          "status": "pass",
+          "evidence": "no conflicts declared present"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "no_unsourced_claims",
+          "status": "pass",
+          "evidence": "red line: no unsourced claims"
+        },
+        {
+          "section": "reuse_verification_and_red_lines",
+          "check": "no_single_source_conclusions_on_important_facts",
+          "status": "pass",
+          "evidence": "red line: no single-source conclusions on important facts"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "questions_count": 1,
+      "sources_count": 2,
+      "sources_without_complete_provenance": [
+        "S1"
+      ],
+      "source_provenance_coverage": "0.5000",
+      "claims_count": 1,
+      "material_claims_without_sources": [],
+      "material_claim_source_coverage": "1.0000",
+      "important_claims_not_triangulated": [
+        "C1"
+      ],
+      "important_claim_triangulation_coverage": "0.0000",
+      "summary": "39 pass, 3 fail, 0 missing of 42 checks across four sections.",
+      "stamp": "DECISION-READY RESEARCH BRIEF\nbrief: Bad brief\nVERDICT: RESEARCH_BRIEF_NOT_DECISION_READY\n  scoping_and_sources                  fail\n  evidence_and_notes                   fail\n  synthesis_and_report_structure       pass\n  reuse_verification_and_red_lines     fail\n39 pass, 3 fail, 0 missing of 42 checks across four sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

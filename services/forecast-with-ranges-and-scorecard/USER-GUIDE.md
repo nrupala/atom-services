@@ -1,5 +1,7 @@
 # Forecast with ranges and scorecard — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You maintain a forecast. This atom reads a short evidence manifest describing it — purpose and horizon, computed baselines and decomposition, an ordered low/base/high range with scenarios, a published accuracy scorecard whose declared MAE/MAPE/bias the atom recomputes from your forecast-vs-actual history, revision hygiene and cadence — and returns one deterministic verdict across six sections with per-check evidence: **FORECAST_READY**, **FORECAST_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out.

@@ -1,0 +1,1318 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: decision-process-design
+
+=== contract.yaml ===
+service_name: decision-process-design
+display_name: Decision process design
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:decision-intelligence
+binding:
+  skill: decision-intelligence
+  skill_path: workspace/mymilo-build/skills/decision-intelligence/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: decision_process_design
+  prefix: atm_1_decision_process_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product decision framing work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Decision process design — `decision-process-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Engineers the decision itself — what is actually being decided, what would change the answer, and how you will know if it worked (Cassie Kozyrkov's discipline).
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product decision framing work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the decision-process manifest
+
+The caller submits one JSON manifest: a declared decision-process
+record for one decision. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`DECISION_PROCESS_NOT_SOUND`). All fields are booleans
+unless noted — every non-boolean field carries an explicit type
+note in its row.
+
+| Field | Read by |
+|---|---|
+| `decision` (string; carried into the verdict output, not itself checked) | — |
+| `framing` (object; the framing section object — a present non-object value is rejected before evaluation) | framing_and_roles |
+| `framing.decision_named` | framing_and_roles |
+| `framing.decision_maker_identified` | framing_and_roles |
+| `framing.objective_stated` | framing_and_roles |
+| `framing.decision_maker_defines_what_matters` | framing_and_roles |
+| `framing.analyst_informs_not_decides` | framing_and_roles |
+| `framing.analysis_makes_the_call_present` (must be `false` to pass — skill anti-pattern) | framing_and_roles |
+| `options` (list of option-row objects, each `{name, viable}` — see the three entry fields below; computed, see below) | framing_and_roles |
+| `options[]` (object; one declared option row — a present non-object entry is rejected before evaluation) | framing_and_roles |
+| `options[].name` (string; names the row in the computed `options_without_*` outputs) | framing_and_roles |
+| `options[].viable` | framing_and_roles |
+| `criteria` (list of criterion-row objects, each `{name, set_before_data, threshold_declared}` — see the four entry fields below; computed, see below) | precommitment_before_data |
+| `criteria[]` (object; one declared criterion row — a present non-object entry is rejected before evaluation) | precommitment_before_data |
+| `criteria[].name` (string; names the row in the computed `criteria_without_*` outputs) | precommitment_before_data |
+| `criteria[].set_before_data` | precommitment_before_data |
+| `criteria[].threshold_declared` | precommitment_before_data |
+| `precommitment` (object; the pre-commitment section object — a present non-object value is rejected before evaluation) | precommitment_before_data |
+| `precommitment.default_action` (string; must name a declared option for the row to pass the computed matching check — an absent field is missing evidence) | precommitment_before_data |
+| `precommitment.change_my_mind_threshold_stated` | precommitment_before_data |
+| `precommitment.criteria_and_thresholds_set_before_data_seen` | precommitment_before_data |
+| `precommitment.data_seen_before_criteria_set_present` (must be `false` to pass — skill anti-pattern) | precommitment_before_data |
+| `loss` (object; the loss-function section object — a present non-object value is rejected before evaluation) | loss_stakes_and_rigor |
+| `loss.loss_function_framed` | loss_stakes_and_rigor |
+| `loss.cost_of_being_wrong_in_each_direction_stated` | loss_stakes_and_rigor |
+| `loss.cost_of_false_action` (number; must be present and non-negative, with its pair, for the computed loss-cost check to pass — an absent field is missing evidence) | loss_stakes_and_rigor |
+| `loss.cost_of_false_inaction` (number; must be present and non-negative, with its pair, for the computed loss-cost check to pass — an absent field is missing evidence) | loss_stakes_and_rigor |
+| `loss.asymmetric_costs_declared` (gates the threshold-adjustment check below) | loss_stakes_and_rigor |
+| `loss.threshold_adjusted_for_asymmetric_costs` (required when asymmetric costs are declared; otherwise the check passes as not applicable) | loss_stakes_and_rigor |
+| `rigor` (object; the rigor section object — a present non-object value is rejected before evaluation) | loss_stakes_and_rigor |
+| `rigor.stakes_assessed` | loss_stakes_and_rigor |
+| `rigor.reversibility_assessed` | loss_stakes_and_rigor |
+| `rigor.effort_matched_to_stakes_and_reversibility` | loss_stakes_and_rigor |
+| `rigor.data_gathering_worth_assessed` | loss_stakes_and_rigor |
+| `rigor.irreversible_declared` (gates the slowed-down check below) | loss_stakes_and_rigor |
+| `rigor.slowed_down_and_more_evidence_for_irreversible` (required when an irreversible decision is declared; otherwise the check passes as not applicable) | loss_stakes_and_rigor |
+| `rigor.reversible_declared` (gates the default-to-action check below) | loss_stakes_and_rigor |
+| `rigor.default_to_action_for_reversible` (required when a reversible decision is declared; otherwise the check passes as not applicable) | loss_stakes_and_rigor |
+| `evidence` (object; the evidence section object — a present non-object value is rejected before evaluation) | evidence_discipline_and_review |
+| `evidence.exploratory_and_confirmatory_distinguished` | evidence_discipline_and_review |
+| `evidence.confirmatory_analysis_used` (gates the pre-registration check below) | evidence_discipline_and_review |
+| `evidence.hypothesis_preregistered` (required when confirmatory analysis is declared in use; otherwise the check passes as not applicable) | evidence_discipline_and_review |
+| `evidence.conclusion_drawn_from_inspiring_data_present` (must be `false` to pass — skill anti-pattern) | evidence_discipline_and_review |
+| `evidence.evidence_has_power_to_change_decision` | evidence_discipline_and_review |
+| `evidence.data_is_decoration_present` (must be `false` to pass — skill anti-pattern) | evidence_discipline_and_review |
+| `evidence.acted_per_preset_criteria_after_gathering` | evidence_discipline_and_review |
+| `review` (object; the review section object — a present non-object value is rejected before evaluation) | evidence_discipline_and_review |
+| `review.decision_quality_reviewed_separately_from_outcome` | evidence_discipline_and_review |
+| `review.decision_judged_by_process_and_information_at_time` | evidence_discipline_and_review |
+| `review.outcome_used_alone_to_judge_present` (must be `false` to pass — skill anti-pattern) | evidence_discipline_and_review |
+
+Nine checks are computed from the declared rows and values, using
+only the consistency of the declared record itself — no outside
+threshold is imported:
+
+- **Options declared:** the declared `options` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Name per option:** every declared option row must name the
+  option (a non-empty `name` string). A row with the field absent
+  is missing evidence; a row naming an empty string fails.
+- **Viability per option:** every declared option row must
+  declare `viable: true`. A row with the field absent is missing
+  evidence.
+- **Criteria declared:** the declared `criteria` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Name per criterion:** every declared criterion row must name
+  the criterion (a non-empty `name` string), on the same
+  absent-is-missing / empty-fails rule as options.
+- **Set-before-data per criterion:** every declared criterion row
+  must declare `set_before_data: true`. A row with the field
+  absent is missing evidence.
+- **Threshold per criterion:** every declared criterion row must
+  declare `threshold_declared: true`. A row with the field absent
+  is missing evidence.
+- **Default action matches a declared option:** the declared
+  `precommitment.default_action` string must equal the `name` of
+  a declared option row. An absent default action, or an absent
+  options list, is missing evidence; a default naming no declared
+  option fails.
+- **Loss costs in both directions:** both declared loss numbers,
+  `cost_of_false_action` and `cost_of_false_inaction`, must be
+  present and non-negative. Either field absent is missing
+  evidence; a negative cost fails.
+
+Four check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Threshold adjustment for asymmetry:** the skill binds its
+  threshold rule to asymmetric costs ("Asymmetric costs move the
+  threshold"). `threshold_adjusted_for_asymmetric_costs` is
+  therefore required only when `loss.asymmetric_costs_declared`
+  is declared `true`; when no asymmetry is declared, the check
+  passes as not applicable. The gate is the caller's declaration,
+  not the computed ratio — no ratio value is made a trigger.
+- **Slowed down when irreversible:** the skill binds slowing
+  down to irreversible/expensive (one-way-door) decisions.
+  `slowed_down_and_more_evidence_for_irreversible` is therefore
+  required only when `rigor.irreversible_declared` is declared
+  `true`; otherwise the check passes as not applicable.
+- **Default to action when reversible:** the skill binds
+  deciding fast and defaulting to action to reversible
+  (two-way-door) decisions. `default_to_action_for_reversible`
+  is therefore required only when `rigor.reversible_declared` is
+  declared `true`; otherwise the check passes as not applicable.
+- **Pre-registered hypothesis:** the skill binds pre-registration
+  to confirmatory analysis ("Confirmatory analysis tests a
+  *pre-registered* hypothesis"). `hypothesis_preregistered` is
+  therefore required only when
+  `evidence.confirmatory_analysis_used` is declared `true`;
+  otherwise the check passes as not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the nine primary computed checks above cannot be completed),
+`options_count` and `criteria_count` (the declared list lengths,
+or null when the list is not declared — counts are reported as
+integers, exactly), the row-name lists `options_without_name`,
+`options_not_declared_viable`, `criteria_without_name`,
+`criteria_not_set_before_data` and `criteria_without_threshold`
+(null when the underlying list is not declared), `default_action`
+(the declared default action string, or null when it is not
+declared), and the four coverage / ratio values
+`option_name_coverage` (options naming an option ÷ declared
+options), `criterion_set_before_data_coverage` (criteria
+declared set before the data ÷ declared criteria),
+`criterion_threshold_coverage` (criteria declaring a threshold ÷
+declared criteria) and `loss_cost_ratio`
+(`cost_of_false_action` ÷ `cost_of_false_inaction`).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly four decimal places, produced in both
+implementations by the same rule — round half up to 4dp,
+`floor(v * 10000 + 0.5) / 10000`, then format with exactly four
+decimals; comparisons use the unrounded values. A coverage ratio
+is null when its denominator list is absent or empty.
+`loss_cost_ratio` is null when either cost is absent or when
+`cost_of_false_inaction` is zero. That fixed serialization is
+what makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric threshold — no minimum option or
+criterion count, no loss-cost amount or ratio, no stakes level,
+no criterion or change-my-mind threshold value, and no amount of
+data, analysis, effort or time — so no numeric threshold check
+is invented. Quantities are computed and reported; the only bar
+on the computed rows is completeness over the caller's own
+declared rows (every declared option, every declared criterion),
+exactly as stated above. Declined thresholds, named: a minimum
+option count of two or more (the skill says "the real options"
+but states no number, so only present-and-non-empty is checked);
+a minimum or maximum criterion count; a loss-cost amount cap; a
+`loss_cost_ratio` trigger or band (the ratio is reported, never
+judged, and the threshold-adjustment gate is the caller's
+asymmetry declaration); a numeric stakes level separating high
+from low stakes; a numeric amount of data or analysis worth
+gathering; a time limit for deciding "fast" on reversible
+decisions or for "slowing down" on irreversible ones; any value
+for a criterion threshold or for the change-my-mind threshold
+(their existence and pre-commitment are checked, their values
+are the decision-maker's); a reversibility vocabulary (the
+skill names two-way-door and one-way-door in prose, and the
+record declares reversibility through the two gate booleans
+above, so no string vocabulary is imposed).
+
+The verdict is one of `DECISION_PROCESS_SOUND` (all 36 checks
+pass), `DECISION_PROCESS_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across four sections: framing_and_roles,
+precommitment_before_data, loss_stakes_and_rigor,
+evidence_discipline_and_review.
+
+## Honest scoping
+
+This atom audits a **declared** decision-process record — it
+makes no decision, frames no decision for the caller, gathers
+or analyses no data, sets no criteria or thresholds, and does
+not verify that a declared pre-commitment actually happened
+when declared. A process is sound *on the caller's declared
+evidence*: a manifest that declares criteria set before the
+data, a pre-registered hypothesis, and a review separate from
+the outcome passes those checks even if none of it happened in
+that order. It is a completeness and consistency audit of the
+record the skill requires, **not a decision-making service or
+a decision-quality certification**: it never judges whether
+the decision is the right one, whether the named options are
+the genuinely real ones, whether the objective is the right
+objective, or whether the declared thresholds are well-chosen
+— only that the record contains what the skill's checklist and
+tenets demand, and that its declared rows are internally
+consistent. In the skill's own tie-in terms, the tool
+calculates; the user decides.
+
+Named non-reducible parts — caller declarations only, stated
+plainly: whether criteria and thresholds were *actually* set
+before the data was seen (timing is attested in the record,
+never timestamp-verified); the content and quality of the
+decision framing, the objective and the loss function (only
+that they are declared framed/stated, never what they say);
+whether a declared option is genuinely viable and a declared
+criterion genuinely the right one; what any threshold value
+should be, and what evidence would genuinely flip the default;
+whether the decision-maker and the analyst actually kept their
+roles in practice; whether an analysis was genuinely
+exploratory or confirmatory and what its pre-registration
+contained; and the quality of the post-decision review. None of
+these is reduced to a check — each enters the record only as
+the caller's declaration behind the boolean fields above.
+
+Named exclusions: no numeric thresholds (see the declined list
+above); no check that a declared threshold is a good threshold;
+no timestamp or ordering verification of pre-commitment; no
+loss-cost currency or unit is imposed (the two costs are the
+caller's own numbers in the caller's own unit, and only their
+ratio is computed); no data, evidence or analysis is read —
+only that evidence with the power to change the decision is
+declared to exist; no live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "decision-process-design",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DECISION_PROCESS_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 36 checks pass: options_count=2, criteria_count=1, loss_cost_ratio=2.0000 (100/50), coverages 1.0000, default_action A matches a declared option, computed_status within_stated_limits_on_declared_evidence. [Tester correction R2: designer carried computed quantities only in prose notes with no structured computed_spot_checks; added the structured spot-check block.]",
+        "computed_spot_checks": {
+          "options_count": 2,
+          "criteria_count": 1,
+          "loss_cost_ratio": "2.0000",
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "option_name_coverage": "1.0000",
+          "criterion_set_before_data_coverage": "1.0000",
+          "criterion_threshold_coverage": "1.0000",
+          "default_action": "A",
+          "options_without_name": [],
+          "options_not_declared_viable": [],
+          "criteria_without_name": [],
+          "criteria_not_set_before_data": [],
+          "criteria_without_threshold": []
+        }
+      },
+      "input": {
+        "decision": "Launch new feature",
+        "framing": {
+          "decision_named": true,
+          "decision_maker_identified": true,
+          "objective_stated": true,
+          "decision_maker_defines_what_matters": true,
+          "analyst_informs_not_decides": true,
+          "analysis_makes_the_call_present": false
+        },
+        "options": [
+          {
+            "name": "A",
+            "viable": true
+          },
+          {
+            "name": "B",
+            "viable": true
+          }
+        ],
+        "criteria": [
+          {
+            "name": "C1",
+            "set_before_data": true,
+            "threshold_declared": true
+          }
+        ],
+        "precommitment": {
+          "default_action": "A",
+          "change_my_mind_threshold_stated": true,
+          "criteria_and_thresholds_set_before_data_seen": true,
+          "data_seen_before_criteria_set_present": false
+        },
+        "loss": {
+          "loss_function_framed": true,
+          "cost_of_being_wrong_in_each_direction_stated": true,
+          "cost_of_false_action": 100,
+          "cost_of_false_inaction": 50,
+          "asymmetric_costs_declared": false
+        },
+        "rigor": {
+          "stakes_assessed": true,
+          "reversibility_assessed": true,
+          "effort_matched_to_stakes_and_reversibility": true,
+          "data_gathering_worth_assessed": true,
+          "irreversible_declared": false,
+          "reversible_declared": false
+        },
+        "evidence": {
+          "exploratory_and_confirmatory_distinguished": true,
+          "confirmatory_analysis_used": false,
+          "conclusion_drawn_from_inspiring_data_present": false,
+          "evidence_has_power_to_change_decision": true,
+          "data_is_decoration_present": false,
+          "acted_per_preset_criteria_after_gathering": true
+        },
+        "review": {
+          "decision_quality_reviewed_separately_from_outcome": true,
+          "decision_judged_by_process_and_information_at_time": true,
+          "outcome_used_alone_to_judge_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "decision-process-design",
+        "atom_version": "0.1.0",
+        "decision": "Launch new feature",
+        "verdict": "DECISION_PROCESS_SOUND",
+        "sections": {
+          "framing_and_roles": "pass",
+          "precommitment_before_data": "pass",
+          "loss_stakes_and_rigor": "pass",
+          "evidence_discipline_and_review": "pass"
+        },
+        "checks": [
+          {
+            "section": "framing_and_roles",
+            "check": "decision_named",
+            "status": "pass",
+            "evidence": "process checklist step 1: the decision itself is named \u2014 what is actually being decided"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "options_declared",
+            "status": "pass",
+            "evidence": "process checklist step 1: the declared record names the real options \u2014 the options list is present and non-empty"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "every_option_named",
+            "status": "pass",
+            "evidence": "process checklist step 1: every declared option row names the option"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "every_option_declared_viable",
+            "status": "pass",
+            "evidence": "process checklist step 1: every declared option row declares the option viable \u2014 a real option, not a straw option"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "decision_maker_identified",
+            "status": "pass",
+            "evidence": "process checklist step 2: the decision-maker is identified"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "objective_stated",
+            "status": "pass",
+            "evidence": "process checklist step 2: what the decision-maker actually cares about \u2014 the objective \u2014 is stated"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "decision_maker_defines_what_matters",
+            "status": "pass",
+            "evidence": "roles clear: the decision-maker frames the decision and defines what matters and the thresholds"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "analyst_informs_not_decides",
+            "status": "pass",
+            "evidence": "roles clear: the analyst informs the decision \u2014 the analyst does not make it"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "no_analysis_makes_the_call",
+            "status": "pass",
+            "evidence": "roles clear: analysis does not quietly make the call"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "criteria_declared",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: the declared record names its decision criteria \u2014 the criteria list is present and non-empty"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_named",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: every declared criterion row names the criterion"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_set_before_data",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: every declared criterion row declares it was set before the data was seen"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_threshold_declared",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: every declared criterion row declares its threshold"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "default_action_matches_declared_option",
+            "status": "pass",
+            "evidence": "default action: the declared default action names one of the declared real options"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "change_my_mind_threshold_stated",
+            "status": "pass",
+            "evidence": "default action + change-my-mind threshold: exactly what evidence would flip the default is pre-committed, answered before looking"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "criteria_and_thresholds_set_before_data_seen",
+            "status": "pass",
+            "evidence": "decide how to decide before you see the data: the decision criteria, default action and thresholds are set in advance, before the data"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "no_data_seen_before_precommitment",
+            "status": "pass",
+            "evidence": "decide how to decide before you see the data: the data was not seen before the criteria were set \u2014 no post-hoc rationalization"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "loss_function_framed",
+            "status": "pass",
+            "evidence": "frame the loss function: what being wrong costs is framed \u2014 what actually matters, not a tidy metric"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "cost_of_being_wrong_in_each_direction_stated",
+            "status": "pass",
+            "evidence": "frame the loss function: the cost of being wrong is stated in each direction"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "loss_costs_both_directions_declared",
+            "status": "pass",
+            "evidence": "frame the loss function: a numeric cost is declared for being wrong in each direction \u2014 acting wrongly and not acting wrongly"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "threshold_adjusted_when_costs_asymmetric",
+            "status": "pass",
+            "evidence": "no asymmetric costs declared"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "stakes_assessed",
+            "status": "pass",
+            "evidence": "right-size the rigor: the stakes are assessed"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "reversibility_assessed",
+            "status": "pass",
+            "evidence": "right-size the rigor: reversibility is assessed \u2014 two-way-door or one-way-door"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "effort_matched_to_stakes_and_reversibility",
+            "status": "pass",
+            "evidence": "right-size the rigor: effort is matched to stakes and reversibility"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "data_gathering_worth_assessed",
+            "status": "pass",
+            "evidence": "process checklist step 4: how much data and analysis is worth gathering is decided, given stakes and reversibility"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "slowed_down_when_irreversible",
+            "status": "pass",
+            "evidence": "no irreversible decision declared"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "default_to_action_when_reversible",
+            "status": "pass",
+            "evidence": "no reversible decision declared"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "exploratory_and_confirmatory_distinguished",
+            "status": "pass",
+            "evidence": "data-driven vs data-inspired: exploratory analysis, which generates hypotheses, is distinguished from confirmatory analysis, which tests a pre-registered hypothesis"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "hypothesis_preregistered_when_confirmatory",
+            "status": "pass",
+            "evidence": "no confirmatory analysis declared in use"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_conclusion_from_inspiring_data",
+            "status": "pass",
+            "evidence": "data-driven vs data-inspired: no conclusion is drawn from the same data that inspired it"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "evidence_has_power_to_change_decision",
+            "status": "pass",
+            "evidence": "do not be a data-driven fool: the evidence has the power to change the decision \u2014 some possible data could change the action"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_data_decoration",
+            "status": "pass",
+            "evidence": "do not be a data-driven fool: the data is not decoration \u2014 it is not gathered when no possible data could change the action"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "acted_per_preset_criteria_after_gathering",
+            "status": "pass",
+            "evidence": "process checklist step 5: after gathering, the action is taken per the pre-set criteria"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "decision_quality_reviewed_separately_from_outcome",
+            "status": "pass",
+            "evidence": "process checklist step 6: decision quality is reviewed separately from the outcome"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "decision_judged_by_process_and_information_at_time",
+            "status": "pass",
+            "evidence": "decisions are not outcomes: the decision is judged by the process and the information available at the time"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_outcome_alone_judgment",
+            "status": "pass",
+            "evidence": "decisions are not outcomes: the outcome alone is not used to judge the decision \u2014 no resulting or outcome bias"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "options_count": 2,
+        "options_without_name": [],
+        "options_not_declared_viable": [],
+        "option_name_coverage": "1.0000",
+        "criteria_count": 1,
+        "criteria_without_name": [],
+        "criteria_not_set_before_data": [],
+        "criteria_without_threshold": [],
+        "criterion_set_before_data_coverage": "1.0000",
+        "criterion_threshold_coverage": "1.0000",
+        "default_action": "A",
+        "loss_cost_ratio": "2.0000",
+        "summary": "36 pass, 0 fail, 0 missing of 36 checks across four sections.",
+        "stamp": "DECISION PROCESS DESIGN\ndecision: Launch new feature\nVERDICT: DECISION_PROCESS_SOUND\n  framing_and_roles                    pass\n  precommitment_before_data            pass\n  loss_stakes_and_rigor                pass\n  evidence_discipline_and_review       pass\n36 pass, 0 fail, 0 missing of 36 checks across four sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DECISION_PROCESS_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_analysis_makes_the_call",
+          "every_option_declared_viable",
+          "default_action_matches_declared_option",
+          "loss_costs_both_directions_declared"
+        ],
+        "notes": "Full manifest carrying exactly 4 planted violations: framing.analysis_makes_the_call_present=true fails no_analysis_makes_the_call; options[0].viable=false fails every_option_declared_viable (options_not_declared_viable=[A]); precommitment.default_action=NonExistentOption fails default_action_matches_declared_option; loss.cost_of_false_action=-10 fails loss_costs_both_directions_declared; loss_cost_ratio=-0.2000 (-10/50); computed_status outside_stated_limits_on_declared_evidence. [Tester corrections: R1 designer listed a field path (analysis_makes_the_call_present) and prose shorthand (Viability per option / Default action matches a declared option / Loss costs in both directions) instead of exact check names - corrected to the 4 exact register names; R2 designer carried no structured computed_spot_checks - added block; R3 designer input was sparse, missing most of the full-pass manifest - rebuilt as a full manifest copy of full-pass with only the planted values changed.]",
+        "computed_spot_checks": {
+          "options_count": 2,
+          "criteria_count": 1,
+          "loss_cost_ratio": "-0.2000",
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "option_name_coverage": "1.0000",
+          "criterion_set_before_data_coverage": "1.0000",
+          "criterion_threshold_coverage": "1.0000",
+          "default_action": "NonExistentOption",
+          "options_without_name": [],
+          "options_not_declared_viable": [
+            "A"
+          ],
+          "criteria_without_name": [],
+          "criteria_not_set_before_data": [],
+          "criteria_without_threshold": []
+        }
+      },
+      "input": {
+        "decision": "Launch new feature",
+        "framing": {
+          "decision_named": true,
+          "decision_maker_identified": true,
+          "objective_stated": true,
+          "decision_maker_defines_what_matters": true,
+          "analyst_informs_not_decides": true,
+          "analysis_makes_the_call_present": true
+        },
+        "options": [
+          {
+            "name": "A",
+            "viable": false
+          },
+          {
+            "name": "B",
+            "viable": true
+          }
+        ],
+        "criteria": [
+          {
+            "name": "C1",
+            "set_before_data": true,
+            "threshold_declared": true
+          }
+        ],
+        "precommitment": {
+          "default_action": "NonExistentOption",
+          "change_my_mind_threshold_stated": true,
+          "criteria_and_thresholds_set_before_data_seen": true,
+          "data_seen_before_criteria_set_present": false
+        },
+        "loss": {
+          "loss_function_framed": true,
+          "cost_of_being_wrong_in_each_direction_stated": true,
+          "cost_of_false_action": -10,
+          "cost_of_false_inaction": 50,
+          "asymmetric_costs_declared": false
+        },
+        "rigor": {
+          "stakes_assessed": true,
+          "reversibility_assessed": true,
+          "effort_matched_to_stakes_and_reversibility": true,
+          "data_gathering_worth_assessed": true,
+          "irreversible_declared": false,
+          "reversible_declared": false
+        },
+        "evidence": {
+          "exploratory_and_confirmatory_distinguished": true,
+          "confirmatory_analysis_used": false,
+          "conclusion_drawn_from_inspiring_data_present": false,
+          "evidence_has_power_to_change_decision": true,
+          "data_is_decoration_present": false,
+          "acted_per_preset_criteria_after_gathering": true
+        },
+        "review": {
+          "decision_quality_reviewed_separately_from_outcome": true,
+          "decision_judged_by_process_and_information_at_time": true,
+          "outcome_used_alone_to_judge_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "decision-process-design",
+        "atom_version": "0.1.0",
+        "decision": "Launch new feature",
+        "verdict": "DECISION_PROCESS_NOT_SOUND",
+        "sections": {
+          "framing_and_roles": "fail",
+          "precommitment_before_data": "fail",
+          "loss_stakes_and_rigor": "fail",
+          "evidence_discipline_and_review": "pass"
+        },
+        "checks": [
+          {
+            "section": "framing_and_roles",
+            "check": "decision_named",
+            "status": "pass",
+            "evidence": "process checklist step 1: the decision itself is named \u2014 what is actually being decided"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "options_declared",
+            "status": "pass",
+            "evidence": "process checklist step 1: the declared record names the real options \u2014 the options list is present and non-empty"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "every_option_named",
+            "status": "pass",
+            "evidence": "process checklist step 1: every declared option row names the option"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "every_option_declared_viable",
+            "status": "fail",
+            "evidence": "process checklist step 1: every declared option row declares the option viable \u2014 a real option, not a straw option"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "decision_maker_identified",
+            "status": "pass",
+            "evidence": "process checklist step 2: the decision-maker is identified"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "objective_stated",
+            "status": "pass",
+            "evidence": "process checklist step 2: what the decision-maker actually cares about \u2014 the objective \u2014 is stated"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "decision_maker_defines_what_matters",
+            "status": "pass",
+            "evidence": "roles clear: the decision-maker frames the decision and defines what matters and the thresholds"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "analyst_informs_not_decides",
+            "status": "pass",
+            "evidence": "roles clear: the analyst informs the decision \u2014 the analyst does not make it"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "no_analysis_makes_the_call",
+            "status": "fail",
+            "evidence": "roles clear: analysis does not quietly make the call"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "criteria_declared",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: the declared record names its decision criteria \u2014 the criteria list is present and non-empty"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_named",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: every declared criterion row names the criterion"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_set_before_data",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: every declared criterion row declares it was set before the data was seen"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_threshold_declared",
+            "status": "pass",
+            "evidence": "decide how to decide before the data: every declared criterion row declares its threshold"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "default_action_matches_declared_option",
+            "status": "fail",
+            "evidence": "default action: the declared default action names one of the declared real options"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "change_my_mind_threshold_stated",
+            "status": "pass",
+            "evidence": "default action + change-my-mind threshold: exactly what evidence would flip the default is pre-committed, answered before looking"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "criteria_and_thresholds_set_before_data_seen",
+            "status": "pass",
+            "evidence": "decide how to decide before you see the data: the decision criteria, default action and thresholds are set in advance, before the data"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "no_data_seen_before_precommitment",
+            "status": "pass",
+            "evidence": "decide how to decide before you see the data: the data was not seen before the criteria were set \u2014 no post-hoc rationalization"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "loss_function_framed",
+            "status": "pass",
+            "evidence": "frame the loss function: what being wrong costs is framed \u2014 what actually matters, not a tidy metric"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "cost_of_being_wrong_in_each_direction_stated",
+            "status": "pass",
+            "evidence": "frame the loss function: the cost of being wrong is stated in each direction"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "loss_costs_both_directions_declared",
+            "status": "fail",
+            "evidence": "frame the loss function: a numeric cost is declared for being wrong in each direction \u2014 acting wrongly and not acting wrongly"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "threshold_adjusted_when_costs_asymmetric",
+            "status": "pass",
+            "evidence": "no asymmetric costs declared"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "stakes_assessed",
+            "status": "pass",
+            "evidence": "right-size the rigor: the stakes are assessed"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "reversibility_assessed",
+            "status": "pass",
+            "evidence": "right-size the rigor: reversibility is assessed \u2014 two-way-door or one-way-door"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "effort_matched_to_stakes_and_reversibility",
+            "status": "pass",
+            "evidence": "right-size the rigor: effort is matched to stakes and reversibility"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "data_gathering_worth_assessed",
+            "status": "pass",
+            "evidence": "process checklist step 4: how much data and analysis is worth gathering is decided, given stakes and reversibility"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "slowed_down_when_irreversible",
+            "status": "pass",
+            "evidence": "no irreversible decision declared"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "default_to_action_when_reversible",
+            "status": "pass",
+            "evidence": "no reversible decision declared"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "exploratory_and_confirmatory_distinguished",
+            "status": "pass",
+            "evidence": "data-driven vs data-inspired: exploratory analysis, which generates hypotheses, is distinguished from confirmatory analysis, which tests a pre-registered hypothesis"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "hypothesis_preregistered_when_confirmatory",
+            "status": "pass",
+            "evidence": "no confirmatory analysis declared in use"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_conclusion_from_inspiring_data",
+            "status": "pass",
+            "evidence": "data-driven vs data-inspired: no conclusion is drawn from the same data that inspired it"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "evidence_has_power_to_change_decision",
+            "status": "pass",
+            "evidence": "do not be a data-driven fool: the evidence has the power to change the decision \u2014 some possible data could change the action"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_data_decoration",
+            "status": "pass",
+            "evidence": "do not be a data-driven fool: the data is not decoration \u2014 it is not gathered when no possible data could change the action"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "acted_per_preset_criteria_after_gathering",
+            "status": "pass",
+            "evidence": "process checklist step 5: after gathering, the action is taken per the pre-set criteria"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "decision_quality_reviewed_separately_from_outcome",
+            "status": "pass",
+            "evidence": "process checklist step 6: decision quality is reviewed separately from the outcome"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "decision_judged_by_process_and_information_at_time",
+            "status": "pass",
+            "evidence": "decisions are not outcomes: the decision is judged by the process and the information available at the time"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_outcome_alone_judgment",
+            "status": "pass",
+            "evidence": "decisions are not outcomes: the outcome alone is not used to judge the decision \u2014 no resulting or outcome bias"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "options_count": 2,
+        "options_without_name": [],
+        "options_not_declared_viable": [
+          "A"
+        ],
+        "option_name_coverage": "1.0000",
+        "criteria_count": 1,
+        "criteria_without_name": [],
+        "criteria_not_set_before_data": [],
+        "criteria_without_threshold": [],
+        "criterion_set_before_data_coverage": "1.0000",
+        "criterion_threshold_coverage": "1.0000",
+        "default_action": "NonExistentOption",
+        "loss_cost_ratio": "-0.2000",
+        "summary": "32 pass, 4 fail, 0 missing of 36 checks across four sections.",
+        "stamp": "DECISION PROCESS DESIGN\ndecision: Launch new feature\nVERDICT: DECISION_PROCESS_NOT_SOUND\n  framing_and_roles                    fail\n  precommitment_before_data            fail\n  loss_stakes_and_rigor                fail\n  evidence_discipline_and_review       pass\n32 pass, 4 fail, 0 missing of 36 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required sections and fields."
+      },
+      "input": {
+        "decision": "Minimal test"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "decision-process-design",
+        "atom_version": "0.1.0",
+        "decision": "Minimal test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "framing_and_roles": "insufficient_evidence",
+          "precommitment_before_data": "insufficient_evidence",
+          "loss_stakes_and_rigor": "insufficient_evidence",
+          "evidence_discipline_and_review": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "framing_and_roles",
+            "check": "decision_named",
+            "status": "missing",
+            "evidence": "process checklist step 1: the decision itself is named \u2014 what is actually being decided"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "options_declared",
+            "status": "missing",
+            "evidence": "process checklist step 1: the declared record names the real options \u2014 the options list is present and non-empty"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "every_option_named",
+            "status": "missing",
+            "evidence": "process checklist step 1: every declared option row names the option"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "every_option_declared_viable",
+            "status": "missing",
+            "evidence": "process checklist step 1: every declared option row declares the option viable \u2014 a real option, not a straw option"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "decision_maker_identified",
+            "status": "missing",
+            "evidence": "process checklist step 2: the decision-maker is identified"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "objective_stated",
+            "status": "missing",
+            "evidence": "process checklist step 2: what the decision-maker actually cares about \u2014 the objective \u2014 is stated"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "decision_maker_defines_what_matters",
+            "status": "missing",
+            "evidence": "roles clear: the decision-maker frames the decision and defines what matters and the thresholds"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "analyst_informs_not_decides",
+            "status": "missing",
+            "evidence": "roles clear: the analyst informs the decision \u2014 the analyst does not make it"
+          },
+          {
+            "section": "framing_and_roles",
+            "check": "no_analysis_makes_the_call",
+            "status": "missing",
+            "evidence": "roles clear: analysis does not quietly make the call"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "criteria_declared",
+            "status": "missing",
+            "evidence": "decide how to decide before the data: the declared record names its decision criteria \u2014 the criteria list is present and non-empty"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_named",
+            "status": "missing",
+            "evidence": "decide how to decide before the data: every declared criterion row names the criterion"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_set_before_data",
+            "status": "missing",
+            "evidence": "decide how to decide before the data: every declared criterion row declares it was set before the data was seen"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "every_criterion_threshold_declared",
+            "status": "missing",
+            "evidence": "decide how to decide before the data: every declared criterion row declares its threshold"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "default_action_matches_declared_option",
+            "status": "missing",
+            "evidence": "default action: the declared default action names one of the declared real options"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "change_my_mind_threshold_stated",
+            "status": "missing",
+            "evidence": "default action + change-my-mind threshold: exactly what evidence would flip the default is pre-committed, answered before looking"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "criteria_and_thresholds_set_before_data_seen",
+            "status": "missing",
+            "evidence": "decide how to decide before you see the data: the decision criteria, default action and thresholds are set in advance, before the data"
+          },
+          {
+            "section": "precommitment_before_data",
+            "check": "no_data_seen_before_precommitment",
+            "status": "missing",
+            "evidence": "decide how to decide before you see the data: the data was not seen before the criteria were set \u2014 no post-hoc rationalization"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "loss_function_framed",
+            "status": "missing",
+            "evidence": "frame the loss function: what being wrong costs is framed \u2014 what actually matters, not a tidy metric"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "cost_of_being_wrong_in_each_direction_stated",
+            "status": "missing",
+            "evidence": "frame the loss function: the cost of being wrong is stated in each direction"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "loss_costs_both_directions_declared",
+            "status": "missing",
+            "evidence": "frame the loss function: a numeric cost is declared for being wrong in each direction \u2014 acting wrongly and not acting wrongly"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "threshold_adjusted_when_costs_asymmetric",
+            "status": "missing",
+            "evidence": "no asymmetric costs declared"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "stakes_assessed",
+            "status": "missing",
+            "evidence": "right-size the rigor: the stakes are assessed"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "reversibility_assessed",
+            "status": "missing",
+            "evidence": "right-size the rigor: reversibility is assessed \u2014 two-way-door or one-way-door"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "effort_matched_to_stakes_and_reversibility",
+            "status": "missing",
+            "evidence": "right-size the rigor: effort is matched to stakes and reversibility"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "data_gathering_worth_assessed",
+            "status": "missing",
+            "evidence": "process checklist step 4: how much data and analysis is worth gathering is decided, given stakes and reversibility"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "slowed_down_when_irreversible",
+            "status": "missing",
+            "evidence": "no irreversible decision declared"
+          },
+          {
+            "section": "loss_stakes_and_rigor",
+            "check": "default_to_action_when_reversible",
+            "status": "missing",
+            "evidence": "no reversible decision declared"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "exploratory_and_confirmatory_distinguished",
+            "status": "missing",
+            "evidence": "data-driven vs data-inspired: exploratory analysis, which generates hypotheses, is distinguished from confirmatory analysis, which tests a pre-registered hypothesis"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "hypothesis_preregistered_when_confirmatory",
+            "status": "missing",
+            "evidence": "no confirmatory analysis declared in use"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_conclusion_from_inspiring_data",
+            "status": "missing",
+            "evidence": "data-driven vs data-inspired: no conclusion is drawn from the same data that inspired it"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "evidence_has_power_to_change_decision",
+            "status": "missing",
+            "evidence": "do not be a data-driven fool: the evidence has the power to change the decision \u2014 some possible data could change the action"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_data_decoration",
+            "status": "missing",
+            "evidence": "do not be a data-driven fool: the data is not decoration \u2014 it is not gathered when no possible data could change the action"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "acted_per_preset_criteria_after_gathering",
+            "status": "missing",
+            "evidence": "process checklist step 5: after gathering, the action is taken per the pre-set criteria"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "decision_quality_reviewed_separately_from_outcome",
+            "status": "missing",
+            "evidence": "process checklist step 6: decision quality is reviewed separately from the outcome"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "decision_judged_by_process_and_information_at_time",
+            "status": "missing",
+            "evidence": "decisions are not outcomes: the decision is judged by the process and the information available at the time"
+          },
+          {
+            "section": "evidence_discipline_and_review",
+            "check": "no_outcome_alone_judgment",
+            "status": "missing",
+            "evidence": "decisions are not outcomes: the outcome alone is not used to judge the decision \u2014 no resulting or outcome bias"
+          }
+        ],
+        "computed_status": null,
+        "options_count": null,
+        "options_without_name": null,
+        "options_not_declared_viable": null,
+        "option_name_coverage": null,
+        "criteria_count": null,
+        "criteria_without_name": null,
+        "criteria_not_set_before_data": null,
+        "criteria_without_threshold": null,
+        "criterion_set_before_data_coverage": null,
+        "criterion_threshold_coverage": null,
+        "default_action": null,
+        "loss_cost_ratio": null,
+        "summary": "0 pass, 0 fail, 36 missing of 36 checks across four sections.",
+        "stamp": "DECISION PROCESS DESIGN\ndecision: Minimal test\nVERDICT: INSUFFICIENT_EVIDENCE\n  framing_and_roles                    insufficient_evidence\n  precommitment_before_data            insufficient_evidence\n  loss_stakes_and_rigor                insufficient_evidence\n  evidence_discipline_and_review       insufficient_evidence\n0 pass, 0 fail, 36 missing of 36 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Exactly one type violation of a documented typed field: loss.cost_of_false_action expects a number, received a string. Expect HTTP 422 invalid_input on field loss.cost_of_false_action. [Tester correction R4: designer supplied TWO type violations (framing as a string instead of an object, plus options as a string instead of a list); reduced to exactly one violation on loss.cost_of_false_action.]"
+      },
+      "input": {
+        "decision": "Malformed-Input",
+        "loss": {
+          "cost_of_false_action": "should-be-a-number"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "loss.cost_of_false_action",
+        "detail": "loss.cost_of_false_action must be a number"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

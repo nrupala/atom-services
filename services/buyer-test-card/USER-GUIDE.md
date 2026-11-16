@@ -1,5 +1,7 @@
 # Buyer-test card — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are working a single idea through a buyer-test / proof-of-concept card. This atom reads one declared buyer-test record — hypothesis, criteria set upfront, timebox and scope, disposition and production boundary, evidence, and decision and findings — and returns one deterministic verdict across six sections: **CARD_COMPLETE**, **CARD_NOT_COMPLETE**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Computed checks: the declared timebox passes only when the limit is positive, the elapsed time is not negative, and the elapsed time does not exceed the declared limit (no numeric cap is imposed — only the declared numbers are compared); the declared decision must be one of `adopt` / `adapt` / `abandon`; and the declared disposition must be one of `disposable` / `slated_for_hardening`. Same manifest in → same verdict out.

@@ -1,0 +1,123 @@
+# Independent recompute — `decision-process-design`
+
+I recomputed every computed quantity from the case inputs, using the SERVICE.md rules, without trusting the artifact.
+
+## Case 1: `full-pass`
+
+### Nine primary computed checks
+
+**Options declared** — `options` present, length 2 → non-empty → **pass**. Artifact: pass. MATCH.
+
+**Name per option** — rows: `{name:"A"}`, `{name:"B"}`. Both non-empty strings → no rows without name → **pass**. Artifact: pass. MATCH.
+
+**Viability per option** — A.viable=true, B.viable=true → all true → **pass**. Artifact: pass. MATCH.
+
+**Criteria declared** — `criteria` present, length 1 → **pass**. Artifact: pass. MATCH.
+
+**Name per criterion** — C1 named → **pass**. Artifact: pass. MATCH.
+
+**Set-before-data per criterion** — C1.set_before_data=true → **pass**. Artifact: pass. MATCH.
+
+**Threshold per criterion** — C1.threshold_declared=true → **pass**. Artifact: pass. MATCH.
+
+**Default action matches a declared option** — default_action="A"; option names {A,B}; "A" ∈ {A,B} → **pass**. Artifact: pass. MATCH.
+
+**Loss costs in both directions** — cost_of_false_action=100 (≥0), cost_of_false_inaction=50 (≥0) → **pass**. Artifact: pass. MATCH.
+
+### Four conditional checks
+
+- **Threshold adjustment for asymmetry** — gate `asymmetric_costs_declared=false` → not applicable → **pass**. Artifact: pass ("no asymmetric costs declared"). MATCH.
+- **Slowed down when irreversible** — gate `irreversible_declared=false` → N/A → **pass**. Artifact: pass. MATCH.
+- **Default to action when reversible** — gate `reversible_declared=false` → N/A → **pass**. Artifact: pass. MATCH.
+- **Pre-registered hypothesis** — gate `confirmatory_analysis_used=false` → N/A → **pass**. Artifact: pass. MATCH.
+
+### Reported quantities
+
+- **options_count** = len(options) = 2. Artifact: 2. MATCH.
+- **options_without_name** = [] (both named). Artifact: []. MATCH.
+- **options_not_declared_viable** = [] (both viable). Artifact: []. MATCH.
+- **option_name_coverage** = named ÷ declared = 2/2 = 1.0 → serialize: floor(1.0·10000+0.5)/10000 = 10000/10000 = 1.0000. Artifact: "1.0000". MATCH.
+- **criteria_count** = 1. Artifact: 1. MATCH.
+- **criteria_without_name** = []. MATCH.
+- **criteria_not_set_before_data** = []. MATCH.
+- **criteria_without_threshold** = []. MATCH.
+- **criterion_set_before_data_coverage** = 1/1 = 1.0 → "1.0000". Artifact: "1.0000". MATCH.
+- **criterion_threshold_coverage** = 1/1 = 1.0 → "1.0000". Artifact: "1.0000". MATCH.
+- **default_action** = "A". Artifact: "A". MATCH.
+- **loss_cost_ratio** = 100 ÷ 50 = 2.0 → floor(2.0·10000+0.5)/10000 = 20000/10000 = 2.0000. Artifact: "2.0000". MATCH.
+
+### Verdict / status / summary
+
+- All 36 checks pass → **DECISION_PROCESS_SOUND**. Artifact: DECISION_PROCESS_SOUND. MATCH.
+- computed_status: no fail, no missing → `within_stated_limits_on_declared_evidence`. Artifact: same. MATCH.
+- summary: 36 pass, 0 fail, 0 missing of 36. Artifact: same. MATCH.
+- All four sections pass. Artifact: all pass. MATCH.
+
+## Case 2: `violations`
+
+### Nine primary computed checks
+
+**Options declared** — present, length 2 → **pass**. Artifact: pass. MATCH.
+
+**Name per option** — A, B both named → **pass**. Artifact: pass. MATCH.
+
+**Viability per option** — A.viable=**false**, B.viable=true → row A fails → **fail**. Artifact: fail. MATCH.
+
+**Criteria declared** — present, length 1 → **pass**. Artifact: pass. MATCH.
+
+**Name per criterion** — C1 named → **pass**. Artifact: pass. MATCH.
+
+**Set-before-data per criterion** — true → **pass**. Artifact: pass. MATCH.
+
+**Threshold per criterion** — true → **pass**. Artifact: pass. MATCH.
+
+**Default action matches a declared option** — default_action="NonExistentOption"; option names {A,B}; not in set → **fail**. Artifact: fail. MATCH.
+
+**Loss costs in both directions** — cost_of_false_action=**-10** (<0) → **fail**. Artifact: fail. MATCH.
+
+### Four conditional checks
+
+- **Threshold adjustment for asymmetry** — gate false → N/A → **pass**. Artifact: pass. MATCH.
+- **Slowed down when irreversible** — gate false → N/A → **pass**. Artifact: pass. MATCH.
+- **Default to action when reversible** — gate false → N/A → **pass**. Artifact: pass. MATCH.
+- **Pre-registered hypothesis** — gate false → N/A → **pass**. Artifact: pass. MATCH.
+
+### Reported quantities
+
+- **options_count** = 2. Artifact: 2. MATCH.
+- **options_without_name** = [] (both named). Artifact: []. MATCH.
+- **options_not_declared_viable** = ["A"] (A.viable=false). Artifact: ["A"]. MATCH.
+- **option_name_coverage** = 2/2 = 1.0 → "1.0000". Artifact: "1.0000". MATCH.
+- **criteria_count** = 1. Artifact: 1. MATCH.
+- **criteria_without_name** = []. MATCH.
+- **criteria_not_set_before_data** = []. MATCH.
+- **criteria_without_threshold** = []. MATCH.
+- **criterion_set_before_data_coverage** = 1/1 → "1.0000". Artifact: "1.0000". MATCH.
+- **criterion_threshold_coverage** = 1/1 → "1.0000". Artifact: "1.0000". MATCH.
+- **default_action** = "NonExistentOption". Artifact: "NonExistentOption". MATCH.
+- **loss_cost_ratio** = -10 ÷ 50 = -0.2. Serialize: floor(-0.2·10000 + 0.5)/10000 = floor(-2000 + 0.5)/10000 = floor(-1999.5)/10000 = -2000/10000 = -0.2000. Artifact: "-0.2000". MATCH. (Note: the rule as literally written — `floor(v*10000+0.5)/10000` — yields -0.2000 here; the artifact agrees.)
+
+### Verdict / status / summary
+
+- Fails: every_option_declared_viable, no_analysis_makes_the_call, default_action_matches_declared_option, loss_costs_both_directions_declared = **4 fails**. Artifact: 4 fail. MATCH.
+- Pass count = 36 − 4 = 32. Artifact: 32 pass. MATCH.
+- Missing = 0. Artifact: 0. MATCH.
+- Verdict: any fail → **DECISION_PROCESS_NOT_SOUND**. Artifact: same. MATCH.
+- computed_status: any fail → `outside_stated_limits_on_declared_evidence`. Artifact: same. MATCH.
+- Sections: framing_and_roles fail (viability + analysis_makes_the_call), precommitment_before_data fail (default action), loss_stakes_and_rigor fail (loss costs), evidence_discipline_and_review pass. Artifact: fail/fail/fail/pass. MATCH.
+
+### Planted-wrong-value confirmation
+
+The planted wrong values are: `analysis_makes_the_call_present=true`, `options[0].viable=false`, `default_action="NonExistentOption"`, `cost_of_false_action=-10`. The four failing checks are exactly:
+1. `no_analysis_makes_the_call` ← analysis_makes_the_call_present=true
+2. `every_option_declared_viable` ← A.viable=false
+3. `default_action_matches_declared_option` ← "NonExistentOption" not a declared option
+4. `loss_costs_both_directions_declared` ← cost_of_false_action=-10
+
+No other check fails, and no planted value is left unreflected. **Confirmed: the failing set is exactly the planted-wrong-value set.**
+
+## Summary
+
+Every computed check, count, coverage ratio, loss-cost ratio, verdict, status, and summary line in both artifacts recomputes to the recorded value under the SERVICE.md rules (including the `floor(v*10000+0.5)/10000` 4-dp serialization). No mismatches found.
+
+AGREEMENT: full

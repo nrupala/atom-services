@@ -1,5 +1,7 @@
 # Cpp engineering review — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a piece of C++ code or a diff and a record of how it was engineered — ownership, value semantics, smart pointers, STL use, exceptions/ABI discipline, tooling, sanitizers and safety. This atom reads one declared manifest and returns one deterministic verdict across eight sections: **REVIEW_SOUND**, **REVIEW_DEFICIENT**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared evidence's completeness and consistency only — it does not compile, run, sanitize or read your code, and it does not verify that a declared value is true. Computed checks: the declared `tooling.warning_count` passes only when it equals zero (the skill's warnings-as-errors gate — the one number the skill itself states); and the declared `raii.forbidden_constructs` list passes only when it contains none of the three stated entries — `raw_owning_pointer`, `manual_new`, `manual_delete` (unknown entries do not count as forbidden; an empty list passes). Same manifest in → same verdict out.

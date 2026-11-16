@@ -1,5 +1,7 @@
 # Defined Flow Auditor — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You claim a system is zero-trust. This atom reads a short evidence

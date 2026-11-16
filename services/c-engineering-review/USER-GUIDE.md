@@ -1,5 +1,7 @@
 # C engineering review — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You submit one declared C-engineering evidence manifest — your static-analysis, build, and review records for one piece of C code or one diff — and this atom returns one deterministic verdict across seven sections: **REVIEW_SOUND**, **REVIEW_DEFICIENT**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Computed checks: the declared `warnings.warning_count` must equal zero (the skill's one stated number — warnings are errors, zero warnings maintained), and the declared `bounds.banned_calls` list must contain none of the four stated banned entries (`gets`, `strcpy`, `sprintf`, `unchecked_scanf`). It reviews declared evidence only: it does not compile, run, fuzz, or read live code, and it does not verify that a declared value is true. Same manifest in → same verdict out.

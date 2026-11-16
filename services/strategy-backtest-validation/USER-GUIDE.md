@@ -1,5 +1,7 @@
 # Strategy backtest validation — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have run (or are about to run) a trading-strategy backtest. This

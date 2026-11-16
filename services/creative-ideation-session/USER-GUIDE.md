@@ -1,5 +1,7 @@
 # Creative ideation session — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a creative ideation session record — a brief, preparation, capture, generation, divergence, idea-pool, selection, shortlist and sharing record for one session. This atom reads one declared manifest and returns one deterministic verdict across six sections: **SESSION_COMPLETE**, **SESSION_NOT_COMPLETE**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared session record's completeness and internal consistency only — it does not run the session, generate ideas, or judge whether any idea is good, original, or worth pursuing. Computed checks: the captured idea count must meet the caller-declared target (the skill states no number for "many", so no minimum is imposed); the declared unique-after-dedup count must equal captured minus duplicates removed; the shortlist must hold at least one idea and not exceed the unique pool (no shortlist size or ratio is imposed); and every divergence method used must be one of the five the skill names — `brainstorm`, `scamper`, `analogies`, `combining_distant_domains`, `what_if` (at least one stated method, no particular method mandatory). Same manifest in → same verdict out.

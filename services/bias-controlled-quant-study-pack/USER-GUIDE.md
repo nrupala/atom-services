@@ -1,5 +1,7 @@
 # Bias controlled quant study pack — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are working a single market study through a quant-research method, with bias control at its centre. This atom reads one declared study pack — preregistered hypothesis, data hygiene, distribution reality, stationarity and stability, multiple-testing discipline, costs, and reproducibility — and returns one deterministic verdict across seven sections: **STUDY_PACK_COMPLETE**, **STUDY_PACK_NOT_COMPLETE**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Computed checks: the declared cost list must cover all five stated costs (spreads, fees, slippage, borrow, taxes); the stability periods must name at least two distinct periods; and the signals reported must not exceed the signals tested. Same manifest in → same verdict out. It audits the declared pack only — it does not fetch market data, run the study, or verify that a declared value is true.

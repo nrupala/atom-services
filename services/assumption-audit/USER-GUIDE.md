@@ -1,5 +1,7 @@
 # Assumption Audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are about to act on a decision. This atom reads a short evidence

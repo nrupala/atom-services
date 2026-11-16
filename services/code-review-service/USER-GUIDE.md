@@ -1,5 +1,7 @@
 # Code review service — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a code-review record — a PR's size and description, its review checklist coverage, its comment labels and answers, its approval gates and its merge discipline. This atom reads one declared manifest and returns one deterministic verdict across six sections: **CODE_REVIEW_READY**, **CODE_REVIEW_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared artifact's completeness and internal consistency only — it does not read a diff, open a repository, run CI, or judge whether the code is correct, secure or readable. Computed checks: the declared changed-line count must be at or under the skill's stated aim of ~400 lines; the declared checklist coverage must contain all five stated categories — `correctness`, `security`, `tests`, `readability`, `docs`; every declared comment must be labeled (labeled count equals total) and answered (answered count equals total); a non-trivial change needs at least one reviewer; unresolved comments at approval must be zero; a behavior-changing PR must update docs + changelog; an emergency hotfix must get post-review. No test-coverage percentage, turnaround SLA, comment-volume cap, or reviewer-seniority rule is imposed — the skill states none. Same manifest in → same verdict out.

@@ -74,3 +74,43 @@ owner's word first.
   entries are not services and never become units.
 - The register (`registry/register.yaml`) is authoritative. Change
   the register, re-run `tools/generate.py`, commit both together.
+
+## 7. Governing processes
+
+This program is governed by the house delivery processes, bound here
+by name (owner ruling 2026-11-15 20:40 MST):
+
+- `corporate/processes/product-documentation.md` — including
+  checklist row **N-10** (user guides follow the AppDoc Studio
+  methodology; worked examples are real recorded runs).
+- `corporate/processes/product-release.md` — including checklist
+  row **R-18** (each service unit behind the shared gateway carries
+  its own gate verdict, documentation lines, and Guardian Mesh
+  disposition; a gateway-level or batch-level verdict does not cover
+  its units).
+- `corporate/processes/gate-before-deploy.md`.
+- The release-gate skill
+  (`~/workspace/custom-skills/local-release-gate/SKILL.md`).
+- The AppDoc Studio methodology for all user documentation.
+
+Per-atom completion lines — **batch-blocking**:
+
+- (a) **Documentation:** an N-10 documentation pass for the atom.
+- (b) **Gate:** the atom's own recorded release-gate verdict and
+  evidence pack. External UAT (Gemini/DeepSeek verification) is
+  evidence input to the gate, never the verdict.
+- (c) **Guardian Mesh:** the atom's own GM disposition — probes run
+  with results filed, or the gate's Spec Inputs filed with the leg
+  marked NOT RUN.
+
+**Completion rule:** no batch counts complete with an OPEN or
+NOT RUN line in any atom's documentation, gate, or Guardian Mesh
+rows, unless that line is WAIVED on record with a reason. Batch
+readiness is reported as counts — PROVEN / OPEN / WAIVED / NOT
+RUN — never as narrative alone.
+
+Root cause, recorded once: this program was stood up under a
+charter that never bound the house delivery processes, so
+lane-local checks (builder tests, external UAT) silently stood in
+for them. The processes existed; the charter omitted them. This
+section is the fix.

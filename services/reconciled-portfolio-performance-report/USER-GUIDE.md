@@ -1,5 +1,7 @@
 # Reconciled portfolio performance report — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You hold a portfolio's declared figures — beginning value, period-end

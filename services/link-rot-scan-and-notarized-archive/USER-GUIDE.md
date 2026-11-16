@@ -1,5 +1,7 @@
 # Link-rot scan and notarized archive — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You publish pages whose links and citations must stay provable. This atom reads a short evidence manifest describing your link-integrity practice — scheduled rot scans, WARC/SingleFile archive captures taken at cite time, canonicalization, notarization (SHA-256 hashes with timestamps from a real RFC 3161 TSA or transparency log), honest serving of archived copies, and logged repairs — and returns one deterministic verdict across six sections with per-check evidence: **LINK_INTEGRITY_SOUND**, **LINK_INTEGRITY_UNSOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out.

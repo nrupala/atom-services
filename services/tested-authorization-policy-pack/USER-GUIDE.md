@@ -1,5 +1,7 @@
 # Tested authorization policy pack — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You ship authorization policy as code — OPA/Rego-class rules, tests,

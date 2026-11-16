@@ -1,5 +1,7 @@
 # Zero-knowledge claim audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You claim your product is zero-knowledge — the server learns nothing.

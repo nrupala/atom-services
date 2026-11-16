@@ -1,0 +1,99 @@
+# Independent recompute — difficult-conversation-coaching
+
+I recompute every computed quantity from the recorded inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+### Inputs (relevant)
+- `preparation_domains` = `[self_awareness, self_management, social_awareness, relationship_management]`
+- `feedback.feedback_to_be_given` = true
+- `feedback_points` = 1 row: `{name: "Point 1", situation_stated: true, behavior_described: true, impact_stated: true, targets_identity: false}`
+- `repair.thread_has_soured` = false
+
+### Computed quantities
+
+**1. `preparation_domains_count`** = length of declared list = 4. Artifact: 4 → **MATCH**
+
+**2. `preparation_domains_missing`** — canonical order `[self_awareness, self_management, social_awareness, relationship_management]`. Declared set = all four. Missing = `[]`. Artifact: `[]` → **MATCH**
+
+**3. `preparation_domain_coverage`** = distinct stated domains declared ÷ 4 = 4 ÷ 4 = 1.0.
+Serialization: `floor(1.0 * 10000 + 0.5)/10000 = floor(10000.5)/10000 = 10000/10000 = 1.0` → format 4dp = `"1.0000"`. Artifact: `"1.0000"` → **MATCH**
+
+**4. `feedback_points_count`** = 1. Artifact: 1 → **MATCH**
+
+**5. `feedback_points_without_complete_sbi`** — feedback_to_be_given=true, so gated check active. Row "Point 1": situation_stated=true, behavior_described=true, impact_stated=true → SBI complete. No rows incomplete → `[]`. Artifact: `[]` → **MATCH**
+
+**6. `feedback_points_targeting_identity`** — row "Point 1" has targets_identity=false → not listed → `[]`. Artifact: `[]` → **MATCH**
+
+**7. `sbi_coverage`** = complete-SBI points ÷ declared points = 1 ÷ 1 = 1.0 → `floor(10000.5)/10000 = "1.0000"`. Artifact: `"1.0000"` → **MATCH**
+
+**8. `computed_status`** — all five primary computed checks complete and passing (domains declared non-empty; all four in order; feedback points present; SBI complete; no identity targeting) → `within_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**
+
+**9. Verdict / summary** — 31 checks, all pass → `CONVERSATION_PREPARATION_COMPLETE`, "31 pass, 0 fail, 0 missing of 31". Artifact: same → **MATCH**
+
+### Check-level spot verification (full-pass)
+- `preparation_domains_cover_all_four_in_stated_order`: declared list exactly `[self_awareness, self_management, social_awareness, relationship_management]` → pass. Artifact pass → MATCH.
+- `no_venting_in_writing`: `venting_in_writing_present=false` → pass. MATCH.
+- `emotion_regulated_not_suppressed`: `emotion_suppressed...=false` → pass. MATCH.
+- `no_hostility_mirroring`: `hostility_mirroring_present=false` → pass. MATCH.
+- `target_not_on_do_not_respond_list`: `target_on_do_not_respond_list=false` → pass. MATCH.
+- `repair_move_planned_when_thread_soured`: `thread_has_soured=false` → not applicable → pass. MATCH.
+- `no_winning_argument_losing_relationship`: `winning_argument...=false` → pass. MATCH.
+- `no_feedback_point_targets_identity`: targets_identity=false → pass. MATCH.
+
+All consistent.
+
+## Case 2: `violations`
+
+### Inputs (relevant)
+- `preparation_domains` = `[self_awareness, self_management]`
+- `self_management.venting_in_writing_present` = true
+- `self_management.emotion_suppressed_instead_of_regulated_present` = true
+- `feedback.feedback_to_be_given` = true
+- `feedback_points` = 1 row: `{name: "Point 1", situation_stated: true, behavior_described: true, impact_stated: true, targets_identity: true}`
+- `safeguards.target_on_do_not_respond_list` = true
+- `repair.thread_has_soured` = false
+
+### Computed quantities
+
+**1. `preparation_domains_count`** = 2. Artifact: 2 → **MATCH**
+
+**2. `preparation_domains_missing`** — canonical `[self_awareness, self_management, social_awareness, relationship_management]`; declared = {self_awareness, self_management}. Missing in canonical order = `[social_awareness, relationship_management]`. Artifact: `["social_awareness","relationship_management"]` → **MATCH**
+
+**3. `preparation_domain_coverage`** = distinct stated declared ÷ 4 = 2 ÷ 4 = 0.5 → `floor(0.5*10000+0.5)/10000 = floor(5000.5)/10000 = 5000/10000 = 0.5` → `"0.5000"`. Artifact: `"0.5000"` → **MATCH**
+
+**4. `feedback_points_count`** = 1. Artifact: 1 → **MATCH**
+
+**5. `feedback_points_without_complete_sbi`** — row "Point 1": all three SBI fields true → complete → `[]`. Artifact: `[]` → **MATCH**
+
+**6. `feedback_points_targeting_identity`** — row "Point 1" targets_identity=true → listed → `["Point 1"]`. Artifact: `["Point 1"]` → **MATCH**
+
+**7. `sbi_coverage`** = 1 ÷ 1 = 1.0 → `"1.0000"`. Artifact: `"1.0000"` → **MATCH**
+
+**8. `computed_status`** — primary computed checks: domains declared (pass), all four in order (FAIL — only 2 declared), feedback points declared (pass), SBI complete (pass), no identity targeting (FAIL — Point 1). At least one fails → `outside_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**
+
+**9. Verdict / summary** — any check fails → `CONVERSATION_PREPARATION_INCOMPLETE`. Artifact: same → **MATCH**
+
+### Planted-wrong-value confirmation (violations)
+
+The planted wrong values are: (a) domains list truncated to 2, (b) `venting_in_writing_present=true`, (c) `emotion_suppressed...=true`, (d) `targets_identity=true`, (e) `target_on_do_not_respond_list=true`. Each should fail exactly one check:
+
+| Planted wrong value | Check it should fail | Artifact status | Correct? |
+|---|---|---|---|
+| domains = 2 of 4 | `preparation_domains_cover_all_four_in_stated_order` | fail | ✓ |
+| `venting_in_writing_present=true` | `no_venting_in_writing` | fail | ✓ |
+| `emotion_suppressed...=true` | `emotion_regulated_not_suppressed` | fail | ✓ |
+| `targets_identity=true` | `no_feedback_point_targets_identity` | fail | ✓ |
+| `target_on_do_not_respond_list=true` | `target_not_on_do_not_respond_list` | fail | ✓ |
+
+That is exactly 5 failing checks. Artifact reports 5 fails: `preparation_domains_cover_all_four_in_stated_order`, `no_venting_in_writing`, `emotion_regulated_not_suppressed`, `no_feedback_point_targets_identity`, `target_not_on_do_not_respond_list`. **Exactly the planted set — no extra, no missing.**
+
+Section rollup: `preparation_and_self_regulation` has 3 fails → fail; `structure_feedback_and_next_step` has 1 fail → fail; `safeguards_repair_and_close` has 1 fail → fail; empathy and framing have 0 fails → pass. Artifact sections: fail / pass / pass / fail / fail → **MATCH**.
+
+Summary arithmetic: 31 total − 5 fail = 26 pass, 0 missing → "26 pass, 5 fail, 0 missing of 31". Artifact: same → **MATCH**.
+
+## Conclusion
+
+Every computed quantity in both cases recomputes to the artifact's value under the stated rules (counts as integers; ratios via `floor(v*10000+0.5)/10000` formatted to 4dp; missing-domains in canonical order; row-name lists null only when list absent). The violations case's 5 failing checks are exactly the 5 checks the planted wrong values should trip.
+
+AGREEMENT: full

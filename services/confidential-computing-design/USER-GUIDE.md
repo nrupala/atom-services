@@ -1,5 +1,7 @@
 # Confidential computing design — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a confidential-computing design record — its threat model, TEE technology selection, attestation record, enclave patterns and trusted-codebase accounting, engineering discipline, key-management record and claims record. This atom reads one declared manifest and returns one deterministic verdict across seven sections: **CONFIDENTIAL_COMPUTING_DESIGN_READY**, **CONFIDENTIAL_COMPUTING_DESIGN_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared artifact's completeness and internal consistency only — it does not design an enclave, run attestation, verify a quote, inspect enclave code, or audit encryption claims (that is the separate `encryption-claim-audit` atom). Computed checks: the protects-against list must cover `host_access`, `operator_access`, `co_tenant_access`; the does-not-protect list and the public exclusions must each cover `side_channels`, `supply_chain`, `flawed_enclave_code`, `unsealed_inputs_outputs`; every trusted component must carry a non-empty name and a numeric line count; and the declared trusted-codebase total must equal the sum of the component lines (no maximum size is imposed — only the arithmetic is re-derived). The technology name is validated as a non-empty string only, never enum-checked, and no attestation-freshness window is imposed. Same manifest in → same verdict out.

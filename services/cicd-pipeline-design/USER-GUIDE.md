@@ -1,5 +1,7 @@
 # CI/CD pipeline design — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a CI/CD pipeline artifact — its declared stage list with per-stage minutes and a declared total, its determinism and pinning record, its caching and secrets record, its minutes budget record, its provenance record, and its deploy and gate record. This atom reads one declared manifest and returns one deterministic verdict across six sections: **CICD_PIPELINE_READY**, **CICD_PIPELINE_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared artifact's completeness and internal consistency only — it does not design a pipeline, write workflow files, run the pipeline, or verify that a declared value is true. Computed checks: every stage entry must carry a non-empty name and numeric minutes; the declared stage names must equal the skill's stated sequence exactly — lint → typecheck → test → build → package_sign (the manifest spelling of "package/sign") → publish, cheapest first; the declared total minutes must equal the sum of the per-stage minutes; the declared monthly minutes must equal estimated minutes per run × runs per month; and the re-derived monthly minutes must not exceed the monthly minutes budget you yourself declare (no budget is imposed — the skill states no number, so only your own declared budget is compared). Same manifest in → same verdict out.

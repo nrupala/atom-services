@@ -1,5 +1,7 @@
 # Append-only ledger design audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are designing a ledger or audit trail. This atom reads a short evidence manifest describing the design — append-only immutability, double-entry money discipline, structure and derivation, reconciliation and reporting, security and recovery — and returns one deterministic verdict across five sections with per-check evidence: **SOUND**, **UNSOUND**, or

@@ -94,7 +94,10 @@ never interpolated.
   calibration gap (hit rate − mean confidence) and Brier score.
 - **Layers:** the skill's five layers (holdings, risk metrics, factor
   exposures, concentration, decisions) are each reported `present` or
-  `absent` — missing layers are gaps, not guesses.
+  `absent`. An absent layer is reported, never guessed at — but
+  absence alone is not a gap: it adds no entry to the `gaps` list
+  and does not by itself change the status (see the status rule
+  below).
 - **Not computed:** Monte Carlo. The skill asks for 1K–100K simulated
   paths; no seed, path count or simulation parameter is defaulted in
   this core, and a simulated distribution would not be a deterministic
@@ -109,14 +112,27 @@ internal arithmetic is IEEE-754 double arithmetic in a fixed loop
 order using only +, −, ×, ÷ and √ (plus one power for geometric
 annualization).
 
-The output status is one of `complete` (a returns series with at
-least 2 valid observations and no gaps of any kind), `partial`
-(analytics computed but some metric or layer is a labeled gap —
-missing parameter, invalid entries, misaligned series, singular
-factors, uncomputable scenario), or `insufficient_evidence` (no
-returns series, or fewer than 2 valid numeric observations), with
-`counts`, the ordered `gaps` list naming every gap, the sections
-above (null when their inputs are absent), and the skill's
+The output status is decided by the returns series and the `gaps`
+list alone. It is one of `insufficient_evidence` (no returns
+series, or fewer than 2 valid numeric observations), `complete`
+(at least 2 valid observations and the `gaps` list is empty), or
+`partial` (at least 2 valid observations and the `gaps` list is
+non-empty — analytics computed but a labeled gap was recorded: a
+missing or invalid parameter, invalid entries, a misaligned
+series, singular factors, an uncomputable scenario). Only entries
+in the `gaps` list count toward `partial`. The three parameters
+`periods_per_year`, `risk_free_per_period` and `var_confidence`
+each add a gap when absent or invalid, so `complete` requires
+them; but an optional section that was not submitted at all
+(`benchmark_returns`, `holdings`, `factors`, `holding_returns`,
+`stress_scenarios`, `decision_journal`) adds no gap — its section
+is null (for `stress_tests`, `[]`), where the section has a layer
+that layer is reported `absent`, and the status can still be
+`complete`.
+`correlation_window` submitted without `holding_returns` likewise
+computes nothing and adds no gap. The output carries `counts`,
+the ordered `gaps` list naming every gap, the sections above
+(null when their inputs are absent), and the skill's
 non-advisory disclaimer carried on every output: educational
 analytics only — the tool calculates; the user decides. No
 recommendation, and nothing labeled optimal or recommended, is ever
@@ -124,10 +140,7 @@ produced.
 
 ## Status
 
-Tier A · status: **built-locally** — deterministic core built and
-verified locally (Python oracle + byte-identical TypeScript port);
-no endpoint is live. Release happens one by one, by the owner's GO,
-per the approved queue.
+Tier A · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
 
 ## Named doubt (from the register)
 

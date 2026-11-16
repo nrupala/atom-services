@@ -1,5 +1,7 @@
 # Data visualization design — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a visualization design record — the audience and question your charts answer, the chart rows you declared, and your honesty, perception, colour, annotation, accessibility, dashboard and reproducibility declarations. This atom reads one declared manifest and returns one deterministic verdict across seven sections: **DATA_VISUALIZATION_DESIGN_SOUND**, **DATA_VISUALIZATION_DESIGN_NOT_SOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared record's completeness and internal consistency only — it does not render a chart, read your data, or judge whether a chart is clear or beautiful. Computed checks: every chart entry must be complete; each chart's type must be the type the method maps its question type to (comparison → bar, trend → line, distribution → histogram / box_plot, relationship → scatter, composition → stacked_bar, part-to-whole over time → small_multiples) and comparison charts must declare sorted bars; bar and stacked-bar axes must start at zero; no chart may declare a dual axis, 3D, or a red/green-only encoding; a truncated axis must be flagged loudly; and the largest declared category count must be at most 7 — the one numeric limit stated. Same manifest in → same verdict out.

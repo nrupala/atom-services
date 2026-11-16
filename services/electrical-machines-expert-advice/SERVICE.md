@@ -136,7 +136,7 @@ Pricing unit: **tokens**. No price is set. Prices are set only from measured pro
 
 ## Status
 
-Tier B · status: **built-locally — NOT deployed; do not submit** — deterministic core, Python oracle, TypeScript port, golden fixtures and differential sweep complete (see the build record in the delivery report). No endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
 
 ## Named doubt (from the register)
 

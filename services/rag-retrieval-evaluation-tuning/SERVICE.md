@@ -130,10 +130,7 @@ serving_and_privacy.
 
 ## Status
 
-Tier A · status: **built-locally** — deterministic core, Python
-oracle, TypeScript port and golden fixtures are built and verified
-locally; no endpoint is live. Release happens one by one, by the
-owner's GO, per the approved queue.
+Tier A · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
 
 ## Named doubt (from the register)
 

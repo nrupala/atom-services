@@ -1,5 +1,7 @@
 # Budget design review — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a budget design — its scope, lines, owners, drivers, totals, revenue link, contingency, approval baseline, monitoring and close — and you want to know whether the design holds together before money moves against it. This atom reads one declared budget-design manifest and returns one deterministic verdict across six sections and 29 checks: **BUDGET_DESIGN_SOUND**, **BUDGET_DESIGN_NOT_SOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Computed checks: the budget type must be one of the kinds the method names (`operating`, `capital`, `personal`); every line must carry a named owner and a stated approach (`zero_based` or `incremental`); every line amount must equal its driver quantity × driver unit cost; the declared total must equal the sum of the line amounts and must not exceed expected income; and the rolling forecast horizon must be exactly 12 months. Hidden padding, silent reallocations, and unannotated edits to actuals are red lines — declaring any of them fails the design. Same manifest in → same verdict out. The review audits the design's own declarations for completeness and consistency; it is not financial advice and does not judge whether the amounts are wise.

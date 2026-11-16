@@ -1,5 +1,7 @@
 # Brand mention monitoring triage digest — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You run a watch for mentions of your brand across the web. This atom reads one declared monitoring setup — inventory and coverage, triage rubric, response policy, alert hygiene and evidence, and digest reporting — and returns one deterministic verdict across six sections: **TRIAGE_DIGEST_READY**, **TRIAGE_DIGEST_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Computed checks: the declared triage dimensions must cover all three the method names (severity, reach, authenticity); the declared triage routes must cover all five (ignore, monitor, reply, escalate, legal); and evidence must be archived for every action taken, with coherent counts. It audits your declared setup only — it does not listen to live feeds or verify that a declared value is true. Same manifest in → same verdict out.

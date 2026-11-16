@@ -1,5 +1,7 @@
 # Prediction-model leakage & calibration audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a prediction model and need to know whether its numbers can be believed. This atom reads a short evidence manifest describing the model — target and decision, baseline and untouched holdout, leakage-free validation, the model ladder and thresholds, calibration observations and segment errors (five checks are computed from your data, not declared: holdout improvement over baseline, feature availability at prediction time, no target-derived features, no random split for temporal data, calibration error and segment errors against *your* declared tolerances) — plus drift and deployment practice, and returns one deterministic verdict across six sections with per-check evidence: **PREDICTION_AUDIT_SOUND**, **PREDICTION_AUDIT_UNSOUND**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). Same manifest in → same verdict out.

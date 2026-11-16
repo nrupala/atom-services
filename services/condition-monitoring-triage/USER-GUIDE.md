@@ -1,5 +1,7 @@
 # Condition Monitoring Triage — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You monitor motors, drives or transformers — vibration,

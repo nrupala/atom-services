@@ -1,5 +1,7 @@
 # CRM pipeline operations — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a CRM pipeline-operations artifact — a single-source and hygiene record, a contact-rule and privacy record, declared pipeline stages with entry/exit criteria, declared deal rows, a follow-up cadence and logging record, a reporting and forecast record, a consent record, a win/loss record, and a minimal-data/retention record. This atom reads one declared manifest and returns one deterministic verdict across eight sections: **CRM_PIPELINE_READY**, **CRM_PIPELINE_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared artifact's completeness and internal consistency only — it does not operate a CRM, contact anyone, move a deal, or judge whether relationships are actually well run. Computed checks: the declared stages must cover the six stages the skill names — `lead`, `qualified`, `proposal`, `decision`, `won`, `lost`; every deal row must be complete and its stage must be a stated stage; every open deal must carry a next step and a next-step date (a zero open-deal count fails); and no open deal may be stale — its `age_days` exceeding your own declared `stale_threshold_days` (the skill states no day count, so none is imposed; an age exactly equal to the threshold is not stale). Same manifest in → same verdict out.

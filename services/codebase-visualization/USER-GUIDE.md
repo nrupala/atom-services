@@ -1,5 +1,7 @@
 # Codebase visualization — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You have a codebase-visualization artifact — diagrams-as-code entries, a dependency view with module counts, call & flow views, an architecture map with declared C4 levels, metrics and history views with a declared top hotspot, and an honesty record. This atom reads one declared manifest and returns one deterministic verdict across six sections: **CODEBASE_VISUALIZATION_READY**, **CODEBASE_VISUALIZATION_NOT_READY**, or **INSUFFICIENT_EVIDENCE** (nothing failed, but evidence is missing — the verdict names exactly which). It audits the declared artifact's completeness and internal consistency only — it does not render a diagram, read any actual code, or judge whether a diagram is clear or accurate. Computed checks: every declared diagram entry must be complete (non-empty `name`, `format`, `scope`, `generation_source`, `generated_at`) and every declared format must be one of the stated diagrams-as-code tools — `mermaid`, `graphviz`, `plantuml` (no minimum diagram count is imposed); the declared modules included in the dependency graph must equal the declared total modules, with a positive total (no partial-coverage percentage is accepted); the declared architecture levels must cover all three stated C4-lite levels — `context`, `containers`, `components` (extra entries do not hurt); and the declared hotspot score must equal change-frequency × complexity (no score cutoff is imposed). Same manifest in → same verdict out.

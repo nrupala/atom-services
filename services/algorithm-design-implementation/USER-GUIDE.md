@@ -1,5 +1,7 @@
 # Algorithm design implementation — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are about to implement an algorithm. This atom reads a declared

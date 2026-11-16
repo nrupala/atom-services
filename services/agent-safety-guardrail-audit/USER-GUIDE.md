@@ -1,5 +1,7 @@
 # Agent safety guardrail audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You run (or are about to release) an AI agent. This atom reads a short evidence manifest describing the agent's guardrails — injection defence, tool least-privilege, human approvals, sandboxing, budgets and kill switch, output validation, secrets hygiene, and red-teaming — and returns one deterministic verdict across eight sections with per-check evidence: **GUARDED**, **NOT_GUARDED**, or

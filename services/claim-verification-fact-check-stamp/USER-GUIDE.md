@@ -1,5 +1,7 @@
 # Claim Verification Fact Check Stamp — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are about to publish something with claims in it. This atom

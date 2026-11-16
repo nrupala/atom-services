@@ -1,5 +1,7 @@
 # Predictive maintenance failure risk assessment — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You run (or plan) a predictive-maintenance programme for an asset.

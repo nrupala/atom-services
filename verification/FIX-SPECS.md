@@ -1168,3 +1168,28 @@ values are all correct. Optional, at the replication stream's
 convenience: align those two evidence strings with the checks'
 fail-state phrasing, as with the Wave 4 budget-design-review
 observation.
+
+---
+
+## Wave 7 — 2026-11-15 (post Batch 12 deploy 7bad54c4e4a145e493e8766eb2f3bafb)
+
+**No new findings.** All seven Batch 12 first tests PASS (DeepSeek
+second reads: full agreement on all seven atoms, every recomputed
+quantity matched, exact violations fail sets confirmed); no F7
+issued. All 79 live atoms now carry an external PASS as their
+latest verdict.
+
+**Process change (no fix spec — a verification-lane change, not an
+atom change):** the Wave 4–6 case-design checklist is now a
+mechanical pre-flight validator, `verification/validate_cases.py`,
+run by the harness on every designed case file before execution; a
+rejected file is not executed. It enforces the four standing rules
+(R1 exact check-register names, extracted from the atom's own
+oracle core; R2 structured `computed_spot_checks`, never
+prose-only; R3 violations inputs are full manifests; R4 malformed
+cases carry exactly one type violation of a documented typed
+field). Wave 7 effect: 52 rejections across the seven raw Gemini
+designs (R1 ×26, R2 ×14, R3 ×7, R4 ×5), 39 design-time corrections
+recorded in the per-atom reports, and zero tester errors in
+executed cases — every executed battery validator-passed, the
+Gemini judge recorded zero tester errors on all seven atoms.

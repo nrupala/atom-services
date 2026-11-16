@@ -1,5 +1,7 @@
 # Dependency governance audit — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You ship software built on third-party dependencies. This atom reads a short evidence manifest describing how those dependencies are governed — justification, verified sources, pinning, audit and updates, licences, and SBOM — and returns one deterministic verdict across six sections with per-check evidence. All fields are booleans unless noted: **GOVERNED**, **NOT_GOVERNED**, or

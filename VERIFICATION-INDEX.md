@@ -505,3 +505,94 @@ budget-design-review observation.
 | data-ml-pipeline-engineering | **PASS** | — (first test) | — (malformed 422, field: sources.declared_total_rows) | deepseek ✓ full | [TEST-REPORT.md](services/data-ml-pipeline-engineering/TEST-REPORT.md) | [USER-GUIDE.md](services/data-ml-pipeline-engineering/USER-GUIDE.md) |
 | data-visualization-design | **PASS** | — (first test) | — (malformed 422, field: charts) | deepseek ✓ full | [TEST-REPORT.md](services/data-visualization-design/TEST-REPORT.md) | [USER-GUIDE.md](services/data-visualization-design/USER-GUIDE.md) |
 | database-design-review | **PASS** | — (first test) | — (malformed 422, field: normalization.normalized_to_3nf) | deepseek ✓ full | [TEST-REPORT.md](services/database-design-review/TEST-REPORT.md) | [USER-GUIDE.md](services/database-design-review/USER-GUIDE.md) |
+
+## Wave 7 — 2026-11-15 — 7 atoms (Batch 12 first tests)
+
+Triggered by the Batch 12 deploy (deployment
+`7bad54c4e4a145e493e8766eb2f3bafb`, gateway v1.1.0; 79 atoms live).
+Scope: first tests of Batch 12's seven atoms (Gemini-designed cases,
+same battery and standard as Waves 1–6: full-pass / violations /
+sparse / malformed, determinism byte-compare and MCP↔REST parity on
+the full-pass case, real HTTP calls throughout). Tester key scopes
+were extended 72 → 79 before the wave through the real
+`POST /v1/keys` endpoint (the same key returned on every grant,
+`atm_1_ac543f43d09d66…`, last-4 `b1a2`), verified by
+`GET /v1/keys` read-back — 79 scopes, none missing. DeepSeek second
+reads ran on all seven atoms (each carries computed quantities);
+the coordinator re-verified all seven mechanically from the raw
+evidence after the workstreams reported (statuses, verdict values,
+failing-check sets against the corrected case expects,
+determinism/parity flags, 422 field names, judgment/results-file
+consistency, report and guide presence, validator reports) —
+**zero discrepancies**.
+
+**The mechanical pre-flight case validator (new this wave).** The
+Wave 6 checklist is now structure: `verification/validate_cases.py`
+runs inside the harness on every designed case file BEFORE any call
+is made, and a rejected file is not executed at all. It rejects,
+naming the rule, when (R1) a violations `failing_checks` names
+anything outside the atom's exact check register — extracted
+mechanically from the atom's own Python oracle core by running
+`evaluate({})`; (R2) an expected computed quantity appears only in
+prose instead of a structured `computed_spot_checks`; (R3) a
+violations input is sparse rather than a full manifest (its key
+paths must cover the full-pass manifest's); (R4) a malformed case
+carries other than exactly one type violation of a documented
+typed field, counted by walking the input against the oracle's
+MANIFEST_SPEC with the oracle's own type semantics. The validator
+ships with its own tests (`verification/test_validate_cases.py`,
+10/10: each rule fires on a bad file and passes a good one, the
+recorded Wave 6 cpp-engineering-review battery passes, and the
+harness demonstrably refuses a rejected file); each executed
+battery's evidence records its validation, and each atom's raw
+Gemini design validation report is preserved as
+`verification/work/<atom>/validation-raw.json`.
+
+**Validator effect, stated plainly:** Gemini's raw designs still
+slip at the same rate — the validator issued **52 rejections**
+across the seven raw designs (R1 check-register ×26, R2
+structured-spot-checks ×14, R3 violations-full-manifest ×7, R4
+malformed-exactly-one ×5). What changed is where the slips land:
+detection is now mechanical and total rather than a human review
+pass, every executed battery is validator-passed by construction,
+and **tester errors in executed cases dropped to zero** — no
+executed case was defective, the Gemini judge recorded zero
+tester errors on all seven atoms, and no correction was needed
+after execution on any atom. The 39 design-time corrections
+recorded in the per-atom reports are the fixes those 52 rejections
+(plus three reviewer-found items the validator does not cover: a
+cascade plant on delivery-plan-preparation, omitted repair-section
+fields on difficult-conversation-coaching, mis-nested fields on
+domain-portfolio-audit) produced before execution; none was scored
+against an atom.
+
+**Result: 7 PASS / 0 FAIL.** All seven Batch 12 atoms PASS at
+first test — the sixth consecutive cohort to do so (Batch 7 in
+the retest wave, Batch 8 in Wave 3, Batch 9 in Wave 4, Batch 10
+in Wave 5, Batch 11 in Wave 6, Batch 12 here), each built with
+F1 type validation and documented field types from the start.
+**With this wave, all 79 live atoms carry an external PASS as
+their latest verdict.** No new findings — no F7 issued.
+
+**DeepSeek↔Gemini agreement:** full on all seven atoms — every
+recomputed quantity matched (decision-process counts, coverages
+and the floor-rule loss-cost ratios including the violations
+case's negative `-0.2000`; research-brief provenance, sourcing
+and triangulation lists and ratios; delivery-plan counts,
+duration and coverages; test-case-pack traceability counts,
+ratios and row lists; conversation-coaching domain coverage and
+SBI lists; document-operations counts, without-lists and
+coverages; domain-portfolio counts, coverages, lapsed lists and
+±365-day renewal figures), and the exact violations
+failing-check sets were confirmed on every atom. No partials —
+nothing required adjudication this wave.
+
+| Atom | Verdict | Prior | Findings | 2nd tester | Report | Guide |
+|---|---|---|---|---|---|---|
+| decision-process-design | **PASS** | — (first test) | — (malformed 422, field: loss.cost_of_false_action) | deepseek ✓ full | [TEST-REPORT.md](services/decision-process-design/TEST-REPORT.md) | [USER-GUIDE.md](services/decision-process-design/USER-GUIDE.md) |
+| decision-ready-research-brief | **PASS** | — (first test) | — (malformed 422, field: scope) | deepseek ✓ full | [TEST-REPORT.md](services/decision-ready-research-brief/TEST-REPORT.md) | [USER-GUIDE.md](services/decision-ready-research-brief/USER-GUIDE.md) |
+| delivery-plan-preparation | **PASS** | — (first test) | — (malformed 422, field: phases) | deepseek ✓ full | [TEST-REPORT.md](services/delivery-plan-preparation/TEST-REPORT.md) | [USER-GUIDE.md](services/delivery-plan-preparation/USER-GUIDE.md) |
+| designed-test-case-pack | **PASS** | — (first test) | — (malformed 422, field: requirements) | deepseek ✓ full | [TEST-REPORT.md](services/designed-test-case-pack/TEST-REPORT.md) | [USER-GUIDE.md](services/designed-test-case-pack/USER-GUIDE.md) |
+| difficult-conversation-coaching | **PASS** | — (first test) | — (malformed 422, field: self_awareness.emotion_named) | deepseek ✓ full | [TEST-REPORT.md](services/difficult-conversation-coaching/TEST-REPORT.md) | [USER-GUIDE.md](services/difficult-conversation-coaching/USER-GUIDE.md) |
+| document-operations-service | **PASS** | — (first test) | — (malformed 422, field: documents) | deepseek ✓ full | [TEST-REPORT.md](services/document-operations-service/TEST-REPORT.md) | [USER-GUIDE.md](services/document-operations-service/USER-GUIDE.md) |
+| domain-portfolio-audit | **PASS** | — (first test) | — (malformed 422, field: portfolio) | deepseek ✓ full | [TEST-REPORT.md](services/domain-portfolio-audit/TEST-REPORT.md) | [USER-GUIDE.md](services/domain-portfolio-audit/USER-GUIDE.md) |

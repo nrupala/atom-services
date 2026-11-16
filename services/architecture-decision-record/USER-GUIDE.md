@@ -1,5 +1,7 @@
 # Architecture decision record — user guide
 
+Full documentation: [DOCUMENTATION.md](DOCUMENTATION.md)
+
 ## What it does
 
 You are recording an architecture decision. This atom reads a declared
