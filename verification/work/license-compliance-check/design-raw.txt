@@ -1,0 +1,93 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "product": "TestApp",
+        "distribution_model": "proprietary_binary",
+        "project_license": "MIT",
+        "license_decision": {"logged": false},
+        "license_file": {"present": true, "texts_unmodified": true},
+        "notice_file": {"present": true},
+        "source_headers": {"present": true},
+        "components": [{"name": "lib-a", "license": "MIT", "requires_attribution": false, "requires_bundled_license": false}],
+        "dependency_scan": {"completed": true, "clean": true, "incompatible_shipped": false},
+        "attribution": {"shipped": true},
+        "bundled_licenses": {"shipped": true},
+        "contributor_terms": {"policy": "DCO", "documented_in_contributing": true, "enforced": true},
+        "trademark": {"usage_rules_documented": true, "implied_endorsement": false},
+        "public_claims": {"claims_made": [], "attestation_present": false},
+        "client_work": {"is_client_work": false}
+      },
+      "expect": {
+        "outcome": "COMPLIANT",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid; no copyleft or attribution requirements triggered."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "product": "FailApp",
+        "distribution_model": "proprietary_binary",
+        "project_license": "GPL-3.0",
+        "license_decision": {"logged": false},
+        "license_file": {"present": true, "texts_unmodified": true},
+        "notice_file": {"present": true},
+        "source_headers": {"present": true},
+        "components": [{"name": "gpl-lib", "license": "GPL-3.0", "requires_attribution": true, "requires_bundled_license": true}],
+        "dependency_scan": {"completed": true, "clean": false, "incompatible_shipped": true},
+        "attribution": {"shipped": false},
+        "bundled_licenses": {"shipped": false},
+        "contributor_terms": {"policy": "DCO", "documented_in_contributing": true, "enforced": true},
+        "trademark": {"usage_rules_documented": true, "implied_endorsement": false},
+        "public_claims": {"claims_made": [], "attestation_present": false},
+        "client_work": {"is_client_work": false}
+      },
+      "expect": {
+        "outcome": "NON_COMPLIANT",
+        "http": 200,
+        "failing_checks": [
+          "copyleft_choice_logged_as_decision",
+          "no_copyleft_in_proprietary_binary",
+          "scan_clean_or_accepted_with_record",
+          "no_incompatible_dependency_shipped",
+          "attribution_shipped_where_required",
+          "bundled_licenses_shipped_where_required"
+        ],
+        "notes": "Multiple violations triggered by GPL usage in proprietary binary and missing attribution/bundled licenses."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "product": "SparseApp"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, triggering INSUFFICIENT_EVIDENCE verdict."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "product": "BadTypeApp",
+        "distribution_model": 123,
+        "components": "not-an-array"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input types violate schema (integer for string, string for array)."
+      }
+    }
+  ]
+}

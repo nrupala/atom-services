@@ -1,0 +1,1015 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: c-engineering-review
+
+=== contract.yaml ===
+service_name: c-engineering-review
+display_name: C engineering review
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:c-engineering
+binding:
+  skill: c-engineering
+  skill_path: workspace/mymilo-build/skills/c-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+keys:
+  namespace: c_engineering_review
+  prefix: atm_1_c_engineering_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Native and embedded code work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# C engineering review — `c-engineering-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Write production C — memory discipline, no undefined behaviour, warning-clean builds, boundary tests.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Native and embedded code work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the c-engineering-review manifest
+
+The caller submits one JSON manifest: one declared C-engineering
+evidence record — the caller's declared static-analysis, build,
+and review records for one piece of C code or one diff, worked
+through the bound skill's method. Every field below is read by
+the named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`REVIEW_DEFICIENT`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `subject` (string; carried into the verdict output, not itself checked) | — |
+| `memory.one_owner_per_allocation` | memory_discipline |
+| `memory.freed_on_same_path_as_allocation` | memory_discipline |
+| `memory.ownership_documented_in_headers` | memory_discipline |
+| `memory.caller_supplied_buffers_preferred` | memory_discipline |
+| `memory.ownership_documented_for_outliving_pointers` | memory_discipline |
+| `undefined_behavior.integer_overflow_addressed` | undefined_behavior |
+| `undefined_behavior.strict_aliasing_respected` | undefined_behavior |
+| `undefined_behavior.uninitialized_reads_avoided` | undefined_behavior |
+| `undefined_behavior.signed_shifts_checked` | undefined_behavior |
+| `undefined_behavior.sequence_point_traps_avoided` | undefined_behavior |
+| `undefined_behavior.ub_shortcuts_used` (must be `false` to pass — skill red line) | undefined_behavior |
+| `warnings.warnings_treated_as_errors` | warnings_and_build |
+| `warnings.warning_count` (number; computed, see below) | warnings_and_build |
+| `bounds.sized_apis_used` | bounds_and_strings |
+| `bounds.lengths_validated_at_boundaries` | bounds_and_strings |
+| `bounds.unbounded_operations_in_diff` (must be `false` to pass — skill quality gate) | bounds_and_strings |
+| `bounds.banned_calls` (list of strings; computed, see below) | bounds_and_strings |
+| `sanitizers.asan_enabled_in_test_builds` | sanitizers_and_static_analysis |
+| `sanitizers.ubsan_enabled_in_test_builds` | sanitizers_and_static_analysis |
+| `sanitizers.asan_ubsan_clean_on_suite` | sanitizers_and_static_analysis |
+| `sanitizers.valgrind_used_for_leaks` | sanitizers_and_static_analysis |
+| `sanitizers.parsers_fuzzed` | sanitizers_and_static_analysis |
+| `sanitizers.static_analysis_run` | sanitizers_and_static_analysis |
+| `sanitizers.static_analysis_findings_treated_as_bugs` | sanitizers_and_static_analysis |
+| `portability.fixed_width_types_used` | portability |
+| `portability.compiler_extensions_isolated` | portability |
+| `portability.tested_on_target_platforms` | portability |
+| `build_and_test.build_system_pinned` | build_and_test |
+| `build_and_test.unit_tests_at_function_boundaries` | build_and_test |
+| `build_and_test.integration_tests_at_edges` | build_and_test |
+
+Two checks are computed from the declared values, using only
+what the skill itself states plus the set logic of the declared
+values — no outside threshold is imported:
+
+- **Zero warnings:** the skill's method step 3 is "Warnings are
+  errors … zero warnings maintained, not 'later'", and its
+  quality gate is "Warning-clean with `-Werror` on target
+  compilers". A declared `warnings.warning_count` therefore
+  passes only when it equals zero — the one number the skill
+  itself states. An absent count is missing evidence. The output
+  reports the declared count as `warning_count` (null when no
+  count is declared or it is not a number).
+- **Banned calls:** the skill's red line is "No `gets`, `strcpy`,
+  `sprintf`, unchecked `scanf` — ever." The declared
+  `bounds.banned_calls` list therefore passes only when it
+  contains none of the four stated entries (`gets`, `strcpy`,
+  `sprintf`, `unchecked_scanf`); unknown entries do not count as
+  banned. A missing list is missing evidence; an empty list is
+  present and passes. The output reports the stated banned
+  entries found, in the skill's stated order, as
+  `banned_calls_found` (null when no list is declared). Entries
+  are validated as strings only, never enum-checked — the
+  banned-call finding is a verdict check, not a type error.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when either
+of the two computed checks cannot be completed).
+
+The verdict is one of `REVIEW_SOUND` (all 30 checks pass),
+`REVIEW_DEFICIENT` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across seven sections:
+memory_discipline, undefined_behavior, warnings_and_build,
+bounds_and_strings, sanitizers_and_static_analysis, portability,
+build_and_test.
+
+## Honest scoping
+
+This atom reviews a **declared** C-engineering evidence manifest
+— it does not compile, run, fuzz, or read live code, and it does
+not verify that a declared value is true. A review is sound *on
+the caller's declared evidence* even if the underlying code is in
+fact flawed. It is a completeness and consistency review,
+**not a code review**: it never decides whether the code actually
+contains a memory, undefined-behaviour, bounds, or portability
+trap the manifest did not declare, whether an allocation's owner
+is really clear, or whether a sanitizer run really happened —
+only that the manifest contains what the skill's method, quality
+gates, and red lines demand, and that its two computed checks
+agree with the skill's own stated limits.
+
+Named exclusions: no compilation or live code inspection of any
+kind; no static-analysis, sanitizer, or fuzzing execution (those
+runs are the caller's, declared in the manifest); no numeric
+threshold beyond the skill's own stated zero warnings — in
+particular, no pass mark is imposed on static-analysis findings
+(the skill says findings are bugs until proven otherwise, and
+states no count or formula, so only that treatment declaration
+is checked), no leak count, and no test-coverage percentage (the
+skill requires tests at function boundaries and at the edges but
+states no coverage number); no banned-call vocabulary beyond the
+four entries the skill's red line itself names; no live
+verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "c-engineering-review",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "REVIEW_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean flags set to pass, warning_count is 0, banned_calls is empty. computed_spot_checks: warning_count=0, banned_calls_found=[]",
+        "computed_spot_checks": [
+          "warning_count = 0",
+          "banned_calls_found = []",
+          "computed_status = within_stated_limits_on_declared_evidence"
+        ]
+      },
+      "input": {
+        "subject": "core-engine-v1",
+        "memory": {
+          "one_owner_per_allocation": true,
+          "freed_on_same_path_as_allocation": true,
+          "ownership_documented_in_headers": true,
+          "caller_supplied_buffers_preferred": true,
+          "ownership_documented_for_outliving_pointers": true
+        },
+        "undefined_behavior": {
+          "integer_overflow_addressed": true,
+          "strict_aliasing_respected": true,
+          "uninitialized_reads_avoided": true,
+          "signed_shifts_checked": true,
+          "sequence_point_traps_avoided": true,
+          "ub_shortcuts_used": false
+        },
+        "warnings": {
+          "warnings_treated_as_errors": true,
+          "warning_count": 0
+        },
+        "bounds": {
+          "sized_apis_used": true,
+          "lengths_validated_at_boundaries": true,
+          "unbounded_operations_in_diff": false,
+          "banned_calls": []
+        },
+        "sanitizers": {
+          "asan_enabled_in_test_builds": true,
+          "ubsan_enabled_in_test_builds": true,
+          "asan_ubsan_clean_on_suite": true,
+          "valgrind_used_for_leaks": true,
+          "parsers_fuzzed": true,
+          "static_analysis_run": true,
+          "static_analysis_findings_treated_as_bugs": true
+        },
+        "portability": {
+          "fixed_width_types_used": true,
+          "compiler_extensions_isolated": true,
+          "tested_on_target_platforms": true
+        },
+        "build_and_test": {
+          "build_system_pinned": true,
+          "unit_tests_at_function_boundaries": true,
+          "integration_tests_at_edges": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "c-engineering-review",
+        "atom_version": "0.1.0",
+        "subject": "core-engine-v1",
+        "verdict": "REVIEW_SOUND",
+        "sections": {
+          "memory_discipline": "pass",
+          "undefined_behavior": "pass",
+          "warnings_and_build": "pass",
+          "bounds_and_strings": "pass",
+          "sanitizers_and_static_analysis": "pass",
+          "portability": "pass",
+          "build_and_test": "pass"
+        },
+        "checks": [
+          {
+            "section": "memory_discipline",
+            "check": "one_owner_per_allocation",
+            "status": "pass",
+            "evidence": "method step 1: one clear owner per allocation"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "freed_on_same_path_as_allocation",
+            "status": "pass",
+            "evidence": "method step 1: each allocation is freed on the same path as its allocation"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "ownership_documented_in_headers",
+            "status": "pass",
+            "evidence": "method step 1: ownership is documented in headers"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "caller_supplied_buffers_preferred_over_hidden_allocations",
+            "status": "pass",
+            "evidence": "method step 1: caller-supplied buffers are preferred over hidden allocations"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "ownership_documented_for_outliving_pointers",
+            "status": "pass",
+            "evidence": "quality gate: ownership is documented for pointers that outlive their function"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "integer_overflow_addressed",
+            "status": "pass",
+            "evidence": "method step 2: integer overflow is minded \u2014 no overflow trap is left unaddressed"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "strict_aliasing_respected",
+            "status": "pass",
+            "evidence": "method step 2: strict aliasing is respected"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "uninitialized_reads_avoided",
+            "status": "pass",
+            "evidence": "method step 2: uninitialized reads are avoided"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "signed_shifts_checked",
+            "status": "pass",
+            "evidence": "method step 2: signed shifts are checked"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "sequence_point_traps_avoided",
+            "status": "pass",
+            "evidence": "method step 2: sequence-point traps are avoided"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "no_ub_shortcuts",
+            "status": "pass",
+            "evidence": "method step 2 / red line: no UB shortcuts \u2014 no UB 'because it works on my machine'"
+          },
+          {
+            "section": "warnings_and_build",
+            "check": "warnings_treated_as_errors",
+            "status": "pass",
+            "evidence": "method step 3: warnings are errors \u2014 the build uses -Wall -Wextra -Werror (MSVC /W4 /WX)"
+          },
+          {
+            "section": "warnings_and_build",
+            "check": "zero_warnings_maintained",
+            "status": "pass",
+            "evidence": "method step 3 / quality gate: zero warnings maintained \u2014 warning-clean with -Werror on target compilers"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "sized_apis_used",
+            "status": "pass",
+            "evidence": "method step 4: sized APIs are used (snprintf, checked memcpy) instead of unbounded ones"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "lengths_validated_at_boundaries",
+            "status": "pass",
+            "evidence": "method step 4: every length crossing a boundary is validated"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "no_unbounded_operations_in_diff",
+            "status": "pass",
+            "evidence": "quality gate: no unbounded string/mem operations in the diff"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "no_banned_functions_present",
+            "status": "pass",
+            "evidence": "red line: no gets, strcpy, sprintf, unchecked scanf \u2014 ever"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "asan_enabled_in_test_builds",
+            "status": "pass",
+            "evidence": "method step 5: ASan is enabled in test builds"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "ubsan_enabled_in_test_builds",
+            "status": "pass",
+            "evidence": "method step 5: UBSan is enabled in test builds"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "asan_ubsan_clean_on_suite",
+            "status": "pass",
+            "evidence": "quality gate: ASan/UBSan clean on the suite"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "valgrind_used_for_leaks",
+            "status": "pass",
+            "evidence": "method step 5: Valgrind is used for leaks"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "parsers_fuzzed",
+            "status": "pass",
+            "evidence": "method step 5: parsers are fuzzed (libFuzzer/AFL)"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "static_analysis_run_in_loop",
+            "status": "pass",
+            "evidence": "method step 6: static analysis is in the loop \u2014 clang-tidy plus the compiler analyzer"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "static_analysis_findings_treated_as_bugs",
+            "status": "pass",
+            "evidence": "method step 6: static-analysis findings are treated as bugs until proven otherwise"
+          },
+          {
+            "section": "portability",
+            "check": "fixed_width_types_used",
+            "status": "pass",
+            "evidence": "method step 7: fixed-width types are used (stdint.h)"
+          },
+          {
+            "section": "portability",
+            "check": "compiler_extensions_isolated",
+            "status": "pass",
+            "evidence": "method step 7: compiler extensions are isolated"
+          },
+          {
+            "section": "portability",
+            "check": "tested_on_target_platforms",
+            "status": "pass",
+            "evidence": "method step 7: the code is tested on target platforms"
+          },
+          {
+            "section": "build_and_test",
+            "check": "build_system_pinned",
+            "status": "pass",
+            "evidence": "method step 8: the build is pinned (Make/CMake)"
+          },
+          {
+            "section": "build_and_test",
+            "check": "unit_tests_at_function_boundaries",
+            "status": "pass",
+            "evidence": "method step 8: unit tests sit at function boundaries"
+          },
+          {
+            "section": "build_and_test",
+            "check": "integration_tests_at_edges",
+            "status": "pass",
+            "evidence": "method step 8: integration tests sit at the edges"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "warning_count": 0,
+        "banned_calls_found": [],
+        "summary": "30 pass, 0 fail, 0 missing of 30 checks across seven sections.",
+        "stamp": "C ENGINEERING REVIEW\nsubject: core-engine-v1\nVERDICT: REVIEW_SOUND\n  memory_discipline                pass\n  undefined_behavior               pass\n  warnings_and_build               pass\n  bounds_and_strings               pass\n  sanitizers_and_static_analysis   pass\n  portability                      pass\n  build_and_test                   pass\n30 pass, 0 fail, 0 missing of 30 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "REVIEW_DEFICIENT",
+        "http": 200,
+        "failing_checks": [
+          "no_ub_shortcuts",
+          "zero_warnings_maintained",
+          "no_unbounded_operations_in_diff",
+          "no_banned_functions_present"
+        ],
+        "notes": "Violates red lines (ub_shortcuts_used=true, unbounded_operations_in_diff=true, banned_calls contains strcpy) and quality gate (warning_count > 0)."
+      },
+      "input": {
+        "subject": "bad-code-v1",
+        "memory": {
+          "one_owner_per_allocation": true,
+          "freed_on_same_path_as_allocation": true,
+          "ownership_documented_in_headers": true,
+          "caller_supplied_buffers_preferred": true,
+          "ownership_documented_for_outliving_pointers": true
+        },
+        "undefined_behavior": {
+          "integer_overflow_addressed": true,
+          "strict_aliasing_respected": true,
+          "uninitialized_reads_avoided": true,
+          "signed_shifts_checked": true,
+          "sequence_point_traps_avoided": true,
+          "ub_shortcuts_used": true
+        },
+        "warnings": {
+          "warnings_treated_as_errors": true,
+          "warning_count": 5
+        },
+        "bounds": {
+          "sized_apis_used": true,
+          "lengths_validated_at_boundaries": true,
+          "unbounded_operations_in_diff": true,
+          "banned_calls": [
+            "strcpy"
+          ]
+        },
+        "sanitizers": {
+          "asan_enabled_in_test_builds": true,
+          "ubsan_enabled_in_test_builds": true,
+          "asan_ubsan_clean_on_suite": true,
+          "valgrind_used_for_leaks": true,
+          "parsers_fuzzed": true,
+          "static_analysis_run": true,
+          "static_analysis_findings_treated_as_bugs": true
+        },
+        "portability": {
+          "fixed_width_types_used": true,
+          "compiler_extensions_isolated": true,
+          "tested_on_target_platforms": true
+        },
+        "build_and_test": {
+          "build_system_pinned": true,
+          "unit_tests_at_function_boundaries": true,
+          "integration_tests_at_edges": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "c-engineering-review",
+        "atom_version": "0.1.0",
+        "subject": "bad-code-v1",
+        "verdict": "REVIEW_DEFICIENT",
+        "sections": {
+          "memory_discipline": "pass",
+          "undefined_behavior": "fail",
+          "warnings_and_build": "fail",
+          "bounds_and_strings": "fail",
+          "sanitizers_and_static_analysis": "pass",
+          "portability": "pass",
+          "build_and_test": "pass"
+        },
+        "checks": [
+          {
+            "section": "memory_discipline",
+            "check": "one_owner_per_allocation",
+            "status": "pass",
+            "evidence": "method step 1: one clear owner per allocation"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "freed_on_same_path_as_allocation",
+            "status": "pass",
+            "evidence": "method step 1: each allocation is freed on the same path as its allocation"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "ownership_documented_in_headers",
+            "status": "pass",
+            "evidence": "method step 1: ownership is documented in headers"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "caller_supplied_buffers_preferred_over_hidden_allocations",
+            "status": "pass",
+            "evidence": "method step 1: caller-supplied buffers are preferred over hidden allocations"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "ownership_documented_for_outliving_pointers",
+            "status": "pass",
+            "evidence": "quality gate: ownership is documented for pointers that outlive their function"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "integer_overflow_addressed",
+            "status": "pass",
+            "evidence": "method step 2: integer overflow is minded \u2014 no overflow trap is left unaddressed"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "strict_aliasing_respected",
+            "status": "pass",
+            "evidence": "method step 2: strict aliasing is respected"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "uninitialized_reads_avoided",
+            "status": "pass",
+            "evidence": "method step 2: uninitialized reads are avoided"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "signed_shifts_checked",
+            "status": "pass",
+            "evidence": "method step 2: signed shifts are checked"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "sequence_point_traps_avoided",
+            "status": "pass",
+            "evidence": "method step 2: sequence-point traps are avoided"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "no_ub_shortcuts",
+            "status": "fail",
+            "evidence": "method step 2 / red line: no UB shortcuts \u2014 no UB 'because it works on my machine'"
+          },
+          {
+            "section": "warnings_and_build",
+            "check": "warnings_treated_as_errors",
+            "status": "pass",
+            "evidence": "method step 3: warnings are errors \u2014 the build uses -Wall -Wextra -Werror (MSVC /W4 /WX)"
+          },
+          {
+            "section": "warnings_and_build",
+            "check": "zero_warnings_maintained",
+            "status": "fail",
+            "evidence": "method step 3 / quality gate: zero warnings maintained \u2014 warning-clean with -Werror on target compilers"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "sized_apis_used",
+            "status": "pass",
+            "evidence": "method step 4: sized APIs are used (snprintf, checked memcpy) instead of unbounded ones"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "lengths_validated_at_boundaries",
+            "status": "pass",
+            "evidence": "method step 4: every length crossing a boundary is validated"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "no_unbounded_operations_in_diff",
+            "status": "fail",
+            "evidence": "quality gate: no unbounded string/mem operations in the diff"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "no_banned_functions_present",
+            "status": "fail",
+            "evidence": "red line: no gets, strcpy, sprintf, unchecked scanf \u2014 ever"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "asan_enabled_in_test_builds",
+            "status": "pass",
+            "evidence": "method step 5: ASan is enabled in test builds"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "ubsan_enabled_in_test_builds",
+            "status": "pass",
+            "evidence": "method step 5: UBSan is enabled in test builds"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "asan_ubsan_clean_on_suite",
+            "status": "pass",
+            "evidence": "quality gate: ASan/UBSan clean on the suite"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "valgrind_used_for_leaks",
+            "status": "pass",
+            "evidence": "method step 5: Valgrind is used for leaks"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "parsers_fuzzed",
+            "status": "pass",
+            "evidence": "method step 5: parsers are fuzzed (libFuzzer/AFL)"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "static_analysis_run_in_loop",
+            "status": "pass",
+            "evidence": "method step 6: static analysis is in the loop \u2014 clang-tidy plus the compiler analyzer"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "static_analysis_findings_treated_as_bugs",
+            "status": "pass",
+            "evidence": "method step 6: static-analysis findings are treated as bugs until proven otherwise"
+          },
+          {
+            "section": "portability",
+            "check": "fixed_width_types_used",
+            "status": "pass",
+            "evidence": "method step 7: fixed-width types are used (stdint.h)"
+          },
+          {
+            "section": "portability",
+            "check": "compiler_extensions_isolated",
+            "status": "pass",
+            "evidence": "method step 7: compiler extensions are isolated"
+          },
+          {
+            "section": "portability",
+            "check": "tested_on_target_platforms",
+            "status": "pass",
+            "evidence": "method step 7: the code is tested on target platforms"
+          },
+          {
+            "section": "build_and_test",
+            "check": "build_system_pinned",
+            "status": "pass",
+            "evidence": "method step 8: the build is pinned (Make/CMake)"
+          },
+          {
+            "section": "build_and_test",
+            "check": "unit_tests_at_function_boundaries",
+            "status": "pass",
+            "evidence": "method step 8: unit tests sit at function boundaries"
+          },
+          {
+            "section": "build_and_test",
+            "check": "integration_tests_at_edges",
+            "status": "pass",
+            "evidence": "method step 8: integration tests sit at the edges"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "warning_count": 5,
+        "banned_calls_found": [
+          "strcpy"
+        ],
+        "summary": "26 pass, 4 fail, 0 missing of 30 checks across seven sections.",
+        "stamp": "C ENGINEERING REVIEW\nsubject: bad-code-v1\nVERDICT: REVIEW_DEFICIENT\n  memory_discipline                pass\n  undefined_behavior               fail\n  warnings_and_build               fail\n  bounds_and_strings               fail\n  sanitizers_and_static_analysis   pass\n  portability                      pass\n  build_and_test                   pass\n26 pass, 4 fail, 0 missing of 30 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, preventing a full review."
+      },
+      "input": {
+        "subject": "incomplete-manifest",
+        "memory": {
+          "one_owner_per_allocation": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "c-engineering-review",
+        "atom_version": "0.1.0",
+        "subject": "incomplete-manifest",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "memory_discipline": "insufficient_evidence",
+          "undefined_behavior": "insufficient_evidence",
+          "warnings_and_build": "insufficient_evidence",
+          "bounds_and_strings": "insufficient_evidence",
+          "sanitizers_and_static_analysis": "insufficient_evidence",
+          "portability": "insufficient_evidence",
+          "build_and_test": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "memory_discipline",
+            "check": "one_owner_per_allocation",
+            "status": "pass",
+            "evidence": "method step 1: one clear owner per allocation"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "freed_on_same_path_as_allocation",
+            "status": "missing",
+            "evidence": "method step 1: each allocation is freed on the same path as its allocation"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "ownership_documented_in_headers",
+            "status": "missing",
+            "evidence": "method step 1: ownership is documented in headers"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "caller_supplied_buffers_preferred_over_hidden_allocations",
+            "status": "missing",
+            "evidence": "method step 1: caller-supplied buffers are preferred over hidden allocations"
+          },
+          {
+            "section": "memory_discipline",
+            "check": "ownership_documented_for_outliving_pointers",
+            "status": "missing",
+            "evidence": "quality gate: ownership is documented for pointers that outlive their function"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "integer_overflow_addressed",
+            "status": "missing",
+            "evidence": "method step 2: integer overflow is minded \u2014 no overflow trap is left unaddressed"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "strict_aliasing_respected",
+            "status": "missing",
+            "evidence": "method step 2: strict aliasing is respected"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "uninitialized_reads_avoided",
+            "status": "missing",
+            "evidence": "method step 2: uninitialized reads are avoided"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "signed_shifts_checked",
+            "status": "missing",
+            "evidence": "method step 2: signed shifts are checked"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "sequence_point_traps_avoided",
+            "status": "missing",
+            "evidence": "method step 2: sequence-point traps are avoided"
+          },
+          {
+            "section": "undefined_behavior",
+            "check": "no_ub_shortcuts",
+            "status": "missing",
+            "evidence": "method step 2 / red line: no UB shortcuts \u2014 no UB 'because it works on my machine'"
+          },
+          {
+            "section": "warnings_and_build",
+            "check": "warnings_treated_as_errors",
+            "status": "missing",
+            "evidence": "method step 3: warnings are errors \u2014 the build uses -Wall -Wextra -Werror (MSVC /W4 /WX)"
+          },
+          {
+            "section": "warnings_and_build",
+            "check": "zero_warnings_maintained",
+            "status": "missing",
+            "evidence": "method step 3 / quality gate: zero warnings maintained \u2014 warning-clean with -Werror on target compilers"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "sized_apis_used",
+            "status": "missing",
+            "evidence": "method step 4: sized APIs are used (snprintf, checked memcpy) instead of unbounded ones"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "lengths_validated_at_boundaries",
+            "status": "missing",
+            "evidence": "method step 4: every length crossing a boundary is validated"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "no_unbounded_operations_in_diff",
+            "status": "missing",
+            "evidence": "quality gate: no unbounded string/mem operations in the diff"
+          },
+          {
+            "section": "bounds_and_strings",
+            "check": "no_banned_functions_present",
+            "status": "missing",
+            "evidence": "red line: no gets, strcpy, sprintf, unchecked scanf \u2014 ever"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "asan_enabled_in_test_builds",
+            "status": "missing",
+            "evidence": "method step 5: ASan is enabled in test builds"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "ubsan_enabled_in_test_builds",
+            "status": "missing",
+            "evidence": "method step 5: UBSan is enabled in test builds"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "asan_ubsan_clean_on_suite",
+            "status": "missing",
+            "evidence": "quality gate: ASan/UBSan clean on the suite"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "valgrind_used_for_leaks",
+            "status": "missing",
+            "evidence": "method step 5: Valgrind is used for leaks"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "parsers_fuzzed",
+            "status": "missing",
+            "evidence": "method step 5: parsers are fuzzed (libFuzzer/AFL)"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "static_analysis_run_in_loop",
+            "status": "missing",
+            "evidence": "method step 6: static analysis is in the loop \u2014 clang-tidy plus the compiler analyzer"
+          },
+          {
+            "section": "sanitizers_and_static_analysis",
+            "check": "static_analysis_findings_treated_as_bugs",
+            "status": "missing",
+            "evidence": "method step 6: static-analysis findings are treated as bugs until proven otherwise"
+          },
+          {
+            "section": "portability",
+            "check": "fixed_width_types_used",
+            "status": "missing",
+            "evidence": "method step 7: fixed-width types are used (stdint.h)"
+          },
+          {
+            "section": "portability",
+            "check": "compiler_extensions_isolated",
+            "status": "missing",
+            "evidence": "method step 7: compiler extensions are isolated"
+          },
+          {
+            "section": "portability",
+            "check": "tested_on_target_platforms",
+            "status": "missing",
+            "evidence": "method step 7: the code is tested on target platforms"
+          },
+          {
+            "section": "build_and_test",
+            "check": "build_system_pinned",
+            "status": "missing",
+            "evidence": "method step 8: the build is pinned (Make/CMake)"
+          },
+          {
+            "section": "build_and_test",
+            "check": "unit_tests_at_function_boundaries",
+            "status": "missing",
+            "evidence": "method step 8: unit tests sit at function boundaries"
+          },
+          {
+            "section": "build_and_test",
+            "check": "integration_tests_at_edges",
+            "status": "missing",
+            "evidence": "method step 8: integration tests sit at the edges"
+          }
+        ],
+        "computed_status": null,
+        "warning_count": null,
+        "banned_calls_found": null,
+        "summary": "1 pass, 0 fail, 29 missing of 30 checks across seven sections.",
+        "stamp": "C ENGINEERING REVIEW\nsubject: incomplete-manifest\nVERDICT: INSUFFICIENT_EVIDENCE\n  memory_discipline                insufficient_evidence\n  undefined_behavior               insufficient_evidence\n  warnings_and_build               insufficient_evidence\n  bounds_and_strings               insufficient_evidence\n  sanitizers_and_static_analysis   insufficient_evidence\n  portability                      insufficient_evidence\n  build_and_test                   insufficient_evidence\n1 pass, 0 fail, 29 missing of 30 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: boolean field expected a string."
+      },
+      "input": {
+        "subject": "malformed-input",
+        "memory": {
+          "one_owner_per_allocation": "not-a-boolean"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "memory.one_owner_per_allocation",
+        "detail": "memory.one_owner_per_allocation must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

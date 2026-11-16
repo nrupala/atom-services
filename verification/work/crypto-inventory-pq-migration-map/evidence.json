@@ -1,0 +1,203 @@
+{
+  "atom": "crypto-inventory-pq-migration-map",
+  "tested_at_utc": "2026-11-15T23:52:38.309356+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "crypto_inventory_pq_migration_map",
+  "mcp_tools": [
+    {
+      "name": "crypto_inventory_pq_migration_map",
+      "title": "Crypto inventory pq migration map",
+      "description": "Submit a crypto inventory (algorithm, purpose, shelf-life per use); get a deterministic post-quantum migration map \u2014 each use classified (quantum-vulnerable, hybrid, PQ-ready, symmetric/hash not broken, unknown), mapped to its NIST PQ target family (ML-KEM / ML-DSA / SLH-DSA, hybrid first), and ordered in migration priority by shelf-life.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The crypto inventory manifest (see the atom's SERVICE.md for the field table and entry schema).",
+        "properties": {
+          "system": {
+            "type": "string",
+            "description": "System / estate whose cryptography is inventoried."
+          },
+          "inventory": {
+            "type": "array",
+            "description": "Crypto inventory entries: {id, surface, algorithm, purpose, shelf_life_years, owner}."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "complete",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: counts.total=1, counts.migration_needed=1, migration_map[0].priority_rank=1, migration_map[0].classification='quantum_vulnerable'"
+      },
+      "input": {
+        "system": "production-cluster-01",
+        "inventory": [
+          {
+            "id": "item-1",
+            "surface": "tls",
+            "algorithm": "RSA",
+            "purpose": "key_exchange",
+            "shelf_life_years": 10,
+            "owner": "team-alpha"
+          }
+        ]
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"crypto-inventory-pq-migration-map\",\"atom_version\":\"0.1.0\",\"system\":\"production-cluster-01\",\"status\":\"complete\",\"counts\":{\"total\":1,\"invalid_entries\":0,\"by_classification\":{\"quantum_vulnerable\":1,\"hybrid_classical_pq\":0,\"pq_ready\":0,\"symmetric_or_hash_not_broken\":0,\"unknown\":0},\"migration_needed\":1,\"missing_shelf_life\":0,\"missing_owner\":0},\"migration_map\":[{\"id\":\"item-1\",\"surface\":\"tls\",\"algorithm\":\"RSA\",\"purpose\":\"key_exchange\",\"classification\":\"quantum_vulnerable\",\"action\":\"migrate_hybrid\",\"target_family\":\"ML-KEM (FIPS 203)\",\"shelf_life_years\":10,\"owner\":\"team-alpha\",\"priority_rank\":1,\"basis\":\"classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto\"}],\"summary\":\"Migration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\",\"stamp\":\"CRYPTO INVENTORY PQ MIGRATION MAP\\nsystem: production-cluster-01\\nSTATUS: complete\\nMigration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"crypto-inventory-pq-migration-map\",\"atom_version\":\"0.1.0\",\"system\":\"production-cluster-01\",\"status\":\"complete\",\"counts\":{\"total\":1,\"invalid_entries\":0,\"by_classification\":{\"quantum_vulnerable\":1,\"hybrid_classical_pq\":0,\"pq_ready\":0,\"symmetric_or_hash_not_broken\":0,\"unknown\":0},\"migration_needed\":1,\"missing_shelf_life\":0,\"missing_owner\":0},\"migration_map\":[{\"id\":\"item-1\",\"surface\":\"tls\",\"algorithm\":\"RSA\",\"purpose\":\"key_exchange\",\"classification\":\"quantum_vulnerable\",\"action\":\"migrate_hybrid\",\"target_family\":\"ML-KEM (FIPS 203)\",\"shelf_life_years\":10,\"owner\":\"team-alpha\",\"priority_rank\":1,\"basis\":\"classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto\"}],\"summary\":\"Migration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\",\"stamp\":\"CRYPTO INVENTORY PQ MIGRATION MAP\\nsystem: production-cluster-01\\nSTATUS: complete\\nMigration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"crypto-inventory-pq-migration-map\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"system\\\": \\\"production-cluster-01\\\",\\n  \\\"status\\\": \\\"complete\\\",\\n  \\\"counts\\\": {\\n    \\\"total\\\": 1,\\n    \\\"invalid_entries\\\": 0,\\n    \\\"by_classification\\\": {\\n      \\\"quantum_vulnerable\\\": 1,\\n      \\\"hybrid_classical_pq\\\": 0,\\n      \\\"pq_ready\\\": 0,\\n      \\\"symmetric_or_hash_not_broken\\\": 0,\\n      \\\"unknown\\\": 0\\n    },\\n    \\\"migration_needed\\\": 1,\\n    \\\"missing_shelf_life\\\": 0,\\n    \\\"missing_owner\\\": 0\\n  },\\n  \\\"migration_map\\\": [\\n    {\\n      \\\"id\\\": \\\"item-1\\\",\\n      \\\"surface\\\": \\\"tls\\\",\\n      \\\"algorithm\\\": \\\"RSA\\\",\\n      \\\"purpose\\\": \\\"key_exchange\\\",\\n      \\\"classification\\\": \\\"quantum_vulnerable\\\",\\n      \\\"action\\\": \\\"migrate_hybrid\\\",\\n      \\\"target_family\\\": \\\"ML-KEM (FIPS 203)\\\",\\n      \\\"shelf_life_years\\\": 10,\\n      \\\"owner\\\": \\\"team-alpha\\\",\\n      \\\"priority_rank\\\": 1,\\n      \\\"basis\\\": \\\"classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto\\\"\\n    }\\n  ],\\n  \\\"summary\\\": \\\"Migration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\\\",\\n  \\\"stamp\\\": \\\"CRYPTO INVENTORY PQ MIGRATION MAP\\\\nsystem: production-cluster-01\\\\nSTATUS: complete\\\\nMigration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"crypto-inventory-pq-migration-map\",\"atom_version\":\"0.1.0\",\"system\":\"production-cluster-01\",\"status\":\"complete\",\"counts\":{\"total\":1,\"invalid_entries\":0,\"by_classification\":{\"quantum_vulnerable\":1,\"hybrid_classical_pq\":0,\"pq_ready\":0,\"symmetric_or_hash_not_broken\":0,\"unknown\":0},\"migration_needed\":1,\"missing_shelf_life\":0,\"missing_owner\":0},\"migration_map\":[{\"id\":\"item-1\",\"surface\":\"tls\",\"algorithm\":\"RSA\",\"purpose\":\"key_exchange\",\"classification\":\"quantum_vulnerable\",\"action\":\"migrate_hybrid\",\"target_family\":\"ML-KEM (FIPS 203)\",\"shelf_life_years\":10,\"owner\":\"team-alpha\",\"priority_rank\":1,\"basis\":\"classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto\"}],\"summary\":\"Migration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\",\"stamp\":\"CRYPTO INVENTORY PQ MIGRATION MAP\\nsystem: production-cluster-01\\nSTATUS: complete\\nMigration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "crypto-inventory-pq-migration-map",
+        "atom_version": "0.1.0",
+        "system": "production-cluster-01",
+        "status": "complete",
+        "counts": {
+          "total": 1,
+          "invalid_entries": 0,
+          "by_classification": {
+            "quantum_vulnerable": 1,
+            "hybrid_classical_pq": 0,
+            "pq_ready": 0,
+            "symmetric_or_hash_not_broken": 0,
+            "unknown": 0
+          },
+          "migration_needed": 1,
+          "missing_shelf_life": 0,
+          "missing_owner": 0
+        },
+        "migration_map": [
+          {
+            "id": "item-1",
+            "surface": "tls",
+            "algorithm": "RSA",
+            "purpose": "key_exchange",
+            "classification": "quantum_vulnerable",
+            "action": "migrate_hybrid",
+            "target_family": "ML-KEM (FIPS 203)",
+            "shelf_life_years": 10,
+            "owner": "team-alpha",
+            "priority_rank": 1,
+            "basis": "classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto"
+          }
+        ],
+        "summary": "Migration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life.",
+        "stamp": "CRYPTO INVENTORY PQ MIGRATION MAP\nsystem: production-cluster-01\nSTATUS: complete\nMigration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 0 missing shelf-life."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "partial",
+        "http": 200,
+        "failing_checks": [
+          "counts.invalid_entries",
+          "counts.missing_shelf_life",
+          "counts.missing_owner"
+        ],
+        "notes": "The string entry triggers invalid_entries count; the object entry lacks shelf_life and owner."
+      },
+      "input": {
+        "system": "test-system",
+        "inventory": [
+          {
+            "id": "item-2",
+            "surface": "pki",
+            "algorithm": "RSA",
+            "purpose": "signature"
+          },
+          "invalid-entry-string"
+        ]
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"crypto-inventory-pq-migration-map\",\"atom_version\":\"0.1.0\",\"system\":\"test-system\",\"status\":\"partial\",\"counts\":{\"total\":1,\"invalid_entries\":1,\"by_classification\":{\"quantum_vulnerable\":1,\"hybrid_classical_pq\":0,\"pq_ready\":0,\"symmetric_or_hash_not_broken\":0,\"unknown\":0},\"migration_needed\":1,\"missing_shelf_life\":1,\"missing_owner\":1},\"migration_map\":[{\"id\":\"item-2\",\"surface\":\"pki\",\"algorithm\":\"RSA\",\"purpose\":\"signature\",\"classification\":\"quantum_vulnerable\",\"action\":\"migrate_hybrid\",\"target_family\":\"ML-DSA (FIPS 204) / SLH-DSA (FIPS 205)\",\"shelf_life_years\":null,\"owner\":null,\"priority_rank\":1,\"basis\":\"classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto\"}],\"summary\":\"Migration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 1 missing shelf-life.\",\"stamp\":\"CRYPTO INVENTORY PQ MIGRATION MAP\\nsystem: test-system\\nSTATUS: partial\\nMigration map over 1 inventory entries: 1 quantum-vulnerable, 0 hybrid, 0 PQ-ready, 0 symmetric/hash not broken, 0 unknown; 1 missing shelf-life.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "insufficient_evidence",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Empty inventory list results in insufficient_evidence status."
+      },
+      "input": {
+        "system": "empty-test",
+        "inventory": []
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"crypto-inventory-pq-migration-map\",\"atom_version\":\"0.1.0\",\"system\":\"empty-test\",\"status\":\"insufficient_evidence\",\"counts\":{\"total\":0,\"invalid_entries\":0,\"by_classification\":{\"quantum_vulnerable\":0,\"hybrid_classical_pq\":0,\"pq_ready\":0,\"symmetric_or_hash_not_broken\":0,\"unknown\":0},\"migration_needed\":0,\"missing_shelf_life\":0,\"missing_owner\":0},\"migration_map\":[],\"summary\":\"Insufficient evidence: no crypto inventory entries submitted.\",\"stamp\":\"CRYPTO INVENTORY PQ MIGRATION MAP\\nsystem: empty-test\\nSTATUS: insufficient_evidence\\nInsufficient evidence: no crypto inventory entries submitted.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: system must be string, inventory must be list."
+      },
+      "input": {
+        "system": 12345,
+        "inventory": "not-a-list"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"system\",\"detail\":\"system must be a string\"}"
+        }
+      ]
+    }
+  ]
+}

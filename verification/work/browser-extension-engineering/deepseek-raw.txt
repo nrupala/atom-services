@@ -1,0 +1,129 @@
+I'll recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md.
+
+## Rule set (from SERVICE.md)
+
+- **37 checks** across 7 sections. Each boolean field maps to one check; "must be false" fields pass when false, fail when true. Absent field → `INSUFFICIENT_EVIDENCE` (missing).
+- **`permissions_without_justification`** = requested entries (in declared order) not present in justified list; null if either list undeclared.
+- **`browsers_not_covered`** = target entries (in declared order) in neither tested nor difference-documented list; null if any of the three lists undeclared. Empty target list = present and fails.
+- **`computed_status`** = `within_stated_limits_on_declared_evidence` if both computed checks pass; `outside_stated_limits_on_declared_evidence` if either fails; null if either cannot be completed.
+- **verdict** = SOUND if all 37 pass; DEFICIENT if any fail; INSUFFICIENT_EVIDENCE if none fail but some missing.
+- **section status** = pass if all its checks pass, else fail.
+
+---
+
+## Case 1: `full-pass`
+
+### Check count per section
+- mv3_architecture: 6 fields → 6 checks
+- least_privilege_permissions: 5 boolean fields + 1 computed (justification) = 6 checks
+- architecture_and_messaging: 5 fields → 5 checks
+- ux_honesty: 4 fields → 4 checks
+- privacy: 6 fields → 6 checks
+- distribution_and_cross_browser: 5 boolean fields + 1 computed (coverage) = 6 checks
+- security: 4 fields → 4 checks
+
+Sum: 6+6+5+4+6+6+4 = **37** ✓ (matches artifact's 37 checks)
+
+### Boolean checks (all declared, all "good" values)
+- mv3: service_worker=true✓, persistent=false✓, alarms=true✓, declarative=true✓, remote_code=false✓, bundled=true✓ → 6 pass
+- permissions booleans: only_needed=true✓, host_narrow=true✓, optional=true✓, reviewed=true✓, overbroad=false✓ → 5 pass
+- architecture: isolated=true✓, msg_defined=true✓, validated=true✓, storage_scoped=true✓, secrets=false✓ → 5 pass
+- ux: popup=true✓, states=true✓, shortcuts=true✓, drive_by=false✓ → 4 pass
+- privacy: local=true✓, consent=true✓, disclosed=true✓, matches=true✓, exfil=false✓, hidden=false✓ → 6 pass
+- distribution booleans: screenshots=true✓, privacy_form=true✓, rollout=true✓, version=true✓, firefox=true✓ → 5 pass
+- security: csp=true✓, sanitized=true✓, auto_update=true✓, eval=false✓ → 4 pass
+
+Boolean passes: 6+5+5+4+6+5+4 = **35 pass, 0 fail, 0 missing**
+
+### Computed check 1 — permissions_without_justification
+requested = ["storage","tabs"]; justified = ["storage","tabs"].
+- "storage" ∈ justified → covered
+- "tabs" ∈ justified → covered
+→ `[]` (empty). Check passes (vacuously satisfied — all covered).
+
+### Computed check 2 — browsers_not_covered
+target = ["chrome","firefox"]; tested = ["chrome","firefox"]; documented = [].
+- "chrome" ∈ tested → covered
+- "firefox" ∈ tested → covered
+→ `[]` (empty). Target list non-empty → check passes.
+
+### Totals
+- pass = 35 + 2 = **37**; fail = 0; missing = 0.
+- verdict: all 37 pass → **EXTENSION_DESIGN_SOUND** ✓
+- computed_status: both computed checks pass → **within_stated_limits_on_declared_evidence** ✓
+- All 7 sections pass ✓
+
+### Comparison
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| total checks | 37 | 37 | MATCH |
+| pass/fail/missing | 37/0/0 | 37/0/0 | MATCH |
+| permissions_without_justification | [] | [] | MATCH |
+| browsers_not_covered | [] | [] | MATCH |
+| computed_status | within_stated_limits... | within_stated_limits... | MATCH |
+| verdict | EXTENSION_DESIGN_SOUND | EXTENSION_DESIGN_SOUND | MATCH |
+| section statuses | all pass | all pass | MATCH |
+
+---
+
+## Case 2: `violations`
+
+### Boolean checks — planted wrong values
+- mv3: service_worker=true✓pass; **persistent=true → FAIL**; alarms=true✓; declarative=true✓; **remote_code=true → FAIL**; bundled=true✓ → 4 pass, 2 fail
+- permissions booleans: only_needed=true✓; host_narrow=true✓; optional=true✓; reviewed=true✓; **overbroad=true → FAIL** → 4 pass, 1 fail
+- architecture: isolated=true✓; msg_defined=true✓; validated=true✓; storage_scoped=true✓; **secrets=true → FAIL** → 4 pass, 1 fail
+- ux: popup=true✓; states=true✓; shortcuts=true✓; **drive_by=true → FAIL** → 3 pass, 1 fail
+- privacy: local=true✓; consent=true✓; disclosed=true✓; matches=true✓; **exfil=true → FAIL**; **hidden=true → FAIL** → 4 pass, 2 fail
+- distribution booleans: screenshots=true✓; privacy_form=true✓; rollout=true✓; version=true✓; firefox=true✓ → 5 pass, 0 fail
+- security: csp=true✓; sanitized=true✓; auto_update=true✓; **eval=true → FAIL** → 3 pass, 1 fail
+
+Boolean totals: pass = 4+4+4+3+4+5+3 = **27 pass**; fail = 2+1+1+1+2+0+1 = **8 fail**; missing = 0.
+
+### Computed check 1 — permissions_without_justification
+requested = ["tabs"]; justified = [].
+- "tabs" ∉ [] → not covered
+→ `["tabs"]`. Check **FAILS**.
+
+### Computed check 2 — browsers_not_covered
+target = ["chrome"]; tested = []; documented = [].
+- "chrome" ∉ tested and ∉ documented → not covered
+→ `["chrome"]`. Target non-empty but not covered → check **FAILS**.
+
+### Totals
+- pass = 27 + 0 = **27**; fail = 8 + 2 = **10**; missing = 0.
+- verdict: any fail → **EXTENSION_DESIGN_DEFICIENT** ✓
+- computed_status: at least one computed check fails → **outside_stated_limits_on_declared_evidence** ✓
+- Sections: every section has ≥1 fail → all 7 fail ✓
+
+### Confirm failing checks are exactly the planted wrong values
+Planted wrong values (fields set to their "bad" state):
+1. mv3.persistent_background_page_used=true → no_persistent_background_page FAIL ✓
+2. mv3.remote_code_executed=true → no_remote_code_execution FAIL ✓
+3. permissions.overbroad_permissions_present=true → no_overbroad_permissions FAIL ✓
+4. permissions requested ["tabs"] vs justified [] → all_requested_permissions_justified_in_writing FAIL ✓
+5. architecture.secrets_stored_in_extension_storage=true → no_secrets_in_extension_storage FAIL ✓
+6. ux.drive_by_dom_changes_without_user_intent=true → no_drive_by_dom_changes FAIL ✓
+7. privacy.browsing_data_exfiltrated=true → browsing_data_never_exfiltrated FAIL ✓
+8. privacy.hidden_data_collection_present=true → no_hidden_data_collection FAIL ✓
+9. distribution target ["chrome"] vs tested []/documented [] → all_target_browsers_tested_or_differences_documented FAIL ✓
+10. security.eval_or_remote_scripts_used=true → no_eval_or_remote_scripts FAIL ✓
+
+That is exactly **10 failing checks**, matching the 10 planted wrong values, and no others. ✓
+
+### Comparison
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| total checks | 37 | 37 | MATCH |
+| pass/fail/missing | 27/10/0 | 27/10/0 | MATCH |
+| permissions_without_justification | ["tabs"] | ["tabs"] | MATCH |
+| browsers_not_covered | ["chrome"] | ["chrome"] | MATCH |
+| computed_status | outside_stated_limits... | outside_stated_limits... | MATCH |
+| verdict | EXTENSION_DESIGN_DEFICIENT | EXTENSION_DESIGN_DEFICIENT | MATCH |
+| section statuses | all fail | all fail | MATCH |
+| failing checks | 10 listed | exactly the 10 planted | MATCH |
+
+---
+
+Both cases recompute cleanly. Every computed quantity (check counts, pass/fail/missing tallies, `permissions_without_justification`, `browsers_not_covered`, `computed_status`, verdict, section statuses) matches the recorded artifacts, and the violations case's 10 failures are exactly the 10 planted wrong values.
+
+AGREEMENT: full

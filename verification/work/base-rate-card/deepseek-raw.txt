@@ -1,0 +1,96 @@
+# Independent recompute — base-rate-card
+
+## Computed quantities defined by SERVICE.md
+
+Three computed checks plus their reported outputs:
+
+1. **Base-rate consistency** — implied rate = successes / size; stated must equal implied; counts coherent (size > 0, 0 ≤ successes ≤ size); stated ∈ [0,1]. Report `reference_rate` and `base_rate_difference` (stated − implied), both serialized to 6dp via `floor(v*1e6 + 0.5)/1e6` then formatted with exactly six decimals. Consistency compares the fixed-6dp difference to zero.
+2. **Fallacy coverage** — `checked` must contain all seven named entries; report omitted ones as `fallacies_not_checked`.
+3. **Confidence bounds** — `confidence_value` ∈ [0,1].
+
+Plus `computed_status` and the verdict/summary counts.
+
+---
+
+## Case 1: `full-pass`
+
+**Base-rate arithmetic**
+- size = 100, successes = 50, stated = 0.5
+- implied = 50 / 100 = **0.5**
+- Coherence: size 100 > 0 ✓; 0 ≤ 50 ≤ 100 ✓; stated 0.5 ∈ [0,1] ✓
+- difference = 0.5 − 0.5 = 0
+- Serialize implied: floor(0.5·1e6 + 0.5)/1e6 = floor(500000.5)/1e6 = 500000/1e6 = 0.5 → **"0.500000"**
+- Serialize difference: floor(0·1e6 + 0.5)/1e6 = floor(0.5)/1e6 = 0 → **"0.000000"**
+- Consistency: fixed-6dp difference 0.000000 == 0 → **pass**
+
+**Fallacy coverage**
+- checked = all seven: ad_hominem, straw_man, false_dilemma, appeal_to_authority_or_antiquity, survivorship, motivated_reasoning, cherry_picked_windows
+- Omitted = none → `fallacies_not_checked` = **[]**; check **pass**
+
+**Confidence bounds**
+- confidence_value = 0.8 ∈ [0,1] → **pass**
+
+**Status / verdict**
+- All three computed checks complete and passing → `computed_status` = **within_stated_limits_on_declared_evidence**
+- All 23 checks pass → verdict **CARD_COMPLETE**; summary **23 pass, 0 fail, 0 missing of 23**
+
+**Comparison with artifact**
+
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| reference_rate | "0.500000" | "0.500000" | MATCH |
+| base_rate_difference | "0.000000" | "0.000000" | MATCH |
+| base-rate consistency check | pass | pass | MATCH |
+| fallacies_not_checked | [] | [] | MATCH |
+| confidence bounds check | pass | pass | MATCH |
+| computed_status | within_stated_limits_on_declared_evidence | same | MATCH |
+| verdict | CARD_COMPLETE | CARD_COMPLETE | MATCH |
+| summary | 23 pass, 0 fail, 0 missing | 23/0/0 | MATCH |
+
+---
+
+## Case 2: `violations`
+
+**Base-rate arithmetic**
+- size = 100, successes = 50, stated = 0.9
+- implied = 50 / 100 = **0.5**
+- Coherence: size 100 > 0 ✓; 0 ≤ 50 ≤ 100 ✓; stated 0.9 ∈ [0,1] ✓
+- difference = 0.9 − 0.5 = 0.4
+- Serialize implied: floor(0.5·1e6 + 0.5)/1e6 = **"0.500000"**
+- Serialize difference: floor(0.4·1e6 + 0.5)/1e6 = floor(400000.5)/1e6 = 400000/1e6 = 0.4 → **"0.400000"**
+- Consistency: fixed-6dp difference 0.400000 ≠ 0 → **fail**
+
+**Fallacy coverage**
+- checked = ["ad_hominem"] only
+- Omitted (in skill order) = straw_man, false_dilemma, appeal_to_authority_or_antiquity, survivorship, motivated_reasoning, cherry_picked_windows → **6 omitted**; check **fail**
+
+**Confidence bounds**
+- confidence_value = 1.5 ∉ [0,1] → **fail**
+
+**Status / verdict**
+- All three computed checks completed (none missing); at least one fails → `computed_status` = **outside_stated_limits_on_declared_evidence**
+- Failing checks: base_rate_consistent_with_reference_counts, no_strawmanning (strawmanned=true), all_stated_fallacies_checked, confidence_within_probability_bounds, conclusion_not_from_vibes_or_authority_alone (true), certainty_does_not_outrun_evidence (true) = **6 fails**
+- 23 − 6 = **17 pass, 0 missing** → verdict **CARD_NOT_COMPLETE**
+
+**Comparison with artifact**
+
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| reference_rate | "0.500000" | "0.500000" | MATCH |
+| base_rate_difference | "0.400000" | "0.400000" | MATCH |
+| base-rate consistency check | fail | fail | MATCH |
+| fallacies_not_checked | [straw_man, false_dilemma, appeal_to_authority_or_antiquity, survivorship, motivated_reasoning, cherry_picked_windows] | same 6, same order | MATCH |
+| confidence bounds check | fail | fail | MATCH |
+| computed_status | outside_stated_limits_on_declared_evidence | same | MATCH |
+| verdict | CARD_NOT_COMPLETE | CARD_NOT_COMPLETE | MATCH |
+| summary | 17 pass, 6 fail, 0 missing | 17/6/0 | MATCH |
+
+**Planted-wrong-value confirmation (violations case).** The planted errors are: stated 0.9 vs implied 0.5; strawmanned=true; checked list truncated to one entry; confidence 1.5; vibes/authority=true; certainty-outruns=true. Each maps to exactly one failing check, and the artifact's six fails are precisely those six — no extra fails, no missed fails. The five claim_and_evidence checks and the remaining base_rates/steelman/calibration/judgment checks correctly stay pass. **Confirmed: failing set is exactly the planted set.**
+
+---
+
+## Summary
+
+Every computed quantity in both cases — `reference_rate`, `base_rate_difference`, the three computed checks, `fallacies_not_checked`, `computed_status`, verdict, and pass/fail/missing counts — recomputes to the artifact's recorded values under the stated 6dp round-half-up serialization. No discrepancies found.
+
+AGREEMENT: full

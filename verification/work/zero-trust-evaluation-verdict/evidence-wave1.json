@@ -1,0 +1,430 @@
+{
+  "atom": "zero-trust-evaluation-verdict",
+  "tested_at_utc": "2026-11-15T22:21:14.091571+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "zero_trust_evaluation_verdict",
+  "mcp_tools": [
+    {
+      "name": "zero_trust_evaluation_verdict",
+      "title": "Zero trust evaluation verdict",
+      "description": "Submit a declared zero-trust evaluation pack (the claim and its scope, the authentication and server-trust gauntlet, identity and authenticator strength, privilege segmentation and verification, trust inventory, honest limits); get a deterministic CLAIM_SUSTAINED / CLAIM_NOT_SUSTAINED / INSUFFICIENT_EVIDENCE verdict across six sections, including computed Argon2id and minimum-secret-length checks against the skill's stated values, with per-check evidence. Declared evidence only; not a certification.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The zero-trust evaluation pack manifest (see the atom's SERVICE.md for the field table).",
+        "properties": {
+          "system": {
+            "type": "string",
+            "description": "System the evaluation covers."
+          },
+          "evaluation": {
+            "type": "object",
+            "description": "Claim and scope evidence (claim stated, adversaries and out-of-scope named, not-a-certification acknowledged)."
+          },
+          "gauntlet": {
+            "type": "object",
+            "description": "Authentication and server-trust gauntlet evidence."
+          },
+          "identity": {
+            "type": "object",
+            "description": "Identity evidence (checked before access, proof method named)."
+          },
+          "cryptography": {
+            "type": "object",
+            "description": "Cryptography evidence (password KDF, declared minimum secret length \u2014 computed against the skill's stated values)."
+          },
+          "findings": {
+            "type": "array",
+            "description": "Declared privilege/segmentation and verification findings."
+          },
+          "inventory": {
+            "type": "object",
+            "description": "Trust-inventory evidence (trusted components enumerated)."
+          },
+          "limits": {
+            "type": "object",
+            "description": "Honest-limits evidence (compromised-endpoint and residual-trust statements)."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "CLAIM_SUSTAINED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean constraints met, KDF is argon2id, secret length is 16. computed_spot_checks: secret_length_margin_chars = 0.0000"
+      },
+      "input": {
+        "system": "production-auth-service",
+        "evaluation": {
+          "claim_stated": true,
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "not_certification_acknowledged": true
+        },
+        "gauntlet": {
+          "authentication_point_identified": true,
+          "session_trusted_indefinitely": false,
+          "master_secret_leaves_client": false,
+          "server_sees_only_encrypted_data": true,
+          "server_breach_exposes_user_data": false
+        },
+        "identity": {
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "cryptography": {
+          "password_kdf": "argon2id",
+          "minimum_secret_length_chars": 16,
+          "claims_nist_alignment": true,
+          "nist_controls_named": true
+        },
+        "findings": {
+          "least_privilege_evaluated": true,
+          "credential_exceeds_job": false,
+          "blast_radius_bounded": true,
+          "flat_network": false,
+          "trust_rechecked_after_login": true
+        },
+        "inventory": {
+          "trusted_components_inventoried": true,
+          "backdoors_present": false,
+          "convenience_decisions_surfaced": true,
+          "internal_network_trusted": false
+        },
+        "limits": {
+          "compromised_endpoint_limit_acknowledged": true,
+          "usability_tradeoff_stated": true,
+          "design_claims_only_acknowledged": true
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-trust-evaluation-verdict\",\"atom_version\":\"0.1.0\",\"system\":\"production-auth-service\",\"verdict\":\"CLAIM_SUSTAINED\",\"sections\":{\"claim_and_scope\":\"pass\",\"authentication_and_server_trust\":\"pass\",\"identity_and_authenticator_strength\":\"pass\",\"privilege_segmentation_and_verification\":\"pass\",\"trust_inventory\":\"pass\",\"honest_limits\":\"pass\"},\"checks\":[{\"section\":\"claim_and_scope\",\"check\":\"claim_stated_verbatim\",\"status\":\"pass\",\"evidence\":\"the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate\"},{\"section\":\"claim_and_scope\",\"check\":\"adversaries_named\",\"status\":\"pass\",\"evidence\":\"a system is zero-trust only against the adversaries it names\"},{\"section\":\"claim_and_scope\",\"check\":\"out_of_scope_named\",\"status\":\"pass\",\"evidence\":\"who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)\"},{\"section\":\"claim_and_scope\",\"check\":\"evaluation_not_certification_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"authentication_point_identified\",\"status\":\"pass\",\"evidence\":\"gauntlet: where does authentication happen? The authentication point is identified\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"session_not_trusted_indefinitely\",\"status\":\"pass\",\"evidence\":\"gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"master_secret_never_leaves_client\",\"status\":\"pass\",\"evidence\":\"gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_sees_only_encrypted_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_breach_does_not_expose_user_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_checked_before_access\",\"status\":\"pass\",\"evidence\":\"identity-based access: what identity does this system check before granting access?\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_proof_method_named\",\"status\":\"pass\",\"evidence\":\"identity-based access: how is that identity proven? The proof method is named\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"password_kdf_is_argon2id\",\"status\":\"pass\",\"evidence\":\"NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"minimum_secret_length_meets_stated_minimum\",\"status\":\"pass\",\"evidence\":\"NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"nist_controls_named_when_alignment_claimed\",\"status\":\"pass\",\"evidence\":\"NIST notes: 'NIST-compliant' without naming the controls is marketing \u2014 alignment is a claim about which controls are implemented\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"least_privilege_evaluated\",\"status\":\"pass\",\"evidence\":\"least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"credential_scope_within_job\",\"status\":\"pass\",\"evidence\":\"least privilege: can this credential do more than its job requires? It must not\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"breach_blast_radius_bounded\",\"status\":\"pass\",\"evidence\":\"micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"network_not_flat\",\"status\":\"pass\",\"evidence\":\"micro-segmentation: a flat network where one breach means total breach is not zero-trust\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"trust_rechecked_after_login\",\"status\":\"pass\",\"evidence\":\"continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication\"},{\"section\":\"trust_inventory\",\"check\":\"trusted_components_inventoried\",\"status\":\"pass\",\"evidence\":\"trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture\"},{\"section\":\"trust_inventory\",\"check\":\"backdoors_named_explicitly\",\"status\":\"pass\",\"evidence\":\"no backdoor (recovery / override / escrow) declared\"},{\"section\":\"trust_inventory\",\"check\":\"convenience_trust_decisions_surfaced\",\"status\":\"pass\",\"evidence\":\"convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one\"},{\"section\":\"trust_inventory\",\"check\":\"network_not_trusted_as_internal\",\"status\":\"pass\",\"evidence\":\"the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity\"},{\"section\":\"honest_limits\",\"check\":\"compromised_endpoint_limit_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds\"},{\"section\":\"honest_limits\",\"check\":\"usability_tradeoff_stated\",\"status\":\"pass\",\"evidence\":\"usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain\"},{\"section\":\"honest_limits\",\"check\":\"design_claims_only_acknowledged\",\"status\":\"pass\",\"evidence\":\"this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system\"}],\"claim_status\":\"sustained_on_declared_evidence\",\"secret_length_margin_chars\":\"0.0000\",\"summary\":\"26 pass, 0 fail, 0 missing of 26 checks across six sections.\",\"stamp\":\"ZERO TRUST EVALUATION VERDICT\\nsystem: production-auth-service\\nVERDICT: CLAIM_SUSTAINED\\n  claim_and_scope                  pass\\n  authentication_and_server_trust  pass\\n  identity_and_authenticator_strength pass\\n  privilege_segmentation_and_verification pass\\n  trust_inventory                  pass\\n  honest_limits                    pass\\n26 pass, 0 fail, 0 missing of 26 checks across six sections.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-trust-evaluation-verdict\",\"atom_version\":\"0.1.0\",\"system\":\"production-auth-service\",\"verdict\":\"CLAIM_SUSTAINED\",\"sections\":{\"claim_and_scope\":\"pass\",\"authentication_and_server_trust\":\"pass\",\"identity_and_authenticator_strength\":\"pass\",\"privilege_segmentation_and_verification\":\"pass\",\"trust_inventory\":\"pass\",\"honest_limits\":\"pass\"},\"checks\":[{\"section\":\"claim_and_scope\",\"check\":\"claim_stated_verbatim\",\"status\":\"pass\",\"evidence\":\"the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate\"},{\"section\":\"claim_and_scope\",\"check\":\"adversaries_named\",\"status\":\"pass\",\"evidence\":\"a system is zero-trust only against the adversaries it names\"},{\"section\":\"claim_and_scope\",\"check\":\"out_of_scope_named\",\"status\":\"pass\",\"evidence\":\"who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)\"},{\"section\":\"claim_and_scope\",\"check\":\"evaluation_not_certification_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"authentication_point_identified\",\"status\":\"pass\",\"evidence\":\"gauntlet: where does authentication happen? The authentication point is identified\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"session_not_trusted_indefinitely\",\"status\":\"pass\",\"evidence\":\"gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"master_secret_never_leaves_client\",\"status\":\"pass\",\"evidence\":\"gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_sees_only_encrypted_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_breach_does_not_expose_user_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_checked_before_access\",\"status\":\"pass\",\"evidence\":\"identity-based access: what identity does this system check before granting access?\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_proof_method_named\",\"status\":\"pass\",\"evidence\":\"identity-based access: how is that identity proven? The proof method is named\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"password_kdf_is_argon2id\",\"status\":\"pass\",\"evidence\":\"NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"minimum_secret_length_meets_stated_minimum\",\"status\":\"pass\",\"evidence\":\"NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"nist_controls_named_when_alignment_claimed\",\"status\":\"pass\",\"evidence\":\"NIST notes: 'NIST-compliant' without naming the controls is marketing \u2014 alignment is a claim about which controls are implemented\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"least_privilege_evaluated\",\"status\":\"pass\",\"evidence\":\"least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"credential_scope_within_job\",\"status\":\"pass\",\"evidence\":\"least privilege: can this credential do more than its job requires? It must not\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"breach_blast_radius_bounded\",\"status\":\"pass\",\"evidence\":\"micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"network_not_flat\",\"status\":\"pass\",\"evidence\":\"micro-segmentation: a flat network where one breach means total breach is not zero-trust\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"trust_rechecked_after_login\",\"status\":\"pass\",\"evidence\":\"continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication\"},{\"section\":\"trust_inventory\",\"check\":\"trusted_components_inventoried\",\"status\":\"pass\",\"evidence\":\"trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture\"},{\"section\":\"trust_inventory\",\"check\":\"backdoors_named_explicitly\",\"status\":\"pass\",\"evidence\":\"no backdoor (recovery / override / escrow) declared\"},{\"section\":\"trust_inventory\",\"check\":\"convenience_trust_decisions_surfaced\",\"status\":\"pass\",\"evidence\":\"convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one\"},{\"section\":\"trust_inventory\",\"check\":\"network_not_trusted_as_internal\",\"status\":\"pass\",\"evidence\":\"the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity\"},{\"section\":\"honest_limits\",\"check\":\"compromised_endpoint_limit_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds\"},{\"section\":\"honest_limits\",\"check\":\"usability_tradeoff_stated\",\"status\":\"pass\",\"evidence\":\"usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain\"},{\"section\":\"honest_limits\",\"check\":\"design_claims_only_acknowledged\",\"status\":\"pass\",\"evidence\":\"this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system\"}],\"claim_status\":\"sustained_on_declared_evidence\",\"secret_length_margin_chars\":\"0.0000\",\"summary\":\"26 pass, 0 fail, 0 missing of 26 checks across six sections.\",\"stamp\":\"ZERO TRUST EVALUATION VERDICT\\nsystem: production-auth-service\\nVERDICT: CLAIM_SUSTAINED\\n  claim_and_scope                  pass\\n  authentication_and_server_trust  pass\\n  identity_and_authenticator_strength pass\\n  privilege_segmentation_and_verification pass\\n  trust_inventory                  pass\\n  honest_limits                    pass\\n26 pass, 0 fail, 0 missing of 26 checks across six sections.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"zero-trust-evaluation-verdict\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"system\\\": \\\"production-auth-service\\\",\\n  \\\"verdict\\\": \\\"CLAIM_SUSTAINED\\\",\\n  \\\"sections\\\": {\\n    \\\"claim_and_scope\\\": \\\"pass\\\",\\n    \\\"authentication_and_server_trust\\\": \\\"pass\\\",\\n    \\\"identity_and_authenticator_strength\\\": \\\"pass\\\",\\n    \\\"privilege_segmentation_and_verification\\\": \\\"pass\\\",\\n    \\\"trust_inventory\\\": \\\"pass\\\",\\n    \\\"honest_limits\\\": \\\"pass\\\"\\n  },\\n  \\\"checks\\\": [\\n    {\\n      \\\"section\\\": \\\"claim_and_scope\\\",\\n      \\\"check\\\": \\\"claim_stated_verbatim\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_and_scope\\\",\\n      \\\"check\\\": \\\"adversaries_named\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"a system is zero-trust only against the adversaries it names\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_and_scope\\\",\\n      \\\"check\\\": \\\"out_of_scope_named\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_and_scope\\\",\\n      \\\"check\\\": \\\"evaluation_not_certification_acknowledged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"authentication_and_server_trust\\\",\\n      \\\"check\\\": \\\"authentication_point_identified\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"gauntlet: where does authentication happen? The authentication point is identified\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"authentication_and_server_trust\\\",\\n      \\\"check\\\": \\\"session_not_trusted_indefinitely\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"authentication_and_server_trust\\\",\\n      \\\"check\\\": \\\"master_secret_never_leaves_client\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"authentication_and_server_trust\\\",\\n      \\\"check\\\": \\\"server_sees_only_encrypted_data\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"authentication_and_server_trust\\\",\\n      \\\"check\\\": \\\"server_breach_does_not_expose_user_data\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"identity_and_authenticator_strength\\\",\\n      \\\"check\\\": \\\"identity_checked_before_access\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"identity-based access: what identity does this system check before granting access?\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"identity_and_authenticator_strength\\\",\\n      \\\"check\\\": \\\"identity_proof_method_named\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"identity-based access: how is that identity proven? The proof method is named\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"identity_and_authenticator_strength\\\",\\n      \\\"check\\\": \\\"password_kdf_is_argon2id\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"identity_and_authenticator_strength\\\",\\n      \\\"check\\\": \\\"minimum_secret_length_meets_stated_minimum\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"identity_and_authenticator_strength\\\",\\n      \\\"check\\\": \\\"nist_controls_named_when_alignment_claimed\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"NIST notes: 'NIST-compliant' without naming the controls is marketing \u2014 alignment is a claim about which controls are implemented\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"privilege_segmentation_and_verification\\\",\\n      \\\"check\\\": \\\"least_privilege_evaluated\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"privilege_segmentation_and_verification\\\",\\n      \\\"check\\\": \\\"credential_scope_within_job\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"least privilege: can this credential do more than its job requires? It must not\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"privilege_segmentation_and_verification\\\",\\n      \\\"check\\\": \\\"breach_blast_radius_bounded\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"privilege_segmentation_and_verification\\\",\\n      \\\"check\\\": \\\"network_not_flat\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"micro-segmentation: a flat network where one breach means total breach is not zero-trust\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"privilege_segmentation_and_verification\\\",\\n      \\\"check\\\": \\\"trust_rechecked_after_login\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trust_inventory\\\",\\n      \\\"check\\\": \\\"trusted_components_inventoried\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trust_inventory\\\",\\n      \\\"check\\\": \\\"backdoors_named_explicitly\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"no backdoor (recovery / override / escrow) declared\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trust_inventory\\\",\\n      \\\"check\\\": \\\"convenience_trust_decisions_surfaced\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trust_inventory\\\",\\n      \\\"check\\\": \\\"network_not_trusted_as_internal\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_limits\\\",\\n      \\\"check\\\": \\\"compromised_endpoint_limit_acknowledged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_limits\\\",\\n      \\\"check\\\": \\\"usability_tradeoff_stated\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_limits\\\",\\n      \\\"check\\\": \\\"design_claims_only_acknowledged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system\\\"\\n    }\\n  ],\\n  \\\"claim_status\\\": \\\"sustained_on_declared_evidence\\\",\\n  \\\"secret_length_margin_chars\\\": \\\"0.0000\\\",\\n  \\\"summary\\\": \\\"26 pass, 0 fail, 0 missing of 26 checks across six sections.\\\",\\n  \\\"stamp\\\": \\\"ZERO TRUST EVALUATION VERDICT\\\\nsystem: production-auth-service\\\\nVERDICT: CLAIM_SUSTAINED\\\\n  claim_and_scope                  pass\\\\n  authentication_and_server_trust  pass\\\\n  identity_and_authenticator_strength pass\\\\n  privilege_segmentation_and_verification pass\\\\n  trust_inventory                  pass\\\\n  honest_limits                    pass\\\\n26 pass, 0 fail, 0 missing of 26 checks across six sections.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"zero-trust-evaluation-verdict\",\"atom_version\":\"0.1.0\",\"system\":\"production-auth-service\",\"verdict\":\"CLAIM_SUSTAINED\",\"sections\":{\"claim_and_scope\":\"pass\",\"authentication_and_server_trust\":\"pass\",\"identity_and_authenticator_strength\":\"pass\",\"privilege_segmentation_and_verification\":\"pass\",\"trust_inventory\":\"pass\",\"honest_limits\":\"pass\"},\"checks\":[{\"section\":\"claim_and_scope\",\"check\":\"claim_stated_verbatim\",\"status\":\"pass\",\"evidence\":\"the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate\"},{\"section\":\"claim_and_scope\",\"check\":\"adversaries_named\",\"status\":\"pass\",\"evidence\":\"a system is zero-trust only against the adversaries it names\"},{\"section\":\"claim_and_scope\",\"check\":\"out_of_scope_named\",\"status\":\"pass\",\"evidence\":\"who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)\"},{\"section\":\"claim_and_scope\",\"check\":\"evaluation_not_certification_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"authentication_point_identified\",\"status\":\"pass\",\"evidence\":\"gauntlet: where does authentication happen? The authentication point is identified\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"session_not_trusted_indefinitely\",\"status\":\"pass\",\"evidence\":\"gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"master_secret_never_leaves_client\",\"status\":\"pass\",\"evidence\":\"gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_sees_only_encrypted_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_breach_does_not_expose_user_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_checked_before_access\",\"status\":\"pass\",\"evidence\":\"identity-based access: what identity does this system check before granting access?\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_proof_method_named\",\"status\":\"pass\",\"evidence\":\"identity-based access: how is that identity proven? The proof method is named\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"password_kdf_is_argon2id\",\"status\":\"pass\",\"evidence\":\"NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"minimum_secret_length_meets_stated_minimum\",\"status\":\"pass\",\"evidence\":\"NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"nist_controls_named_when_alignment_claimed\",\"status\":\"pass\",\"evidence\":\"NIST notes: 'NIST-compliant' without naming the controls is marketing \u2014 alignment is a claim about which controls are implemented\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"least_privilege_evaluated\",\"status\":\"pass\",\"evidence\":\"least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"credential_scope_within_job\",\"status\":\"pass\",\"evidence\":\"least privilege: can this credential do more than its job requires? It must not\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"breach_blast_radius_bounded\",\"status\":\"pass\",\"evidence\":\"micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"network_not_flat\",\"status\":\"pass\",\"evidence\":\"micro-segmentation: a flat network where one breach means total breach is not zero-trust\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"trust_rechecked_after_login\",\"status\":\"pass\",\"evidence\":\"continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication\"},{\"section\":\"trust_inventory\",\"check\":\"trusted_components_inventoried\",\"status\":\"pass\",\"evidence\":\"trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture\"},{\"section\":\"trust_inventory\",\"check\":\"backdoors_named_explicitly\",\"status\":\"pass\",\"evidence\":\"no backdoor (recovery / override / escrow) declared\"},{\"section\":\"trust_inventory\",\"check\":\"convenience_trust_decisions_surfaced\",\"status\":\"pass\",\"evidence\":\"convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one\"},{\"section\":\"trust_inventory\",\"check\":\"network_not_trusted_as_internal\",\"status\":\"pass\",\"evidence\":\"the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity\"},{\"section\":\"honest_limits\",\"check\":\"compromised_endpoint_limit_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds\"},{\"section\":\"honest_limits\",\"check\":\"usability_tradeoff_stated\",\"status\":\"pass\",\"evidence\":\"usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain\"},{\"section\":\"honest_limits\",\"check\":\"design_claims_only_acknowledged\",\"status\":\"pass\",\"evidence\":\"this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system\"}],\"claim_status\":\"sustained_on_declared_evidence\",\"secret_length_margin_chars\":\"0.0000\",\"summary\":\"26 pass, 0 fail, 0 missing of 26 checks across six sections.\",\"stamp\":\"ZERO TRUST EVALUATION VERDICT\\nsystem: production-auth-service\\nVERDICT: CLAIM_SUSTAINED\\n  claim_and_scope                  pass\\n  authentication_and_server_trust  pass\\n  identity_and_authenticator_strength pass\\n  privilege_segmentation_and_verification pass\\n  trust_inventory                  pass\\n  honest_limits                    pass\\n26 pass, 0 fail, 0 missing of 26 checks across six sections.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "zero-trust-evaluation-verdict",
+        "atom_version": "0.1.0",
+        "system": "production-auth-service",
+        "verdict": "CLAIM_SUSTAINED",
+        "sections": {
+          "claim_and_scope": "pass",
+          "authentication_and_server_trust": "pass",
+          "identity_and_authenticator_strength": "pass",
+          "privilege_segmentation_and_verification": "pass",
+          "trust_inventory": "pass",
+          "honest_limits": "pass"
+        },
+        "checks": [
+          {
+            "section": "claim_and_scope",
+            "check": "claim_stated_verbatim",
+            "status": "pass",
+            "evidence": "the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate"
+          },
+          {
+            "section": "claim_and_scope",
+            "check": "adversaries_named",
+            "status": "pass",
+            "evidence": "a system is zero-trust only against the adversaries it names"
+          },
+          {
+            "section": "claim_and_scope",
+            "check": "out_of_scope_named",
+            "status": "pass",
+            "evidence": "who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)"
+          },
+          {
+            "section": "claim_and_scope",
+            "check": "evaluation_not_certification_acknowledged",
+            "status": "pass",
+            "evidence": "honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification"
+          },
+          {
+            "section": "authentication_and_server_trust",
+            "check": "authentication_point_identified",
+            "status": "pass",
+            "evidence": "gauntlet: where does authentication happen? The authentication point is identified"
+          },
+          {
+            "section": "authentication_and_server_trust",
+            "check": "session_not_trusted_indefinitely",
+            "status": "pass",
+            "evidence": "gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps"
+          },
+          {
+            "section": "authentication_and_server_trust",
+            "check": "master_secret_never_leaves_client",
+            "status": "pass",
+            "evidence": "gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)"
+          },
+          {
+            "section": "authentication_and_server_trust",
+            "check": "server_sees_only_encrypted_data",
+            "status": "pass",
+            "evidence": "gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)"
+          },
+          {
+            "section": "authentication_and_server_trust",
+            "check": "server_breach_does_not_expose_user_data",
+            "status": "pass",
+            "evidence": "gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust"
+          },
+          {
+            "section": "identity_and_authenticator_strength",
+            "check": "identity_checked_before_access",
+            "status": "pass",
+            "evidence": "identity-based access: what identity does this system check before granting access?"
+          },
+          {
+            "section": "identity_and_authenticator_strength",
+            "check": "identity_proof_method_named",
+            "status": "pass",
+            "evidence": "identity-based access: how is that identity proven? The proof method is named"
+          },
+          {
+            "section": "identity_and_authenticator_strength",
+            "check": "password_kdf_is_argon2id",
+            "status": "pass",
+            "evidence": "NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)"
+          },
+          {
+            "section": "identity_and_authenticator_strength",
+            "check": "minimum_secret_length_meets_stated_minimum",
+            "status": "pass",
+            "evidence": "NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules"
+          },
+          {
+            "section": "identity_and_authenticator_strength",
+            "check": "nist_controls_named_when_alignment_claimed",
+            "status": "pass",
+            "evidence": "NIST notes: 'NIST-compliant' without naming the controls is marketing \u2014 alignment is a claim about which controls are implemented"
+          },
+          {
+            "section": "privilege_segmentation_and_verification",
+            "check": "least_privilege_evaluated",
+            "status": "pass",
+            "evidence": "least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed"
+          },
+          {
+            "section": "privilege_segmentation_and_verification",
+            "check": "credential_scope_within_job",
+            "status": "pass",
+            "evidence": "least privilege: can this credential do more than its job requires? It must not"
+          },
+          {
+            "section": "privilege_segmentation_and_verification",
+            "check": "breach_blast_radius_bounded",
+            "status": "pass",
+            "evidence": "micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded"
+          },
+          {
+            "section": "privilege_segmentation_and_verification",
+            "check": "network_not_flat",
+            "status": "pass",
+            "evidence": "micro-segmentation: a flat network where one breach means total breach is not zero-trust"
+          },
+          {
+            "section": "privilege_segmentation_and_verification",
+            "check": "trust_rechecked_after_login",
+            "status": "pass",
+            "evidence": "continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication"
+          },
+          {
+            "section": "trust_inventory",
+            "check": "trusted_components_inventoried",
+            "status": "pass",
+            "evidence": "trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture"
+          },
+          {
+            "section": "trust_inventory",
+            "check": "backdoors_named_explicitly",
+            "status": "pass",
+            "evidence": "no backdoor (recovery / override / escrow) declared"
+          },
+          {
+            "section": "trust_inventory",
+            "check": "convenience_trust_decisions_surfaced",
+            "status": "pass",
+            "evidence": "convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one"
+          },
+          {
+            "section": "trust_inventory",
+            "check": "network_not_trusted_as_internal",
+            "status": "pass",
+            "evidence": "the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity"
+          },
+          {
+            "section": "honest_limits",
+            "check": "compromised_endpoint_limit_acknowledged",
+            "status": "pass",
+            "evidence": "honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds"
+          },
+          {
+            "section": "honest_limits",
+            "check": "usability_tradeoff_stated",
+            "status": "pass",
+            "evidence": "usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain"
+          },
+          {
+            "section": "honest_limits",
+            "check": "design_claims_only_acknowledged",
+            "status": "pass",
+            "evidence": "this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system"
+          }
+        ],
+        "claim_status": "sustained_on_declared_evidence",
+        "secret_length_margin_chars": "0.0000",
+        "summary": "26 pass, 0 fail, 0 missing of 26 checks across six sections.",
+        "stamp": "ZERO TRUST EVALUATION VERDICT\nsystem: production-auth-service\nVERDICT: CLAIM_SUSTAINED\n  claim_and_scope                  pass\n  authentication_and_server_trust  pass\n  identity_and_authenticator_strength pass\n  privilege_segmentation_and_verification pass\n  trust_inventory                  pass\n  honest_limits                    pass\n26 pass, 0 fail, 0 missing of 26 checks across six sections."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "CLAIM_NOT_SUSTAINED",
+        "http": 200,
+        "failing_checks": [
+          "gauntlet.session_trusted_indefinitely",
+          "cryptography.password_kdf",
+          "cryptography.minimum_secret_length_chars",
+          "findings.credential_exceeds_job",
+          "findings.flat_network",
+          "inventory.internal_network_trusted"
+        ],
+        "notes": "Multiple red-line violations triggered."
+      },
+      "input": {
+        "system": "flawed-service",
+        "evaluation": {
+          "claim_stated": true,
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "not_certification_acknowledged": true
+        },
+        "gauntlet": {
+          "authentication_point_identified": true,
+          "session_trusted_indefinitely": true,
+          "master_secret_leaves_client": false,
+          "server_sees_only_encrypted_data": true,
+          "server_breach_exposes_user_data": false
+        },
+        "identity": {
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "cryptography": {
+          "password_kdf": "sha256",
+          "minimum_secret_length_chars": 8,
+          "claims_nist_alignment": false
+        },
+        "findings": {
+          "least_privilege_evaluated": true,
+          "credential_exceeds_job": true,
+          "blast_radius_bounded": true,
+          "flat_network": true,
+          "trust_rechecked_after_login": true
+        },
+        "inventory": {
+          "trusted_components_inventoried": true,
+          "backdoors_present": false,
+          "convenience_decisions_surfaced": true,
+          "internal_network_trusted": true
+        },
+        "limits": {
+          "compromised_endpoint_limit_acknowledged": true,
+          "usability_tradeoff_stated": true,
+          "design_claims_only_acknowledged": true
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-trust-evaluation-verdict\",\"atom_version\":\"0.1.0\",\"system\":\"flawed-service\",\"verdict\":\"CLAIM_NOT_SUSTAINED\",\"sections\":{\"claim_and_scope\":\"pass\",\"authentication_and_server_trust\":\"fail\",\"identity_and_authenticator_strength\":\"fail\",\"privilege_segmentation_and_verification\":\"fail\",\"trust_inventory\":\"fail\",\"honest_limits\":\"pass\"},\"checks\":[{\"section\":\"claim_and_scope\",\"check\":\"claim_stated_verbatim\",\"status\":\"pass\",\"evidence\":\"the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate\"},{\"section\":\"claim_and_scope\",\"check\":\"adversaries_named\",\"status\":\"pass\",\"evidence\":\"a system is zero-trust only against the adversaries it names\"},{\"section\":\"claim_and_scope\",\"check\":\"out_of_scope_named\",\"status\":\"pass\",\"evidence\":\"who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)\"},{\"section\":\"claim_and_scope\",\"check\":\"evaluation_not_certification_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"authentication_point_identified\",\"status\":\"pass\",\"evidence\":\"gauntlet: where does authentication happen? The authentication point is identified\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"session_not_trusted_indefinitely\",\"status\":\"fail\",\"evidence\":\"gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"master_secret_never_leaves_client\",\"status\":\"pass\",\"evidence\":\"gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_sees_only_encrypted_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_breach_does_not_expose_user_data\",\"status\":\"pass\",\"evidence\":\"gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_checked_before_access\",\"status\":\"pass\",\"evidence\":\"identity-based access: what identity does this system check before granting access?\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_proof_method_named\",\"status\":\"pass\",\"evidence\":\"identity-based access: how is that identity proven? The proof method is named\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"password_kdf_is_argon2id\",\"status\":\"fail\",\"evidence\":\"NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"minimum_secret_length_meets_stated_minimum\",\"status\":\"fail\",\"evidence\":\"NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"nist_controls_named_when_alignment_claimed\",\"status\":\"pass\",\"evidence\":\"no NIST alignment claimed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"least_privilege_evaluated\",\"status\":\"pass\",\"evidence\":\"least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"credential_scope_within_job\",\"status\":\"fail\",\"evidence\":\"least privilege: can this credential do more than its job requires? It must not\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"breach_blast_radius_bounded\",\"status\":\"pass\",\"evidence\":\"micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"network_not_flat\",\"status\":\"fail\",\"evidence\":\"micro-segmentation: a flat network where one breach means total breach is not zero-trust\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"trust_rechecked_after_login\",\"status\":\"pass\",\"evidence\":\"continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication\"},{\"section\":\"trust_inventory\",\"check\":\"trusted_components_inventoried\",\"status\":\"pass\",\"evidence\":\"trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture\"},{\"section\":\"trust_inventory\",\"check\":\"backdoors_named_explicitly\",\"status\":\"pass\",\"evidence\":\"no backdoor (recovery / override / escrow) declared\"},{\"section\":\"trust_inventory\",\"check\":\"convenience_trust_decisions_surfaced\",\"status\":\"pass\",\"evidence\":\"convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one\"},{\"section\":\"trust_inventory\",\"check\":\"network_not_trusted_as_internal\",\"status\":\"fail\",\"evidence\":\"the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity\"},{\"section\":\"honest_limits\",\"check\":\"compromised_endpoint_limit_acknowledged\",\"status\":\"pass\",\"evidence\":\"honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds\"},{\"section\":\"honest_limits\",\"check\":\"usability_tradeoff_stated\",\"status\":\"pass\",\"evidence\":\"usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain\"},{\"section\":\"honest_limits\",\"check\":\"design_claims_only_acknowledged\",\"status\":\"pass\",\"evidence\":\"this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system\"}],\"claim_status\":\"not_sustained_on_declared_evidence\",\"secret_length_margin_chars\":\"-8.0000\",\"summary\":\"20 pass, 6 fail, 0 missing of 26 checks across six sections.\",\"stamp\":\"ZERO TRUST EVALUATION VERDICT\\nsystem: flawed-service\\nVERDICT: CLAIM_NOT_SUSTAINED\\n  claim_and_scope                  pass\\n  authentication_and_server_trust  fail\\n  identity_and_authenticator_strength fail\\n  privilege_segmentation_and_verification fail\\n  trust_inventory                  fail\\n  honest_limits                    pass\\n20 pass, 6 fail, 0 missing of 26 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of fields results in insufficient evidence."
+      },
+      "input": {
+        "system": "minimal-test"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-trust-evaluation-verdict\",\"atom_version\":\"0.1.0\",\"system\":\"minimal-test\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"claim_and_scope\":\"insufficient_evidence\",\"authentication_and_server_trust\":\"insufficient_evidence\",\"identity_and_authenticator_strength\":\"insufficient_evidence\",\"privilege_segmentation_and_verification\":\"insufficient_evidence\",\"trust_inventory\":\"insufficient_evidence\",\"honest_limits\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"claim_and_scope\",\"check\":\"claim_stated_verbatim\",\"status\":\"missing\",\"evidence\":\"the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate\"},{\"section\":\"claim_and_scope\",\"check\":\"adversaries_named\",\"status\":\"missing\",\"evidence\":\"a system is zero-trust only against the adversaries it names\"},{\"section\":\"claim_and_scope\",\"check\":\"out_of_scope_named\",\"status\":\"missing\",\"evidence\":\"who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)\"},{\"section\":\"claim_and_scope\",\"check\":\"evaluation_not_certification_acknowledged\",\"status\":\"missing\",\"evidence\":\"honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"authentication_point_identified\",\"status\":\"missing\",\"evidence\":\"gauntlet: where does authentication happen? The authentication point is identified\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"session_not_trusted_indefinitely\",\"status\":\"missing\",\"evidence\":\"gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"master_secret_never_leaves_client\",\"status\":\"missing\",\"evidence\":\"gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_sees_only_encrypted_data\",\"status\":\"missing\",\"evidence\":\"gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_breach_does_not_expose_user_data\",\"status\":\"missing\",\"evidence\":\"gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_checked_before_access\",\"status\":\"missing\",\"evidence\":\"identity-based access: what identity does this system check before granting access?\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_proof_method_named\",\"status\":\"missing\",\"evidence\":\"identity-based access: how is that identity proven? The proof method is named\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"password_kdf_is_argon2id\",\"status\":\"missing\",\"evidence\":\"NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"minimum_secret_length_meets_stated_minimum\",\"status\":\"missing\",\"evidence\":\"NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"nist_controls_named_when_alignment_claimed\",\"status\":\"missing\",\"evidence\":\"no NIST alignment claimed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"least_privilege_evaluated\",\"status\":\"missing\",\"evidence\":\"least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"credential_scope_within_job\",\"status\":\"missing\",\"evidence\":\"least privilege: can this credential do more than its job requires? It must not\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"breach_blast_radius_bounded\",\"status\":\"missing\",\"evidence\":\"micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"network_not_flat\",\"status\":\"missing\",\"evidence\":\"micro-segmentation: a flat network where one breach means total breach is not zero-trust\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"trust_rechecked_after_login\",\"status\":\"missing\",\"evidence\":\"continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication\"},{\"section\":\"trust_inventory\",\"check\":\"trusted_components_inventoried\",\"status\":\"missing\",\"evidence\":\"trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture\"},{\"section\":\"trust_inventory\",\"check\":\"backdoors_named_explicitly\",\"status\":\"missing\",\"evidence\":\"no backdoor (recovery / override / escrow) declared\"},{\"section\":\"trust_inventory\",\"check\":\"convenience_trust_decisions_surfaced\",\"status\":\"missing\",\"evidence\":\"convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one\"},{\"section\":\"trust_inventory\",\"check\":\"network_not_trusted_as_internal\",\"status\":\"missing\",\"evidence\":\"the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity\"},{\"section\":\"honest_limits\",\"check\":\"compromised_endpoint_limit_acknowledged\",\"status\":\"missing\",\"evidence\":\"honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds\"},{\"section\":\"honest_limits\",\"check\":\"usability_tradeoff_stated\",\"status\":\"missing\",\"evidence\":\"usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain\"},{\"section\":\"honest_limits\",\"check\":\"design_claims_only_acknowledged\",\"status\":\"missing\",\"evidence\":\"this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system\"}],\"claim_status\":null,\"secret_length_margin_chars\":null,\"summary\":\"0 pass, 0 fail, 26 missing of 26 checks across six sections.\",\"stamp\":\"ZERO TRUST EVALUATION VERDICT\\nsystem: minimal-test\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  claim_and_scope                  insufficient_evidence\\n  authentication_and_server_trust  insufficient_evidence\\n  identity_and_authenticator_strength insufficient_evidence\\n  privilege_segmentation_and_verification insufficient_evidence\\n  trust_inventory                  insufficient_evidence\\n  honest_limits                    insufficient_evidence\\n0 pass, 0 fail, 26 missing of 26 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for evaluation field triggers 422."
+      },
+      "input": {
+        "system": "malformed-test",
+        "evaluation": "not-an-object"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-trust-evaluation-verdict\",\"atom_version\":\"0.1.0\",\"system\":\"malformed-test\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"claim_and_scope\":\"insufficient_evidence\",\"authentication_and_server_trust\":\"insufficient_evidence\",\"identity_and_authenticator_strength\":\"insufficient_evidence\",\"privilege_segmentation_and_verification\":\"insufficient_evidence\",\"trust_inventory\":\"insufficient_evidence\",\"honest_limits\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"claim_and_scope\",\"check\":\"claim_stated_verbatim\",\"status\":\"missing\",\"evidence\":\"the zero-trust claim under evaluation is stated \u2014 alignment is a claim about which controls are implemented, not a certificate\"},{\"section\":\"claim_and_scope\",\"check\":\"adversaries_named\",\"status\":\"missing\",\"evidence\":\"a system is zero-trust only against the adversaries it names\"},{\"section\":\"claim_and_scope\",\"check\":\"out_of_scope_named\",\"status\":\"missing\",\"evidence\":\"who is out of scope is named honestly (zerok names compromised client OS and physical access as out of scope)\"},{\"section\":\"claim_and_scope\",\"check\":\"evaluation_not_certification_acknowledged\",\"status\":\"missing\",\"evidence\":\"honest limit: this skill evaluates design claims \u2014 it does not replace a security audit, penetration test, or formal certification\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"authentication_point_identified\",\"status\":\"missing\",\"evidence\":\"gauntlet: where does authentication happen? The authentication point is identified\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"session_not_trusted_indefinitely\",\"status\":\"missing\",\"evidence\":\"gauntlet: if the server authenticates you and then trusts the session indefinitely, that's perimeter thinking with extra steps\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"master_secret_never_leaves_client\",\"status\":\"missing\",\"evidence\":\"gauntlet: what does the server know? In a true zero-trust design the server holds no secrets it could abuse (mykey: master password never leaves the machine)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_sees_only_encrypted_data\",\"status\":\"missing\",\"evidence\":\"gauntlet: the server sees only encrypted data (zerok: storage server sees only encrypted blobs \u2014 no plaintext, no recoverable keys)\"},{\"section\":\"authentication_and_server_trust\",\"check\":\"server_breach_does_not_expose_user_data\",\"status\":\"missing\",\"evidence\":\"gauntlet: what survives a server breach? If breaching the server exposes user data, the trust was placed in the server \u2014 the opposite of zero-trust\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_checked_before_access\",\"status\":\"missing\",\"evidence\":\"identity-based access: what identity does this system check before granting access?\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"identity_proof_method_named\",\"status\":\"missing\",\"evidence\":\"identity-based access: how is that identity proven? The proof method is named\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"password_kdf_is_argon2id\",\"status\":\"missing\",\"evidence\":\"NIST notes: Argon2id is the NIST-preferred password-hashing/KDF choice \u2014 prefer it over PBKDF2 and never over raw SHA-256 (not a KDF)\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"minimum_secret_length_meets_stated_minimum\",\"status\":\"missing\",\"evidence\":\"NIST notes: CISA guidance \u2014 enforce meaningful minimum entropy (mykey: 16 characters); length beats complexity rules\"},{\"section\":\"identity_and_authenticator_strength\",\"check\":\"nist_controls_named_when_alignment_claimed\",\"status\":\"missing\",\"evidence\":\"no NIST alignment claimed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"least_privilege_evaluated\",\"status\":\"missing\",\"evidence\":\"least privilege evaluated: every identity gets the minimum access needed, for the minimum time needed\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"credential_scope_within_job\",\"status\":\"missing\",\"evidence\":\"least privilege: can this credential do more than its job requires? It must not\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"breach_blast_radius_bounded\",\"status\":\"missing\",\"evidence\":\"micro-segmentation: if this component is breached, what else falls with it? The blast radius is bounded\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"network_not_flat\",\"status\":\"missing\",\"evidence\":\"micro-segmentation: a flat network where one breach means total breach is not zero-trust\"},{\"section\":\"privilege_segmentation_and_verification\",\"check\":\"trust_rechecked_after_login\",\"status\":\"missing\",\"evidence\":\"continuous verification: what happens after the initial login \u2014 is anything ever re-checked? Sessions expire, tokens rotate, anomalous behavior re-triggers authentication\"},{\"section\":\"trust_inventory\",\"check\":\"trusted_components_inventoried\",\"status\":\"missing\",\"evidence\":\"trust is a vulnerability: every trusted component is an attack surface \u2014 inventory them before praising the architecture\"},{\"section\":\"trust_inventory\",\"check\":\"backdoors_named_explicitly\",\"status\":\"missing\",\"evidence\":\"no backdoor (recovery / override / escrow) declared\"},{\"section\":\"trust_inventory\",\"check\":\"convenience_trust_decisions_surfaced\",\"status\":\"missing\",\"evidence\":\"convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one\"},{\"section\":\"trust_inventory\",\"check\":\"network_not_trusted_as_internal\",\"status\":\"missing\",\"evidence\":\"the network is always hostile in your analysis, even 'internal' networks \u2014 'inside the firewall' is not an identity\"},{\"section\":\"honest_limits\",\"check\":\"compromised_endpoint_limit_acknowledged\",\"status\":\"missing\",\"evidence\":\"honest limit: zero-trust does not fix a compromised endpoint \u2014 if the client device is owned, no architecture above it holds\"},{\"section\":\"honest_limits\",\"check\":\"usability_tradeoff_stated\",\"status\":\"missing\",\"evidence\":\"usability and zero-trust are in tension (no password recovery IS the guarantee) \u2014 say what the user gives up, not just what they gain\"},{\"section\":\"honest_limits\",\"check\":\"design_claims_only_acknowledged\",\"status\":\"missing\",\"evidence\":\"this skill evaluates design claims \u2014 the verdict is over the declared design evidence, not a live audit of the running system\"}],\"claim_status\":null,\"secret_length_margin_chars\":null,\"summary\":\"0 pass, 0 fail, 26 missing of 26 checks across six sections.\",\"stamp\":\"ZERO TRUST EVALUATION VERDICT\\nsystem: malformed-test\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  claim_and_scope                  insufficient_evidence\\n  authentication_and_server_trust  insufficient_evidence\\n  identity_and_authenticator_strength insufficient_evidence\\n  privilege_segmentation_and_verification insufficient_evidence\\n  trust_inventory                  insufficient_evidence\\n  honest_limits                    insufficient_evidence\\n0 pass, 0 fail, 26 missing of 26 checks across six sections.\"}"
+        }
+      ]
+    }
+  ]
+}

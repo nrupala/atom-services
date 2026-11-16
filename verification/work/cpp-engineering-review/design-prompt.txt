@@ -1,0 +1,258 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: cpp-engineering-review
+
+=== contract.yaml ===
+service_name: cpp-engineering-review
+display_name: Cpp engineering review
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:cpp-engineering
+binding:
+  skill: cpp-engineering
+  skill_path: workspace/mymilo-build/skills/cpp-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+keys:
+  namespace: cpp_engineering_review
+  prefix: atm_1_cpp_engineering_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: C++ tooling and service builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Cpp engineering review — `cpp-engineering-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Write modern C++ — RAII, value semantics, STL-first design, sanitizers and static analysis in the loop.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **C++ tooling and service builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the cpp-engineering-review manifest
+
+The caller submits one JSON manifest: one declared C++-engineering
+evidence record — the caller's declared ownership, tooling, and
+review records for one piece of C++ code or one diff, worked
+through the bound skill's method. Every field below is read by
+the named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`REVIEW_DEFICIENT`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `subject` (string; carried into the verdict output, not itself checked) | — |
+| `raii.resources_owned_by_objects` | raii_and_ownership |
+| `raii.destructors_clean_up_resources` | raii_and_ownership |
+| `raii.manual_new_delete_in_new_code` (must be `false` to pass — skill quality gate) | raii_and_ownership |
+| `raii.raw_owning_pointers_in_new_code` (must be `false` to pass — skill quality gate) | raii_and_ownership |
+| `raii.forbidden_constructs` (list of strings; computed, see below) | raii_and_ownership |
+| `value_semantics.values_const_references_preferred` | value_semantics |
+| `value_semantics.move_semantics_used_where_copies_expensive` | value_semantics |
+| `value_semantics.rule_of_zero_honored` | value_semantics |
+| `value_semantics.special_members_justified_when_present` | value_semantics |
+| `smart_pointers.unique_ptr_is_default` | smart_pointers |
+| `smart_pointers.shared_ptr_only_for_real_shared_ownership` | smart_pointers |
+| `smart_pointers.weak_ptr_used_to_break_cycles` | smart_pointers |
+| `stl.algorithms_preferred_over_hand_loops` | stl_and_templates |
+| `stl.containers_matched_to_access_patterns` | stl_and_templates |
+| `stl.ranges_used_where_available` | stl_and_templates |
+| `stl.templates_used_only_for_real_genericity` | stl_and_templates |
+| `stl.template_error_messages_readable` | stl_and_templates |
+| `exceptions_and_abi.exceptions_policy_chosen` | exceptions_and_abi |
+| `exceptions_and_abi.exceptions_policy_documented` | exceptions_and_abi |
+| `exceptions_and_abi.exceptions_policy_applied_consistently` | exceptions_and_abi |
+| `exceptions_and_abi.stable_library_interfaces` | exceptions_and_abi |
+| `exceptions_and_abi.pimpl_used_where_needed` | exceptions_and_abi |
+| `exceptions_and_abi.symbols_versioned` | exceptions_and_abi |
+| `tooling.clang_tidy_run` | tooling_and_warnings |
+| `tooling.clang_tidy_clean_on_diff` | tooling_and_warnings |
+| `tooling.clang_format_applied` | tooling_and_warnings |
+| `tooling.warnings_treated_as_errors` | tooling_and_warnings |
+| `tooling.warning_count` (number; computed, see below) | tooling_and_warnings |
+| `sanitizers.asan_enabled_in_test_builds` | sanitizers |
+| `sanitizers.ubsan_enabled_in_test_builds` | sanitizers |
+| `sanitizers.tsan_enabled_in_test_builds` | sanitizers |
+| `sanitizers.sanitizer_clean_test_run` | sanitizers |
+| `safety.dangling_references_across_async_boundaries` (must be `false` to pass — skill red line) | safety_red_lines |
+| `safety.macros_used_where_language_features_exist` (must be `false` to pass — skill red line) | safety_red_lines |
+
+Two checks are computed from the declared values, using only
+what the skill itself states plus the set logic of the declared
+values — no outside threshold is imported:
+
+- **Zero warnings:** the skill's method step 6 is "warnings as
+  errors", and its quality gate is "warnings-as-errors build
+  green". A declared `tooling.warning_count` therefore passes
+  only when it equals zero — the one number the skill itself
+  states. An absent count is missing evidence. The output
+  reports the declared count as `warning_count` (null when no
+  count is declared or it is not a number).
+- **Forbidden constructs:** the skill's quality gate is "No raw
+  owning pointers or manual `new`/`delete` in new code." The
+  declared `raii.forbidden_constructs` list therefore passes
+  only when it contains none of the three stated entries
+  (`raw_owning_pointer`, `manual_new`, `manual_delete`); unknown
+  entries do not count as forbidden. A missing list is missing
+  evidence; an empty list is present and passes. The output
+  reports the stated forbidden entries found, in the skill's
+  stated order, as `forbidden_constructs_found` (null when no
+  list is declared). Entries are validated as strings only,
+  never enum-checked — the forbidden-construct finding is a
+  verdict check, not a type error.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when either
+of the two computed checks cannot be completed).
+
+**Serialization rule (fixed, identical in both
+implementations):** no floating-point arithmetic is performed
+anywhere in this atom. `warning_count` is reported as a JSON
+number exactly as declared (or null); `forbidden_constructs_found`
+is a list of strings in the fixed skill-stated order above (or
+null). There is no derived floating-point field, so no
+fixed-decimal string conversion arises; any future derived
+number will be serialized as a fixed-decimal string by the same
+rule in both implementations.
+
+The verdict is one of `REVIEW_SOUND` (all 34 checks pass),
+`REVIEW_DEFICIENT` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across eight sections:
+raii_and_ownership, value_semantics, smart_pointers,
+stl_and_templates, exceptions_and_abi, tooling_and_warnings,
+sanitizers, safety_red_lines.
+
+## Honest scoping
+
+This atom reviews a **declared** C++-engineering evidence
+manifest — it does not compile, run, sanitize, or read live
+code, and it does not verify that a declared value is true. A
+review is sound *on the caller's declared evidence* even if the
+underlying code is in fact flawed. It is a completeness and
+consistency review, **not a code review**: it never decides
+whether the code actually manages a resource by RAII, whether
+shared ownership is really real, whether a template is really
+vanity or its error messages really readable, whether pimpl was
+really needed, or whether a sanitizer run really happened —
+only that the manifest contains what the skill's method,
+quality gates, and red lines demand, and that its two computed
+checks agree with the skill's own stated limits. The skill's
+qualitative judgments (real genericity vs vanity, readable
+errors, genuine shared ownership, where pimpl is needed) do not
+reduce to deterministic checks and are carried only as caller
+declarations, never decided by this atom.
+
+Named exclusions: no compilation or live code inspection of any
+kind; no static-analysis, sanitizer, or formatting execution
+(those runs are the caller's, declared in the manifest); no
+numeric threshold beyond the skill's own stated zero warnings —
+in particular, no pass mark is imposed on clang-tidy findings
+(the skill requires clang-tidy clean on the diff, and states no
+count or formula, so only that cleanliness declaration is
+checked), no special-member count (the Rule of Zero states no
+number — special members are checked only as honored/justified
+declarations), no sanitizer finding or leak count, and no
+test-coverage percentage (the skill states none); no
+forbidden-construct vocabulary beyond the three entries the
+skill's quality gate itself names; no live verification of any
+declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

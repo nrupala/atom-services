@@ -1,0 +1,114 @@
+# Independent recompute — data-visualization-design
+
+## Serialization rule (applied throughout)
+Fixed 6dp: `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals.
+
+---
+
+## Case 1: `full-pass`
+
+### Chart entry completeness
+One entry, all required strings non-empty (`name`="Regional Sales", `question_type`="comparison", `chart_type`="bar", `x_axis_label`="Region", `y_axis_label`="Revenue", `y_axis_unit`="USD"), `y_axis_start`=0.0 (numeric), `categories_count`=5 (numeric), and all six booleans present (`bars_sorted`, `dual_axis`, `axis_truncated`, `truncated_flagged_loudly`, `uses_3d`, `red_green_only`). → **complete**.
+- `charts_evaluated` = 1. Artifact: `1`. **MATCH**
+
+### Chart type ↔ question mapping
+comparison → bar. Declared `bar`. Match. `charts_not_matching_question` = [] (empty). Artifact: `[]`. **MATCH**
+
+### Comparison charts sorted
+One comparison row, `bars_sorted`=true → passes (not vacuous). Artifact: pass. **MATCH**
+
+### Bar y-axis starts at zero
+One bar row, `y_axis_start`=0.0. Fixed-6dp: floor(0.0·1e6+0.5)/1e6 = 0.000000; difference vs 0 = 0.000000 → zero. Pass. Artifact: pass. **MATCH**
+
+### No dual axes
+`dual_axis`=false → pass. Artifact: pass. **MATCH**
+
+### Truncated axes flagged loudly
+`axis_truncated`=false → no obligation → pass. Artifact: pass. **MATCH**
+
+### No 3D
+`uses_3d`=false → pass. Artifact: pass. **MATCH**
+
+### No red-green alone
+`red_green_only`=false → pass. Artifact: pass. **MATCH**
+
+### Category count
+max categories = 5. 5 ≤ 7 → pass.
+- `computed_max_categories`: floor(5·1e6+0.5)/1e6 = 5.000000 → "5.000000". Artifact: `"5.000000"`. **MATCH**
+- `max_categories_difference_from_limit`: 5 − 7 = −2 → floor(−2·1e6+0.5)/1e6 = floor(−1999999.5)/1e6 = −2.000000 → "-2.000000". Artifact: `"-2.000000"`. **MATCH**
+
+### Axis labels and units
+All three non-empty → pass. Artifact: pass. **MATCH**
+
+### computed_status
+All ten computed checks pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Verdict / summary
+All 38 checks pass (7 sections: 5+7+6+5+5+4+6 = 38). Verdict `DATA_VISUALIZATION_DESIGN_SOUND`; summary "38 pass, 0 fail, 0 missing of 38". Artifact: same. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Chart entry completeness
+Entry has all strings non-empty, `y_axis_start`=10.0 numeric, `categories_count`=10 numeric, all six booleans present → **complete**.
+- `charts_evaluated` = 1. Artifact: `1`. **MATCH**
+
+### Chart type ↔ question mapping
+comparison → bar; declared `bar` → match. `charts_not_matching_question` = []. Artifact: `[]`. **MATCH**
+
+### Comparison charts sorted
+One comparison row, `bars_sorted`=false → **FAIL**. Artifact: fail. **MATCH**
+
+### Bar y-axis starts at zero
+Bar row, `y_axis_start`=10.0. Fixed-6dp: floor(10·1e6+0.5)/1e6 = 10.000000; difference vs 0 = 10.000000 ≠ 0 → **FAIL**. Artifact: fail. **MATCH**
+
+### No dual axes
+`dual_axis`=true → **FAIL**. Artifact: fail. **MATCH**
+
+### Truncated axes flagged loudly
+`axis_truncated`=true but `truncated_flagged_loudly`=false → **FAIL**. Artifact: fail. **MATCH**
+
+### No 3D
+`uses_3d`=true → **FAIL**. Artifact: fail. **MATCH**
+
+### No red-green alone
+`red_green_only`=true → **FAIL**. Artifact: fail. **MATCH**
+
+### Category count
+max = 10. 10 ≤ 7? No → **FAIL**.
+- `computed_max_categories`: floor(10·1e6+0.5)/1e6 = 10.000000 → "10.000000". Artifact: `"10.000000"`. **MATCH**
+- `max_categories_difference_from_limit`: 10 − 7 = 3 → floor(3·1e6+0.5)/1e6 = 3.000000 → "3.000000". Artifact: `"3.000000"`. **MATCH**
+
+### Axis labels and units
+All non-empty → pass. Artifact: pass. **MATCH**
+
+### computed_status
+At least one computed check fails → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Verdict / summary
+Failing checks: comparison_charts_sorted, bar_charts_y_axis_starts_at_zero, no_dual_axes, truncated_axes_flagged_loudly, no_3d, red_green_not_used_alone, category_counts_within_stated_limit = **7 fails**. All other 31 pass. Verdict `DATA_VISUALIZATION_DESIGN_NOT_SOUND`; summary "31 pass, 7 fail, 0 missing of 38". Artifact: same. **MATCH**
+
+### Planted-wrong-value confirmation
+The planted wrong values are: `bars_sorted`=false, `y_axis_start`=10.0, `dual_axis`=true, `axis_truncated`=true with `truncated_flagged_loudly`=false, `uses_3d`=true, `red_green_only`=true, `categories_count`=10. Each maps to exactly one failing check, and the seven failing checks are exactly those seven. No extra failures, no missed failures. **CONFIRMED**
+
+### Section roll-up
+- question_and_chart_choice: fail (comparison_charts_sorted) ✓
+- honesty_and_axes: fail (bar-zero, dual-axis, truncation) ✓
+- perception_and_chart_junk: fail (3D) ✓
+- color: fail (red-green, category count) ✓
+- annotation_and_labels: pass ✓
+- accessibility: pass ✓
+- dashboards_and_reproducibility: pass ✓
+All match the artifact's section statuses. **MATCH**
+
+---
+
+## Note on evidence strings (not a computed quantity)
+In the violations artifact, the `comparison_charts_sorted` and `bar_charts_y_axis_starts_at_zero` evidence strings still say "(no comparison chart is declared, so this passes vacuously)" / "(no bar chart is declared, so this passes vacuously)" while the status is `fail`. This is a cosmetic evidence-text inconsistency, not a computed value; the statuses themselves are correct. It does not affect any recomputed quantity.
+
+---
+
+Every computed quantity and check status in both artifacts reproduces exactly from the recorded inputs under the stated fixed-6dp rule.
+
+AGREEMENT: full

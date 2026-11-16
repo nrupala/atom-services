@@ -1,0 +1,131 @@
+# Independent recompute — community-support-operations
+
+## Serialization rule (applied throughout)
+
+Per SERVICE.md: round half up to 6dp via `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. Differences are compared to zero at fixed 6dp.
+
+---
+
+## Case 1: `full-pass`
+
+### Computed check 1 — SLA severity order
+Inputs: outage = 1.0, broken = 2.0, question = 3.0.
+Required: outage < broken < question → 1.0 < 2.0 < 3.0 → **TRUE**.
+Artifact: `sla_targets_respect_severity_order` = pass. **MATCH**
+
+### Computed check 2 — Intake tracking
+received = 100, tracked = 100.
+- Equality: 100 == 100 → TRUE; received > 0 → TRUE. Check passes.
+- `computed_tracked_share` = 100 ÷ 100 = 1.0 → floor(1.0·10⁶ + 0.5)/10⁶ = 1000000/1000000 = 1.0 → `"1.000000"`.
+- `tracked_difference` = 100 − 100 = 0 → `"0.000000"`.
+
+Artifact: share `"1.000000"`, difference `"0.000000"`, check pass. **MATCH**
+
+### Computed check 3 — Top-ten themes
+top_theme_count = 10 → equals the skill's 10 → count check passes.
+covered = 10, top = 10 → 10 == 10 → coverage passes.
+- `computed_theme_coverage_ratio` = 10 ÷ 10 = 1.0 → `"1.000000"`.
+- `theme_coverage_difference` = 10 − 10 = 0 → `"0.000000"`.
+
+Artifact: ratio `"1.000000"`, difference `"0.000000"`, both checks pass. **MATCH**
+
+### Computed check 4 — Triage categories
+Declared list: `["bug","feature","usage","noise"]`. Stated set = {bug, feature, usage, noise}. Omitted = ∅.
+- `triage_categories_not_covered` = `[]`.
+
+Artifact: `[]`, check pass. **MATCH**
+
+### Computed check 5 — Thread closure
+total = 50, closed = 50.
+- Equality: 50 == 50 → TRUE; total > 0 → TRUE. Passes.
+- `computed_thread_closure_share` = 50 ÷ 50 = 1.0 → `"1.000000"`.
+- `thread_closure_difference` = 50 − 50 = 0 → `"0.000000"`.
+
+Artifact: share `"1.000000"`, difference `"0.000000"`, check pass. **MATCH**
+
+### `computed_status`
+All six computed checks completed and all within limits → `within_stated_limits_on_declared_evidence`. Artifact matches. **MATCH**
+
+### Verdict / summary
+All 38 checks pass (I count the 38 check entries: 5 intake + 5 help_docs + 7 triage + 5 response + 5 comms + 5 community + 6 measurement = 38). No fails, no missing → `COMMUNITY_SUPPORT_READY`, "38 pass, 0 fail, 0 missing of 38". Artifact matches. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Computed check 1 — SLA severity order
+outage = 5.0, broken = 2.0, question = 3.0.
+Required: 5.0 < 2.0 < 3.0 → **FALSE** (5.0 is not < 2.0).
+Artifact: `sla_targets_respect_severity_order` = fail. **MATCH**
+
+### Computed check 2 — Intake tracking
+received = 100, tracked = 50.
+- Equality: 50 == 100 → FALSE → check fails.
+- `computed_tracked_share` = 50 ÷ 100 = 0.5 → floor(0.5·10⁶ + 0.5)/10⁶ = floor(500000.5)/10⁶ = 500000/10⁶ = 0.5 → `"0.500000"`.
+- `tracked_difference` = 50 − 100 = −50 → `"-50.000000"`.
+
+Artifact: share `"0.500000"`, difference `"-50.000000"`, check fail. **MATCH**
+
+### Computed check 3 — Top-ten themes
+top_theme_count = 10 → count check passes (equals 10).
+covered = 5, top = 10 → 5 == 10 → FALSE → coverage check fails.
+- `computed_theme_coverage_ratio` = 5 ÷ 10 = 0.5 → `"0.500000"`.
+- `theme_coverage_difference` = 5 − 10 = −5 → `"-5.000000"`.
+
+Artifact: ratio `"0.500000"`, difference `"-5.000000"`, count pass / coverage fail. **MATCH**
+
+### Computed check 4 — Triage categories
+Declared list: `["bug","feature"]`. Stated set = {bug, feature, usage, noise}. Omitted = {usage, noise}.
+- `triage_categories_not_covered` = `["usage","noise"]` (order: stated-list order).
+
+Artifact: `["usage","noise"]`, check fail. **MATCH**
+
+### Computed check 5 — Thread closure
+total = 10, closed = 5.
+- Equality: 5 == 10 → FALSE → check fails.
+- `computed_thread_closure_share` = 5 ÷ 10 = 0.5 → `"0.500000"`.
+- `thread_closure_difference` = 5 − 10 = −5 → `"-5.000000"`.
+
+Artifact: share `"0.500000"`, difference `"-5.000000"`, check fail. **MATCH**
+
+### `computed_status`
+At least one computed check is outside limits → `outside_stated_limits_on_declared_evidence`. Artifact matches. **MATCH**
+
+### Are the failing checks exactly the planted wrong values?
+Planted wrong values in the violations input:
+1. `outage_target_hours = 5.0` (breaks severity order) → fails `sla_targets_respect_severity_order`. ✓
+2. `messages_tracked = 50` vs received 100 → fails `every_message_tracked`. ✓
+3. `themes_with_doc_or_backlog_count = 5` vs top 10 → fails `all_top_themes_have_doc_or_backlog`. ✓
+4. `categories_used = ["bug","feature"]` (missing usage, noise) → fails `triage_categories_cover_stated_categories`. ✓
+5. `threads_closed... = 5` vs total 10 → fails `every_thread_ends_with_resolution_or_tracked_item`. ✓
+
+All other fields are the passing values from the full-pass case, so no other check should fail. The artifact lists exactly these 5 fails (intake: 2, help_docs: 1, triage: 2) and 33 passes. **MATCH — failing set is exactly the planted violations.**
+
+### Verdict / summary
+Any fail → `COMMUNITY_SUPPORT_NOT_READY`. Count: 38 − 5 = 33 pass, 5 fail, 0 missing. Artifact matches. **MATCH**
+
+---
+
+## Summary of comparisons
+
+| Quantity | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| sla severity order | pass | pass | fail | fail |
+| every_message_tracked | pass | pass | fail | fail |
+| computed_tracked_share | 1.000000 | 1.000000 | 0.500000 | 0.500000 |
+| tracked_difference | 0.000000 | 0.000000 | -50.000000 | -50.000000 |
+| top_ten count | pass | pass | pass | pass |
+| all_top_themes coverage | pass | pass | fail | fail |
+| theme_coverage_ratio | 1.000000 | 1.000000 | 0.500000 | 0.500000 |
+| theme_coverage_difference | 0.000000 | 0.000000 | -5.000000 | -5.000000 |
+| triage_categories_not_covered | [] | [] | [usage,noise] | [usage,noise] |
+| thread closure | pass | pass | fail | fail |
+| thread_closure_share | 1.000000 | 1.000000 | 0.500000 | 0.500000 |
+| thread_closure_difference | 0.000000 | 0.000000 | -5.000000 | -5.000000 |
+| computed_status | within | within | outside | outside |
+| verdict | READY | READY | NOT_READY | NOT_READY |
+| summary | 38/0/0 | 38/0/0 | 33/5/0 | 33/5/0 |
+
+Every computed quantity and check reproduces exactly, and the violations case's failing set is precisely the five planted wrong values.
+
+AGREEMENT: full

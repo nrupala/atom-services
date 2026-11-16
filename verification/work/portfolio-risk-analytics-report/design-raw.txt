@@ -1,0 +1,69 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "portfolio": "Test Portfolio",
+        "returns": [0.01, -0.02, 0.03],
+        "benchmark_returns": [0.005, -0.01, 0.02],
+        "periods_per_year": 12,
+        "risk_free_per_period": 0.001,
+        "var_confidence": 0.95,
+        "holdings": [{"id": "A", "weight": 0.5, "currency": "USD"}, {"id": "B", "weight": 0.5, "currency": "USD"}],
+        "correlation_window": 2
+      },
+      "expect": {
+        "outcome": "complete",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All inputs provided, series length > 2. Computed spot checks: mean return = 0.006667, sample volatility = 0.025166."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "portfolio": "Violated Portfolio",
+        "returns": [0.01, 0.02],
+        "benchmark_returns": [0.01],
+        "holdings": [{"id": "A", "weight": "invalid_string"}]
+      },
+      "expect": {
+        "outcome": "partial",
+        "http": 200,
+        "failing_checks": ["misaligned_series", "invalid_holdings_count"],
+        "notes": "Benchmark returns length mismatch with returns; holdings weight is non-numeric."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "portfolio": "Sparse Portfolio",
+        "returns": [0.05]
+      },
+      "expect": {
+        "outcome": "insufficient_evidence",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Fewer than 2 valid numeric observations provided."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "portfolio": 12345,
+        "returns": "not_a_list",
+        "holdings": "should_be_a_list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: portfolio expects string, returns expects list, holdings expects list."
+      }
+    }
+  ]
+}

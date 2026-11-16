@@ -1,0 +1,207 @@
+{
+  "atom": "claim-verification-fact-check-stamp",
+  "tested_at_utc": "2026-11-15T23:54:37.596241+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "claim_verification_fact_check_stamp",
+  "mcp_tools": [
+    {
+      "name": "claim_verification_fact_check_stamp",
+      "title": "Claim verification fact check stamp",
+      "description": "Submit a claim-verification manifest (declared claims with labels, source records and re-check records, plus the publication process record); get a deterministic STAMPED / NOT_STAMPED / INSUFFICIENT_EVIDENCE stamp across six sections, including per-claim triangulation and math re-derivation checks that name offending claims, with per-check evidence.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The claim-verification manifest (see the atom's SERVICE.md for the field table and claim-row schema).",
+        "properties": {
+          "document": {
+            "type": "string",
+            "description": "Document / content being verified."
+          },
+          "process": {
+            "type": "object",
+            "description": "Publication-process evidence (extraction, corrections policy, versions, silent edits)."
+          },
+          "claims": {
+            "type": "array",
+            "description": "Declared claims: {id, material, label, independent_sources, primary_source, sources_archived, source_metadata_recorded, independence_checked, has_numbers, math_rechecked, language_weakest_supported}."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "STAMPED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 16 checks pass. computed_spot_checks: claims_total=1, material_claims=1, verified_claims=1"
+      },
+      "input": {
+        "document": "Climate change impact report",
+        "process": {
+          "claims_extracted": true,
+          "units_and_dates_checked": true,
+          "counter_case_considered": true,
+          "evidence_published_inline": true,
+          "methodology_visible_for_big_claims": true,
+          "corrections_policy_published": true,
+          "versions_retained": true,
+          "silent_edits_made": false
+        },
+        "claims": [
+          {
+            "id": "c1",
+            "material": true,
+            "label": "verified",
+            "independent_sources": 2,
+            "primary_source": "nasa.gov",
+            "sources_archived": true,
+            "source_metadata_recorded": true,
+            "independence_checked": true,
+            "has_numbers": true,
+            "math_rechecked": true,
+            "language_weakest_supported": true
+          }
+        ]
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"claims[0].primary_source\",\"detail\":\"claims[0].primary_source must be a boolean\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"claims[0].primary_source\",\"detail\":\"claims[0].primary_source must be a boolean\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"error\":{\"code\":-32602,\"message\":\"claims[0].primary_source must be a boolean\"}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": false,
+      "mcp_structured_content": null
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_STAMPED",
+        "http": 200,
+        "failing_checks": [
+          "publication_and_corrections",
+          "triangulation",
+          "source_ladder",
+          "compute_rechecks"
+        ],
+        "notes": "Violates silent_edits_made, triangulation (insufficient sources), source_ladder (not archived), and compute_rechecks (math not rechecked)."
+      },
+      "input": {
+        "document": "Report with errors",
+        "process": {
+          "claims_extracted": true,
+          "units_and_dates_checked": true,
+          "counter_case_considered": true,
+          "evidence_published_inline": true,
+          "methodology_visible_for_big_claims": true,
+          "corrections_policy_published": true,
+          "versions_retained": true,
+          "silent_edits_made": true
+        },
+        "claims": [
+          {
+            "id": "c2",
+            "material": true,
+            "label": "verified",
+            "independent_sources": 0,
+            "primary_source": "blog.com",
+            "sources_archived": false,
+            "source_metadata_recorded": true,
+            "independence_checked": true,
+            "has_numbers": true,
+            "math_rechecked": false,
+            "language_weakest_supported": true
+          }
+        ]
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"claims[0].primary_source\",\"detail\":\"claims[0].primary_source must be a boolean\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Required process fields and claim details are missing, triggering insufficient evidence status."
+      },
+      "input": {
+        "document": "Minimal input",
+        "process": {
+          "claims_extracted": true
+        },
+        "claims": []
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"claim-verification-fact-check-stamp\",\"atom_version\":\"0.1.0\",\"document\":\"Minimal input\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"extraction\":\"insufficient_evidence\",\"source_ladder\":\"insufficient_evidence\",\"triangulation\":\"insufficient_evidence\",\"compute_rechecks\":\"insufficient_evidence\",\"uncertainty_language\":\"insufficient_evidence\",\"publication_and_corrections\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"extraction\",\"check\":\"claims_extracted_one_row_per_claim\",\"status\":\"pass\",\"evidence\":\"isolate every checkable unit \u2014 one row per claim\"},{\"section\":\"extraction\",\"check\":\"claims_declared\",\"status\":\"missing\",\"evidence\":\"no claims declared\"},{\"section\":\"source_ladder\",\"check\":\"source_metadata_recorded_for_every_claim\",\"status\":\"missing\",\"evidence\":\"source metadata not recorded for every claim\"},{\"section\":\"source_ladder\",\"check\":\"source_independence_checked\",\"status\":\"missing\",\"evidence\":\"source independence not checked for every claim\"},{\"section\":\"source_ladder\",\"check\":\"material_claim_sources_archived\",\"status\":\"missing\",\"evidence\":\"archived-source evidence missing for a material claim\"},{\"section\":\"triangulation\",\"check\":\"material_claims_triangulated\",\"status\":\"missing\",\"evidence\":\"triangulation evidence missing for a material claim\"},{\"section\":\"compute_rechecks\",\"check\":\"numbers_rederived_for_numeric_claims\",\"status\":\"missing\",\"evidence\":\"math re-check evidence missing for a numeric claim\"},{\"section\":\"compute_rechecks\",\"check\":\"units_dates_and_names_checked\",\"status\":\"missing\",\"evidence\":\"sanity-check units and orders of magnitude; verify dates and name spellings\"},{\"section\":\"uncertainty_language\",\"check\":\"labels_in_vocabulary\",\"status\":\"missing\",\"evidence\":\"a claim carries no label\"},{\"section\":\"uncertainty_language\",\"check\":\"language_is_weakest_the_evidence_supports\",\"status\":\"missing\",\"evidence\":\"language-strength evidence missing for a claim\"},{\"section\":\"uncertainty_language\",\"check\":\"counter_case_considered\",\"status\":\"missing\",\"evidence\":\"quality gate: counter-case considered; 'what would change our mind' noted for contested claims\"},{\"section\":\"publication_and_corrections\",\"check\":\"evidence_published_inline\",\"status\":\"missing\",\"evidence\":\"publish with evidence: inline citations, archived links\"},{\"section\":\"publication_and_corrections\",\"check\":\"methodology_visible_for_big_claims\",\"status\":\"missing\",\"evidence\":\"visible methodology for big claims\"},{\"section\":\"publication_and_corrections\",\"check\":\"corrections_policy_published\",\"status\":\"missing\",\"evidence\":\"quality gate: corrections policy published\"},{\"section\":\"publication_and_corrections\",\"check\":\"versions_retained\",\"status\":\"missing\",\"evidence\":\"quality gate: versions retained\"},{\"section\":\"publication_and_corrections\",\"check\":\"no_silent_corrections\",\"status\":\"missing\",\"evidence\":\"skill red line: corrections are never silent \u2014 fast, dated, visible change log\"}],\"claims_summary\":{\"claims_total\":0,\"material_claims\":0,\"verified_claims\":0},\"summary\":\"1 pass, 0 fail, 15 missing of 16 checks across six sections.\",\"stamp\":\"CLAIM-VERIFICATION FACT-CHECK STAMP\\ndocument: Minimal input\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  extraction                 insufficient_evidence\\n  source_ladder              insufficient_evidence\\n  triangulation              insufficient_evidence\\n  compute_rechecks           insufficient_evidence\\n  uncertainty_language       insufficient_evidence\\n  publication_and_corrections insufficient_evidence\\n1 pass, 0 fail, 15 missing of 16 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for process and claims fields."
+      },
+      "input": {
+        "document": "Malformed input",
+        "process": "should_be_an_object",
+        "claims": "should_be_a_list"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"process\",\"detail\":\"process must be an object\"}"
+        }
+      ]
+    }
+  ]
+}

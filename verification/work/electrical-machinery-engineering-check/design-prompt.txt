@@ -1,0 +1,193 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: electrical-machinery-engineering-check
+
+=== contract.yaml ===
+service_name: electrical-machinery-engineering-check
+display_name: Electrical machinery engineering check
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:electrical-machinery-engineering
+binding:
+  skill: electrical-machinery-engineering
+  skill_path: workspace/mymilo-build/skills/electrical-machinery-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/electrical_machinery_engineering_check.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_electrical_machinery_engineering_check.py — 18 tests, all passing 2026-11-15
+keys:
+  namespace: electrical_machinery_engineering_check
+  prefix: atm_1_electrical_machinery_engineering_check_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: EE motor sizing reviews
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Electrical machinery engineering check — `electrical-machinery-engineering-check`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Motors and generators — application checks, specs, acceptance tests, and failure-analysis support for electrical machines.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Electrical & energy who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **EE motor sizing reviews**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the machinery engineering manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_SOUND`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `machine` (string; carried into the verdict output, not itself checked) | — |
+| `duty.load_torque_profile` (one of `constant` / `variable` / `impact`) | duty |
+| `duty.starts_per_hour` (number) | duty |
+| `duty.ambient_c` (number) | duty |
+| `duty.altitude_m` (number) | duty |
+| `duty.worst_case_identified` | duty |
+| `sizing.worst_case_torque_nm` (number; computed with `sizing.rated_torque_nm` — must not exceed it) | sizing |
+| `sizing.rated_torque_nm` (number; limit for the computed torque check) | sizing |
+| `sizing.worst_case_power_kw` (number; computed with `sizing.rated_power_kw` — must not exceed it) | sizing |
+| `sizing.rated_power_kw` (number; limit for the computed power check) | sizing |
+| `sizing.service_factor` (number) | sizing |
+| `sizing.starting_current_a` (number; computed with `sizing.supply_capability_a` — must not exceed it) | sizing |
+| `sizing.supply_capability_a` (number; limit for the computed starting-current check) | sizing |
+| `sizing.efficiency_at_actual_load_percent` (number; efficiency at actual load, not nameplate) | sizing |
+| `specification.machine_type` (one of `induction` / `synchronous`) | specification |
+| `specification.insulation_class` (non-empty string) | specification |
+| `specification.enclosure` (one of `TEFC` / `ODP` / `WPI`) | specification |
+| `specification.bearings_specified` | specification |
+| `specification.space_heaters_specified` | specification |
+| `specification.rtds_specified` | specification |
+| `specification.vibration_limits_specified` | specification |
+| `specification.standards_cited` | specification |
+| `tests.criteria_defined_before_tests` | acceptance_tests |
+| `tests.criteria_from_standards_and_oem` | acceptance_tests |
+| `tests.insulation_resistance_tested` | acceptance_tests |
+| `tests.pi_dar_trends_recorded` | acceptance_tests |
+| `tests.winding_resistance_balance_checked` | acceptance_tests |
+| `tests.surge_comparison_done` | acceptance_tests |
+| `tests.no_load_and_load_runs_done` | acceptance_tests |
+| `tests.results_recorded_with_units` | acceptance_tests |
+| `tests.instruments_and_calibration_recorded` | acceptance_tests |
+| `failure.investigation_open` (gates the three failure-analysis checks below) | failure_analysis |
+| `failure.evidence_organized_into_timeline` (required when an investigation is open; otherwise the check passes as not applicable) | failure_analysis |
+| `failure.operating_history_included` (required when an investigation is open; otherwise the check passes as not applicable) | failure_analysis |
+| `failure.typical_failure_modes_considered` (required when an investigation is open; otherwise the check passes as not applicable) | failure_analysis |
+| `trending.per_asset_baseline_exists` | trending |
+| `trending.like_for_like_comparison` | trending |
+| `trending.deltas_compared` | trending |
+| `records.nameplate_and_serial_verified` | records_and_safety |
+| `records.re_energized_after_insulation_or_winding_anomaly_without_review` (must be `false` to pass) | records_and_safety |
+| `records.anomalies_flagged` | records_and_safety |
+| `records.asset_records_updated` | records_and_safety |
+| `records.deviations_logged_with_actions` | records_and_safety |
+
+The verdict is one of `SOUND` (all 38 checks pass), `NOT_SOUND`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections: duty, sizing,
+specification, acceptance_tests, failure_analysis, trending,
+records_and_safety. The skill states no numeric acceptance
+thresholds (no winding-balance tolerance, no insulation-resistance
+floor, no efficiency floor), so none are applied: test items are
+checked as declared-and-recorded against criteria from standards
+and OEM, never re-graded against outside standards.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

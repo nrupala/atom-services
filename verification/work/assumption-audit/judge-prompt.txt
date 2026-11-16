@@ -1,0 +1,680 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: assumption-audit
+
+=== contract.yaml ===
+service_name: assumption-audit
+display_name: Assumption audit
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- knowledge-atom:#6
+binding:
+  skill: decision-intelligence
+  skill_path: workspace/mymilo-build/skills/decision-intelligence/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/assumption_audit.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_assumption_audit.py — 16 tests, all passing 2026-11-15
+keys:
+  namespace: assumption_audit
+  prefix: atm_1_assumption_audit_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: tokens
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Reviewing every plan and proposal
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Assumption audit — `assumption-audit`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = tokens.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Reviewing every plan and proposal**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **tokens**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the decision-process evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`UNSOUND`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `decision` (string; carried into the verdict output, not itself checked) | — |
+| `framing.decision_named` | framing |
+| `framing.options_listed` | framing |
+| `framing.decision_maker_identified` | framing |
+| `framing.objective_defined` | framing |
+| `preset.criteria_set_before_data` | preset_criteria |
+| `preset.default_action_set` | preset_criteria |
+| `preset.change_threshold_set_before_data` | preset_criteria |
+| `loss.framed_each_direction` | loss_function |
+| `loss.threshold_reflects_asymmetry` | loss_function |
+| `rigor.stakes_assessed` | rigor_sizing |
+| `rigor.reversibility_assessed` | rigor_sizing |
+| `rigor.effort_matched` | rigor_sizing |
+| `data.exploratory_confirmatory_separated` | data_discipline |
+| `data.conclusion_not_from_inspiring_data` | data_discipline |
+| `data.evidence_could_change_decision` | data_discipline |
+| `data.roles_clear` | data_discipline |
+| `review.conducted` | review |
+| `review.separates_decision_from_outcome` | review |
+
+The verdict is one of `SOUND` (all 18 checks pass), `UNSOUND` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across six sections: framing, preset_criteria,
+loss_function, rigor_sizing, data_discipline, review.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Buyers may resist paying for doubt; pair with base-rate-card
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "assumption-audit",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 18 boolean fields set to true; verdict should be SOUND."
+      },
+      "input": {
+        "decision": "Launch new product line",
+        "framing": {
+          "decision_named": true,
+          "options_listed": true,
+          "decision_maker_identified": true,
+          "objective_defined": true
+        },
+        "preset": {
+          "criteria_set_before_data": true,
+          "default_action_set": true,
+          "change_threshold_set_before_data": true
+        },
+        "loss": {
+          "framed_each_direction": true,
+          "threshold_reflects_asymmetry": true
+        },
+        "rigor": {
+          "stakes_assessed": true,
+          "reversibility_assessed": true,
+          "effort_matched": true
+        },
+        "data": {
+          "exploratory_confirmatory_separated": true,
+          "conclusion_not_from_inspiring_data": true,
+          "evidence_could_change_decision": true,
+          "roles_clear": true
+        },
+        "review": {
+          "conducted": true,
+          "separates_decision_from_outcome": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "assumption-audit",
+        "atom_version": "0.1.0",
+        "decision": "Launch new product line",
+        "verdict": "SOUND",
+        "sections": {
+          "framing": "pass",
+          "preset_criteria": "pass",
+          "loss_function": "pass",
+          "rigor_sizing": "pass",
+          "data_discipline": "pass",
+          "review": "pass"
+        },
+        "checks": [
+          {
+            "section": "framing",
+            "check": "decision_named",
+            "status": "pass",
+            "evidence": "name the decision and the real options"
+          },
+          {
+            "section": "framing",
+            "check": "real_options_listed",
+            "status": "pass",
+            "evidence": "the real options are listed, not a single foregone option"
+          },
+          {
+            "section": "framing",
+            "check": "decision_maker_identified",
+            "status": "pass",
+            "evidence": "identify the decision-maker"
+          },
+          {
+            "section": "framing",
+            "check": "objective_defined",
+            "status": "pass",
+            "evidence": "what the decision-maker actually cares about (the objective / loss function) is defined"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "criteria_set_before_data",
+            "status": "pass",
+            "evidence": "decide how to decide before you see the data \u2014 decision criteria set in advance"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "default_action_set",
+            "status": "pass",
+            "evidence": "default action known in advance"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "change_my_mind_threshold_set_before_data",
+            "status": "pass",
+            "evidence": "pre-commit to exactly what evidence would flip the default \u2014 answered before looking"
+          },
+          {
+            "section": "loss_function",
+            "check": "loss_framed_in_each_direction",
+            "status": "pass",
+            "evidence": "what being wrong costs \u2014 in each direction"
+          },
+          {
+            "section": "loss_function",
+            "check": "threshold_reflects_asymmetric_costs",
+            "status": "pass",
+            "evidence": "asymmetric costs move the threshold"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "stakes_assessed",
+            "status": "pass",
+            "evidence": "match effort to stakes"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "reversibility_assessed",
+            "status": "pass",
+            "evidence": "one-way-door vs two-way-door assessed"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "effort_matched_to_stakes_and_reversibility",
+            "status": "pass",
+            "evidence": "reversible decisions decide fast; irreversible ones slow down and gather more"
+          },
+          {
+            "section": "data_discipline",
+            "check": "exploratory_and_confirmatory_separated",
+            "status": "pass",
+            "evidence": "exploratory analysis generates hypotheses; confirmatory analysis tests a pre-registered hypothesis"
+          },
+          {
+            "section": "data_discipline",
+            "check": "no_conclusion_from_inspiring_data",
+            "status": "pass",
+            "evidence": "never draw a conclusion from the same data that inspired it"
+          },
+          {
+            "section": "data_discipline",
+            "check": "evidence_could_change_the_decision",
+            "status": "pass",
+            "evidence": "if no possible data could change the action, the data is decoration"
+          },
+          {
+            "section": "data_discipline",
+            "check": "roles_clear",
+            "status": "pass",
+            "evidence": "the decision-maker frames and defines thresholds; the analyst informs \u2014 analysis does not quietly make the call"
+          },
+          {
+            "section": "review",
+            "check": "decision_quality_reviewed",
+            "status": "pass",
+            "evidence": "review the decision after acting per the pre-set criteria"
+          },
+          {
+            "section": "review",
+            "check": "decision_reviewed_separately_from_outcome",
+            "status": "pass",
+            "evidence": "judge a decision by the process and information at the time, not by how it turned out (no resulting)"
+          }
+        ],
+        "summary": "18 pass, 0 fail, 0 missing of 18 checks across six sections.",
+        "stamp": "ASSUMPTION AUDIT\ndecision: Launch new product line\nVERDICT: SOUND\n  framing            pass\n  preset_criteria    pass\n  loss_function      pass\n  rigor_sizing       pass\n  data_discipline    pass\n  review             pass\n18 pass, 0 fail, 0 missing of 18 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "framing.options_listed",
+          "loss.framed_each_direction"
+        ],
+        "notes": "Two fields set to false; atom must return UNSOUND."
+      },
+      "input": {
+        "decision": "Cancel project",
+        "framing": {
+          "decision_named": true,
+          "options_listed": false,
+          "decision_maker_identified": true,
+          "objective_defined": true
+        },
+        "preset": {
+          "criteria_set_before_data": true,
+          "default_action_set": true,
+          "change_threshold_set_before_data": true
+        },
+        "loss": {
+          "framed_each_direction": false,
+          "threshold_reflects_asymmetry": true
+        },
+        "rigor": {
+          "stakes_assessed": true,
+          "reversibility_assessed": true,
+          "effort_matched": true
+        },
+        "data": {
+          "exploratory_confirmatory_separated": true,
+          "conclusion_not_from_inspiring_data": true,
+          "evidence_could_change_decision": true,
+          "roles_clear": true
+        },
+        "review": {
+          "conducted": true,
+          "separates_decision_from_outcome": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "assumption-audit",
+        "atom_version": "0.1.0",
+        "decision": "Cancel project",
+        "verdict": "UNSOUND",
+        "sections": {
+          "framing": "fail",
+          "preset_criteria": "pass",
+          "loss_function": "fail",
+          "rigor_sizing": "pass",
+          "data_discipline": "pass",
+          "review": "pass"
+        },
+        "checks": [
+          {
+            "section": "framing",
+            "check": "decision_named",
+            "status": "pass",
+            "evidence": "name the decision and the real options"
+          },
+          {
+            "section": "framing",
+            "check": "real_options_listed",
+            "status": "fail",
+            "evidence": "the real options are listed, not a single foregone option"
+          },
+          {
+            "section": "framing",
+            "check": "decision_maker_identified",
+            "status": "pass",
+            "evidence": "identify the decision-maker"
+          },
+          {
+            "section": "framing",
+            "check": "objective_defined",
+            "status": "pass",
+            "evidence": "what the decision-maker actually cares about (the objective / loss function) is defined"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "criteria_set_before_data",
+            "status": "pass",
+            "evidence": "decide how to decide before you see the data \u2014 decision criteria set in advance"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "default_action_set",
+            "status": "pass",
+            "evidence": "default action known in advance"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "change_my_mind_threshold_set_before_data",
+            "status": "pass",
+            "evidence": "pre-commit to exactly what evidence would flip the default \u2014 answered before looking"
+          },
+          {
+            "section": "loss_function",
+            "check": "loss_framed_in_each_direction",
+            "status": "fail",
+            "evidence": "what being wrong costs \u2014 in each direction"
+          },
+          {
+            "section": "loss_function",
+            "check": "threshold_reflects_asymmetric_costs",
+            "status": "pass",
+            "evidence": "asymmetric costs move the threshold"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "stakes_assessed",
+            "status": "pass",
+            "evidence": "match effort to stakes"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "reversibility_assessed",
+            "status": "pass",
+            "evidence": "one-way-door vs two-way-door assessed"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "effort_matched_to_stakes_and_reversibility",
+            "status": "pass",
+            "evidence": "reversible decisions decide fast; irreversible ones slow down and gather more"
+          },
+          {
+            "section": "data_discipline",
+            "check": "exploratory_and_confirmatory_separated",
+            "status": "pass",
+            "evidence": "exploratory analysis generates hypotheses; confirmatory analysis tests a pre-registered hypothesis"
+          },
+          {
+            "section": "data_discipline",
+            "check": "no_conclusion_from_inspiring_data",
+            "status": "pass",
+            "evidence": "never draw a conclusion from the same data that inspired it"
+          },
+          {
+            "section": "data_discipline",
+            "check": "evidence_could_change_the_decision",
+            "status": "pass",
+            "evidence": "if no possible data could change the action, the data is decoration"
+          },
+          {
+            "section": "data_discipline",
+            "check": "roles_clear",
+            "status": "pass",
+            "evidence": "the decision-maker frames and defines thresholds; the analyst informs \u2014 analysis does not quietly make the call"
+          },
+          {
+            "section": "review",
+            "check": "decision_quality_reviewed",
+            "status": "pass",
+            "evidence": "review the decision after acting per the pre-set criteria"
+          },
+          {
+            "section": "review",
+            "check": "decision_reviewed_separately_from_outcome",
+            "status": "pass",
+            "evidence": "judge a decision by the process and information at the time, not by how it turned out (no resulting)"
+          }
+        ],
+        "summary": "16 pass, 2 fail, 0 missing of 18 checks across six sections.",
+        "stamp": "ASSUMPTION AUDIT\ndecision: Cancel project\nVERDICT: UNSOUND\n  framing            fail\n  preset_criteria    pass\n  loss_function      fail\n  rigor_sizing       pass\n  data_discipline    pass\n  review             pass\n16 pass, 2 fail, 0 missing of 18 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing 17 fields; atom should return INSUFFICIENT_EVIDENCE."
+      },
+      "input": {
+        "decision": "Minimal test",
+        "framing": {
+          "decision_named": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "assumption-audit",
+        "atom_version": "0.1.0",
+        "decision": "Minimal test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "framing": "insufficient_evidence",
+          "preset_criteria": "insufficient_evidence",
+          "loss_function": "insufficient_evidence",
+          "rigor_sizing": "insufficient_evidence",
+          "data_discipline": "insufficient_evidence",
+          "review": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "framing",
+            "check": "decision_named",
+            "status": "pass",
+            "evidence": "name the decision and the real options"
+          },
+          {
+            "section": "framing",
+            "check": "real_options_listed",
+            "status": "missing",
+            "evidence": "the real options are listed, not a single foregone option"
+          },
+          {
+            "section": "framing",
+            "check": "decision_maker_identified",
+            "status": "missing",
+            "evidence": "identify the decision-maker"
+          },
+          {
+            "section": "framing",
+            "check": "objective_defined",
+            "status": "missing",
+            "evidence": "what the decision-maker actually cares about (the objective / loss function) is defined"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "criteria_set_before_data",
+            "status": "missing",
+            "evidence": "decide how to decide before you see the data \u2014 decision criteria set in advance"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "default_action_set",
+            "status": "missing",
+            "evidence": "default action known in advance"
+          },
+          {
+            "section": "preset_criteria",
+            "check": "change_my_mind_threshold_set_before_data",
+            "status": "missing",
+            "evidence": "pre-commit to exactly what evidence would flip the default \u2014 answered before looking"
+          },
+          {
+            "section": "loss_function",
+            "check": "loss_framed_in_each_direction",
+            "status": "missing",
+            "evidence": "what being wrong costs \u2014 in each direction"
+          },
+          {
+            "section": "loss_function",
+            "check": "threshold_reflects_asymmetric_costs",
+            "status": "missing",
+            "evidence": "asymmetric costs move the threshold"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "stakes_assessed",
+            "status": "missing",
+            "evidence": "match effort to stakes"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "reversibility_assessed",
+            "status": "missing",
+            "evidence": "one-way-door vs two-way-door assessed"
+          },
+          {
+            "section": "rigor_sizing",
+            "check": "effort_matched_to_stakes_and_reversibility",
+            "status": "missing",
+            "evidence": "reversible decisions decide fast; irreversible ones slow down and gather more"
+          },
+          {
+            "section": "data_discipline",
+            "check": "exploratory_and_confirmatory_separated",
+            "status": "missing",
+            "evidence": "exploratory analysis generates hypotheses; confirmatory analysis tests a pre-registered hypothesis"
+          },
+          {
+            "section": "data_discipline",
+            "check": "no_conclusion_from_inspiring_data",
+            "status": "missing",
+            "evidence": "never draw a conclusion from the same data that inspired it"
+          },
+          {
+            "section": "data_discipline",
+            "check": "evidence_could_change_the_decision",
+            "status": "missing",
+            "evidence": "if no possible data could change the action, the data is decoration"
+          },
+          {
+            "section": "data_discipline",
+            "check": "roles_clear",
+            "status": "missing",
+            "evidence": "the decision-maker frames and defines thresholds; the analyst informs \u2014 analysis does not quietly make the call"
+          },
+          {
+            "section": "review",
+            "check": "decision_quality_reviewed",
+            "status": "missing",
+            "evidence": "review the decision after acting per the pre-set criteria"
+          },
+          {
+            "section": "review",
+            "check": "decision_reviewed_separately_from_outcome",
+            "status": "missing",
+            "evidence": "judge a decision by the process and information at the time, not by how it turned out (no resulting)"
+          }
+        ],
+        "summary": "1 pass, 0 fail, 17 missing of 18 checks across six sections.",
+        "stamp": "ASSUMPTION AUDIT\ndecision: Minimal test\nVERDICT: INSUFFICIENT_EVIDENCE\n  framing            insufficient_evidence\n  preset_criteria    insufficient_evidence\n  loss_function      insufficient_evidence\n  rigor_sizing       insufficient_evidence\n  data_discipline    insufficient_evidence\n  review             insufficient_evidence\n1 pass, 0 fail, 17 missing of 18 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on framing and preset fields; expect 422 Unprocessable Entity."
+      },
+      "input": {
+        "decision": "Malformed test",
+        "framing": "not-an-object",
+        "preset": {
+          "criteria_set_before_data": "should-be-boolean"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "framing",
+        "detail": "framing must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

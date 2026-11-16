@@ -1,0 +1,847 @@
+You are an INDEPENDENT second tester for a deterministic API atom. The evidence below records real HTTP calls to the live gateway.
+
+Your job: INDEPENDENTLY RECOMPUTE the atom's computed quantities BY HAND from each case's INPUT (per the formulas/rules in SERVICE.md), and verify the artifact's numbers and verdict/status against your recomputation. Do not trust the artifact's own summary. Also check: malformed input should return HTTP 422 (never a verdict); determinism and MCP/REST parity flags are given per case.
+
+ATOM: pump-conveyor-motor-suitability-check
+
+
+RETEST WAVE (2026-11-15, fix-stream deploy 7f9cae9fdd60417eb72062905a066554, gateway v1.1.0): this is a re-run of the same recorded battery after a fix for F1 (malformed type-violating input previously returned HTTP 200 instead of HTTP 422 invalid_input). Judge the NEW evidence below fresh.
+
+=== SERVICE.md (computed rules) ===
+# Pump conveyor motor suitability check — `pump-conveyor-motor-suitability-check`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Driven equipment support — pumps (curves, affinity) and conveyors (torque dynamics) viewed from the electrical side.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Electrical & energy who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **EE driven-equipment sizing reviews**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the driven-equipment suitability manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_SUITABLE`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `asset` (string; carried into the verdict output, not itself checked) | — |
+| `equipment_kind` (`"pump"` / `"conveyor"` / `"mixed"`; gates the pump and conveyor sections — the other kind's checks pass as not applicable; absent or outside this vocabulary = those checks are missing) | pump_checks, conveyor_checks |
+| `duty.curve_or_profile_read` | load_and_operating_point |
+| `duty.operating_point_documented` | load_and_operating_point |
+| `duty.operating_point_within_limits` | load_and_operating_point |
+| `duty.operating_modes_defined` | load_and_operating_point |
+| `drives[]` (list of drive entries, see below) | motor_sizing, pump_checks, conveyor_checks |
+| `sizing.verified_against_curve_or_profile` | motor_sizing |
+| `sizing.suitable_because_it_runs_only` (must be `false` to pass — skill red line) | motor_sizing |
+| `pump.minimum_flow_protection_set` (binds for pump / mixed only) | pump_checks |
+| `pump.impeller_wear_trend_checked` (binds for pump / mixed only) | pump_checks |
+| `pump.vfd_soft_start_reviewed` (binds for pump / mixed only) | pump_checks |
+| `conveyor.starting_study_considered` (binds for conveyor / mixed only) | conveyor_checks |
+| `conveyor.loaded_starts_holdback_considered` (binds for conveyor / mixed only) | conveyor_checks |
+| `conveyor.backstops_brake_interlocks_verified` (binds for conveyor / mixed only) | conveyor_checks |
+| `conveyor.sequence_interlock_review_done` (binds for conveyor / mixed only) | conveyor_checks |
+| `conveyor.belt_slip_jam_reviewed` (binds for conveyor / mixed only) | conveyor_checks |
+| `baselines.recorded_per_operating_mode` | baselines |
+| `baselines.flow_head_current_pressure_recorded` | baselines |
+| `baselines.compared_at_same_conditions` | baselines |
+| `interface.mechanical_data_in_asset_record` | interface_and_protection |
+| `interface.data_shared_single_source` | interface_and_protection |
+| `interface.changes_made` (gates the revalidation check below) | interface_and_protection |
+| `interface.changes_revalidated` (required when a change is declared; otherwise the check passes as not applicable) | interface_and_protection |
+| `protection.protection_changed_without_engineering_review` (must be `false` to pass — skill red line) | interface_and_protection |
+
+Each `drives[]` entry is `{id, kind, required_power_kw,
+motor_rated_power_kw, required_running_torque_nm,
+motor_rated_torque_nm}` (numbers; `kind` is `"pump"` or
+`"conveyor"`). Pump entries additionally carry `npsh_available_m`,
+`npsh_required_m`, `operating_flow_m3h` and `minimum_flow_m3h`;
+conveyor entries additionally carry `required_starting_torque_nm`
+and `motor_starting_torque_nm`. Five checks are computed from the
+declared values, using only the comparisons the skill itself states:
+motor rated power must cover required power and motor rated torque
+must cover required running torque for every drive; for pump drives,
+NPSH available must cover NPSH required and operating flow must be
+at or above the declared minimum flow; for conveyor drives, motor
+starting torque must cover required starting torque. No outside
+standard, margin or threshold is imported — the skill states no
+numeric margin (for NPSH, starting torque or anything else), so
+none is invented: equality passes.
+
+The output also reports the computed `suitability_status`
+(`suitable_on_declared_values` / `not_suitable_on_declared_values` /
+null when an applicable computed comparison cannot be completed) and
+the minimum (worst) margins across the applicable drives:
+`min_power_margin_kw`, `min_running_torque_margin_nm`,
+`min_npsh_margin_m` and `min_starting_torque_margin_nm` (null when
+not applicable or not completable). **Fixed serialization rule:**
+computed margins are reported as strings with exactly four decimal
+places, produced in both implementations by the same rule — round
+half up to 4dp, `floor(v * 10000 + 0.5) / 10000`, then format with
+exactly four decimals; comparisons use the unrounded values. That
+fixed serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The verdict is one of `SUITABLE` (all 26 checks pass), `NOT_SUITABLE`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across six sections:
+load_and_operating_point, motor_sizing, pump_checks, conveyor_checks,
+baselines, interface_and_protection.
+
+## Honest scoping
+
+This atom checks **declared** values against **declared** ratings and
+records — it does not measure anything, read a real pump curve or
+conveyor profile, or verify that a declared value is true. Suitability
+is suitability *on the caller's declared values*: a motor that covers
+the declared duty passes even if the declared duty itself is wrong.
+Named exclusions: no affinity-law or pump-curve computation (the skill
+states "power from flow × head" qualitatively and gives no density,
+gravity or efficiency inputs to compute with, so no shaft-power figure
+is derived); no NPSH, starting-torque or overload margin thresholds
+(the skill requires the margin / study to be noted and considered,
+never a number); no drive control tuning, protection setting values,
+or mechanical design checks (coupling, sheave and belt sizing are
+checked only as *recorded and shared* interface data, per the skill's
+interface discipline).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+=== cases.json (inputs + expectations) ===
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "asset": "PUMP-001",
+        "equipment_kind": "pump",
+        "duty": {
+          "curve_or_profile_read": true,
+          "operating_point_documented": true,
+          "operating_point_within_limits": true,
+          "operating_modes_defined": true
+        },
+        "drives": [
+          {
+            "id": "D1",
+            "kind": "pump",
+            "required_power_kw": 10.0,
+            "motor_rated_power_kw": 15.0,
+            "required_running_torque_nm": 50.0,
+            "motor_rated_torque_nm": 60.0,
+            "npsh_available_m": 5.0,
+            "npsh_required_m": 3.0,
+            "operating_flow_m3h": 100.0,
+            "minimum_flow_m3h": 80.0
+          }
+        ],
+        "sizing": {
+          "verified_against_curve_or_profile": true,
+          "suitable_because_it_runs_only": false
+        },
+        "pump": {
+          "minimum_flow_protection_set": true,
+          "impeller_wear_trend_checked": true,
+          "vfd_soft_start_reviewed": true
+        },
+        "baselines": {
+          "recorded_per_operating_mode": true,
+          "flow_head_current_pressure_recorded": true,
+          "compared_at_same_conditions": true
+        },
+        "interface": {
+          "mechanical_data_in_asset_record": true,
+          "data_shared_single_source": true,
+          "changes_made": false
+        },
+        "protection": {
+          "protection_changed_without_engineering_review": false
+        }
+      },
+      "expect": {
+        "outcome": "SUITABLE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All checks pass. Computed spot checks: min_power_margin_kw=5.0000, min_npsh_margin_m=2.0000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "asset": "PUMP-002",
+        "equipment_kind": "pump",
+        "duty": {
+          "curve_or_profile_read": true,
+          "operating_point_documented": true,
+          "operating_point_within_limits": true,
+          "operating_modes_defined": true
+        },
+        "drives": [
+          {
+            "id": "D1",
+            "kind": "pump",
+            "required_power_kw": 20.0,
+            "motor_rated_power_kw": 15.0,
+            "required_running_torque_nm": 50.0,
+            "motor_rated_torque_nm": 60.0,
+            "npsh_available_m": 2.0,
+            "npsh_required_m": 3.0,
+            "operating_flow_m3h": 70.0,
+            "minimum_flow_m3h": 80.0
+          }
+        ],
+        "sizing": {
+          "verified_against_curve_or_profile": true,
+          "suitable_because_it_runs_only": false
+        },
+        "pump": {
+          "minimum_flow_protection_set": true,
+          "impeller_wear_trend_checked": true,
+          "vfd_soft_start_reviewed": true
+        },
+        "baselines": {
+          "recorded_per_operating_mode": true,
+          "flow_head_current_pressure_recorded": true,
+          "compared_at_same_conditions": true
+        },
+        "interface": {
+          "mechanical_data_in_asset_record": true,
+          "data_shared_single_source": true,
+          "changes_made": false
+        },
+        "protection": {
+          "protection_changed_without_engineering_review": false
+        }
+      },
+      "expect": {
+        "outcome": "NOT_SUITABLE",
+        "http": 200,
+        "failing_checks": [
+          "motor_sizing",
+          "pump_checks"
+        ],
+        "notes": "Power, NPSH, and Flow requirements are violated by the drive inputs."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "asset": "UNKNOWN-001",
+        "equipment_kind": "pump"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing mandatory fields for pump checks result in insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "asset": "ERR-001",
+        "equipment_kind": 123,
+        "duty": "invalid_string_instead_of_object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for equipment_kind and duty fields triggers 422."
+      }
+    }
+  ]
+}
+
+=== NEW EVIDENCE ARTIFACTS (real HTTP calls, retest) ===
+{
+  "full-pass": {
+    "http_status": 200,
+    "artifact": {
+      "service": "pump-conveyor-motor-suitability-check",
+      "atom_version": "0.1.0",
+      "asset": "PUMP-001",
+      "verdict": "SUITABLE",
+      "sections": {
+        "load_and_operating_point": "pass",
+        "motor_sizing": "pass",
+        "pump_checks": "pass",
+        "conveyor_checks": "pass",
+        "baselines": "pass",
+        "interface_and_protection": "pass"
+      },
+      "checks": [
+        {
+          "section": "load_and_operating_point",
+          "check": "curve_or_profile_read_before_sizing",
+          "status": "pass",
+          "evidence": "the load defines the duty: pump curve or conveyor profile read before sizing the motor or setting the drive"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_point_documented",
+          "status": "pass",
+          "evidence": "quality gate: operating point documented \u2014 pump curve vs system curve, or the conveyor profile"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_point_within_equipment_limits",
+          "status": "pass",
+          "evidence": "quality gate: operating point within equipment limits"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_modes_defined",
+          "status": "pass",
+          "evidence": "operating modes defined \u2014 baselines are recorded per operating mode"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "motor_power_covers_required_power",
+          "status": "pass",
+          "evidence": "motor rated power covers the declared required power for every drive \u2014 the load defines the duty"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "motor_torque_covers_running_torque",
+          "status": "pass",
+          "evidence": "motor rated torque covers the declared required running torque for every drive"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "sizing_verified_against_curve_or_profile",
+          "status": "pass",
+          "evidence": "skill red line: verify against the curve/profile \u2014 sizing is verified, not assumed"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "no_it_runs_so_sizing_is_fine",
+          "status": "pass",
+          "evidence": "skill red line: no \"it runs, so sizing is fine\""
+        },
+        {
+          "section": "pump_checks",
+          "check": "npsh_available_covers_required",
+          "status": "pass",
+          "evidence": "NPSH margin noted \u2014 NPSH available covers NPSH required for every pump drive (cavitation destroys more than pumps)"
+        },
+        {
+          "section": "pump_checks",
+          "check": "operating_flow_covers_minimum_flow",
+          "status": "pass",
+          "evidence": "minimum-flow protection respected \u2014 operating flow is at or above the declared minimum flow for every pump drive"
+        },
+        {
+          "section": "pump_checks",
+          "check": "minimum_flow_protection_set",
+          "status": "pass",
+          "evidence": "quality gate: min-flow protection set (pumps)"
+        },
+        {
+          "section": "pump_checks",
+          "check": "impeller_wear_or_fouling_trend_checked",
+          "status": "pass",
+          "evidence": "impeller wear/fouling shows as head/flow loss at the same speed \u2014 trend it"
+        },
+        {
+          "section": "pump_checks",
+          "check": "vfd_and_soft_start_transients_reviewed",
+          "status": "pass",
+          "evidence": "VFD control (pressure/flow) reviewed for resonance and minimum speed; soft starts avoid water-hammer transients"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "motor_starting_torque_covers_required",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "starting_study_considered",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "loaded_starts_and_holdback_considered",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "backstops_and_brake_interlocks_verified",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "sequence_and_interlock_review_done",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "belt_slip_vs_overload_and_jam_reviewed",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "baselines",
+          "check": "baselines_recorded_per_mode",
+          "status": "pass",
+          "evidence": "quality gate: commissioning baselines recorded per mode"
+        },
+        {
+          "section": "baselines",
+          "check": "flow_head_current_pressure_recorded",
+          "status": "pass",
+          "evidence": "record flow/head/current/pressure per operating mode at commissioning"
+        },
+        {
+          "section": "baselines",
+          "check": "readings_compared_at_same_conditions",
+          "status": "pass",
+          "evidence": "compare later readings at the SAME conditions \u2014 deltas are the signal"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "mechanical_data_in_asset_record",
+          "status": "pass",
+          "evidence": "quality gate: mechanical data (ratios/diameters) in the asset record"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "mechanical_electrical_data_single_source",
+          "status": "pass",
+          "evidence": "interface discipline: mechanical\u2194electrical data shared (coupling, ratios, sheave diameters) \u2014 one source of truth"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "changes_revalidated_on_both_sides",
+          "status": "pass",
+          "evidence": "no interface change declared"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "no_protection_change_without_engineering_review",
+          "status": "pass",
+          "evidence": "skill red line: no protection changes (min flow, overload class) without engineering review"
+        }
+      ],
+      "suitability_status": "suitable_on_declared_values",
+      "min_power_margin_kw": "5.0000",
+      "min_running_torque_margin_nm": "10.0000",
+      "min_npsh_margin_m": "2.0000",
+      "min_starting_torque_margin_nm": null,
+      "summary": "26 pass, 0 fail, 0 missing of 26 checks across six sections.",
+      "stamp": "PUMP CONVEYOR MOTOR SUITABILITY CHECK\nasset: PUMP-001\nVERDICT: SUITABLE\n  load_and_operating_point  pass\n  motor_sizing              pass\n  pump_checks               pass\n  conveyor_checks           pass\n  baselines                 pass\n  interface_and_protection  pass\n26 pass, 0 fail, 0 missing of 26 checks across six sections."
+    },
+    "determinism_byte_identical": true,
+    "parity_structured_equal": true
+  },
+  "violations": {
+    "http_status": 200,
+    "artifact": {
+      "service": "pump-conveyor-motor-suitability-check",
+      "atom_version": "0.1.0",
+      "asset": "PUMP-002",
+      "verdict": "NOT_SUITABLE",
+      "sections": {
+        "load_and_operating_point": "pass",
+        "motor_sizing": "fail",
+        "pump_checks": "fail",
+        "conveyor_checks": "pass",
+        "baselines": "pass",
+        "interface_and_protection": "pass"
+      },
+      "checks": [
+        {
+          "section": "load_and_operating_point",
+          "check": "curve_or_profile_read_before_sizing",
+          "status": "pass",
+          "evidence": "the load defines the duty: pump curve or conveyor profile read before sizing the motor or setting the drive"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_point_documented",
+          "status": "pass",
+          "evidence": "quality gate: operating point documented \u2014 pump curve vs system curve, or the conveyor profile"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_point_within_equipment_limits",
+          "status": "pass",
+          "evidence": "quality gate: operating point within equipment limits"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_modes_defined",
+          "status": "pass",
+          "evidence": "operating modes defined \u2014 baselines are recorded per operating mode"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "motor_power_covers_required_power",
+          "status": "fail",
+          "evidence": "motor rated power covers the declared required power for every drive \u2014 the load defines the duty"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "motor_torque_covers_running_torque",
+          "status": "pass",
+          "evidence": "motor rated torque covers the declared required running torque for every drive"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "sizing_verified_against_curve_or_profile",
+          "status": "pass",
+          "evidence": "skill red line: verify against the curve/profile \u2014 sizing is verified, not assumed"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "no_it_runs_so_sizing_is_fine",
+          "status": "pass",
+          "evidence": "skill red line: no \"it runs, so sizing is fine\""
+        },
+        {
+          "section": "pump_checks",
+          "check": "npsh_available_covers_required",
+          "status": "fail",
+          "evidence": "NPSH margin noted \u2014 NPSH available covers NPSH required for every pump drive (cavitation destroys more than pumps)"
+        },
+        {
+          "section": "pump_checks",
+          "check": "operating_flow_covers_minimum_flow",
+          "status": "fail",
+          "evidence": "minimum-flow protection respected \u2014 operating flow is at or above the declared minimum flow for every pump drive"
+        },
+        {
+          "section": "pump_checks",
+          "check": "minimum_flow_protection_set",
+          "status": "pass",
+          "evidence": "quality gate: min-flow protection set (pumps)"
+        },
+        {
+          "section": "pump_checks",
+          "check": "impeller_wear_or_fouling_trend_checked",
+          "status": "pass",
+          "evidence": "impeller wear/fouling shows as head/flow loss at the same speed \u2014 trend it"
+        },
+        {
+          "section": "pump_checks",
+          "check": "vfd_and_soft_start_transients_reviewed",
+          "status": "pass",
+          "evidence": "VFD control (pressure/flow) reviewed for resonance and minimum speed; soft starts avoid water-hammer transients"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "motor_starting_torque_covers_required",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "starting_study_considered",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "loaded_starts_and_holdback_considered",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "backstops_and_brake_interlocks_verified",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "sequence_and_interlock_review_done",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "belt_slip_vs_overload_and_jam_reviewed",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "baselines",
+          "check": "baselines_recorded_per_mode",
+          "status": "pass",
+          "evidence": "quality gate: commissioning baselines recorded per mode"
+        },
+        {
+          "section": "baselines",
+          "check": "flow_head_current_pressure_recorded",
+          "status": "pass",
+          "evidence": "record flow/head/current/pressure per operating mode at commissioning"
+        },
+        {
+          "section": "baselines",
+          "check": "readings_compared_at_same_conditions",
+          "status": "pass",
+          "evidence": "compare later readings at the SAME conditions \u2014 deltas are the signal"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "mechanical_data_in_asset_record",
+          "status": "pass",
+          "evidence": "quality gate: mechanical data (ratios/diameters) in the asset record"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "mechanical_electrical_data_single_source",
+          "status": "pass",
+          "evidence": "interface discipline: mechanical\u2194electrical data shared (coupling, ratios, sheave diameters) \u2014 one source of truth"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "changes_revalidated_on_both_sides",
+          "status": "pass",
+          "evidence": "no interface change declared"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "no_protection_change_without_engineering_review",
+          "status": "pass",
+          "evidence": "skill red line: no protection changes (min flow, overload class) without engineering review"
+        }
+      ],
+      "suitability_status": "not_suitable_on_declared_values",
+      "min_power_margin_kw": "-5.0000",
+      "min_running_torque_margin_nm": "10.0000",
+      "min_npsh_margin_m": "-1.0000",
+      "min_starting_torque_margin_nm": null,
+      "summary": "23 pass, 3 fail, 0 missing of 26 checks across six sections.",
+      "stamp": "PUMP CONVEYOR MOTOR SUITABILITY CHECK\nasset: PUMP-002\nVERDICT: NOT_SUITABLE\n  load_and_operating_point  pass\n  motor_sizing              fail\n  pump_checks               fail\n  conveyor_checks           pass\n  baselines                 pass\n  interface_and_protection  pass\n23 pass, 3 fail, 0 missing of 26 checks across six sections."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "sparse": {
+    "http_status": 200,
+    "artifact": {
+      "service": "pump-conveyor-motor-suitability-check",
+      "atom_version": "0.1.0",
+      "asset": "UNKNOWN-001",
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "sections": {
+        "load_and_operating_point": "insufficient_evidence",
+        "motor_sizing": "insufficient_evidence",
+        "pump_checks": "insufficient_evidence",
+        "conveyor_checks": "pass",
+        "baselines": "insufficient_evidence",
+        "interface_and_protection": "insufficient_evidence"
+      },
+      "checks": [
+        {
+          "section": "load_and_operating_point",
+          "check": "curve_or_profile_read_before_sizing",
+          "status": "missing",
+          "evidence": "the load defines the duty: pump curve or conveyor profile read before sizing the motor or setting the drive"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_point_documented",
+          "status": "missing",
+          "evidence": "quality gate: operating point documented \u2014 pump curve vs system curve, or the conveyor profile"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_point_within_equipment_limits",
+          "status": "missing",
+          "evidence": "quality gate: operating point within equipment limits"
+        },
+        {
+          "section": "load_and_operating_point",
+          "check": "operating_modes_defined",
+          "status": "missing",
+          "evidence": "operating modes defined \u2014 baselines are recorded per operating mode"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "motor_power_covers_required_power",
+          "status": "missing",
+          "evidence": "no drives declared"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "motor_torque_covers_running_torque",
+          "status": "missing",
+          "evidence": "no drives declared"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "sizing_verified_against_curve_or_profile",
+          "status": "missing",
+          "evidence": "skill red line: verify against the curve/profile \u2014 sizing is verified, not assumed"
+        },
+        {
+          "section": "motor_sizing",
+          "check": "no_it_runs_so_sizing_is_fine",
+          "status": "missing",
+          "evidence": "skill red line: no \"it runs, so sizing is fine\""
+        },
+        {
+          "section": "pump_checks",
+          "check": "npsh_available_covers_required",
+          "status": "missing",
+          "evidence": "no pump drives declared"
+        },
+        {
+          "section": "pump_checks",
+          "check": "operating_flow_covers_minimum_flow",
+          "status": "missing",
+          "evidence": "no pump drives declared"
+        },
+        {
+          "section": "pump_checks",
+          "check": "minimum_flow_protection_set",
+          "status": "missing",
+          "evidence": "quality gate: min-flow protection set (pumps)"
+        },
+        {
+          "section": "pump_checks",
+          "check": "impeller_wear_or_fouling_trend_checked",
+          "status": "missing",
+          "evidence": "impeller wear/fouling shows as head/flow loss at the same speed \u2014 trend it"
+        },
+        {
+          "section": "pump_checks",
+          "check": "vfd_and_soft_start_transients_reviewed",
+          "status": "missing",
+          "evidence": "VFD control (pressure/flow) reviewed for resonance and minimum speed; soft starts avoid water-hammer transients"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "motor_starting_torque_covers_required",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "starting_study_considered",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "loaded_starts_and_holdback_considered",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "backstops_and_brake_interlocks_verified",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "sequence_and_interlock_review_done",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "conveyor_checks",
+          "check": "belt_slip_vs_overload_and_jam_reviewed",
+          "status": "pass",
+          "evidence": "no conveyor drives declared"
+        },
+        {
+          "section": "baselines",
+          "check": "baselines_recorded_per_mode",
+          "status": "missing",
+          "evidence": "quality gate: commissioning baselines recorded per mode"
+        },
+        {
+          "section": "baselines",
+          "check": "flow_head_current_pressure_recorded",
+          "status": "missing",
+          "evidence": "record flow/head/current/pressure per operating mode at commissioning"
+        },
+        {
+          "section": "baselines",
+          "check": "readings_compared_at_same_conditions",
+          "status": "missing",
+          "evidence": "compare later readings at the SAME conditions \u2014 deltas are the signal"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "mechanical_data_in_asset_record",
+          "status": "missing",
+          "evidence": "quality gate: mechanical data (ratios/diameters) in the asset record"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "mechanical_electrical_data_single_source",
+          "status": "missing",
+          "evidence": "interface discipline: mechanical\u2194electrical data shared (coupling, ratios, sheave diameters) \u2014 one source of truth"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "changes_revalidated_on_both_sides",
+          "status": "missing",
+          "evidence": "no interface change declared"
+        },
+        {
+          "section": "interface_and_protection",
+          "check": "no_protection_change_without_engineering_review",
+          "status": "missing",
+          "evidence": "skill red line: no protection changes (min flow, overload class) without engineering review"
+        }
+      ],
+      "suitability_status": null,
+      "min_power_margin_kw": null,
+      "min_running_torque_margin_nm": null,
+      "min_npsh_margin_m": null,
+      "min_starting_torque_margin_nm": null,
+      "summary": "6 pass, 0 fail, 20 missing of 26 checks across six sections.",
+      "stamp": "PUMP CONVEYOR MOTOR SUITABILITY CHECK\nasset: UNKNOWN-001\nVERDICT: INSUFFICIENT_EVIDENCE\n  load_and_operating_point  insufficient_evidence\n  motor_sizing              insufficient_evidence\n  pump_checks               insufficient_evidence\n  conveyor_checks           pass\n  baselines                 insufficient_evidence\n  interface_and_protection  insufficient_evidence\n6 pass, 0 fail, 20 missing of 26 checks across six sections."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "malformed": {
+    "http_status": 422,
+    "artifact": {
+      "ok": false,
+      "error": "invalid_input",
+      "field": "equipment_kind",
+      "detail": "equipment_kind must be a string"
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  }
+}
+
+Independently recompute the headline computed quantities for the full-pass and violations cases BY HAND from the inputs above (show arithmetic in your detail fields), compare with the artifacts, check malformed returns HTTP 422 with error invalid_input and never a verdict, and state a verdict.
+
+Answer with JSON only, exactly this shape:
+{"verdict": "PASS"|"FAIL", "findings": [{"case":"<id>","expected":"...","actual":"...","detail":"..."}], "computed_checks": [{"quantity":"...","expected":"<your hand-computed value>","actual":"<artifact value>","match":true}], "notes":"..."}

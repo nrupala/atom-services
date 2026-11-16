@@ -1,0 +1,137 @@
+# Auth design review — `auth-design-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Do auth properly — passkeys/MFA, sound sessions and tokens, least-privilege authorization, lifecycle.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Security & privacy who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product login and permissions builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the auth-design manifest
+
+The caller submits one JSON manifest: a declared auth design
+record for one system. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false = the check
+fails (`AUTH_DESIGN_DEFICIENT`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `system` (string; carried into the verdict output, not itself checked) | — |
+| `human_auth.passkeys_preferred` | human_authentication |
+| `human_auth.mfa_enforced_for_admin` | human_authentication |
+| `human_auth.mfa_enforced_for_sensitive_ops` | human_authentication |
+| `human_auth.passwords_used` (gates the two password checks below) | human_authentication |
+| `human_auth.passwords_hashed_strong` (required when passwords are used; otherwise the check passes as not applicable) | human_authentication |
+| `human_auth.passwords_long_not_complex` (required when passwords are used; otherwise not applicable) | human_authentication |
+| `human_auth.shared_accounts_present` (must be `false` to pass — skill quality gate) | human_authentication |
+| `sessions.secure_httponly_samesite_cookies` | sessions |
+| `sessions.rotate_on_login_and_privilege_change` | sessions |
+| `sessions.expiry_defined` | sessions |
+| `sessions.server_side_revocation_works` | sessions |
+| `oauth.oauth_used` (gates the five OAuth checks below) | oauth_and_oidc |
+| `oauth.authorization_code_pkce` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `oauth.exact_redirect_allowlists` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `oauth.iss_aud_exp_validated` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `oauth.implicit_flow_used` (must be `false` when OAuth is used — skill method; otherwise not applicable) | oauth_and_oidc |
+| `oauth.refresh_tokens_rotated` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `service_tokens.short_lived` | service_tokens |
+| `service_tokens.scoped` | service_tokens |
+| `service_tokens.audience_bound` | service_tokens |
+| `service_tokens.jit_over_long_lived_keys` | service_tokens |
+| `service_tokens.rotation_revocation_tested` | service_tokens |
+| `service_tokens.lifetimes_and_scopes_documented` | service_tokens |
+| `service_tokens.long_lived_unrevocable_credentials_present` (must be `false` to pass — skill red line) | service_tokens |
+| `authorization.server_side_checks_per_endpoint` | authorization |
+| `authorization.rbac_coarse` | authorization |
+| `authorization.abac_fine` | authorization |
+| `authorization.deny_by_default` | authorization |
+| `authorization.client_side_only_authorization` (must be `false` to pass — skill red line) | authorization |
+| `authorization.hand_rolled_crypto_or_protocols` (must be `false` to pass — skill red line) | authorization |
+| `lifecycle.provisioning_reviewed` | lifecycle |
+| `lifecycle.deprovisioning_checklist_exists` | lifecycle |
+| `lifecycle.deprovisioning_exercised` | lifecycle |
+| `lifecycle.access_reviews_scheduled_for_admin` | lifecycle |
+| `anti_abuse.login_rate_limited` | anti_abuse_and_audit |
+| `anti_abuse.token_endpoints_rate_limited` | anti_abuse_and_audit |
+| `anti_abuse.lockout_balanced_no_user_dos` | anti_abuse_and_audit |
+| `anti_abuse.anomaly_alerting` | anti_abuse_and_audit |
+| `audit.authn_events_logged` | anti_abuse_and_audit |
+| `audit.authz_denials_logged` | anti_abuse_and_audit |
+| `audit.permission_changes_logged` | anti_abuse_and_audit |
+| `audit.logs_include_actor_and_context` | anti_abuse_and_audit |
+
+Two check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Password checks:** the skill's step 1 binds its password rules
+  to "passwords (when unavoidable)". `passwords_hashed_strong` and
+  `passwords_long_not_complex` are therefore required only when
+  `human_auth.passwords_used` is declared `true`; when no
+  passwords are declared, each passes as not applicable.
+- **OAuth/OIDC checks:** the skill's step 3 binds its five rules
+  to OAuth2/OIDC integrations. They are required only when
+  `oauth.oauth_used` is declared `true`; when OAuth is not
+  declared in use, each passes as not applicable.
+
+The skill states no numeric threshold — no token lifetime, session
+expiry, or rate limit in numbers — so no numeric check is
+invented; lifetimes, expiries and limits are checked only for
+being defined/documented, exactly as the skill's quality gates
+state them.
+
+The verdict is one of `AUTH_DESIGN_SOUND` (all 40 checks pass),
+`AUTH_DESIGN_DEFICIENT` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: human_authentication, sessions,
+oauth_and_oidc, service_tokens, authorization, lifecycle,
+anti_abuse_and_audit.
+
+## Honest scoping
+
+This atom audits a **declared** auth design record — it does not
+probe the live system, attempt a login, inspect code or
+configuration, or verify that a declared control actually works.
+A design is sound *on the caller's declared evidence*: a manifest
+that declares passkeys, rotating sessions, and tested revocation
+passes those checks even if the implementation does none of it.
+It is a completeness audit of the record the skill requires,
+**not a penetration test or a security certification**: it never
+judges whether the chosen factors are strong enough for the
+system's actual risk, whether the hashing cost is tuned, or
+whether the allowlists are correct — only that the record
+contains what the skill's method, quality gates, and red lines
+demand.
+
+Named exclusions: no numeric thresholds (token lifetimes, session
+expiries, lockout counts, rate limits — the skill states none, so
+none is invented); no check of which hashing algorithm is
+actually deployed beyond the declared Argon2id/bcrypt-class
+attestation; no verification that revocation, rotation, or the
+deprovisioning exercise actually happened; no live verification
+of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Could become audit tier A

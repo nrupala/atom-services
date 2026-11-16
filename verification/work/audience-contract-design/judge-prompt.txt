@@ -1,0 +1,897 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: audience-contract-design
+
+=== contract.yaml ===
+service_name: audience-contract-design
+display_name: Audience contract design
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:audience-contracts
+binding:
+  skill: audience-contracts
+  skill_path: workspace/mymilo-build/skills/audience-contracts/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: audience_contract_design
+  prefix: atm_1_audience_contract_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product surface design audits
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Audience contract design — `audience-contract-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Design for four user classes — humans, agents, hybrid systems, software — with progressive contracts.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product surface design audits**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the audience-contract manifest
+
+The caller submits one JSON manifest: a declared audience-contract
+design record for one artifact. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false = the check
+fails (`AUDIENCE_CONTRACT_INCOMPLETE`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `artifact` (string; carried into the verdict output, not itself checked) | — |
+| `classes.human_path_defined` | classes_and_paths |
+| `classes.agent_path_defined` | classes_and_paths |
+| `classes.system_path_defined` | classes_and_paths |
+| `classes.software_path_defined` | classes_and_paths |
+| `classes.single_class_only_shipment` (must be `false` to pass — skill red line) | classes_and_paths |
+| `single_truth.canonical_source_declared` | single_truth |
+| `single_truth.renderings_generated_not_maintained` | single_truth |
+| `single_truth.truth_forked_per_class` (must be `false` to pass — skill red line) | single_truth |
+| `progressive_formality.formality_progressive_declared` | progressive_formality_and_failure |
+| `failure.human_failure_defined` | progressive_formality_and_failure |
+| `failure.agent_failure_defined` | progressive_formality_and_failure |
+| `failure.system_failure_defined` | progressive_formality_and_failure |
+| `failure.software_failure_defined` | progressive_formality_and_failure |
+| `authority.dangerous_actions_present` (gates the four lattice checks below) | authority_lattice |
+| `authority.capability_required` (required when dangerous actions are present; otherwise the check passes as not applicable) | authority_lattice |
+| `authority.human_approval_required` (required when dangerous actions are present; otherwise not applicable) | authority_lattice |
+| `authority.software_determinism_required` (required when dangerous actions are present; otherwise not applicable) | authority_lattice |
+| `authority.system_audit_required` (required when dangerous actions are present; otherwise not applicable) | authority_lattice |
+| `authority.dangerous_path_skips_lattice` (must be `false` to pass — skill red line) | authority_lattice |
+| `verification.agents_verified_by_software` | verification_by_class |
+| `verification.humans_verified_by_evidence` | verification_by_class |
+| `verification.software_verified_by_spec_tests` | verification_by_class |
+| `verification.systems_verified_by_audit_trails` | verification_by_class |
+| `identity.human_passkey_or_mfa` | identity_by_class |
+| `identity.agent_scoped_short_lived_tokens` | identity_by_class |
+| `identity.system_policy_engine` | identity_by_class |
+| `identity.software_service_creds_or_mtls` | identity_by_class |
+
+Two things are computed from the declared values, using only the
+skill's own structure — no outside threshold is imported:
+
+- **Classes with a path (count):** the skill names exactly four
+  user classes (humans, agents, systems, software) and its first
+  quality gate requires all four to have a named, working path.
+  `classes_with_path_count` reports how many of the four declared
+  path fields are `true` (null when none of the four is declared).
+- **Authority lattice (conditional):** the skill's method step 5
+  states dangerous actions need capability (agent) + approval
+  (human) + determinism (software) + audit (system) — "Miss one →
+  no action." Each lattice element is therefore required only when
+  `authority.dangerous_actions_present` is declared `true`; when
+  no dangerous actions are declared, each lattice check passes as
+  not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the four class-path checks cannot be completed).
+
+The verdict is one of `AUDIENCE_CONTRACT_COMPLETE` (all 26 checks
+pass), `AUDIENCE_CONTRACT_INCOMPLETE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: classes_and_paths, single_truth,
+progressive_formality_and_failure, authority_lattice,
+verification_by_class, identity_by_class.
+
+## Honest scoping
+
+This atom audits a **declared** audience-contract design record —
+it does not design the interface, render any class's view, or
+verify that a declared path actually works. A design is complete
+*on the caller's declared evidence*: a manifest that declares four
+paths, a canonical source, and a full lattice passes those checks
+even if the underlying contracts were never built. It is a
+completeness audit of the record the skill requires, **not a
+usability or API review**: it never judges whether a class's path
+is good, whether the renderings are faithful, or whether the
+progressive formality is well judged — only that the record
+contains what the skill's method, quality gates, and red lines
+demand.
+
+Named exclusions: no check of any rendering's content or fidelity
+(the skill requires renderings be generated from one canonical
+source, not that any particular rendering is correct, and states
+no test for it, so none is invented); no per-class needs beyond
+the skill's method step 1 descriptions; no live verification of
+any declared path, identity mechanism, or audit trail.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "audience-contract-design",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "AUDIENCE_CONTRACT_COMPLETE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 26 checks pass. Computed spot checks: classes_with_path_count = 4; authority_lattice = satisfied."
+      },
+      "input": {
+        "artifact": "test-artifact-001",
+        "classes": {
+          "human_path_defined": true,
+          "agent_path_defined": true,
+          "system_path_defined": true,
+          "software_path_defined": true,
+          "single_class_only_shipment": false
+        },
+        "single_truth": {
+          "canonical_source_declared": true,
+          "renderings_generated_not_maintained": true,
+          "truth_forked_per_class": false
+        },
+        "progressive_formality": {
+          "formality_progressive_declared": true
+        },
+        "failure": {
+          "human_failure_defined": true,
+          "agent_failure_defined": true,
+          "system_failure_defined": true,
+          "software_failure_defined": true
+        },
+        "authority": {
+          "dangerous_actions_present": true,
+          "capability_required": true,
+          "human_approval_required": true,
+          "software_determinism_required": true,
+          "system_audit_required": true,
+          "dangerous_path_skips_lattice": false
+        },
+        "verification": {
+          "agents_verified_by_software": true,
+          "humans_verified_by_evidence": true,
+          "software_verified_by_spec_tests": true,
+          "systems_verified_by_audit_trails": true
+        },
+        "identity": {
+          "human_passkey_or_mfa": true,
+          "agent_scoped_short_lived_tokens": true,
+          "system_policy_engine": true,
+          "software_service_creds_or_mtls": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "audience-contract-design",
+        "atom_version": "0.1.0",
+        "artifact": "test-artifact-001",
+        "verdict": "AUDIENCE_CONTRACT_COMPLETE",
+        "sections": {
+          "classes_and_paths": "pass",
+          "single_truth": "pass",
+          "progressive_formality_and_failure": "pass",
+          "authority_lattice": "pass",
+          "verification_by_class": "pass",
+          "identity_by_class": "pass"
+        },
+        "checks": [
+          {
+            "section": "classes_and_paths",
+            "check": "human_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the human class has a named, working path \u2014 visual, narrative, progressive disclosure, forgiving input; approves"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "agent_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the agent class has a named, working path \u2014 procedure: when to use, method, gates, red lines; executes within caps"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "system_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the system class (human+agent+software together) has a named, working path \u2014 handoff contracts, approvals, shared state, audit; binds the others"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "software_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the software class has a named, working path \u2014 schemas, stable IDs, versioned API/CLI/JSON, exit codes; deterministic"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "not_single_class_only_shipment",
+            "status": "pass",
+            "evidence": "red line: never ship for one class and assume others will cope"
+          },
+          {
+            "section": "single_truth",
+            "check": "canonical_source_declared",
+            "status": "pass",
+            "evidence": "method 2: one canonical artifact is the single source of truth, rendered per audience"
+          },
+          {
+            "section": "single_truth",
+            "check": "renderings_generated_not_maintained",
+            "status": "pass",
+            "evidence": "quality gate: renderings are generated from the canonical source, not maintained separately"
+          },
+          {
+            "section": "single_truth",
+            "check": "truth_not_forked_per_class",
+            "status": "pass",
+            "evidence": "red line: never fork truth per audience \u2014 forking truth per class is drift"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "formality_progressive_declared",
+            "status": "pass",
+            "evidence": "method 3: progressive formality \u2014 human view most forgiving to software least, same content: card, procedure, gates, schema, signature"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "human_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: humans get readable errors plus retry"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "agent_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: agents get instructive errors plus a safe fallback"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "system_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: systems get escalation"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "software_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: software gets structured errors plus exit codes"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_capability_required",
+            "status": "pass",
+            "evidence": "authority lattice: dangerous actions need capability (agent)"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_human_approval_required",
+            "status": "pass",
+            "evidence": "authority lattice: dangerous actions need approval (human)"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_software_determinism_required",
+            "status": "pass",
+            "evidence": "authority lattice: dangerous actions need determinism (software)"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_system_audit_required",
+            "status": "pass",
+            "evidence": "authority lattice: dangerous actions need audit (system) \u2014 audit exists"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "dangerous_path_does_not_skip_lattice",
+            "status": "pass",
+            "evidence": "red line: no dangerous path that skips the lattice"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "agents_verified_by_software",
+            "status": "pass",
+            "evidence": "method 6: agents are verified with software \u2014 tests and signatures"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "humans_verified_by_evidence",
+            "status": "pass",
+            "evidence": "method 6: humans are verified by evidence"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "software_verified_by_spec_tests",
+            "status": "pass",
+            "evidence": "method 6: software is verified by spec tests"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "systems_verified_by_audit_trails",
+            "status": "pass",
+            "evidence": "method 6: systems are verified by cross-verification via audit trails"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "human_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: humans authenticate with passkey or MFA"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "agent_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: agents authenticate with scoped short-lived tokens"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "system_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: systems authenticate through a policy engine"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "software_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: software authenticates with service credentials or mTLS"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "classes_with_path_count": 4,
+        "summary": "26 pass, 0 fail, 0 missing of 26 checks across six sections.",
+        "stamp": "AUDIENCE CONTRACT DESIGN\nartifact: test-artifact-001\nVERDICT: AUDIENCE_CONTRACT_COMPLETE\n  classes_and_paths                    pass\n  single_truth                         pass\n  progressive_formality_and_failure    pass\n  authority_lattice                    pass\n  verification_by_class                pass\n  identity_by_class                    pass\n26 pass, 0 fail, 0 missing of 26 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "AUDIENCE_CONTRACT_INCOMPLETE",
+        "http": 200,
+        "failing_checks": [
+          "classes_and_paths",
+          "single_truth",
+          "authority_lattice"
+        ],
+        "notes": "Violates red lines: single_class_only_shipment is true, truth_forked_per_class is true, dangerous_path_skips_lattice is true."
+      },
+      "input": {
+        "artifact": "test-artifact-002",
+        "classes": {
+          "human_path_defined": true,
+          "agent_path_defined": true,
+          "system_path_defined": true,
+          "software_path_defined": true,
+          "single_class_only_shipment": true
+        },
+        "single_truth": {
+          "canonical_source_declared": true,
+          "renderings_generated_not_maintained": true,
+          "truth_forked_per_class": true
+        },
+        "progressive_formality": {
+          "formality_progressive_declared": true
+        },
+        "failure": {
+          "human_failure_defined": true,
+          "agent_failure_defined": true,
+          "system_failure_defined": true,
+          "software_failure_defined": true
+        },
+        "authority": {
+          "dangerous_actions_present": false,
+          "dangerous_path_skips_lattice": true
+        },
+        "verification": {
+          "agents_verified_by_software": true,
+          "humans_verified_by_evidence": true,
+          "software_verified_by_spec_tests": true,
+          "systems_verified_by_audit_trails": true
+        },
+        "identity": {
+          "human_passkey_or_mfa": true,
+          "agent_scoped_short_lived_tokens": true,
+          "system_policy_engine": true,
+          "software_service_creds_or_mtls": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "audience-contract-design",
+        "atom_version": "0.1.0",
+        "artifact": "test-artifact-002",
+        "verdict": "AUDIENCE_CONTRACT_INCOMPLETE",
+        "sections": {
+          "classes_and_paths": "fail",
+          "single_truth": "fail",
+          "progressive_formality_and_failure": "pass",
+          "authority_lattice": "fail",
+          "verification_by_class": "pass",
+          "identity_by_class": "pass"
+        },
+        "checks": [
+          {
+            "section": "classes_and_paths",
+            "check": "human_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the human class has a named, working path \u2014 visual, narrative, progressive disclosure, forgiving input; approves"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "agent_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the agent class has a named, working path \u2014 procedure: when to use, method, gates, red lines; executes within caps"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "system_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the system class (human+agent+software together) has a named, working path \u2014 handoff contracts, approvals, shared state, audit; binds the others"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "software_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the software class has a named, working path \u2014 schemas, stable IDs, versioned API/CLI/JSON, exit codes; deterministic"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "not_single_class_only_shipment",
+            "status": "fail",
+            "evidence": "red line: never ship for one class and assume others will cope"
+          },
+          {
+            "section": "single_truth",
+            "check": "canonical_source_declared",
+            "status": "pass",
+            "evidence": "method 2: one canonical artifact is the single source of truth, rendered per audience"
+          },
+          {
+            "section": "single_truth",
+            "check": "renderings_generated_not_maintained",
+            "status": "pass",
+            "evidence": "quality gate: renderings are generated from the canonical source, not maintained separately"
+          },
+          {
+            "section": "single_truth",
+            "check": "truth_not_forked_per_class",
+            "status": "fail",
+            "evidence": "red line: never fork truth per audience \u2014 forking truth per class is drift"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "formality_progressive_declared",
+            "status": "pass",
+            "evidence": "method 3: progressive formality \u2014 human view most forgiving to software least, same content: card, procedure, gates, schema, signature"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "human_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: humans get readable errors plus retry"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "agent_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: agents get instructive errors plus a safe fallback"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "system_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: systems get escalation"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "software_failure_defined",
+            "status": "pass",
+            "evidence": "method 4: software gets structured errors plus exit codes"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_capability_required",
+            "status": "pass",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_human_approval_required",
+            "status": "pass",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_software_determinism_required",
+            "status": "pass",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_system_audit_required",
+            "status": "pass",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "dangerous_path_does_not_skip_lattice",
+            "status": "fail",
+            "evidence": "red line: no dangerous path that skips the lattice"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "agents_verified_by_software",
+            "status": "pass",
+            "evidence": "method 6: agents are verified with software \u2014 tests and signatures"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "humans_verified_by_evidence",
+            "status": "pass",
+            "evidence": "method 6: humans are verified by evidence"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "software_verified_by_spec_tests",
+            "status": "pass",
+            "evidence": "method 6: software is verified by spec tests"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "systems_verified_by_audit_trails",
+            "status": "pass",
+            "evidence": "method 6: systems are verified by cross-verification via audit trails"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "human_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: humans authenticate with passkey or MFA"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "agent_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: agents authenticate with scoped short-lived tokens"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "system_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: systems authenticate through a policy engine"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "software_identity_declared",
+            "status": "pass",
+            "evidence": "method 7: software authenticates with service credentials or mTLS"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "classes_with_path_count": 4,
+        "summary": "23 pass, 3 fail, 0 missing of 26 checks across six sections.",
+        "stamp": "AUDIENCE CONTRACT DESIGN\nartifact: test-artifact-002\nVERDICT: AUDIENCE_CONTRACT_INCOMPLETE\n  classes_and_paths                    fail\n  single_truth                         fail\n  progressive_formality_and_failure    pass\n  authority_lattice                    fail\n  verification_by_class                pass\n  identity_by_class                    pass\n23 pass, 3 fail, 0 missing of 26 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of required fields; atom cannot complete the audit."
+      },
+      "input": {
+        "artifact": "test-artifact-003",
+        "classes": {
+          "human_path_defined": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "audience-contract-design",
+        "atom_version": "0.1.0",
+        "artifact": "test-artifact-003",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "classes_and_paths": "insufficient_evidence",
+          "single_truth": "insufficient_evidence",
+          "progressive_formality_and_failure": "insufficient_evidence",
+          "authority_lattice": "insufficient_evidence",
+          "verification_by_class": "insufficient_evidence",
+          "identity_by_class": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "classes_and_paths",
+            "check": "human_path_defined",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: the human class has a named, working path \u2014 visual, narrative, progressive disclosure, forgiving input; approves"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "agent_path_defined",
+            "status": "missing",
+            "evidence": "method 1 / quality gate: the agent class has a named, working path \u2014 procedure: when to use, method, gates, red lines; executes within caps"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "system_path_defined",
+            "status": "missing",
+            "evidence": "method 1 / quality gate: the system class (human+agent+software together) has a named, working path \u2014 handoff contracts, approvals, shared state, audit; binds the others"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "software_path_defined",
+            "status": "missing",
+            "evidence": "method 1 / quality gate: the software class has a named, working path \u2014 schemas, stable IDs, versioned API/CLI/JSON, exit codes; deterministic"
+          },
+          {
+            "section": "classes_and_paths",
+            "check": "not_single_class_only_shipment",
+            "status": "missing",
+            "evidence": "red line: never ship for one class and assume others will cope"
+          },
+          {
+            "section": "single_truth",
+            "check": "canonical_source_declared",
+            "status": "missing",
+            "evidence": "method 2: one canonical artifact is the single source of truth, rendered per audience"
+          },
+          {
+            "section": "single_truth",
+            "check": "renderings_generated_not_maintained",
+            "status": "missing",
+            "evidence": "quality gate: renderings are generated from the canonical source, not maintained separately"
+          },
+          {
+            "section": "single_truth",
+            "check": "truth_not_forked_per_class",
+            "status": "missing",
+            "evidence": "red line: never fork truth per audience \u2014 forking truth per class is drift"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "formality_progressive_declared",
+            "status": "missing",
+            "evidence": "method 3: progressive formality \u2014 human view most forgiving to software least, same content: card, procedure, gates, schema, signature"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "human_failure_defined",
+            "status": "missing",
+            "evidence": "method 4: humans get readable errors plus retry"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "agent_failure_defined",
+            "status": "missing",
+            "evidence": "method 4: agents get instructive errors plus a safe fallback"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "system_failure_defined",
+            "status": "missing",
+            "evidence": "method 4: systems get escalation"
+          },
+          {
+            "section": "progressive_formality_and_failure",
+            "check": "software_failure_defined",
+            "status": "missing",
+            "evidence": "method 4: software gets structured errors plus exit codes"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_capability_required",
+            "status": "missing",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_human_approval_required",
+            "status": "missing",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_software_determinism_required",
+            "status": "missing",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "lattice_system_audit_required",
+            "status": "missing",
+            "evidence": "no dangerous actions declared"
+          },
+          {
+            "section": "authority_lattice",
+            "check": "dangerous_path_does_not_skip_lattice",
+            "status": "missing",
+            "evidence": "red line: no dangerous path that skips the lattice"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "agents_verified_by_software",
+            "status": "missing",
+            "evidence": "method 6: agents are verified with software \u2014 tests and signatures"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "humans_verified_by_evidence",
+            "status": "missing",
+            "evidence": "method 6: humans are verified by evidence"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "software_verified_by_spec_tests",
+            "status": "missing",
+            "evidence": "method 6: software is verified by spec tests"
+          },
+          {
+            "section": "verification_by_class",
+            "check": "systems_verified_by_audit_trails",
+            "status": "missing",
+            "evidence": "method 6: systems are verified by cross-verification via audit trails"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "human_identity_declared",
+            "status": "missing",
+            "evidence": "method 7: humans authenticate with passkey or MFA"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "agent_identity_declared",
+            "status": "missing",
+            "evidence": "method 7: agents authenticate with scoped short-lived tokens"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "system_identity_declared",
+            "status": "missing",
+            "evidence": "method 7: systems authenticate through a policy engine"
+          },
+          {
+            "section": "identity_by_class",
+            "check": "software_identity_declared",
+            "status": "missing",
+            "evidence": "method 7: software authenticates with service credentials or mTLS"
+          }
+        ],
+        "computed_status": null,
+        "classes_with_path_count": 1,
+        "summary": "1 pass, 0 fail, 25 missing of 26 checks across six sections.",
+        "stamp": "AUDIENCE CONTRACT DESIGN\nartifact: test-artifact-003\nVERDICT: INSUFFICIENT_EVIDENCE\n  classes_and_paths                    insufficient_evidence\n  single_truth                         insufficient_evidence\n  progressive_formality_and_failure    insufficient_evidence\n  authority_lattice                    insufficient_evidence\n  verification_by_class                insufficient_evidence\n  identity_by_class                    insufficient_evidence\n1 pass, 0 fail, 25 missing of 26 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on classes field; schema validation fails before business logic."
+      },
+      "input": {
+        "artifact": "test-artifact-004",
+        "classes": "invalid_string_instead_of_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "classes",
+        "detail": "classes must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

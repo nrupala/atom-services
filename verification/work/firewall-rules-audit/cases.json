@@ -1,0 +1,172 @@
+{
+ "cases": [
+  {
+   "id": "full-pass",
+   "kind": "full-pass",
+   "input": {
+    "system": "production-cluster",
+    "environment": "production",
+    "default_policy": {
+     "inbound": "deny",
+     "outbound": "deny"
+    },
+    "layers_consistent": true,
+    "rules": [
+     {
+      "id": "allow-web",
+      "direction": "inbound",
+      "source": "10.0.0.0/8",
+      "destination": "10.0.0.5",
+      "port_start": 80,
+      "port_end": 80,
+      "protocol": "tcp",
+      "action": "allow",
+      "owner": "admin",
+      "reason": "web traffic",
+      "date": "2026-01-01"
+     },
+     {
+      "id": "deny-all-in",
+      "direction": "inbound",
+      "source": "any",
+      "destination": "any",
+      "port_start": 0,
+      "port_end": 65535,
+      "protocol": "any",
+      "action": "deny"
+     },
+     {
+      "id": "deny-all-out",
+      "direction": "outbound",
+      "source": "any",
+      "destination": "any",
+      "port_start": 0,
+      "port_end": 65535,
+      "protocol": "any",
+      "action": "deny"
+     }
+    ],
+    "egress": {
+     "explicit_allowlist": true,
+     "alert_on_denies": true
+    },
+    "change_control": {
+     "changes_reviewed": true,
+     "old_rules_retired_on_schedule": true
+    },
+    "logging": {
+     "denials_logged": true,
+     "rate_limited": true
+    },
+    "testing": {
+     "allowed_and_disallowed_paths_verified": true,
+     "smoke_matrix_per_service": true
+    },
+    "review": {
+     "cadence_days": 30
+    }
+   },
+   "expect": {
+    "outcome": "SOUND",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "All fields present and compliant. Computed spot check: 3 rules, 1 allow rule, 0 temporary rules. CORRECTED (tester error): added explicit deny-any rules deny-all-in/deny-all-out \u2014 atom requires an explicit default-deny rule in the rules list in addition to default_policy deny (its own test test_missing_explicit_default_deny_rule_fails)."
+   }
+  },
+  {
+   "id": "violations",
+   "kind": "violations",
+   "input": {
+    "system": "test-env",
+    "environment": "dev",
+    "default_policy": {
+     "inbound": "allow",
+     "outbound": "allow"
+    },
+    "layers_consistent": true,
+    "rules": [
+     {
+      "id": "bad-rule",
+      "direction": "inbound",
+      "source": "any",
+      "destination": "any",
+      "port_start": 0,
+      "port_end": 65535,
+      "protocol": "any",
+      "action": "allow",
+      "owner": "dev",
+      "reason": "testing",
+      "date": "2026-01-01"
+     }
+    ],
+    "egress": {
+     "explicit_allowlist": false,
+     "alert_on_denies": false
+    },
+    "change_control": {
+     "changes_reviewed": false,
+     "old_rules_retired_on_schedule": false
+    },
+    "logging": {
+     "denials_logged": false,
+     "rate_limited": false
+    },
+    "testing": {
+     "allowed_and_disallowed_paths_verified": false,
+     "smoke_matrix_per_service": false
+    },
+    "review": {
+     "cadence_days": 99
+    }
+   },
+   "expect": {
+    "outcome": "UNSOUND",
+    "http": 200,
+    "failing_checks": [
+     "default_deny_inbound",
+     "default_deny_outbound",
+     "no_any_any_allow_rules",
+     "explicit_egress_allowlist",
+     "egress_alert_on_denies",
+     "changes_reviewed_like_code",
+     "old_rules_retired_on_schedule",
+     "denials_logged",
+     "denial_logging_rate_limited",
+     "post_change_test_allowed_and_blocked",
+     "smoke_matrix_per_service",
+     "review_cadence_within_31_days"
+    ],
+    "notes": "Multiple policy and rule violations triggered."
+   }
+  },
+  {
+   "id": "sparse",
+   "kind": "sparse",
+   "input": {
+    "system": "minimal-audit"
+   },
+   "expect": {
+    "outcome": "INSUFFICIENT_EVIDENCE",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "Input lacks required fields for full audit; no explicit violations found."
+   }
+  },
+  {
+   "id": "malformed",
+   "kind": "malformed",
+   "input": {
+    "system": "malformed-test",
+    "review": {
+     "cadence_days": "thirty"
+    }
+   },
+   "expect": {
+    "outcome": null,
+    "http": 422,
+    "failing_checks": [],
+    "notes": "Type mismatch: cadence_days expected number, received string."
+   }
+  }
+ ]
+}

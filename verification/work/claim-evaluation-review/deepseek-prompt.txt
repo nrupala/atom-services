@@ -1,0 +1,813 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: claim-evaluation-review
+
+=== contract.yaml ===
+service_name: claim-evaluation-review
+display_name: Claim evaluation review
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:critical-thinking
+binding:
+  skill: critical-thinking
+  skill_path: workspace/mymilo-build/skills/critical-thinking/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+- human
+keys:
+  namespace: claim_evaluation_review
+  prefix: atm_1_claim_evaluation_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Pitch and claim evaluations
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Claim evaluation review — `claim-evaluation-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Think clearly under pressure — evidence hierarchy, base rates, steelmanning, fallacy checks, calibration.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Pitch and claim evaluations**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the claim-evaluation-review manifest
+
+This atom does not evaluate a claim and exercises no judgment
+of its own. The caller submits one JSON manifest declaring a
+claim-evaluation artifact — a declared claim set, its
+evidence-hierarchy and conflict record, its base-rate /
+reference-class record, its steelman and fallacy spot-check
+record, its calibration record, and its second-order and
+written-judgment record — and the atom validates that artifact
+deterministically. This is the claim-evaluation REVIEW over a
+declared claim set, built from the bound skill's claim-evaluation
+method (its eight method steps, four quality gates and three
+red lines); it is not the narrower base-rate card that shares
+the same bound skill. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`CLAIM_EVALUATION_NOT_COMPLETE`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `claims` (list of claim entries; absent / not a list / empty = all four computed claim-set checks missing) | claim_set_and_evidence |
+| `claims[].label` (string; must be non-empty for the entry to be complete) | claim_set_and_evidence |
+| `claims[].restated_precisely` | claim_set_and_evidence |
+| `claims[].supporting_evidence_sought` | claim_set_and_evidence |
+| `claims[].refuting_evidence_sought` | claim_set_and_evidence |
+| `claims[].evidence_presence_assessed` | claim_set_and_evidence |
+| `hierarchy.evidence_ranked_by_hierarchy` | evidence_hierarchy_and_conflicts |
+| `hierarchy.conflicts_noted` | evidence_hierarchy_and_conflicts |
+| `hierarchy.conflict_reasons_and_incentives_examined` | evidence_hierarchy_and_conflicts |
+| `hierarchy.conclusions_from_vibes_or_authority_alone` (must be `false` to pass — skill red line) | evidence_hierarchy_and_conflicts |
+| `base_rates.considered_first` | base_rates_and_reference_class |
+| `base_rates.reference_class_identified` | base_rates_and_reference_class |
+| `base_rates.used_where_applicable` | base_rates_and_reference_class |
+| `base_rates.base_rate_percent` (number; computed, see below) | base_rates_and_reference_class |
+| `steelman.strongest_counterargument_constructed` | steelman_and_fallacy_screen |
+| `steelman.strongest_counterargument_engaged` | steelman_and_fallacy_screen |
+| `steelman.straw_manning_in_own_favor` (must be `false` to pass — skill red line) | steelman_and_fallacy_screen |
+| `fallacy_screen.fallacies_checked` (list of strings; computed, see below) | steelman_and_fallacy_screen |
+| `calibration.confidence_stated` | calibration |
+| `calibration.confidence_percent` (number; computed, see below) | calibration |
+| `calibration.outcomes_reviewed` | calibration |
+| `calibration.hit_rate_tracked_by_confidence_band` | calibration |
+| `calibration.outcomes_correct` (number; computed, see below) | calibration |
+| `calibration.outcomes_total` (number; computed, see below) | calibration |
+| `calibration.declared_hit_rate_percent` (number; computed, see below) | calibration |
+| `calibration.certainty_outruns_evidence` (must be `false` to pass — skill red line) | calibration |
+| `second_order.second_order_thinking_applied` | second_order_and_judgment |
+| `judgment.judgment_written` | second_order_and_judgment |
+| `judgment.judgment_includes_key_uncertainties` | second_order_and_judgment |
+| `judgment.judgment_checkable_later` | second_order_and_judgment |
+
+Eight checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Claim entries:** every declared claim entry passes the
+  entries check only when it carries a non-empty `label` string
+  and all four entry booleans. A missing or empty `claims` list
+  is missing evidence; an incomplete entry makes all four
+  claim-set checks missing (the set cannot be evaluated whole).
+  The output reports `claims_evaluated` (the count of complete
+  claim entries).
+- **All claims restated precisely:** passes only when every
+  complete claim entry declares `restated_precisely` true
+  (quality gate: "Claims restated precisely").
+- **Supporting AND refuting evidence sought:** passes only when
+  every complete claim entry declares both
+  `supporting_evidence_sought` and `refuting_evidence_sought`
+  true (quality gate: "supporting AND refuting evidence
+  sought").
+- **Evidence presence assessed:** passes only when every
+  complete claim entry declares `evidence_presence_assessed`
+  true (method step 1: "Is any actually present?"). Whether
+  evidence is in fact present for a claim is not judged — only
+  that its presence was assessed, per claim.
+- **Base-rate percent range:** method step 3 states a base rate
+  for a reference class. The declared
+  `base_rates.base_rate_percent` is a percent, so it passes
+  only inside 0–100 inclusive — the definition of a percent,
+  not a judged level. No base-rate value is imposed (see
+  thresholds declined). The output reports it as
+  `base_rate_percent` (null when no number is declared).
+- **Fallacy coverage:** method step 5 names the spot-check —
+  ad hominem, straw man, false dilemma, appeal to
+  authority/antiquity, survivorship stories, motivated
+  reasoning, cherry-picked windows. The slash in the skill's
+  "authority/antiquity" separates two named appeals, so the
+  stated set is eight tokens: `ad_hominem`, `straw_man`,
+  `false_dilemma`, `appeal_to_authority`, `appeal_to_antiquity`,
+  `survivorship_stories`, `motivated_reasoning`,
+  `cherry_picked_windows`. The declared
+  `fallacy_screen.fallacies_checked` list passes only when it
+  contains all eight; unknown entries do not count toward
+  coverage. A missing list is missing evidence; an empty list
+  is present and fails. The output reports the omitted stated
+  entries as `fallacies_not_checked` (null when no list is
+  declared). Entries are validated as strings only, never
+  enum-checked — coverage is a verdict check, not a type error.
+- **Confidence percent range:** method step 6 states confidence
+  as a percent ("80% sure"). The declared
+  `calibration.confidence_percent` therefore passes only inside
+  0–100 inclusive — again the definition of a percent. The
+  skill's 80% is an example of stating confidence, **not** a
+  required level, so no confidence level is imposed. The output
+  reports it as `confidence_percent` (null likewise).
+- **Calibration hit rate:** method step 6 states "track hit
+  rate". The declared `calibration.declared_hit_rate_percent`
+  therefore passes only when it equals
+  `calibration.outcomes_correct` / `calibration.outcomes_total`
+  × 100, with a positive total (a zero total fails — no hit
+  rate exists). No hit-rate level, band width, or minimum
+  outcome count is imposed — only the arithmetic is re-derived.
+  The output reports `computed_hit_rate_percent` and
+  `hit_rate_difference` (declared minus computed, null when
+  either cannot be computed).
+
+That is eight computed checks counting claim entries; the
+`computed_status` outcome is taken over the other seven.
+
+**Fixed serialization rule:** computed amounts and ratios are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the seven computed checks cannot be completed).
+
+The verdict is one of `CLAIM_EVALUATION_COMPLETE` (all 26 checks
+pass), `CLAIM_EVALUATION_NOT_COMPLETE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: claim_set_and_evidence,
+evidence_hierarchy_and_conflicts, base_rates_and_reference_class,
+steelman_and_fallacy_screen, calibration,
+second_order_and_judgment.
+
+## Checks by section
+
+- **claim_set_and_evidence (4, all computed):**
+  claim_entries_complete,
+  all_claims_restated_precisely,
+  all_claims_supporting_and_refuting_evidence_sought,
+  all_claims_evidence_presence_assessed.
+- **evidence_hierarchy_and_conflicts (4):**
+  evidence_ranked_by_hierarchy, conflicts_noted,
+  conflict_reasons_and_incentives_examined,
+  no_conclusions_from_vibes_or_authority_alone (red line, false).
+- **base_rates_and_reference_class (4):**
+  base_rates_considered_first, reference_class_identified,
+  base_rates_used_where_applicable,
+  base_rate_percent_within_percent_range (computed).
+- **steelman_and_fallacy_screen (4):**
+  strongest_counterargument_constructed,
+  strongest_counterargument_engaged,
+  no_straw_manning_in_own_favor (red line, false),
+  fallacy_screen_covers_stated_fallacies (computed).
+- **calibration (6):** confidence_stated,
+  confidence_percent_within_percent_range (computed),
+  outcomes_reviewed, hit_rate_tracked_by_confidence_band,
+  declared_hit_rate_matches_correct_divided_by_total (computed),
+  certainty_does_not_outrun_evidence (red line, false).
+- **second_order_and_judgment (4):**
+  second_order_thinking_applied, judgment_written,
+  judgment_includes_key_uncertainties, judgment_checkable_later.
+
+## Honest scoping
+
+This atom audits a **declared** claim-evaluation artifact — it
+does not read the underlying claims, pitches, articles or
+evidence, verify that a declared value is true, or decide
+whether any claim is true, well-supported, or worth acting on.
+The register's named doubt for this atom — overlaps
+critical-reasoning — is answered by this framing: this atom is
+the claim-set review from the critical-thinking method (claim →
+evidence over a set, hierarchy, base rates, steelman, fallacy
+spot-check, calibration, second-order effects, written
+judgment), not an argument-anatomy audit and not a base-rate
+card. An artifact is complete *on the caller's declared
+evidence* even if its underlying claims are false. It is a
+completeness and consistency audit, **not a claim verdict**: it
+never decides whether the evidence actually supports a claim,
+whether the steelman was well built, whether the reference
+class was the right one, or whether the stated confidence was
+warranted.
+
+**Thresholds declined (named explicitly):** no minimum number
+of claims in the set (the skill states none — a single-claim
+set can pass); no base-rate level imposed and no judgment that
+a base rate is high or low (the skill states no number); no
+confidence level required (the skill's "80% sure" is an
+example, not a threshold) and no overconfidence threshold or
+gap between confidence and hit rate imposed (the skill says
+"most find they're overconfident" but states no gap number);
+no hit-rate level, confidence-band width, or minimum number of
+tracked outcomes imposed (only that a total be positive so the
+declared hit rate can be re-derived); no minimum evidence tier
+required (the skill states the hierarchy order — measurements/
+data > documents/logs > expert synthesis > hearsay — but
+mandates no tier as a pass mark, so only that ranking was
+applied is checked); no fallacy-severity or count tolerance
+(coverage is the skill's exact stated set); no judgment length
+(the skill says "short" but states no word count); no
+second-order horizon (the skill names the effect kinds, not a
+timeframe).
+
+Named exclusions: no evaluation of any claim from raw source
+material; no verification of any declared evidence, base rate,
+confidence, or outcome count; no truth, support, steelman-quality,
+reference-class-choice, or confidence-warrantedness judgment;
+no live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Overlaps critical-reasoning
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "entity": "Test Entity",
+      "claims": [
+        {
+          "label": "Claim A",
+          "restated_precisely": true,
+          "supporting_evidence_sought": true,
+          "refuting_evidence_sought": true,
+          "evidence_presence_assessed": true
+        }
+      ],
+      "hierarchy": {
+        "evidence_ranked_by_hierarchy": true,
+        "conflicts_noted": true,
+        "conflict_reasons_and_incentives_examined": true,
+        "conclusions_from_vibes_or_authority_alone": false
+      },
+      "base_rates": {
+        "considered_first": true,
+        "reference_class_identified": true,
+        "used_where_applicable": true,
+        "base_rate_percent": 50.0
+      },
+      "steelman": {
+        "strongest_counterargument_constructed": true,
+        "strongest_counterargument_engaged": true,
+        "straw_manning_in_own_favor": false
+      },
+      "fallacy_screen": {
+        "fallacies_checked": [
+          "ad_hominem",
+          "straw_man",
+          "false_dilemma",
+          "appeal_to_authority",
+          "appeal_to_antiquity",
+          "survivorship_stories",
+          "motivated_reasoning",
+          "cherry_picked_windows"
+        ]
+      },
+      "calibration": {
+        "confidence_stated": true,
+        "confidence_percent": 80.0,
+        "outcomes_reviewed": true,
+        "hit_rate_tracked_by_confidence_band": true,
+        "outcomes_correct": 8,
+        "outcomes_total": 10,
+        "declared_hit_rate_percent": 80.0,
+        "certainty_outruns_evidence": false
+      },
+      "second_order": {
+        "second_order_thinking_applied": true
+      },
+      "judgment": {
+        "judgment_written": true,
+        "judgment_includes_key_uncertainties": true,
+        "judgment_checkable_later": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "claim-evaluation-review",
+      "atom_version": "0.1.0",
+      "entity": "Test Entity",
+      "verdict": "CLAIM_EVALUATION_COMPLETE",
+      "sections": {
+        "claim_set_and_evidence": "pass",
+        "evidence_hierarchy_and_conflicts": "pass",
+        "base_rates_and_reference_class": "pass",
+        "steelman_and_fallacy_screen": "pass",
+        "calibration": "pass",
+        "second_order_and_judgment": "pass"
+      },
+      "checks": [
+        {
+          "section": "claim_set_and_evidence",
+          "check": "claim_entries_complete",
+          "status": "pass",
+          "evidence": "every claim entry carries a label, a restatement flag, supporting- and refuting-evidence-sought flags, and an evidence-presence-assessed flag"
+        },
+        {
+          "section": "claim_set_and_evidence",
+          "check": "all_claims_restated_precisely",
+          "status": "pass",
+          "evidence": "quality gate: every claim in the set is restated precisely"
+        },
+        {
+          "section": "claim_set_and_evidence",
+          "check": "all_claims_supporting_and_refuting_evidence_sought",
+          "status": "pass",
+          "evidence": "quality gate: supporting AND refuting evidence is sought for every claim in the set"
+        },
+        {
+          "section": "claim_set_and_evidence",
+          "check": "all_claims_evidence_presence_assessed",
+          "status": "pass",
+          "evidence": "method step 1: for every claim, whether evidence is actually present is assessed"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "evidence_ranked_by_hierarchy",
+          "status": "pass",
+          "evidence": "method step 2: evidence is ranked by the stated hierarchy \u2014 measurements/data over documents/logs over expert synthesis over hearsay"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "conflicts_noted",
+          "status": "pass",
+          "evidence": "method step 2: conflicts between evidence are noted"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "conflict_reasons_and_incentives_examined",
+          "status": "pass",
+          "evidence": "method step 2: why conflicts exist is examined \u2014 incentives included"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "no_conclusions_from_vibes_or_authority_alone",
+          "status": "pass",
+          "evidence": "red line: no conclusions from vibes or authority alone"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "base_rates_considered_first",
+          "status": "pass",
+          "evidence": "method step 3: base rates are considered first, before compelling stories"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "reference_class_identified",
+          "status": "pass",
+          "evidence": "method step 3: a reference class is identified \u2014 what usually happens in cases like this"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "base_rates_used_where_applicable",
+          "status": "pass",
+          "evidence": "quality gate: base rates / reference class are used where applicable"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "base_rate_percent_within_percent_range",
+          "status": "pass",
+          "evidence": "method step 3: the declared base rate is a percent \u2014 it lies between 0 and 100 inclusive; no base-rate level itself is judged here"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "strongest_counterargument_constructed",
+          "status": "pass",
+          "evidence": "method step 4: the strongest version of the opposing view is constructed \u2014 a steelman"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "strongest_counterargument_engaged",
+          "status": "pass",
+          "evidence": "quality gate: the strongest counterargument is engaged, not a strawman"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "no_straw_manning_in_own_favor",
+          "status": "pass",
+          "evidence": "red line: no straw-manning in your own favor"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "fallacy_screen_covers_stated_fallacies",
+          "status": "pass",
+          "evidence": "method step 5: the fallacy spot-check covers every fallacy the skill names \u2014 ad hominem, straw man, false dilemma, appeal to authority, appeal to antiquity, survivorship stories, motivated reasoning, cherry-picked windows"
+        },
+        {
+          "section": "calibration",
+          "check": "confidence_stated",
+          "status": "pass",
+          "evidence": "quality gate: confidence is stated"
+        },
+        {
+          "section": "calibration",
+          "check": "confidence_percent_within_percent_range",
+          "status": "pass",
+          "evidence": "method step 6: the stated confidence is a percent \u2014 it lies between 0 and 100 inclusive; the skill's 80% example is an illustration of stating confidence, not a required level, and no level is judged here"
+        },
+        {
+          "section": "calibration",
+          "check": "outcomes_reviewed",
+          "status": "pass",
+          "evidence": "quality gate: outcomes are reviewed for calibration"
+        },
+        {
+          "section": "calibration",
+          "check": "hit_rate_tracked_by_confidence_band",
+          "status": "pass",
+          "evidence": "method step 6: hit rate is tracked by confidence band"
+        },
+        {
+          "section": "calibration",
+          "check": "declared_hit_rate_matches_correct_divided_by_total",
+          "status": "pass",
+          "evidence": "method step 6: the declared hit-rate percent equals the declared outcomes correct divided by the declared outcomes total, times 100 (track hit rate)"
+        },
+        {
+          "section": "calibration",
+          "check": "certainty_does_not_outrun_evidence",
+          "status": "pass",
+          "evidence": "red line: certainty does not outrun evidence"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "second_order_thinking_applied",
+          "status": "pass",
+          "evidence": "method step 7: second-order thinking is applied \u2014 and then what? Effects on incentives, timing, competition, future options"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "judgment_written",
+          "status": "pass",
+          "evidence": "method step 8: the judgment is written \u2014 conclusion plus confidence plus key uncertainties"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "judgment_includes_key_uncertainties",
+          "status": "pass",
+          "evidence": "method step 8: the written judgment includes the key uncertainties"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "judgment_checkable_later",
+          "status": "pass",
+          "evidence": "method step 8: the written judgment is short and checkable later"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "claims_evaluated": 1,
+      "base_rate_percent": "50.000000",
+      "confidence_percent": "80.000000",
+      "computed_hit_rate_percent": "80.000000",
+      "hit_rate_difference": "0.000000",
+      "fallacies_not_checked": [],
+      "summary": "26 pass, 0 fail, 0 missing of 26 checks across six sections.",
+      "stamp": "CLAIM EVALUATION REVIEW\nentity: Test Entity\nVERDICT: CLAIM_EVALUATION_COMPLETE\n  claim_set_and_evidence               pass\n  evidence_hierarchy_and_conflicts     pass\n  base_rates_and_reference_class       pass\n  steelman_and_fallacy_screen          pass\n  calibration                          pass\n  second_order_and_judgment            pass\n26 pass, 0 fail, 0 missing of 26 checks across six sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "entity": "Test Entity",
+      "claims": [
+        {
+          "label": "Claim A",
+          "restated_precisely": false,
+          "supporting_evidence_sought": true,
+          "refuting_evidence_sought": true,
+          "evidence_presence_assessed": true
+        }
+      ],
+      "hierarchy": {
+        "evidence_ranked_by_hierarchy": true,
+        "conflicts_noted": true,
+        "conflict_reasons_and_incentives_examined": true,
+        "conclusions_from_vibes_or_authority_alone": true
+      },
+      "base_rates": {
+        "considered_first": true,
+        "reference_class_identified": true,
+        "used_where_applicable": true,
+        "base_rate_percent": 150.0
+      },
+      "steelman": {
+        "strongest_counterargument_constructed": true,
+        "strongest_counterargument_engaged": true,
+        "straw_manning_in_own_favor": true
+      },
+      "fallacy_screen": {
+        "fallacies_checked": [
+          "ad_hominem"
+        ]
+      },
+      "calibration": {
+        "confidence_stated": true,
+        "confidence_percent": 80.0,
+        "outcomes_reviewed": true,
+        "hit_rate_tracked_by_confidence_band": true,
+        "outcomes_correct": 5,
+        "outcomes_total": 10,
+        "declared_hit_rate_percent": 99.0,
+        "certainty_outruns_evidence": true
+      },
+      "second_order": {
+        "second_order_thinking_applied": true
+      },
+      "judgment": {
+        "judgment_written": true,
+        "judgment_includes_key_uncertainties": true,
+        "judgment_checkable_later": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "claim-evaluation-review",
+      "atom_version": "0.1.0",
+      "entity": "Test Entity",
+      "verdict": "CLAIM_EVALUATION_NOT_COMPLETE",
+      "sections": {
+        "claim_set_and_evidence": "fail",
+        "evidence_hierarchy_and_conflicts": "fail",
+        "base_rates_and_reference_class": "fail",
+        "steelman_and_fallacy_screen": "fail",
+        "calibration": "fail",
+        "second_order_and_judgment": "pass"
+      },
+      "checks": [
+        {
+          "section": "claim_set_and_evidence",
+          "check": "claim_entries_complete",
+          "status": "pass",
+          "evidence": "every claim entry carries a label, a restatement flag, supporting- and refuting-evidence-sought flags, and an evidence-presence-assessed flag"
+        },
+        {
+          "section": "claim_set_and_evidence",
+          "check": "all_claims_restated_precisely",
+          "status": "fail",
+          "evidence": "quality gate: every claim in the set is restated precisely"
+        },
+        {
+          "section": "claim_set_and_evidence",
+          "check": "all_claims_supporting_and_refuting_evidence_sought",
+          "status": "pass",
+          "evidence": "quality gate: supporting AND refuting evidence is sought for every claim in the set"
+        },
+        {
+          "section": "claim_set_and_evidence",
+          "check": "all_claims_evidence_presence_assessed",
+          "status": "pass",
+          "evidence": "method step 1: for every claim, whether evidence is actually present is assessed"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "evidence_ranked_by_hierarchy",
+          "status": "pass",
+          "evidence": "method step 2: evidence is ranked by the stated hierarchy \u2014 measurements/data over documents/logs over expert synthesis over hearsay"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "conflicts_noted",
+          "status": "pass",
+          "evidence": "method step 2: conflicts between evidence are noted"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "conflict_reasons_and_incentives_examined",
+          "status": "pass",
+          "evidence": "method step 2: why conflicts exist is examined \u2014 incentives included"
+        },
+        {
+          "section": "evidence_hierarchy_and_conflicts",
+          "check": "no_conclusions_from_vibes_or_authority_alone",
+          "status": "fail",
+          "evidence": "red line: no conclusions from vibes or authority alone"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "base_rates_considered_first",
+          "status": "pass",
+          "evidence": "method step 3: base rates are considered first, before compelling stories"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "reference_class_identified",
+          "status": "pass",
+          "evidence": "method step 3: a reference class is identified \u2014 what usually happens in cases like this"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "base_rates_used_where_applicable",
+          "status": "pass",
+          "evidence": "quality gate: base rates / reference class are used where applicable"
+        },
+        {
+          "section": "base_rates_and_reference_class",
+          "check": "base_rate_percent_within_percent_range",
+          "status": "fail",
+          "evidence": "method step 3: the declared base rate is a percent \u2014 it lies between 0 and 100 inclusive; no base-rate level itself is judged here"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "strongest_counterargument_constructed",
+          "status": "pass",
+          "evidence": "method step 4: the strongest version of the opposing view is constructed \u2014 a steelman"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "strongest_counterargument_engaged",
+          "status": "pass",
+          "evidence": "quality gate: the strongest counterargument is engaged, not a strawman"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "no_straw_manning_in_own_favor",
+          "status": "fail",
+          "evidence": "red line: no straw-manning in your own favor"
+        },
+        {
+          "section": "steelman_and_fallacy_screen",
+          "check": "fallacy_screen_covers_stated_fallacies",
+          "status": "fail",
+          "evidence": "method step 5: the fallacy spot-check covers every fallacy the skill names \u2014 ad hominem, straw man, false dilemma, appeal to authority, appeal to antiquity, survivorship stories, motivated reasoning, cherry-picked windows"
+        },
+        {
+          "section": "calibration",
+          "check": "confidence_stated",
+          "status": "pass",
+          "evidence": "quality gate: confidence is stated"
+        },
+        {
+          "section": "calibration",
+          "check": "confidence_percent_within_percent_range",
+          "status": "pass",
+          "evidence": "method step 6: the stated confidence is a percent \u2014 it lies between 0 and 100 inclusive; the skill's 80% example is an illustration of stating confidence, not a required level, and no level is judged here"
+        },
+        {
+          "section": "calibration",
+          "check": "outcomes_reviewed",
+          "status": "pass",
+          "evidence": "quality gate: outcomes are reviewed for calibration"
+        },
+        {
+          "section": "calibration",
+          "check": "hit_rate_tracked_by_confidence_band",
+          "status": "pass",
+          "evidence": "method step 6: hit rate is tracked by confidence band"
+        },
+        {
+          "section": "calibration",
+          "check": "declared_hit_rate_matches_correct_divided_by_total",
+          "status": "fail",
+          "evidence": "method step 6: the declared hit-rate percent equals the declared outcomes correct divided by the declared outcomes total, times 100 (track hit rate)"
+        },
+        {
+          "section": "calibration",
+          "check": "certainty_does_not_outrun_evidence",
+          "status": "fail",
+          "evidence": "red line: certainty does not outrun evidence"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "second_order_thinking_applied",
+          "status": "pass",
+          "evidence": "method step 7: second-order thinking is applied \u2014 and then what? Effects on incentives, timing, competition, future options"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "judgment_written",
+          "status": "pass",
+          "evidence": "method step 8: the judgment is written \u2014 conclusion plus confidence plus key uncertainties"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "judgment_includes_key_uncertainties",
+          "status": "pass",
+          "evidence": "method step 8: the written judgment includes the key uncertainties"
+        },
+        {
+          "section": "second_order_and_judgment",
+          "check": "judgment_checkable_later",
+          "status": "pass",
+          "evidence": "method step 8: the written judgment is short and checkable later"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "claims_evaluated": 1,
+      "base_rate_percent": "150.000000",
+      "confidence_percent": "80.000000",
+      "computed_hit_rate_percent": "50.000000",
+      "hit_rate_difference": "49.000000",
+      "fallacies_not_checked": [
+        "straw_man",
+        "false_dilemma",
+        "appeal_to_authority",
+        "appeal_to_antiquity",
+        "survivorship_stories",
+        "motivated_reasoning",
+        "cherry_picked_windows"
+      ],
+      "summary": "19 pass, 7 fail, 0 missing of 26 checks across six sections.",
+      "stamp": "CLAIM EVALUATION REVIEW\nentity: Test Entity\nVERDICT: CLAIM_EVALUATION_NOT_COMPLETE\n  claim_set_and_evidence               fail\n  evidence_hierarchy_and_conflicts     fail\n  base_rates_and_reference_class       fail\n  steelman_and_fallacy_screen          fail\n  calibration                          fail\n  second_order_and_judgment            pass\n19 pass, 7 fail, 0 missing of 26 checks across six sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

@@ -1,0 +1,162 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "design": "User profile system",
+        "store_selection": {
+          "access_patterns_mapped": true,
+          "store_chosen_from_access_patterns": true,
+          "relational_default_or_fit_justified": true
+        },
+        "tables": [
+          {
+            "name": "users",
+            "primary_key": "id",
+            "constraints_declared": true
+          }
+        ],
+        "normalization": {
+          "normalized_to_3nf": true,
+          "denormalized": false
+        },
+        "query_patterns": [
+          {
+            "name": "get_user",
+            "table": "users",
+            "supporting_index": "idx_users_id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_users_id",
+            "table": "users",
+            "columns": ["id"]
+          }
+        ],
+        "indexing": {
+          "composite_column_order_equality_then_range": true,
+          "covering_indexes_for_hot_queries": true,
+          "write_cost_considered": true,
+          "explain_analyze_before_and_after": true
+        },
+        "performance": {
+          "measured_first": true,
+          "n_plus_one_queries_addressed": true,
+          "keyset_pagination_for_large_sets": true,
+          "offset_pagination_at_scale_present": false,
+          "connection_pooling_declared": true,
+          "bounded_result_sets": true,
+          "cache_deliberate_with_honest_invalidation": true
+        },
+        "integrity": {
+          "constraints_enforce_invariants": true,
+          "appropriate_types_used": true,
+          "money_stored_as_float": false,
+          "transactions_kept_short": true,
+          "writes_idempotent_where_retries_possible": true,
+          "distributed_store_used": false,
+          "parametrized_queries_only": true,
+          "string_concatenated_sql_present": false,
+          "least_privilege_users_per_service": true,
+          "shared_superuser_present": false,
+          "encryption_at_rest": true
+        },
+        "transactions": {
+          "isolation_level_and_anomalies_known": true
+        },
+        "migrations": {
+          "forward_only": true,
+          "past_migrations_edited": false,
+          "expand_contract_pattern_used": true,
+          "big_bang_schema_swap_present": false
+        },
+        "backups": {
+          "backups_scheduled": true,
+          "restores_tested_on_schedule": true,
+          "untested_backup_trusted": false
+        }
+      },
+      "expect": {
+        "outcome": "DATABASE_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All checks pass. Computed spot checks: tables_count=1, query_patterns_count=1, indexes_count=1, primary_key_coverage=1.0000, query_pattern_index_coverage=1.0000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "tables": [
+          {
+            "name": "users",
+            "primary_key": "",
+            "constraints_declared": false
+          }
+        ],
+        "performance": {
+          "offset_pagination_at_scale_present": true
+        },
+        "integrity": {
+          "money_stored_as_float": true
+        },
+        "security": {
+          "string_concatenated_sql_present": true,
+          "shared_superuser_present": true
+        },
+        "migrations": {
+          "past_migrations_edited": true
+        },
+        "backups": {
+          "untested_backup_trusted": true
+        }
+      },
+      "expect": {
+        "outcome": "DATABASE_DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "Primary key per table",
+          "Constraints per table",
+          "performance.offset_pagination_at_scale_present",
+          "integrity.money_stored_as_float",
+          "security.string_concatenated_sql_present",
+          "security.shared_superuser_present",
+          "migrations.past_migrations_edited",
+          "backups.untested_backup_trusted"
+        ],
+        "notes": "Multiple anti-patterns and invalid configurations triggered."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "design": "Minimal design"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists and boolean fields results in insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "tables": "not_a_list",
+        "normalization": {
+          "normalized_to_3nf": "should_be_boolean"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input schema validation failure due to type mismatch."
+      }
+    }
+  ]
+}

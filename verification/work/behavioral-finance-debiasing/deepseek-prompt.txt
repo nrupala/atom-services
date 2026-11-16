@@ -1,0 +1,822 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: behavioral-finance-debiasing
+
+=== contract.yaml ===
+service_name: behavioral-finance-debiasing
+display_name: Behavioral finance debiasing
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:behavioral-finance-expert
+binding:
+  skill: behavioral-finance-expert
+  skill_path: workspace/mymilo-build/skills/behavioral-finance-expert/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/behavioral_finance_debiasing.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_behavioral_finance_debiasing.py — 43 tests, all passing 2026-11-15
+keys:
+  namespace: behavioral_finance_debiasing
+  prefix: atm_1_behavioral_finance_debiasing_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: PAE decision debiasing work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Behavioral finance debiasing — `behavioral-finance-debiasing`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Spots the predictable biases — fear, greed, anchoring, loss aversion — that quietly steer money decisions, and helps you debias before you act.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **PAE decision debiasing work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the debiasing manifest
+
+The caller submits one JSON manifest: a declared debiasing pack
+for one money decision. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`NOT_DEBIASED`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `decision` (string; carried into the verdict output, not itself checked) | — |
+| `context.is_big_trade` (gates the cooling-off check below) | journal_checklists_and_cooling_off |
+| `bias_screening.loss_aversion_screened` | bias_screening |
+| `bias_screening.disposition_effect_screened` | bias_screening |
+| `bias_screening.mental_accounting_screened` | bias_screening |
+| `bias_screening.anchoring_to_purchase_price_screened` | bias_screening |
+| `bias_screening.recency_availability_screened` | bias_screening |
+| `bias_screening.herding_fomo_screened` | bias_screening |
+| `bias_screening.overconfidence_illusion_of_control_screened` | bias_screening |
+| `bias_screening.confirmation_screened` | bias_screening |
+| `bias_screening.sunk_cost_screened` | bias_screening |
+| `bias_screening.home_bias_screened` | bias_screening |
+| `bias_screening.narrative_bias_screened` | bias_screening |
+| `bias_patterns.found` (list of `{bias, technique_named, surfaced_to_user}`; computed, see below) | bias_screening |
+| `prospect_theory.reference_point_identified` | prospect_theory_reframing |
+| `prospect_theory.framed_vs_reference_not_absolute_wealth` | prospect_theory_reframing |
+| `prospect_theory.loss_asymmetry_acknowledged` | prospect_theory_reframing |
+| `prospect_theory.risk_attitude_by_domain_checked` | prospect_theory_reframing |
+| `prospect_theory.probability_weighting_checked` | prospect_theory_reframing |
+| `precommitment.investment_policy_statement_present` | precommitment_rules |
+| `precommitment.written_sell_criteria_present` | precommitment_rules |
+| `precommitment.rules_decided_before_emotion_arrives` | precommitment_rules |
+| `precommitment.rebalancing_target_allocation_percent` (number; computed, see below) | precommitment_rules |
+| `precommitment.rebalancing_current_allocation_percent` (number; computed, see below) | precommitment_rules |
+| `precommitment.rebalancing_band_percent` (number; computed, see below) | precommitment_rules |
+| `journal_and_checklists.decision_journal_reasoning_recorded` | journal_checklists_and_cooling_off |
+| `journal_and_checklists.decisions_reviewed_separately_from_outcomes` | journal_checklists_and_cooling_off |
+| `journal_and_checklists.base_rates_used` | journal_checklists_and_cooling_off |
+| `journal_and_checklists.checklists_used` | journal_checklists_and_cooling_off |
+| `journal_and_checklists.cooling_off_period_taken` (required when the trade is big; otherwise the check passes as not applicable) | journal_checklists_and_cooling_off |
+| `whole_portfolio.reframed_in_whole_portfolio_absolute_terms` | whole_portfolio_reframing |
+| `whole_portfolio.single_position_pnl_framing_used` (must be `false` to pass) | whole_portfolio_reframing |
+| `whole_portfolio.position_value` (number; computed report only, see below) | whole_portfolio_reframing |
+| `whole_portfolio.whole_portfolio_value` (number; computed report only, see below) | whole_portfolio_reframing |
+| `guardrails.bias_patterns_surfaced_to_user` | guardrails_and_anti_patterns |
+| `guardrails.tool_calculates_user_decides` | guardrails_and_anti_patterns |
+| `guardrails.not_advice_line_respected` | guardrails_and_anti_patterns |
+| `guardrails.biases_used_to_manipulate` (must be `false` to pass — skill anti-pattern) | guardrails_and_anti_patterns |
+| `guardrails.trade_nudge_present` (must be `false` to pass) | guardrails_and_anti_patterns |
+| `guardrails.markets_assumed_perfectly_efficient_or_irrational` (must be `false` to pass — skill anti-pattern) | guardrails_and_anti_patterns |
+| `guardrails.single_bias_treated_as_whole_story` (must be `false` to pass — skill anti-pattern) | guardrails_and_anti_patterns |
+
+One check is computed against a caller-declared limit, two
+checks are computed over the declared patterns list, and one
+value is computed and reported only — no outside threshold is
+imported:
+
+- **Rebalancing band:** the skill's pre-commit technique names
+  "rebalancing bands" but states no figures, so target, current
+  allocation, and band are all caller-declared: the declared
+  current allocation's distance from the declared target passes
+  at or below the declared band and fails above it; equality
+  passes, because the band is a limit. If any of the three
+  numbers is absent, the check is missing evidence.
+- **Found patterns:** every entry in the declared
+  `bias_patterns.found` list must declare
+  `technique_named: true` and `surfaced_to_user: true` — the
+  skill's techniques are applied per bias, and its PAE rule is
+  to surface the user's own patterns back to them. An empty
+  list passes both checks (no found pattern lacks a technique
+  or was withheld); a missing list is missing evidence. The
+  `bias` string is a caller-declared label: type-validated as a
+  string only, never checked against a bias vocabulary.
+- **Position share (report only):** the whole-portfolio reframe
+  is reported as `position_share_percent_of_portfolio` =
+  100 × `position_value` / `whole_portfolio_value` (null when
+  either value is undeclared or the declared whole portfolio
+  value is zero). No pass/fail threshold is attached: the skill
+  requires the reframe but states no limit on a position's
+  share, so none is invented.
+
+The output also reports the computed `computed_status`
+(`within_declared_band_on_declared_evidence` /
+`outside_declared_band_on_declared_evidence` / null when the
+rebalancing check cannot be completed),
+`bias_patterns_found_count` (the declared list length, or
+null), and `allocation_drift_over_band_percent` — |current −
+target| − band (null when any of the three numbers is
+undeclared). **Fixed serialization rule:** both derived numbers
+are reported as strings with exactly four decimal places,
+produced in both implementations by the same rule — round half
+up to 4dp, `floor(v * 10000 + 0.5) / 10000`, then format with
+exactly four decimals; comparisons use the unrounded values.
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The verdict is one of `DEBIASED` (all 36 checks pass),
+`NOT_DEBIASED` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+bias_screening, prospect_theory_reframing, precommitment_rules,
+journal_checklists_and_cooling_off, whole_portfolio_reframing,
+guardrails_and_anti_patterns.
+
+## Honest scoping
+
+This atom audits a **declared** debiasing pack — it does not
+interview the investor, detect biases in live behaviour, give
+financial advice, nudge any trade, or verify that a declared
+value is true. A decision is debiased *on the caller's declared
+evidence*: a manifest that declares a full bias screen, an
+investment policy statement, and a cooling-off period passes
+those checks even if none of it happened. It is a completeness
+audit of the record the skill requires, **not a behavioural
+diagnosis and not advice**: it never judges whether the
+decision itself is wise, whether a screened bias is actually
+present, or whether a named technique was applied well — only
+that the record contains what the skill's bias catalogue,
+prospect-theory points, debiasing techniques, and anti-patterns
+demand. The personal material in the bound skill (notes about
+the owner's own positions and his product) is context for the
+skill's author, not a check: nothing in it is read by this atom,
+and no check is derived from it.
+
+Named exclusions: no check of any prose (journal reasoning
+quality, reframe quality are judgment, and the skill states no
+vocabulary for grading them, so none is invented); no bias
+vocabulary is imposed on `bias_patterns.found[].bias` (the
+eleven catalogue biases are each checked as their own declared
+screening field, because the skill lists them as the key money
+biases to spot; a caller's found-pattern labels stay their
+own); no cooling-off duration is checked — the skill requires
+cooling-off periods before big trades but, unlike its sibling
+skill, states no number of hours, so only that a period was
+taken is checked, and only for big trades; no prospect-theory
+magnitude is computed — "losses loom roughly twice as large"
+is checked as an acknowledged framing point, not turned into a
+loss-weight formula the skill never states as a calculation;
+no rebalancing figure is imposed — target and band are
+caller-declared, because the skill requires bands but states
+no values; no live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Overlaps behavioral-finance
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "decision": "Sell 50 shares of AAPL",
+      "context": {
+        "is_big_trade": true
+      },
+      "bias_screening": {
+        "loss_aversion_screened": true,
+        "disposition_effect_screened": true,
+        "mental_accounting_screened": true,
+        "anchoring_to_purchase_price_screened": true,
+        "recency_availability_screened": true,
+        "herding_fomo_screened": true,
+        "overconfidence_illusion_of_control_screened": true,
+        "confirmation_screened": true,
+        "sunk_cost_screened": true,
+        "home_bias_screened": true,
+        "narrative_bias_screened": true
+      },
+      "bias_patterns": {
+        "found": [
+          {
+            "bias": "loss_aversion",
+            "technique_named": true,
+            "surfaced_to_user": true
+          }
+        ]
+      },
+      "prospect_theory": {
+        "reference_point_identified": true,
+        "framed_vs_reference_not_absolute_wealth": true,
+        "loss_asymmetry_acknowledged": true,
+        "risk_attitude_by_domain_checked": true,
+        "probability_weighting_checked": true
+      },
+      "precommitment": {
+        "investment_policy_statement_present": true,
+        "written_sell_criteria_present": true,
+        "rules_decided_before_emotion_arrives": true,
+        "rebalancing_target_allocation_percent": 50.0,
+        "rebalancing_current_allocation_percent": 51.0,
+        "rebalancing_band_percent": 2.0
+      },
+      "journal_and_checklists": {
+        "decision_journal_reasoning_recorded": true,
+        "decisions_reviewed_separately_from_outcomes": true,
+        "base_rates_used": true,
+        "checklists_used": true,
+        "cooling_off_period_taken": true
+      },
+      "whole_portfolio": {
+        "reframed_in_whole_portfolio_absolute_terms": true,
+        "single_position_pnl_framing_used": false,
+        "position_value": 1000.0,
+        "whole_portfolio_value": 10000.0
+      },
+      "guardrails": {
+        "bias_patterns_surfaced_to_user": true,
+        "tool_calculates_user_decides": true,
+        "not_advice_line_respected": true,
+        "biases_used_to_manipulate": false,
+        "trade_nudge_present": false,
+        "markets_assumed_perfectly_efficient_or_irrational": false,
+        "single_bias_treated_as_whole_story": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "behavioral-finance-debiasing",
+      "atom_version": "0.1.0",
+      "decision": "Sell 50 shares of AAPL",
+      "verdict": "DEBIASED",
+      "sections": {
+        "bias_screening": "pass",
+        "prospect_theory_reframing": "pass",
+        "precommitment_rules": "pass",
+        "journal_checklists_and_cooling_off": "pass",
+        "whole_portfolio_reframing": "pass",
+        "guardrails_and_anti_patterns": "pass"
+      },
+      "checks": [
+        {
+          "section": "bias_screening",
+          "check": "loss_aversion_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for loss aversion"
+        },
+        {
+          "section": "bias_screening",
+          "check": "disposition_effect_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for disposition effect (sell winners too early, ride losers too long)"
+        },
+        {
+          "section": "bias_screening",
+          "check": "mental_accounting_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for mental accounting"
+        },
+        {
+          "section": "bias_screening",
+          "check": "anchoring_to_purchase_price_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for anchoring to purchase price"
+        },
+        {
+          "section": "bias_screening",
+          "check": "recency_availability_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for recency/availability"
+        },
+        {
+          "section": "bias_screening",
+          "check": "herding_fomo_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for herding & FOMO"
+        },
+        {
+          "section": "bias_screening",
+          "check": "overconfidence_illusion_of_control_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for overconfidence and illusion of control"
+        },
+        {
+          "section": "bias_screening",
+          "check": "confirmation_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for confirmation"
+        },
+        {
+          "section": "bias_screening",
+          "check": "sunk_cost_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for sunk cost"
+        },
+        {
+          "section": "bias_screening",
+          "check": "home_bias_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for home bias"
+        },
+        {
+          "section": "bias_screening",
+          "check": "narrative_bias_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for narrative bias"
+        },
+        {
+          "section": "bias_screening",
+          "check": "all_found_patterns_have_technique_named",
+          "status": "pass",
+          "evidence": "debiasing techniques: every bias pattern found carries a named debiasing technique (an empty found list passes \u2014 no found pattern lacks a technique)"
+        },
+        {
+          "section": "bias_screening",
+          "check": "all_found_patterns_surfaced_to_user",
+          "status": "pass",
+          "evidence": "surface the user's own bias patterns back to them so they can self-correct (an empty found list passes \u2014 no found pattern was withheld)"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "reference_point_identified",
+          "status": "pass",
+          "evidence": "prospect theory: decisions are reference-dependent \u2014 the reference point is identified"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "framed_vs_reference_not_absolute_wealth",
+          "status": "pass",
+          "evidence": "prospect theory: the decision is framed as gain/loss vs the reference point, not absolute wealth"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "loss_asymmetry_acknowledged",
+          "status": "pass",
+          "evidence": "prospect theory: losses loom roughly twice as large as equivalent gains \u2014 the asymmetry is acknowledged in the framing"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "risk_attitude_by_domain_checked",
+          "status": "pass",
+          "evidence": "prospect theory: risk-averse in the domain of gains, risk-seeking in the domain of losses \u2014 the decision's domain attitude is checked"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "probability_weighting_checked",
+          "status": "pass",
+          "evidence": "prospect theory: rare probabilities are overweighted and near-certain ones underweighted \u2014 the weighting is checked"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "investment_policy_statement_present",
+          "status": "pass",
+          "evidence": "pre-commit rules: an investment policy statement is present"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "written_sell_criteria_present",
+          "status": "pass",
+          "evidence": "pre-commit rules: written sell criteria are present"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "rules_decided_before_emotion_arrives",
+          "status": "pass",
+          "evidence": "pre-commit rules: decide before emotion arrives \u2014 the rules were decided before the emotion of this decision"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "allocation_within_rebalancing_band",
+          "status": "pass",
+          "evidence": "pre-commit rules: rebalancing bands \u2014 the declared current allocation's distance from the declared target allocation is at or below the declared band percent"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "decision_journal_reasoning_recorded",
+          "status": "pass",
+          "evidence": "decision journal / decision archaeology: record the reasoning"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "decisions_reviewed_separately_from_outcomes",
+          "status": "pass",
+          "evidence": "decision archaeology: review decisions separately from outcomes"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "base_rates_used",
+          "status": "pass",
+          "evidence": "debiasing techniques: base rates are used"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "checklists_used",
+          "status": "pass",
+          "evidence": "debiasing techniques: checklists are used"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "cooling_off_period_taken_before_big_trade",
+          "status": "pass",
+          "evidence": "debiasing techniques: cooling-off periods before big trades"
+        },
+        {
+          "section": "whole_portfolio_reframing",
+          "check": "reframed_in_whole_portfolio_absolute_terms",
+          "status": "pass",
+          "evidence": "debiasing techniques: reframe in whole-portfolio absolute terms"
+        },
+        {
+          "section": "whole_portfolio_reframing",
+          "check": "not_framed_as_single_position_pnl",
+          "status": "pass",
+          "evidence": "debiasing techniques: the reframe is not left as single-position P&L"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "bias_patterns_surfaced_to_user",
+          "status": "pass",
+          "evidence": "surface the user's own bias patterns back to them so they can self-correct"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "tool_calculates_user_decides",
+          "status": "pass",
+          "evidence": "tool calculates, user decides"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "not_advice_line_respected",
+          "status": "pass",
+          "evidence": "stay on the FINRA/CSA 'not advice' line"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "biases_not_used_to_manipulate",
+          "status": "pass",
+          "evidence": "anti-pattern to refuse: using biases to manipulate"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "no_trade_nudge",
+          "status": "pass",
+          "evidence": "never nudge them into a trade"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "markets_not_assumed_perfectly_efficient_or_irrational",
+          "status": "pass",
+          "evidence": "anti-pattern to refuse: assuming markets are perfectly efficient or perfectly irrational"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "single_bias_not_treated_as_whole_story",
+          "status": "pass",
+          "evidence": "anti-pattern to refuse: treating one bias as the whole story"
+        }
+      ],
+      "computed_status": "within_declared_band_on_declared_evidence",
+      "bias_patterns_found_count": 1,
+      "allocation_drift_over_band_percent": "-1.0000",
+      "position_share_percent_of_portfolio": "10.0000",
+      "summary": "36 pass, 0 fail, 0 missing of 36 checks across six sections.",
+      "stamp": "BEHAVIORAL FINANCE DEBIASING\ndecision: Sell 50 shares of AAPL\nVERDICT: DEBIASED\n  bias_screening                   pass\n  prospect_theory_reframing        pass\n  precommitment_rules              pass\n  journal_checklists_and_cooling_off pass\n  whole_portfolio_reframing        pass\n  guardrails_and_anti_patterns     pass\n36 pass, 0 fail, 0 missing of 36 checks across six sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "decision": "Panic sell",
+      "context": {
+        "is_big_trade": true
+      },
+      "bias_screening": {
+        "loss_aversion_screened": true
+      },
+      "precommitment": {
+        "rebalancing_target_allocation_percent": 50.0,
+        "rebalancing_current_allocation_percent": 60.0,
+        "rebalancing_band_percent": 5.0
+      },
+      "whole_portfolio": {
+        "single_position_pnl_framing_used": true
+      },
+      "guardrails": {
+        "biases_used_to_manipulate": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "behavioral-finance-debiasing",
+      "atom_version": "0.1.0",
+      "decision": "Panic sell",
+      "verdict": "NOT_DEBIASED",
+      "sections": {
+        "bias_screening": "insufficient_evidence",
+        "prospect_theory_reframing": "insufficient_evidence",
+        "precommitment_rules": "fail",
+        "journal_checklists_and_cooling_off": "insufficient_evidence",
+        "whole_portfolio_reframing": "fail",
+        "guardrails_and_anti_patterns": "fail"
+      },
+      "checks": [
+        {
+          "section": "bias_screening",
+          "check": "loss_aversion_screened",
+          "status": "pass",
+          "evidence": "key money biases: the decision is screened for loss aversion"
+        },
+        {
+          "section": "bias_screening",
+          "check": "disposition_effect_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for disposition effect (sell winners too early, ride losers too long)"
+        },
+        {
+          "section": "bias_screening",
+          "check": "mental_accounting_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for mental accounting"
+        },
+        {
+          "section": "bias_screening",
+          "check": "anchoring_to_purchase_price_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for anchoring to purchase price"
+        },
+        {
+          "section": "bias_screening",
+          "check": "recency_availability_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for recency/availability"
+        },
+        {
+          "section": "bias_screening",
+          "check": "herding_fomo_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for herding & FOMO"
+        },
+        {
+          "section": "bias_screening",
+          "check": "overconfidence_illusion_of_control_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for overconfidence and illusion of control"
+        },
+        {
+          "section": "bias_screening",
+          "check": "confirmation_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for confirmation"
+        },
+        {
+          "section": "bias_screening",
+          "check": "sunk_cost_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for sunk cost"
+        },
+        {
+          "section": "bias_screening",
+          "check": "home_bias_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for home bias"
+        },
+        {
+          "section": "bias_screening",
+          "check": "narrative_bias_screened",
+          "status": "missing",
+          "evidence": "key money biases: the decision is screened for narrative bias"
+        },
+        {
+          "section": "bias_screening",
+          "check": "all_found_patterns_have_technique_named",
+          "status": "missing",
+          "evidence": "debiasing techniques: every bias pattern found carries a named debiasing technique (an empty found list passes \u2014 no found pattern lacks a technique)"
+        },
+        {
+          "section": "bias_screening",
+          "check": "all_found_patterns_surfaced_to_user",
+          "status": "missing",
+          "evidence": "surface the user's own bias patterns back to them so they can self-correct (an empty found list passes \u2014 no found pattern was withheld)"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "reference_point_identified",
+          "status": "missing",
+          "evidence": "prospect theory: decisions are reference-dependent \u2014 the reference point is identified"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "framed_vs_reference_not_absolute_wealth",
+          "status": "missing",
+          "evidence": "prospect theory: the decision is framed as gain/loss vs the reference point, not absolute wealth"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "loss_asymmetry_acknowledged",
+          "status": "missing",
+          "evidence": "prospect theory: losses loom roughly twice as large as equivalent gains \u2014 the asymmetry is acknowledged in the framing"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "risk_attitude_by_domain_checked",
+          "status": "missing",
+          "evidence": "prospect theory: risk-averse in the domain of gains, risk-seeking in the domain of losses \u2014 the decision's domain attitude is checked"
+        },
+        {
+          "section": "prospect_theory_reframing",
+          "check": "probability_weighting_checked",
+          "status": "missing",
+          "evidence": "prospect theory: rare probabilities are overweighted and near-certain ones underweighted \u2014 the weighting is checked"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "investment_policy_statement_present",
+          "status": "missing",
+          "evidence": "pre-commit rules: an investment policy statement is present"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "written_sell_criteria_present",
+          "status": "missing",
+          "evidence": "pre-commit rules: written sell criteria are present"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "rules_decided_before_emotion_arrives",
+          "status": "missing",
+          "evidence": "pre-commit rules: decide before emotion arrives \u2014 the rules were decided before the emotion of this decision"
+        },
+        {
+          "section": "precommitment_rules",
+          "check": "allocation_within_rebalancing_band",
+          "status": "fail",
+          "evidence": "pre-commit rules: rebalancing bands \u2014 the declared current allocation's distance from the declared target allocation is at or below the declared band percent"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "decision_journal_reasoning_recorded",
+          "status": "missing",
+          "evidence": "decision journal / decision archaeology: record the reasoning"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "decisions_reviewed_separately_from_outcomes",
+          "status": "missing",
+          "evidence": "decision archaeology: review decisions separately from outcomes"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "base_rates_used",
+          "status": "missing",
+          "evidence": "debiasing techniques: base rates are used"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "checklists_used",
+          "status": "missing",
+          "evidence": "debiasing techniques: checklists are used"
+        },
+        {
+          "section": "journal_checklists_and_cooling_off",
+          "check": "cooling_off_period_taken_before_big_trade",
+          "status": "missing",
+          "evidence": "debiasing techniques: cooling-off periods before big trades"
+        },
+        {
+          "section": "whole_portfolio_reframing",
+          "check": "reframed_in_whole_portfolio_absolute_terms",
+          "status": "missing",
+          "evidence": "debiasing techniques: reframe in whole-portfolio absolute terms"
+        },
+        {
+          "section": "whole_portfolio_reframing",
+          "check": "not_framed_as_single_position_pnl",
+          "status": "fail",
+          "evidence": "debiasing techniques: the reframe is not left as single-position P&L"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "bias_patterns_surfaced_to_user",
+          "status": "missing",
+          "evidence": "surface the user's own bias patterns back to them so they can self-correct"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "tool_calculates_user_decides",
+          "status": "missing",
+          "evidence": "tool calculates, user decides"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "not_advice_line_respected",
+          "status": "missing",
+          "evidence": "stay on the FINRA/CSA 'not advice' line"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "biases_not_used_to_manipulate",
+          "status": "fail",
+          "evidence": "anti-pattern to refuse: using biases to manipulate"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "no_trade_nudge",
+          "status": "missing",
+          "evidence": "never nudge them into a trade"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "markets_not_assumed_perfectly_efficient_or_irrational",
+          "status": "missing",
+          "evidence": "anti-pattern to refuse: assuming markets are perfectly efficient or perfectly irrational"
+        },
+        {
+          "section": "guardrails_and_anti_patterns",
+          "check": "single_bias_not_treated_as_whole_story",
+          "status": "missing",
+          "evidence": "anti-pattern to refuse: treating one bias as the whole story"
+        }
+      ],
+      "computed_status": "outside_declared_band_on_declared_evidence",
+      "bias_patterns_found_count": null,
+      "allocation_drift_over_band_percent": "5.0000",
+      "position_share_percent_of_portfolio": null,
+      "summary": "1 pass, 3 fail, 32 missing of 36 checks across six sections.",
+      "stamp": "BEHAVIORAL FINANCE DEBIASING\ndecision: Panic sell\nVERDICT: NOT_DEBIASED\n  bias_screening                   insufficient_evidence\n  prospect_theory_reframing        insufficient_evidence\n  precommitment_rules              fail\n  journal_checklists_and_cooling_off insufficient_evidence\n  whole_portfolio_reframing        fail\n  guardrails_and_anti_patterns     fail\n1 pass, 3 fail, 32 missing of 36 checks across six sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

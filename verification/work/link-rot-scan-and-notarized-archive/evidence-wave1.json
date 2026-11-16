@@ -1,0 +1,475 @@
+{
+  "atom": "link-rot-scan-and-notarized-archive",
+  "tested_at_utc": "2026-11-15T22:00:36.621601+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "link_rot_scan_and_notarized_archive",
+  "mcp_tools": [
+    {
+      "name": "link_rot_scan_and_notarized_archive",
+      "title": "Link rot scan and notarized archive",
+      "description": "Submit a link-integrity evidence manifest (scan posture, declared link rows with observed statuses, archive captures, canonicalization, notarization records, serving and repair records); get a deterministic LINK_INTEGRITY_SOUND / LINK_INTEGRITY_UNSOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed archived/notarized-citation and rotted-citation-repaired checks, with per-check evidence. Audits declared scan evidence; it does not fetch URLs.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The link-integrity evidence manifest (see the atom's SERVICE.md for the field table and links[] schema).",
+        "properties": {
+          "site": {
+            "type": "string",
+            "description": "Site the scan covers."
+          },
+          "scan": {
+            "type": "object",
+            "description": "Scan-coverage evidence (scheduled, statuses and content hashes recorded, cadence current)."
+          },
+          "links": {
+            "type": "array",
+            "description": "Declared link rows with observed statuses, capture and notarization fields."
+          },
+          "archive": {
+            "type": "object",
+            "description": "Archive-capture evidence (format, fallback chain, cite-time capture)."
+          },
+          "canonicalization": {
+            "type": "object",
+            "description": "Canonicalization evidence (trackers stripped, redirects resolved, dedupe by hash)."
+          },
+          "notarization": {
+            "type": "object",
+            "description": "Notarization evidence (SHA-256, RFC 3161 / transparency-log timestamps, verification recipe)."
+          },
+          "serving": {
+            "type": "object",
+            "description": "Honest-serving evidence (as-seen views, provenance badge, never presented as current)."
+          },
+          "repair": {
+            "type": "object",
+            "description": "Repair evidence (repairs logged, no silent drops)."
+          },
+          "compliance": {
+            "type": "object",
+            "description": "Compliance evidence (robots/ToS, rate limits, no access-control bypass)."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "LINK_INTEGRITY_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: links_evaluated=1, citations_total=1, rotted_citations=0, unarchived_citations=0"
+      },
+      "input": {
+        "site": "example.com",
+        "scan": {
+          "scans_scheduled": true,
+          "scan_records_status": true,
+          "scan_records_content_hash": true,
+          "dashboard_lists_rot_with_owners": true,
+          "last_scan_within_cadence": true
+        },
+        "links": [
+          {
+            "id": "link_01",
+            "url": "https://example.com/ref1",
+            "is_published_citation": true,
+            "observed_status": "ok",
+            "archived": true,
+            "capture_hash_present": true,
+            "capture_timestamp_present": true,
+            "capture_at_cite_time": true,
+            "canonicalized": true,
+            "stable_id_present": true,
+            "content_hash": "abc123",
+            "canonical_url": "https://example.com/ref1",
+            "notarized": true,
+            "repair_action": "none_needed",
+            "repair_logged": true
+          }
+        ],
+        "archive": {
+          "capture_format_warc_or_singlefile": true,
+          "fallback_chain_configured": true
+        },
+        "canonicalization": {
+          "tracker_params_stripped": true,
+          "redirects_resolved": true,
+          "dedupe_by_content_hash": true
+        },
+        "notarization": {
+          "hash_algorithm_sha256": true,
+          "timestamp_source": "rfc3161_tsa",
+          "evidence_bundle_complete": true,
+          "tool_versions_recorded": true,
+          "verification_recipe_published": true
+        },
+        "serving": {
+          "as_seen_views_available": true,
+          "live_vs_archive_diff_available": true,
+          "provenance_badge_shows_capture_date": true,
+          "provenance_badge_shows_verification_status": true,
+          "archived_presented_as_current": false,
+          "authorship_preserved": true
+        },
+        "repair": {
+          "repairs_logged": true,
+          "silent_drops_made": false
+        },
+        "compliance": {
+          "robots_and_tos_honored": true,
+          "rate_limits_respected": true,
+          "access_controls_bypassed": false,
+          "fabricated_captures_present": false
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"link-rot-scan-and-notarized-archive\",\"atom_version\":\"0.1.0\",\"site\":\"example.com\",\"verdict\":\"LINK_INTEGRITY_SOUND\",\"sections\":{\"scan_coverage\":\"pass\",\"archive_capture\":\"pass\",\"canonicalization\":\"pass\",\"notarization\":\"pass\",\"honest_serving\":\"pass\",\"repair_and_compliance\":\"pass\"},\"checks\":[{\"section\":\"scan_coverage\",\"check\":\"scans_scheduled\",\"status\":\"pass\",\"evidence\":\"scheduled scans (HEAD/GET) for internal and external links\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_status\",\"status\":\"pass\",\"evidence\":\"scan records the observed status of every link\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_content_hash\",\"status\":\"pass\",\"evidence\":\"scan records a content hash for every link\"},{\"section\":\"scan_coverage\",\"check\":\"dashboard_lists_rot_with_owners\",\"status\":\"pass\",\"evidence\":\"quality gate: dashboard lists dead/moved/hijacked links with owners\"},{\"section\":\"scan_coverage\",\"check\":\"scan_cadence_current\",\"status\":\"pass\",\"evidence\":\"the most recent scan ran within its declared cadence\"},{\"section\":\"scan_coverage\",\"check\":\"links_complete\",\"status\":\"pass\",\"evidence\":\"every link row carries an id, url, observed status, archive, canonicalization, notarization, and repair record\"},{\"section\":\"archive_capture\",\"check\":\"captures_in_warc_or_singlefile\",\"status\":\"pass\",\"evidence\":\"captures stored as WARC or SingleFile at save time\"},{\"section\":\"archive_capture\",\"check\":\"fallback_chain_configured\",\"status\":\"pass\",\"evidence\":\"fallback chain: original, then archive.org, then other public archives\"},{\"section\":\"archive_capture\",\"check\":\"citations_archived_with_hash_and_timestamp\",\"status\":\"pass\",\"evidence\":\"quality gate: every published citation has an archived capture with hash and timestamp\"},{\"section\":\"archive_capture\",\"check\":\"citations_captured_at_cite_time\",\"status\":\"pass\",\"evidence\":\"captures taken at cite time, when saved \u2014 not later\"},{\"section\":\"canonicalization\",\"check\":\"tracker_params_stripped\",\"status\":\"pass\",\"evidence\":\"URLs normalized: tracker parameters stripped\"},{\"section\":\"canonicalization\",\"check\":\"redirects_resolved\",\"status\":\"pass\",\"evidence\":\"URLs normalized: redirects resolved\"},{\"section\":\"canonicalization\",\"check\":\"dedupe_by_content_hash\",\"status\":\"pass\",\"evidence\":\"dedupe by content hash\"},{\"section\":\"canonicalization\",\"check\":\"links_canonicalized_with_stable_ids\",\"status\":\"pass\",\"evidence\":\"every link is canonicalized and carries a stable internal ID, so links survive URL changes\"},{\"section\":\"canonicalization\",\"check\":\"duplicate_content_shares_canonical\",\"status\":\"pass\",\"evidence\":\"links sharing a content hash share one canonical URL\"},{\"section\":\"notarization\",\"check\":\"hash_is_sha256\",\"status\":\"pass\",\"evidence\":\"artifact hashed with SHA-256\"},{\"section\":\"notarization\",\"check\":\"timestamp_from_real_tsa_or_log\",\"status\":\"pass\",\"evidence\":\"red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated\"},{\"section\":\"notarization\",\"check\":\"evidence_bundle_complete\",\"status\":\"pass\",\"evidence\":\"evidence bundle: URL + capture + hashes + time + tool versions\"},{\"section\":\"notarization\",\"check\":\"tool_versions_recorded\",\"status\":\"pass\",\"evidence\":\"tool versions recorded in the evidence bundle\"},{\"section\":\"notarization\",\"check\":\"verification_recipe_published\",\"status\":\"pass\",\"evidence\":\"quality gate: verification recipe published \u2014 anyone can re-hash and check\"},{\"section\":\"notarization\",\"check\":\"citations_notarized\",\"status\":\"pass\",\"evidence\":\"every published citation's capture is notarized\"},{\"section\":\"honest_serving\",\"check\":\"as_seen_views_available\",\"status\":\"pass\",\"evidence\":\"reader/playback offers as-seen views of captures\"},{\"section\":\"honest_serving\",\"check\":\"live_vs_archive_diff_available\",\"status\":\"pass\",\"evidence\":\"live-vs-archive diff available\"},{\"section\":\"honest_serving\",\"check\":\"provenance_badge_complete\",\"status\":\"pass\",\"evidence\":\"provenance badge shows capture date and verification status\"},{\"section\":\"honest_serving\",\"check\":\"archived_never_presented_as_current\",\"status\":\"pass\",\"evidence\":\"red line: archived content is never presented as current\"},{\"section\":\"honest_serving\",\"check\":\"authorship_never_stripped\",\"status\":\"pass\",\"evidence\":\"red line: a page's authorship is never stripped while archiving\"},{\"section\":\"repair_and_compliance\",\"check\":\"repairs_logged\",\"status\":\"pass\",\"evidence\":\"quality gate: all repairs logged\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_silent_drops\",\"status\":\"pass\",\"evidence\":\"rotted links are never silently dropped\"},{\"section\":\"repair_and_compliance\",\"check\":\"rotted_citations_repaired\",\"status\":\"pass\",\"evidence\":\"quality gate: no broken citation ships \u2014 every rotted citation has a logged repair (archived copy, updated canonical, or dated removal note)\"},{\"section\":\"repair_and_compliance\",\"check\":\"robots_and_tos_honored\",\"status\":\"pass\",\"evidence\":\"robots and terms of service honored for fetching\"},{\"section\":\"repair_and_compliance\",\"check\":\"rate_limits_respected\",\"status\":\"pass\",\"evidence\":\"rate limits respected \u2014 no scraping at volumes that harm the target\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_access_control_bypass\",\"status\":\"pass\",\"evidence\":\"red line: no bypassing access controls\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_fabricated_captures\",\"status\":\"pass\",\"evidence\":\"red line: no fabricated or synthetic captures\"}],\"links_evaluated\":1,\"citations_total\":1,\"rotted_citations\":0,\"unarchived_citations\":0,\"summary\":\"33 pass, 0 fail, 0 missing of 33 checks across six sections.\",\"stamp\":\"LINK ROT SCAN AND NOTARIZED ARCHIVE\\nsite: example.com\\nVERDICT: LINK_INTEGRITY_SOUND\\n  scan_coverage            pass\\n  archive_capture          pass\\n  canonicalization         pass\\n  notarization             pass\\n  honest_serving           pass\\n  repair_and_compliance    pass\\n33 pass, 0 fail, 0 missing of 33 checks across six sections.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"link-rot-scan-and-notarized-archive\",\"atom_version\":\"0.1.0\",\"site\":\"example.com\",\"verdict\":\"LINK_INTEGRITY_SOUND\",\"sections\":{\"scan_coverage\":\"pass\",\"archive_capture\":\"pass\",\"canonicalization\":\"pass\",\"notarization\":\"pass\",\"honest_serving\":\"pass\",\"repair_and_compliance\":\"pass\"},\"checks\":[{\"section\":\"scan_coverage\",\"check\":\"scans_scheduled\",\"status\":\"pass\",\"evidence\":\"scheduled scans (HEAD/GET) for internal and external links\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_status\",\"status\":\"pass\",\"evidence\":\"scan records the observed status of every link\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_content_hash\",\"status\":\"pass\",\"evidence\":\"scan records a content hash for every link\"},{\"section\":\"scan_coverage\",\"check\":\"dashboard_lists_rot_with_owners\",\"status\":\"pass\",\"evidence\":\"quality gate: dashboard lists dead/moved/hijacked links with owners\"},{\"section\":\"scan_coverage\",\"check\":\"scan_cadence_current\",\"status\":\"pass\",\"evidence\":\"the most recent scan ran within its declared cadence\"},{\"section\":\"scan_coverage\",\"check\":\"links_complete\",\"status\":\"pass\",\"evidence\":\"every link row carries an id, url, observed status, archive, canonicalization, notarization, and repair record\"},{\"section\":\"archive_capture\",\"check\":\"captures_in_warc_or_singlefile\",\"status\":\"pass\",\"evidence\":\"captures stored as WARC or SingleFile at save time\"},{\"section\":\"archive_capture\",\"check\":\"fallback_chain_configured\",\"status\":\"pass\",\"evidence\":\"fallback chain: original, then archive.org, then other public archives\"},{\"section\":\"archive_capture\",\"check\":\"citations_archived_with_hash_and_timestamp\",\"status\":\"pass\",\"evidence\":\"quality gate: every published citation has an archived capture with hash and timestamp\"},{\"section\":\"archive_capture\",\"check\":\"citations_captured_at_cite_time\",\"status\":\"pass\",\"evidence\":\"captures taken at cite time, when saved \u2014 not later\"},{\"section\":\"canonicalization\",\"check\":\"tracker_params_stripped\",\"status\":\"pass\",\"evidence\":\"URLs normalized: tracker parameters stripped\"},{\"section\":\"canonicalization\",\"check\":\"redirects_resolved\",\"status\":\"pass\",\"evidence\":\"URLs normalized: redirects resolved\"},{\"section\":\"canonicalization\",\"check\":\"dedupe_by_content_hash\",\"status\":\"pass\",\"evidence\":\"dedupe by content hash\"},{\"section\":\"canonicalization\",\"check\":\"links_canonicalized_with_stable_ids\",\"status\":\"pass\",\"evidence\":\"every link is canonicalized and carries a stable internal ID, so links survive URL changes\"},{\"section\":\"canonicalization\",\"check\":\"duplicate_content_shares_canonical\",\"status\":\"pass\",\"evidence\":\"links sharing a content hash share one canonical URL\"},{\"section\":\"notarization\",\"check\":\"hash_is_sha256\",\"status\":\"pass\",\"evidence\":\"artifact hashed with SHA-256\"},{\"section\":\"notarization\",\"check\":\"timestamp_from_real_tsa_or_log\",\"status\":\"pass\",\"evidence\":\"red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated\"},{\"section\":\"notarization\",\"check\":\"evidence_bundle_complete\",\"status\":\"pass\",\"evidence\":\"evidence bundle: URL + capture + hashes + time + tool versions\"},{\"section\":\"notarization\",\"check\":\"tool_versions_recorded\",\"status\":\"pass\",\"evidence\":\"tool versions recorded in the evidence bundle\"},{\"section\":\"notarization\",\"check\":\"verification_recipe_published\",\"status\":\"pass\",\"evidence\":\"quality gate: verification recipe published \u2014 anyone can re-hash and check\"},{\"section\":\"notarization\",\"check\":\"citations_notarized\",\"status\":\"pass\",\"evidence\":\"every published citation's capture is notarized\"},{\"section\":\"honest_serving\",\"check\":\"as_seen_views_available\",\"status\":\"pass\",\"evidence\":\"reader/playback offers as-seen views of captures\"},{\"section\":\"honest_serving\",\"check\":\"live_vs_archive_diff_available\",\"status\":\"pass\",\"evidence\":\"live-vs-archive diff available\"},{\"section\":\"honest_serving\",\"check\":\"provenance_badge_complete\",\"status\":\"pass\",\"evidence\":\"provenance badge shows capture date and verification status\"},{\"section\":\"honest_serving\",\"check\":\"archived_never_presented_as_current\",\"status\":\"pass\",\"evidence\":\"red line: archived content is never presented as current\"},{\"section\":\"honest_serving\",\"check\":\"authorship_never_stripped\",\"status\":\"pass\",\"evidence\":\"red line: a page's authorship is never stripped while archiving\"},{\"section\":\"repair_and_compliance\",\"check\":\"repairs_logged\",\"status\":\"pass\",\"evidence\":\"quality gate: all repairs logged\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_silent_drops\",\"status\":\"pass\",\"evidence\":\"rotted links are never silently dropped\"},{\"section\":\"repair_and_compliance\",\"check\":\"rotted_citations_repaired\",\"status\":\"pass\",\"evidence\":\"quality gate: no broken citation ships \u2014 every rotted citation has a logged repair (archived copy, updated canonical, or dated removal note)\"},{\"section\":\"repair_and_compliance\",\"check\":\"robots_and_tos_honored\",\"status\":\"pass\",\"evidence\":\"robots and terms of service honored for fetching\"},{\"section\":\"repair_and_compliance\",\"check\":\"rate_limits_respected\",\"status\":\"pass\",\"evidence\":\"rate limits respected \u2014 no scraping at volumes that harm the target\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_access_control_bypass\",\"status\":\"pass\",\"evidence\":\"red line: no bypassing access controls\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_fabricated_captures\",\"status\":\"pass\",\"evidence\":\"red line: no fabricated or synthetic captures\"}],\"links_evaluated\":1,\"citations_total\":1,\"rotted_citations\":0,\"unarchived_citations\":0,\"summary\":\"33 pass, 0 fail, 0 missing of 33 checks across six sections.\",\"stamp\":\"LINK ROT SCAN AND NOTARIZED ARCHIVE\\nsite: example.com\\nVERDICT: LINK_INTEGRITY_SOUND\\n  scan_coverage            pass\\n  archive_capture          pass\\n  canonicalization         pass\\n  notarization             pass\\n  honest_serving           pass\\n  repair_and_compliance    pass\\n33 pass, 0 fail, 0 missing of 33 checks across six sections.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"link-rot-scan-and-notarized-archive\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"site\\\": \\\"example.com\\\",\\n  \\\"verdict\\\": \\\"LINK_INTEGRITY_SOUND\\\",\\n  \\\"sections\\\": {\\n    \\\"scan_coverage\\\": \\\"pass\\\",\\n    \\\"archive_capture\\\": \\\"pass\\\",\\n    \\\"canonicalization\\\": \\\"pass\\\",\\n    \\\"notarization\\\": \\\"pass\\\",\\n    \\\"honest_serving\\\": \\\"pass\\\",\\n    \\\"repair_and_compliance\\\": \\\"pass\\\"\\n  },\\n  \\\"checks\\\": [\\n    {\\n      \\\"section\\\": \\\"scan_coverage\\\",\\n      \\\"check\\\": \\\"scans_scheduled\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"scheduled scans (HEAD/GET) for internal and external links\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"scan_coverage\\\",\\n      \\\"check\\\": \\\"scan_records_status\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"scan records the observed status of every link\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"scan_coverage\\\",\\n      \\\"check\\\": \\\"scan_records_content_hash\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"scan records a content hash for every link\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"scan_coverage\\\",\\n      \\\"check\\\": \\\"dashboard_lists_rot_with_owners\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: dashboard lists dead/moved/hijacked links with owners\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"scan_coverage\\\",\\n      \\\"check\\\": \\\"scan_cadence_current\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"the most recent scan ran within its declared cadence\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"scan_coverage\\\",\\n      \\\"check\\\": \\\"links_complete\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"every link row carries an id, url, observed status, archive, canonicalization, notarization, and repair record\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"archive_capture\\\",\\n      \\\"check\\\": \\\"captures_in_warc_or_singlefile\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"captures stored as WARC or SingleFile at save time\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"archive_capture\\\",\\n      \\\"check\\\": \\\"fallback_chain_configured\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"fallback chain: original, then archive.org, then other public archives\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"archive_capture\\\",\\n      \\\"check\\\": \\\"citations_archived_with_hash_and_timestamp\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: every published citation has an archived capture with hash and timestamp\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"archive_capture\\\",\\n      \\\"check\\\": \\\"citations_captured_at_cite_time\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"captures taken at cite time, when saved \u2014 not later\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"canonicalization\\\",\\n      \\\"check\\\": \\\"tracker_params_stripped\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"URLs normalized: tracker parameters stripped\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"canonicalization\\\",\\n      \\\"check\\\": \\\"redirects_resolved\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"URLs normalized: redirects resolved\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"canonicalization\\\",\\n      \\\"check\\\": \\\"dedupe_by_content_hash\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"dedupe by content hash\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"canonicalization\\\",\\n      \\\"check\\\": \\\"links_canonicalized_with_stable_ids\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"every link is canonicalized and carries a stable internal ID, so links survive URL changes\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"canonicalization\\\",\\n      \\\"check\\\": \\\"duplicate_content_shares_canonical\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"links sharing a content hash share one canonical URL\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"notarization\\\",\\n      \\\"check\\\": \\\"hash_is_sha256\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"artifact hashed with SHA-256\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"notarization\\\",\\n      \\\"check\\\": \\\"timestamp_from_real_tsa_or_log\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"notarization\\\",\\n      \\\"check\\\": \\\"evidence_bundle_complete\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"evidence bundle: URL + capture + hashes + time + tool versions\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"notarization\\\",\\n      \\\"check\\\": \\\"tool_versions_recorded\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"tool versions recorded in the evidence bundle\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"notarization\\\",\\n      \\\"check\\\": \\\"verification_recipe_published\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: verification recipe published \u2014 anyone can re-hash and check\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"notarization\\\",\\n      \\\"check\\\": \\\"citations_notarized\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"every published citation's capture is notarized\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_serving\\\",\\n      \\\"check\\\": \\\"as_seen_views_available\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"reader/playback offers as-seen views of captures\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_serving\\\",\\n      \\\"check\\\": \\\"live_vs_archive_diff_available\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"live-vs-archive diff available\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_serving\\\",\\n      \\\"check\\\": \\\"provenance_badge_complete\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"provenance badge shows capture date and verification status\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_serving\\\",\\n      \\\"check\\\": \\\"archived_never_presented_as_current\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"red line: archived content is never presented as current\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"honest_serving\\\",\\n      \\\"check\\\": \\\"authorship_never_stripped\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"red line: a page's authorship is never stripped while archiving\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"repair_and_compliance\\\",\\n      \\\"check\\\": \\\"repairs_logged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: all repairs logged\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"repair_and_compliance\\\",\\n      \\\"check\\\": \\\"no_silent_drops\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"rotted links are never silently dropped\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"repair_and_compliance\\\",\\n      \\\"check\\\": \\\"rotted_citations_repaired\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: no broken citation ships \u2014 every rotted citation has a logged repair (archived copy, updated canonical, or dated removal note)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"repair_and_compliance\\\",\\n      \\\"check\\\": \\\"robots_and_tos_honored\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"robots and terms of service honored for fetching\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"repair_and_compliance\\\",\\n      \\\"check\\\": \\\"rate_limits_respected\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"rate limits respected \u2014 no scraping at volumes that harm the target\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"repair_and_compliance\\\",\\n      \\\"check\\\": \\\"no_access_control_bypass\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"red line: no bypassing access controls\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"repair_and_compliance\\\",\\n      \\\"check\\\": \\\"no_fabricated_captures\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"red line: no fabricated or synthetic captures\\\"\\n    }\\n  ],\\n  \\\"links_evaluated\\\": 1,\\n  \\\"citations_total\\\": 1,\\n  \\\"rotted_citations\\\": 0,\\n  \\\"unarchived_citations\\\": 0,\\n  \\\"summary\\\": \\\"33 pass, 0 fail, 0 missing of 33 checks across six sections.\\\",\\n  \\\"stamp\\\": \\\"LINK ROT SCAN AND NOTARIZED ARCHIVE\\\\nsite: example.com\\\\nVERDICT: LINK_INTEGRITY_SOUND\\\\n  scan_coverage            pass\\\\n  archive_capture          pass\\\\n  canonicalization         pass\\\\n  notarization             pass\\\\n  honest_serving           pass\\\\n  repair_and_compliance    pass\\\\n33 pass, 0 fail, 0 missing of 33 checks across six sections.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"link-rot-scan-and-notarized-archive\",\"atom_version\":\"0.1.0\",\"site\":\"example.com\",\"verdict\":\"LINK_INTEGRITY_SOUND\",\"sections\":{\"scan_coverage\":\"pass\",\"archive_capture\":\"pass\",\"canonicalization\":\"pass\",\"notarization\":\"pass\",\"honest_serving\":\"pass\",\"repair_and_compliance\":\"pass\"},\"checks\":[{\"section\":\"scan_coverage\",\"check\":\"scans_scheduled\",\"status\":\"pass\",\"evidence\":\"scheduled scans (HEAD/GET) for internal and external links\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_status\",\"status\":\"pass\",\"evidence\":\"scan records the observed status of every link\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_content_hash\",\"status\":\"pass\",\"evidence\":\"scan records a content hash for every link\"},{\"section\":\"scan_coverage\",\"check\":\"dashboard_lists_rot_with_owners\",\"status\":\"pass\",\"evidence\":\"quality gate: dashboard lists dead/moved/hijacked links with owners\"},{\"section\":\"scan_coverage\",\"check\":\"scan_cadence_current\",\"status\":\"pass\",\"evidence\":\"the most recent scan ran within its declared cadence\"},{\"section\":\"scan_coverage\",\"check\":\"links_complete\",\"status\":\"pass\",\"evidence\":\"every link row carries an id, url, observed status, archive, canonicalization, notarization, and repair record\"},{\"section\":\"archive_capture\",\"check\":\"captures_in_warc_or_singlefile\",\"status\":\"pass\",\"evidence\":\"captures stored as WARC or SingleFile at save time\"},{\"section\":\"archive_capture\",\"check\":\"fallback_chain_configured\",\"status\":\"pass\",\"evidence\":\"fallback chain: original, then archive.org, then other public archives\"},{\"section\":\"archive_capture\",\"check\":\"citations_archived_with_hash_and_timestamp\",\"status\":\"pass\",\"evidence\":\"quality gate: every published citation has an archived capture with hash and timestamp\"},{\"section\":\"archive_capture\",\"check\":\"citations_captured_at_cite_time\",\"status\":\"pass\",\"evidence\":\"captures taken at cite time, when saved \u2014 not later\"},{\"section\":\"canonicalization\",\"check\":\"tracker_params_stripped\",\"status\":\"pass\",\"evidence\":\"URLs normalized: tracker parameters stripped\"},{\"section\":\"canonicalization\",\"check\":\"redirects_resolved\",\"status\":\"pass\",\"evidence\":\"URLs normalized: redirects resolved\"},{\"section\":\"canonicalization\",\"check\":\"dedupe_by_content_hash\",\"status\":\"pass\",\"evidence\":\"dedupe by content hash\"},{\"section\":\"canonicalization\",\"check\":\"links_canonicalized_with_stable_ids\",\"status\":\"pass\",\"evidence\":\"every link is canonicalized and carries a stable internal ID, so links survive URL changes\"},{\"section\":\"canonicalization\",\"check\":\"duplicate_content_shares_canonical\",\"status\":\"pass\",\"evidence\":\"links sharing a content hash share one canonical URL\"},{\"section\":\"notarization\",\"check\":\"hash_is_sha256\",\"status\":\"pass\",\"evidence\":\"artifact hashed with SHA-256\"},{\"section\":\"notarization\",\"check\":\"timestamp_from_real_tsa_or_log\",\"status\":\"pass\",\"evidence\":\"red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated\"},{\"section\":\"notarization\",\"check\":\"evidence_bundle_complete\",\"status\":\"pass\",\"evidence\":\"evidence bundle: URL + capture + hashes + time + tool versions\"},{\"section\":\"notarization\",\"check\":\"tool_versions_recorded\",\"status\":\"pass\",\"evidence\":\"tool versions recorded in the evidence bundle\"},{\"section\":\"notarization\",\"check\":\"verification_recipe_published\",\"status\":\"pass\",\"evidence\":\"quality gate: verification recipe published \u2014 anyone can re-hash and check\"},{\"section\":\"notarization\",\"check\":\"citations_notarized\",\"status\":\"pass\",\"evidence\":\"every published citation's capture is notarized\"},{\"section\":\"honest_serving\",\"check\":\"as_seen_views_available\",\"status\":\"pass\",\"evidence\":\"reader/playback offers as-seen views of captures\"},{\"section\":\"honest_serving\",\"check\":\"live_vs_archive_diff_available\",\"status\":\"pass\",\"evidence\":\"live-vs-archive diff available\"},{\"section\":\"honest_serving\",\"check\":\"provenance_badge_complete\",\"status\":\"pass\",\"evidence\":\"provenance badge shows capture date and verification status\"},{\"section\":\"honest_serving\",\"check\":\"archived_never_presented_as_current\",\"status\":\"pass\",\"evidence\":\"red line: archived content is never presented as current\"},{\"section\":\"honest_serving\",\"check\":\"authorship_never_stripped\",\"status\":\"pass\",\"evidence\":\"red line: a page's authorship is never stripped while archiving\"},{\"section\":\"repair_and_compliance\",\"check\":\"repairs_logged\",\"status\":\"pass\",\"evidence\":\"quality gate: all repairs logged\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_silent_drops\",\"status\":\"pass\",\"evidence\":\"rotted links are never silently dropped\"},{\"section\":\"repair_and_compliance\",\"check\":\"rotted_citations_repaired\",\"status\":\"pass\",\"evidence\":\"quality gate: no broken citation ships \u2014 every rotted citation has a logged repair (archived copy, updated canonical, or dated removal note)\"},{\"section\":\"repair_and_compliance\",\"check\":\"robots_and_tos_honored\",\"status\":\"pass\",\"evidence\":\"robots and terms of service honored for fetching\"},{\"section\":\"repair_and_compliance\",\"check\":\"rate_limits_respected\",\"status\":\"pass\",\"evidence\":\"rate limits respected \u2014 no scraping at volumes that harm the target\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_access_control_bypass\",\"status\":\"pass\",\"evidence\":\"red line: no bypassing access controls\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_fabricated_captures\",\"status\":\"pass\",\"evidence\":\"red line: no fabricated or synthetic captures\"}],\"links_evaluated\":1,\"citations_total\":1,\"rotted_citations\":0,\"unarchived_citations\":0,\"summary\":\"33 pass, 0 fail, 0 missing of 33 checks across six sections.\",\"stamp\":\"LINK ROT SCAN AND NOTARIZED ARCHIVE\\nsite: example.com\\nVERDICT: LINK_INTEGRITY_SOUND\\n  scan_coverage            pass\\n  archive_capture          pass\\n  canonicalization         pass\\n  notarization             pass\\n  honest_serving           pass\\n  repair_and_compliance    pass\\n33 pass, 0 fail, 0 missing of 33 checks across six sections.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "link-rot-scan-and-notarized-archive",
+        "atom_version": "0.1.0",
+        "site": "example.com",
+        "verdict": "LINK_INTEGRITY_SOUND",
+        "sections": {
+          "scan_coverage": "pass",
+          "archive_capture": "pass",
+          "canonicalization": "pass",
+          "notarization": "pass",
+          "honest_serving": "pass",
+          "repair_and_compliance": "pass"
+        },
+        "checks": [
+          {
+            "section": "scan_coverage",
+            "check": "scans_scheduled",
+            "status": "pass",
+            "evidence": "scheduled scans (HEAD/GET) for internal and external links"
+          },
+          {
+            "section": "scan_coverage",
+            "check": "scan_records_status",
+            "status": "pass",
+            "evidence": "scan records the observed status of every link"
+          },
+          {
+            "section": "scan_coverage",
+            "check": "scan_records_content_hash",
+            "status": "pass",
+            "evidence": "scan records a content hash for every link"
+          },
+          {
+            "section": "scan_coverage",
+            "check": "dashboard_lists_rot_with_owners",
+            "status": "pass",
+            "evidence": "quality gate: dashboard lists dead/moved/hijacked links with owners"
+          },
+          {
+            "section": "scan_coverage",
+            "check": "scan_cadence_current",
+            "status": "pass",
+            "evidence": "the most recent scan ran within its declared cadence"
+          },
+          {
+            "section": "scan_coverage",
+            "check": "links_complete",
+            "status": "pass",
+            "evidence": "every link row carries an id, url, observed status, archive, canonicalization, notarization, and repair record"
+          },
+          {
+            "section": "archive_capture",
+            "check": "captures_in_warc_or_singlefile",
+            "status": "pass",
+            "evidence": "captures stored as WARC or SingleFile at save time"
+          },
+          {
+            "section": "archive_capture",
+            "check": "fallback_chain_configured",
+            "status": "pass",
+            "evidence": "fallback chain: original, then archive.org, then other public archives"
+          },
+          {
+            "section": "archive_capture",
+            "check": "citations_archived_with_hash_and_timestamp",
+            "status": "pass",
+            "evidence": "quality gate: every published citation has an archived capture with hash and timestamp"
+          },
+          {
+            "section": "archive_capture",
+            "check": "citations_captured_at_cite_time",
+            "status": "pass",
+            "evidence": "captures taken at cite time, when saved \u2014 not later"
+          },
+          {
+            "section": "canonicalization",
+            "check": "tracker_params_stripped",
+            "status": "pass",
+            "evidence": "URLs normalized: tracker parameters stripped"
+          },
+          {
+            "section": "canonicalization",
+            "check": "redirects_resolved",
+            "status": "pass",
+            "evidence": "URLs normalized: redirects resolved"
+          },
+          {
+            "section": "canonicalization",
+            "check": "dedupe_by_content_hash",
+            "status": "pass",
+            "evidence": "dedupe by content hash"
+          },
+          {
+            "section": "canonicalization",
+            "check": "links_canonicalized_with_stable_ids",
+            "status": "pass",
+            "evidence": "every link is canonicalized and carries a stable internal ID, so links survive URL changes"
+          },
+          {
+            "section": "canonicalization",
+            "check": "duplicate_content_shares_canonical",
+            "status": "pass",
+            "evidence": "links sharing a content hash share one canonical URL"
+          },
+          {
+            "section": "notarization",
+            "check": "hash_is_sha256",
+            "status": "pass",
+            "evidence": "artifact hashed with SHA-256"
+          },
+          {
+            "section": "notarization",
+            "check": "timestamp_from_real_tsa_or_log",
+            "status": "pass",
+            "evidence": "red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated"
+          },
+          {
+            "section": "notarization",
+            "check": "evidence_bundle_complete",
+            "status": "pass",
+            "evidence": "evidence bundle: URL + capture + hashes + time + tool versions"
+          },
+          {
+            "section": "notarization",
+            "check": "tool_versions_recorded",
+            "status": "pass",
+            "evidence": "tool versions recorded in the evidence bundle"
+          },
+          {
+            "section": "notarization",
+            "check": "verification_recipe_published",
+            "status": "pass",
+            "evidence": "quality gate: verification recipe published \u2014 anyone can re-hash and check"
+          },
+          {
+            "section": "notarization",
+            "check": "citations_notarized",
+            "status": "pass",
+            "evidence": "every published citation's capture is notarized"
+          },
+          {
+            "section": "honest_serving",
+            "check": "as_seen_views_available",
+            "status": "pass",
+            "evidence": "reader/playback offers as-seen views of captures"
+          },
+          {
+            "section": "honest_serving",
+            "check": "live_vs_archive_diff_available",
+            "status": "pass",
+            "evidence": "live-vs-archive diff available"
+          },
+          {
+            "section": "honest_serving",
+            "check": "provenance_badge_complete",
+            "status": "pass",
+            "evidence": "provenance badge shows capture date and verification status"
+          },
+          {
+            "section": "honest_serving",
+            "check": "archived_never_presented_as_current",
+            "status": "pass",
+            "evidence": "red line: archived content is never presented as current"
+          },
+          {
+            "section": "honest_serving",
+            "check": "authorship_never_stripped",
+            "status": "pass",
+            "evidence": "red line: a page's authorship is never stripped while archiving"
+          },
+          {
+            "section": "repair_and_compliance",
+            "check": "repairs_logged",
+            "status": "pass",
+            "evidence": "quality gate: all repairs logged"
+          },
+          {
+            "section": "repair_and_compliance",
+            "check": "no_silent_drops",
+            "status": "pass",
+            "evidence": "rotted links are never silently dropped"
+          },
+          {
+            "section": "repair_and_compliance",
+            "check": "rotted_citations_repaired",
+            "status": "pass",
+            "evidence": "quality gate: no broken citation ships \u2014 every rotted citation has a logged repair (archived copy, updated canonical, or dated removal note)"
+          },
+          {
+            "section": "repair_and_compliance",
+            "check": "robots_and_tos_honored",
+            "status": "pass",
+            "evidence": "robots and terms of service honored for fetching"
+          },
+          {
+            "section": "repair_and_compliance",
+            "check": "rate_limits_respected",
+            "status": "pass",
+            "evidence": "rate limits respected \u2014 no scraping at volumes that harm the target"
+          },
+          {
+            "section": "repair_and_compliance",
+            "check": "no_access_control_bypass",
+            "status": "pass",
+            "evidence": "red line: no bypassing access controls"
+          },
+          {
+            "section": "repair_and_compliance",
+            "check": "no_fabricated_captures",
+            "status": "pass",
+            "evidence": "red line: no fabricated or synthetic captures"
+          }
+        ],
+        "links_evaluated": 1,
+        "citations_total": 1,
+        "rotted_citations": 0,
+        "unarchived_citations": 0,
+        "summary": "33 pass, 0 fail, 0 missing of 33 checks across six sections.",
+        "stamp": "LINK ROT SCAN AND NOTARIZED ARCHIVE\nsite: example.com\nVERDICT: LINK_INTEGRITY_SOUND\n  scan_coverage            pass\n  archive_capture          pass\n  canonicalization         pass\n  notarization             pass\n  honest_serving           pass\n  repair_and_compliance    pass\n33 pass, 0 fail, 0 missing of 33 checks across six sections."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "LINK_INTEGRITY_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "archive_capture",
+          "notarization",
+          "repair_and_compliance"
+        ],
+        "notes": "Fails due to missing archive fields for citation, invalid timestamp source, and lack of repair for rotted link."
+      },
+      "input": {
+        "site": "example.com",
+        "links": [
+          {
+            "id": "link_02",
+            "url": "https://example.com/dead",
+            "is_published_citation": true,
+            "observed_status": "dead",
+            "archived": false,
+            "capture_hash_present": false,
+            "capture_timestamp_present": false,
+            "canonicalized": true,
+            "stable_id_present": true,
+            "content_hash": "xyz789",
+            "canonical_url": "https://example.com/dead",
+            "notarized": false,
+            "repair_action": "none",
+            "repair_logged": false
+          }
+        ],
+        "notarization": {
+          "timestamp_source": "invalid_source"
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"link-rot-scan-and-notarized-archive\",\"atom_version\":\"0.1.0\",\"site\":\"example.com\",\"verdict\":\"LINK_INTEGRITY_UNSOUND\",\"sections\":{\"scan_coverage\":\"insufficient_evidence\",\"archive_capture\":\"insufficient_evidence\",\"canonicalization\":\"insufficient_evidence\",\"notarization\":\"fail\",\"honest_serving\":\"insufficient_evidence\",\"repair_and_compliance\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"scan_coverage\",\"check\":\"scans_scheduled\",\"status\":\"missing\",\"evidence\":\"scheduled scans (HEAD/GET) for internal and external links\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_status\",\"status\":\"missing\",\"evidence\":\"scan records the observed status of every link\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_content_hash\",\"status\":\"missing\",\"evidence\":\"scan records a content hash for every link\"},{\"section\":\"scan_coverage\",\"check\":\"dashboard_lists_rot_with_owners\",\"status\":\"missing\",\"evidence\":\"quality gate: dashboard lists dead/moved/hijacked links with owners\"},{\"section\":\"scan_coverage\",\"check\":\"scan_cadence_current\",\"status\":\"missing\",\"evidence\":\"the most recent scan ran within its declared cadence\"},{\"section\":\"scan_coverage\",\"check\":\"links_complete\",\"status\":\"missing\",\"evidence\":\"a link row is missing its id, url, observed status, archive, canonicalization, notarization, or repair fields\"},{\"section\":\"archive_capture\",\"check\":\"captures_in_warc_or_singlefile\",\"status\":\"missing\",\"evidence\":\"captures stored as WARC or SingleFile at save time\"},{\"section\":\"archive_capture\",\"check\":\"fallback_chain_configured\",\"status\":\"missing\",\"evidence\":\"fallback chain: original, then archive.org, then other public archives\"},{\"section\":\"archive_capture\",\"check\":\"citations_archived_with_hash_and_timestamp\",\"status\":\"missing\",\"evidence\":\"a link row is incomplete, so citation archiving cannot be verified\"},{\"section\":\"archive_capture\",\"check\":\"citations_captured_at_cite_time\",\"status\":\"missing\",\"evidence\":\"a link row is incomplete, so cite-time capture cannot be verified\"},{\"section\":\"canonicalization\",\"check\":\"tracker_params_stripped\",\"status\":\"missing\",\"evidence\":\"URLs normalized: tracker parameters stripped\"},{\"section\":\"canonicalization\",\"check\":\"redirects_resolved\",\"status\":\"missing\",\"evidence\":\"URLs normalized: redirects resolved\"},{\"section\":\"canonicalization\",\"check\":\"dedupe_by_content_hash\",\"status\":\"missing\",\"evidence\":\"dedupe by content hash\"},{\"section\":\"canonicalization\",\"check\":\"links_canonicalized_with_stable_ids\",\"status\":\"missing\",\"evidence\":\"a link row is incomplete, so canonicalization cannot be verified\"},{\"section\":\"canonicalization\",\"check\":\"duplicate_content_shares_canonical\",\"status\":\"missing\",\"evidence\":\"a link row is incomplete, so dedupe consistency cannot be verified\"},{\"section\":\"notarization\",\"check\":\"hash_is_sha256\",\"status\":\"missing\",\"evidence\":\"artifact hashed with SHA-256\"},{\"section\":\"notarization\",\"check\":\"timestamp_from_real_tsa_or_log\",\"status\":\"fail\",\"evidence\":\"red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated\"},{\"section\":\"notarization\",\"check\":\"evidence_bundle_complete\",\"status\":\"missing\",\"evidence\":\"evidence bundle: URL + capture + hashes + time + tool versions\"},{\"section\":\"notarization\",\"check\":\"tool_versions_recorded\",\"status\":\"missing\",\"evidence\":\"tool versions recorded in the evidence bundle\"},{\"section\":\"notarization\",\"check\":\"verification_recipe_published\",\"status\":\"missing\",\"evidence\":\"quality gate: verification recipe published \u2014 anyone can re-hash and check\"},{\"section\":\"notarization\",\"check\":\"citations_notarized\",\"status\":\"missing\",\"evidence\":\"a link row is incomplete, so citation notarization cannot be verified\"},{\"section\":\"honest_serving\",\"check\":\"as_seen_views_available\",\"status\":\"missing\",\"evidence\":\"reader/playback offers as-seen views of captures\"},{\"section\":\"honest_serving\",\"check\":\"live_vs_archive_diff_available\",\"status\":\"missing\",\"evidence\":\"live-vs-archive diff available\"},{\"section\":\"honest_serving\",\"check\":\"provenance_badge_complete\",\"status\":\"missing\",\"evidence\":\"provenance badge shows capture date and verification status\"},{\"section\":\"honest_serving\",\"check\":\"archived_never_presented_as_current\",\"status\":\"missing\",\"evidence\":\"red line: archived content is never presented as current\"},{\"section\":\"honest_serving\",\"check\":\"authorship_never_stripped\",\"status\":\"missing\",\"evidence\":\"red line: a page's authorship is never stripped while archiving\"},{\"section\":\"repair_and_compliance\",\"check\":\"repairs_logged\",\"status\":\"missing\",\"evidence\":\"quality gate: all repairs logged\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_silent_drops\",\"status\":\"missing\",\"evidence\":\"rotted links are never silently dropped\"},{\"section\":\"repair_and_compliance\",\"check\":\"rotted_citations_repaired\",\"status\":\"missing\",\"evidence\":\"a link row is incomplete, so citation repair cannot be verified\"},{\"section\":\"repair_and_compliance\",\"check\":\"robots_and_tos_honored\",\"status\":\"missing\",\"evidence\":\"robots and terms of service honored for fetching\"},{\"section\":\"repair_and_compliance\",\"check\":\"rate_limits_respected\",\"status\":\"missing\",\"evidence\":\"rate limits respected \u2014 no scraping at volumes that harm the target\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_access_control_bypass\",\"status\":\"missing\",\"evidence\":\"red line: no bypassing access controls\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_fabricated_captures\",\"status\":\"missing\",\"evidence\":\"red line: no fabricated or synthetic captures\"}],\"links_evaluated\":0,\"citations_total\":0,\"rotted_citations\":0,\"unarchived_citations\":0,\"summary\":\"0 pass, 1 fail, 32 missing of 33 checks across six sections.\",\"stamp\":\"LINK ROT SCAN AND NOTARIZED ARCHIVE\\nsite: example.com\\nVERDICT: LINK_INTEGRITY_UNSOUND\\n  scan_coverage            insufficient_evidence\\n  archive_capture          insufficient_evidence\\n  canonicalization         insufficient_evidence\\n  notarization             fail\\n  honest_serving           insufficient_evidence\\n  repair_and_compliance    insufficient_evidence\\n0 pass, 1 fail, 32 missing of 33 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Manifest lacks required scan, link, and compliance fields."
+      },
+      "input": {
+        "site": "minimal_test"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"link-rot-scan-and-notarized-archive\",\"atom_version\":\"0.1.0\",\"site\":\"minimal_test\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"scan_coverage\":\"insufficient_evidence\",\"archive_capture\":\"insufficient_evidence\",\"canonicalization\":\"insufficient_evidence\",\"notarization\":\"insufficient_evidence\",\"honest_serving\":\"insufficient_evidence\",\"repair_and_compliance\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"scan_coverage\",\"check\":\"scans_scheduled\",\"status\":\"missing\",\"evidence\":\"scheduled scans (HEAD/GET) for internal and external links\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_status\",\"status\":\"missing\",\"evidence\":\"scan records the observed status of every link\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_content_hash\",\"status\":\"missing\",\"evidence\":\"scan records a content hash for every link\"},{\"section\":\"scan_coverage\",\"check\":\"dashboard_lists_rot_with_owners\",\"status\":\"missing\",\"evidence\":\"quality gate: dashboard lists dead/moved/hijacked links with owners\"},{\"section\":\"scan_coverage\",\"check\":\"scan_cadence_current\",\"status\":\"missing\",\"evidence\":\"the most recent scan ran within its declared cadence\"},{\"section\":\"scan_coverage\",\"check\":\"links_complete\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"archive_capture\",\"check\":\"captures_in_warc_or_singlefile\",\"status\":\"missing\",\"evidence\":\"captures stored as WARC or SingleFile at save time\"},{\"section\":\"archive_capture\",\"check\":\"fallback_chain_configured\",\"status\":\"missing\",\"evidence\":\"fallback chain: original, then archive.org, then other public archives\"},{\"section\":\"archive_capture\",\"check\":\"citations_archived_with_hash_and_timestamp\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"archive_capture\",\"check\":\"citations_captured_at_cite_time\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"canonicalization\",\"check\":\"tracker_params_stripped\",\"status\":\"missing\",\"evidence\":\"URLs normalized: tracker parameters stripped\"},{\"section\":\"canonicalization\",\"check\":\"redirects_resolved\",\"status\":\"missing\",\"evidence\":\"URLs normalized: redirects resolved\"},{\"section\":\"canonicalization\",\"check\":\"dedupe_by_content_hash\",\"status\":\"missing\",\"evidence\":\"dedupe by content hash\"},{\"section\":\"canonicalization\",\"check\":\"links_canonicalized_with_stable_ids\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"canonicalization\",\"check\":\"duplicate_content_shares_canonical\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"notarization\",\"check\":\"hash_is_sha256\",\"status\":\"missing\",\"evidence\":\"artifact hashed with SHA-256\"},{\"section\":\"notarization\",\"check\":\"timestamp_from_real_tsa_or_log\",\"status\":\"missing\",\"evidence\":\"red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated\"},{\"section\":\"notarization\",\"check\":\"evidence_bundle_complete\",\"status\":\"missing\",\"evidence\":\"evidence bundle: URL + capture + hashes + time + tool versions\"},{\"section\":\"notarization\",\"check\":\"tool_versions_recorded\",\"status\":\"missing\",\"evidence\":\"tool versions recorded in the evidence bundle\"},{\"section\":\"notarization\",\"check\":\"verification_recipe_published\",\"status\":\"missing\",\"evidence\":\"quality gate: verification recipe published \u2014 anyone can re-hash and check\"},{\"section\":\"notarization\",\"check\":\"citations_notarized\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"honest_serving\",\"check\":\"as_seen_views_available\",\"status\":\"missing\",\"evidence\":\"reader/playback offers as-seen views of captures\"},{\"section\":\"honest_serving\",\"check\":\"live_vs_archive_diff_available\",\"status\":\"missing\",\"evidence\":\"live-vs-archive diff available\"},{\"section\":\"honest_serving\",\"check\":\"provenance_badge_complete\",\"status\":\"missing\",\"evidence\":\"provenance badge shows capture date and verification status\"},{\"section\":\"honest_serving\",\"check\":\"archived_never_presented_as_current\",\"status\":\"missing\",\"evidence\":\"red line: archived content is never presented as current\"},{\"section\":\"honest_serving\",\"check\":\"authorship_never_stripped\",\"status\":\"missing\",\"evidence\":\"red line: a page's authorship is never stripped while archiving\"},{\"section\":\"repair_and_compliance\",\"check\":\"repairs_logged\",\"status\":\"missing\",\"evidence\":\"quality gate: all repairs logged\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_silent_drops\",\"status\":\"missing\",\"evidence\":\"rotted links are never silently dropped\"},{\"section\":\"repair_and_compliance\",\"check\":\"rotted_citations_repaired\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"repair_and_compliance\",\"check\":\"robots_and_tos_honored\",\"status\":\"missing\",\"evidence\":\"robots and terms of service honored for fetching\"},{\"section\":\"repair_and_compliance\",\"check\":\"rate_limits_respected\",\"status\":\"missing\",\"evidence\":\"rate limits respected \u2014 no scraping at volumes that harm the target\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_access_control_bypass\",\"status\":\"missing\",\"evidence\":\"red line: no bypassing access controls\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_fabricated_captures\",\"status\":\"missing\",\"evidence\":\"red line: no fabricated or synthetic captures\"}],\"links_evaluated\":0,\"citations_total\":0,\"rotted_citations\":0,\"unarchived_citations\":0,\"summary\":\"0 pass, 0 fail, 33 missing of 33 checks across six sections.\",\"stamp\":\"LINK ROT SCAN AND NOTARIZED ARCHIVE\\nsite: minimal_test\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  scan_coverage            insufficient_evidence\\n  archive_capture          insufficient_evidence\\n  canonicalization         insufficient_evidence\\n  notarization             insufficient_evidence\\n  honest_serving           insufficient_evidence\\n  repair_and_compliance    insufficient_evidence\\n0 pass, 0 fail, 33 missing of 33 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input scan field expects an object, received string."
+      },
+      "input": {
+        "site": "malformed_test",
+        "scan": "not_an_object"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"link-rot-scan-and-notarized-archive\",\"atom_version\":\"0.1.0\",\"site\":\"malformed_test\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"scan_coverage\":\"insufficient_evidence\",\"archive_capture\":\"insufficient_evidence\",\"canonicalization\":\"insufficient_evidence\",\"notarization\":\"insufficient_evidence\",\"honest_serving\":\"insufficient_evidence\",\"repair_and_compliance\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"scan_coverage\",\"check\":\"scans_scheduled\",\"status\":\"missing\",\"evidence\":\"scheduled scans (HEAD/GET) for internal and external links\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_status\",\"status\":\"missing\",\"evidence\":\"scan records the observed status of every link\"},{\"section\":\"scan_coverage\",\"check\":\"scan_records_content_hash\",\"status\":\"missing\",\"evidence\":\"scan records a content hash for every link\"},{\"section\":\"scan_coverage\",\"check\":\"dashboard_lists_rot_with_owners\",\"status\":\"missing\",\"evidence\":\"quality gate: dashboard lists dead/moved/hijacked links with owners\"},{\"section\":\"scan_coverage\",\"check\":\"scan_cadence_current\",\"status\":\"missing\",\"evidence\":\"the most recent scan ran within its declared cadence\"},{\"section\":\"scan_coverage\",\"check\":\"links_complete\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"archive_capture\",\"check\":\"captures_in_warc_or_singlefile\",\"status\":\"missing\",\"evidence\":\"captures stored as WARC or SingleFile at save time\"},{\"section\":\"archive_capture\",\"check\":\"fallback_chain_configured\",\"status\":\"missing\",\"evidence\":\"fallback chain: original, then archive.org, then other public archives\"},{\"section\":\"archive_capture\",\"check\":\"citations_archived_with_hash_and_timestamp\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"archive_capture\",\"check\":\"citations_captured_at_cite_time\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"canonicalization\",\"check\":\"tracker_params_stripped\",\"status\":\"missing\",\"evidence\":\"URLs normalized: tracker parameters stripped\"},{\"section\":\"canonicalization\",\"check\":\"redirects_resolved\",\"status\":\"missing\",\"evidence\":\"URLs normalized: redirects resolved\"},{\"section\":\"canonicalization\",\"check\":\"dedupe_by_content_hash\",\"status\":\"missing\",\"evidence\":\"dedupe by content hash\"},{\"section\":\"canonicalization\",\"check\":\"links_canonicalized_with_stable_ids\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"canonicalization\",\"check\":\"duplicate_content_shares_canonical\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"notarization\",\"check\":\"hash_is_sha256\",\"status\":\"missing\",\"evidence\":\"artifact hashed with SHA-256\"},{\"section\":\"notarization\",\"check\":\"timestamp_from_real_tsa_or_log\",\"status\":\"missing\",\"evidence\":\"red line: timestamps come from a real RFC 3161 TSA or transparency log \u2014 never fabricated\"},{\"section\":\"notarization\",\"check\":\"evidence_bundle_complete\",\"status\":\"missing\",\"evidence\":\"evidence bundle: URL + capture + hashes + time + tool versions\"},{\"section\":\"notarization\",\"check\":\"tool_versions_recorded\",\"status\":\"missing\",\"evidence\":\"tool versions recorded in the evidence bundle\"},{\"section\":\"notarization\",\"check\":\"verification_recipe_published\",\"status\":\"missing\",\"evidence\":\"quality gate: verification recipe published \u2014 anyone can re-hash and check\"},{\"section\":\"notarization\",\"check\":\"citations_notarized\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"honest_serving\",\"check\":\"as_seen_views_available\",\"status\":\"missing\",\"evidence\":\"reader/playback offers as-seen views of captures\"},{\"section\":\"honest_serving\",\"check\":\"live_vs_archive_diff_available\",\"status\":\"missing\",\"evidence\":\"live-vs-archive diff available\"},{\"section\":\"honest_serving\",\"check\":\"provenance_badge_complete\",\"status\":\"missing\",\"evidence\":\"provenance badge shows capture date and verification status\"},{\"section\":\"honest_serving\",\"check\":\"archived_never_presented_as_current\",\"status\":\"missing\",\"evidence\":\"red line: archived content is never presented as current\"},{\"section\":\"honest_serving\",\"check\":\"authorship_never_stripped\",\"status\":\"missing\",\"evidence\":\"red line: a page's authorship is never stripped while archiving\"},{\"section\":\"repair_and_compliance\",\"check\":\"repairs_logged\",\"status\":\"missing\",\"evidence\":\"quality gate: all repairs logged\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_silent_drops\",\"status\":\"missing\",\"evidence\":\"rotted links are never silently dropped\"},{\"section\":\"repair_and_compliance\",\"check\":\"rotted_citations_repaired\",\"status\":\"missing\",\"evidence\":\"no links declared\"},{\"section\":\"repair_and_compliance\",\"check\":\"robots_and_tos_honored\",\"status\":\"missing\",\"evidence\":\"robots and terms of service honored for fetching\"},{\"section\":\"repair_and_compliance\",\"check\":\"rate_limits_respected\",\"status\":\"missing\",\"evidence\":\"rate limits respected \u2014 no scraping at volumes that harm the target\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_access_control_bypass\",\"status\":\"missing\",\"evidence\":\"red line: no bypassing access controls\"},{\"section\":\"repair_and_compliance\",\"check\":\"no_fabricated_captures\",\"status\":\"missing\",\"evidence\":\"red line: no fabricated or synthetic captures\"}],\"links_evaluated\":0,\"citations_total\":0,\"rotted_citations\":0,\"unarchived_citations\":0,\"summary\":\"0 pass, 0 fail, 33 missing of 33 checks across six sections.\",\"stamp\":\"LINK ROT SCAN AND NOTARIZED ARCHIVE\\nsite: malformed_test\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  scan_coverage            insufficient_evidence\\n  archive_capture          insufficient_evidence\\n  canonicalization         insufficient_evidence\\n  notarization             insufficient_evidence\\n  honest_serving           insufficient_evidence\\n  repair_and_compliance    insufficient_evidence\\n0 pass, 0 fail, 33 missing of 33 checks across six sections.\"}"
+        }
+      ]
+    }
+  ]
+}

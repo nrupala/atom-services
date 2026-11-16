@@ -1,0 +1,831 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: decision-trap-sweep
+
+=== contract.yaml ===
+service_name: decision-trap-sweep
+display_name: Decision-trap sweep
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- knowledge-atom:#9
+binding:
+  skill: decision-making
+  skill_path: workspace/mymilo-build/skills/decision-making/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/decision_trap_sweep.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_decision_trap_sweep.py — 20 tests, all passing 2026-11-15
+keys:
+  namespace: decision_trap_sweep
+  prefix: atm_1_decision_trap_sweep_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Sweeping proposals before approval
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Decision-trap sweep — `decision-trap-sweep`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Decide deliberately — reversible vs irreversible, options, criteria, expected value, pre-mortems, decision logs.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Sweeping proposals before approval**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the declared decision record
+
+The caller submits one JSON manifest: a declared decision record. Every
+field below is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the trap is present (`TRAPS_PRESENT`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `decision` (string; carried into the verdict output, not itself checked) | — |
+| `framing.decision_stated` | framing_and_classification |
+| `framing.decide_by_named` | framing_and_classification |
+| `framing.constraints_named` | framing_and_classification |
+| `framing.out_of_scope_named` | framing_and_classification |
+| `framing.classification` (string: `reversible` or `irreversible`; any other value fails, and it gates the rush/mood checks below) | framing_and_classification |
+| `framing.stakes_assessed` | framing_and_classification |
+| `options.list` (array of option names; at least 3 required — binary choices are usually false binaries) | options |
+| `options.includes_status_quo` | options |
+| `options.includes_smaller_reversible_step` | options |
+| `criteria.criteria_listed` | criteria_before_evaluation |
+| `criteria.defined_before_scoring` | criteria_before_evaluation |
+| `criteria.weights_assigned_before_scoring` | criteria_before_evaluation |
+| `evaluation.method_named` | evaluation_and_uncertainty |
+| `evaluation.uncertainty_flagged` | evaluation_and_uncertainty |
+| `evaluation.probabilities_estimable` (gates the expected-value check below) | evaluation_and_uncertainty |
+| `evaluation.expected_value_used` (required when probabilities are declared estimable; otherwise the check passes as not applicable) | evaluation_and_uncertainty |
+| `premortem.decision_is_material` (gates the two pre-mortem checks below) | pre_mortem |
+| `premortem.conducted` (required when the decision is declared material; otherwise the check passes as not applicable) | pre_mortem |
+| `premortem.top_risks_hedged` (required when the decision is declared material; otherwise the check passes as not applicable) | pre_mortem |
+| `rush.made_in_rush` (must be `false` when the decision is classified irreversible; passes as not applicable for a reversible decision) | rush_and_mood_trap |
+| `rush.made_in_a_mood` (must be `false` when the decision is classified irreversible; passes as not applicable for a reversible decision) | rush_and_mood_trap |
+| `log.choice_recorded` | decision_log_and_review |
+| `log.rationale_recorded` | decision_log_and_review |
+| `log.assumptions_recorded` | decision_log_and_review |
+| `log.review_date_set` | decision_log_and_review |
+| `log.communicated_with_why` | decision_log_and_review |
+
+The verdict is one of `TRAP_CLEAR` (all 24 checks pass),
+`TRAPS_PRESENT` (any check fails — the named trap is present in the
+record), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: framing_and_classification, options,
+criteria_before_evaluation, evaluation_and_uncertainty, pre_mortem,
+rush_and_mood_trap, decision_log_and_review.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Commoditized advice risk; the signed-record form is the differentiator
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "decision-trap-sweep",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "TRAP_CLEAR",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean flags set to true/false as required for an irreversible decision. Computed spot checks: 3 options provided (>=3 required)."
+      },
+      "input": {
+        "decision": "Migrate database to cloud",
+        "framing": {
+          "decision_stated": true,
+          "decide_by_named": true,
+          "constraints_named": true,
+          "out_of_scope_named": true,
+          "classification": "irreversible",
+          "stakes_assessed": true
+        },
+        "options": {
+          "list": [
+            "Option A",
+            "Option B",
+            "Option C"
+          ],
+          "includes_status_quo": true,
+          "includes_smaller_reversible_step": true
+        },
+        "criteria": {
+          "criteria_listed": true,
+          "defined_before_scoring": true,
+          "weights_assigned_before_scoring": true
+        },
+        "evaluation": {
+          "method_named": true,
+          "uncertainty_flagged": true,
+          "probabilities_estimable": true,
+          "expected_value_used": true
+        },
+        "premortem": {
+          "decision_is_material": true,
+          "conducted": true,
+          "top_risks_hedged": true
+        },
+        "rush": {
+          "made_in_rush": false,
+          "made_in_a_mood": false
+        },
+        "log": {
+          "choice_recorded": true,
+          "rationale_recorded": true,
+          "assumptions_recorded": true,
+          "review_date_set": true,
+          "communicated_with_why": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "decision-trap-sweep",
+        "atom_version": "0.1.0",
+        "decision": "Migrate database to cloud",
+        "verdict": "TRAP_CLEAR",
+        "sections": {
+          "framing_and_classification": "pass",
+          "options": "pass",
+          "criteria_before_evaluation": "pass",
+          "evaluation_and_uncertainty": "pass",
+          "pre_mortem": "pass",
+          "rush_and_mood_trap": "pass",
+          "decision_log_and_review": "pass"
+        },
+        "checks": [
+          {
+            "section": "framing_and_classification",
+            "check": "decision_stated",
+            "status": "pass",
+            "evidence": "what needs deciding is stated \u2014 frame the actual decision until it is crisp"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "decide_by_named",
+            "status": "pass",
+            "evidence": "by when the decision must be made is named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "constraints_named",
+            "status": "pass",
+            "evidence": "the constraints on the decision are named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "out_of_scope_named",
+            "status": "pass",
+            "evidence": "what is out of scope is named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "decision_classified_reversible_or_irreversible",
+            "status": "pass",
+            "evidence": "classify the decision: reversible (decide fast, adjust) vs irreversible (slow down, deliberate)"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "stakes_assessed",
+            "status": "pass",
+            "evidence": "stakes assessed \u2014 stakes x reversibility sets the effort budget"
+          },
+          {
+            "section": "options",
+            "check": "at_least_three_options",
+            "status": "pass",
+            "evidence": "generate at least three options \u2014 binary choices are usually false binaries"
+          },
+          {
+            "section": "options",
+            "check": "status_quo_option_included",
+            "status": "pass",
+            "evidence": "the options include 'do nothing / wait'"
+          },
+          {
+            "section": "options",
+            "check": "smaller_reversible_step_included",
+            "status": "pass",
+            "evidence": "the options include a smaller reversible step"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "criteria_listed",
+            "status": "pass",
+            "evidence": "what matters is defined (cost, risk, time-to-value, optionality)"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "criteria_defined_before_scoring",
+            "status": "pass",
+            "evidence": "criteria are defined BEFORE scoring options \u2014 criteria after scores is rationalization"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "weights_assigned_before_scoring",
+            "status": "pass",
+            "evidence": "weights are assigned before evaluation, not fitted to the scores afterwards"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "fitting_evaluation_method_named",
+            "status": "pass",
+            "evidence": "evaluate with a fitting tool \u2014 decision matrix for multi-criteria, expected value / decision trees when probabilities are estimable, scenario thinking when they are not; the method used is named"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "uncertainty_flagged",
+            "status": "pass",
+            "evidence": "flag the uncertainty in the evaluation"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "expected_value_used_when_probabilities_estimable",
+            "status": "pass",
+            "evidence": "when probabilities are estimable, evaluate with expected value / decision trees"
+          },
+          {
+            "section": "pre_mortem",
+            "check": "premortem_conducted_for_material_decision",
+            "status": "pass",
+            "evidence": "pre-mortem for material decisions: assume it failed \u2014 why?"
+          },
+          {
+            "section": "pre_mortem",
+            "check": "premortem_top_risks_hedged_for_material_decision",
+            "status": "pass",
+            "evidence": "fix or hedge the pre-mortem's top failure reasons now"
+          },
+          {
+            "section": "rush_and_mood_trap",
+            "check": "irreversible_decision_not_made_in_rush",
+            "status": "pass",
+            "evidence": "no irreversible decision made in a rush"
+          },
+          {
+            "section": "rush_and_mood_trap",
+            "check": "irreversible_decision_not_made_in_a_mood",
+            "status": "pass",
+            "evidence": "no irreversible decision made in a mood"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "choice_logged",
+            "status": "pass",
+            "evidence": "the choice is logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "rationale_logged",
+            "status": "pass",
+            "evidence": "the rationale is logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "assumptions_logged",
+            "status": "pass",
+            "evidence": "the assumptions behind the choice are logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "review_date_set",
+            "status": "pass",
+            "evidence": "a review date is set \u2014 review on schedule: outcomes vs expectations; separate luck from process; update"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "decision_communicated_with_why",
+            "status": "pass",
+            "evidence": "the decision is communicated with the 'why'"
+          }
+        ],
+        "summary": "24 pass, 0 fail, 0 missing of 24 checks across seven sections.",
+        "stamp": "DECISION-TRAP SWEEP\ndecision: Migrate database to cloud\nVERDICT: TRAP_CLEAR\n  framing_and_classification   pass\n  options                      pass\n  criteria_before_evaluation   pass\n  evaluation_and_uncertainty   pass\n  pre_mortem                   pass\n  rush_and_mood_trap           pass\n  decision_log_and_review      pass\n24 pass, 0 fail, 0 missing of 24 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "TRAPS_PRESENT",
+        "http": 200,
+        "failing_checks": [
+          "rush.made_in_rush",
+          "rush.made_in_a_mood"
+        ],
+        "notes": "Irreversible decision made in rush and mood violates rush_and_mood_trap section."
+      },
+      "input": {
+        "decision": "Quick fix",
+        "framing": {
+          "decision_stated": true,
+          "decide_by_named": true,
+          "constraints_named": true,
+          "out_of_scope_named": true,
+          "classification": "irreversible",
+          "stakes_assessed": true
+        },
+        "options": {
+          "list": [
+            "A",
+            "B",
+            "C"
+          ],
+          "includes_status_quo": true,
+          "includes_smaller_reversible_step": true
+        },
+        "criteria": {
+          "criteria_listed": true,
+          "defined_before_scoring": true,
+          "weights_assigned_before_scoring": true
+        },
+        "evaluation": {
+          "method_named": true,
+          "uncertainty_flagged": true,
+          "probabilities_estimable": true,
+          "expected_value_used": true
+        },
+        "premortem": {
+          "decision_is_material": true,
+          "conducted": true,
+          "top_risks_hedged": true
+        },
+        "rush": {
+          "made_in_rush": true,
+          "made_in_a_mood": true
+        },
+        "log": {
+          "choice_recorded": true,
+          "rationale_recorded": true,
+          "assumptions_recorded": true,
+          "review_date_set": true,
+          "communicated_with_why": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "decision-trap-sweep",
+        "atom_version": "0.1.0",
+        "decision": "Quick fix",
+        "verdict": "TRAPS_PRESENT",
+        "sections": {
+          "framing_and_classification": "pass",
+          "options": "pass",
+          "criteria_before_evaluation": "pass",
+          "evaluation_and_uncertainty": "pass",
+          "pre_mortem": "pass",
+          "rush_and_mood_trap": "fail",
+          "decision_log_and_review": "pass"
+        },
+        "checks": [
+          {
+            "section": "framing_and_classification",
+            "check": "decision_stated",
+            "status": "pass",
+            "evidence": "what needs deciding is stated \u2014 frame the actual decision until it is crisp"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "decide_by_named",
+            "status": "pass",
+            "evidence": "by when the decision must be made is named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "constraints_named",
+            "status": "pass",
+            "evidence": "the constraints on the decision are named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "out_of_scope_named",
+            "status": "pass",
+            "evidence": "what is out of scope is named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "decision_classified_reversible_or_irreversible",
+            "status": "pass",
+            "evidence": "classify the decision: reversible (decide fast, adjust) vs irreversible (slow down, deliberate)"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "stakes_assessed",
+            "status": "pass",
+            "evidence": "stakes assessed \u2014 stakes x reversibility sets the effort budget"
+          },
+          {
+            "section": "options",
+            "check": "at_least_three_options",
+            "status": "pass",
+            "evidence": "generate at least three options \u2014 binary choices are usually false binaries"
+          },
+          {
+            "section": "options",
+            "check": "status_quo_option_included",
+            "status": "pass",
+            "evidence": "the options include 'do nothing / wait'"
+          },
+          {
+            "section": "options",
+            "check": "smaller_reversible_step_included",
+            "status": "pass",
+            "evidence": "the options include a smaller reversible step"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "criteria_listed",
+            "status": "pass",
+            "evidence": "what matters is defined (cost, risk, time-to-value, optionality)"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "criteria_defined_before_scoring",
+            "status": "pass",
+            "evidence": "criteria are defined BEFORE scoring options \u2014 criteria after scores is rationalization"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "weights_assigned_before_scoring",
+            "status": "pass",
+            "evidence": "weights are assigned before evaluation, not fitted to the scores afterwards"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "fitting_evaluation_method_named",
+            "status": "pass",
+            "evidence": "evaluate with a fitting tool \u2014 decision matrix for multi-criteria, expected value / decision trees when probabilities are estimable, scenario thinking when they are not; the method used is named"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "uncertainty_flagged",
+            "status": "pass",
+            "evidence": "flag the uncertainty in the evaluation"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "expected_value_used_when_probabilities_estimable",
+            "status": "pass",
+            "evidence": "when probabilities are estimable, evaluate with expected value / decision trees"
+          },
+          {
+            "section": "pre_mortem",
+            "check": "premortem_conducted_for_material_decision",
+            "status": "pass",
+            "evidence": "pre-mortem for material decisions: assume it failed \u2014 why?"
+          },
+          {
+            "section": "pre_mortem",
+            "check": "premortem_top_risks_hedged_for_material_decision",
+            "status": "pass",
+            "evidence": "fix or hedge the pre-mortem's top failure reasons now"
+          },
+          {
+            "section": "rush_and_mood_trap",
+            "check": "irreversible_decision_not_made_in_rush",
+            "status": "fail",
+            "evidence": "no irreversible decision made in a rush"
+          },
+          {
+            "section": "rush_and_mood_trap",
+            "check": "irreversible_decision_not_made_in_a_mood",
+            "status": "fail",
+            "evidence": "no irreversible decision made in a mood"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "choice_logged",
+            "status": "pass",
+            "evidence": "the choice is logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "rationale_logged",
+            "status": "pass",
+            "evidence": "the rationale is logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "assumptions_logged",
+            "status": "pass",
+            "evidence": "the assumptions behind the choice are logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "review_date_set",
+            "status": "pass",
+            "evidence": "a review date is set \u2014 review on schedule: outcomes vs expectations; separate luck from process; update"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "decision_communicated_with_why",
+            "status": "pass",
+            "evidence": "the decision is communicated with the 'why'"
+          }
+        ],
+        "summary": "22 pass, 2 fail, 0 missing of 24 checks across seven sections.",
+        "stamp": "DECISION-TRAP SWEEP\ndecision: Quick fix\nVERDICT: TRAPS_PRESENT\n  framing_and_classification   pass\n  options                      pass\n  criteria_before_evaluation   pass\n  evaluation_and_uncertainty   pass\n  pre_mortem                   pass\n  rush_and_mood_trap           fail\n  decision_log_and_review      pass\n22 pass, 2 fail, 0 missing of 24 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields missing, resulting in insufficient evidence to perform full sweep."
+      },
+      "input": {
+        "decision": "Minimal decision",
+        "framing": {
+          "decision_stated": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "decision-trap-sweep",
+        "atom_version": "0.1.0",
+        "decision": "Minimal decision",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "framing_and_classification": "insufficient_evidence",
+          "options": "insufficient_evidence",
+          "criteria_before_evaluation": "insufficient_evidence",
+          "evaluation_and_uncertainty": "insufficient_evidence",
+          "pre_mortem": "insufficient_evidence",
+          "rush_and_mood_trap": "insufficient_evidence",
+          "decision_log_and_review": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "framing_and_classification",
+            "check": "decision_stated",
+            "status": "pass",
+            "evidence": "what needs deciding is stated \u2014 frame the actual decision until it is crisp"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "decide_by_named",
+            "status": "missing",
+            "evidence": "by when the decision must be made is named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "constraints_named",
+            "status": "missing",
+            "evidence": "the constraints on the decision are named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "out_of_scope_named",
+            "status": "missing",
+            "evidence": "what is out of scope is named"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "decision_classified_reversible_or_irreversible",
+            "status": "missing",
+            "evidence": "classify the decision: reversible (decide fast, adjust) vs irreversible (slow down, deliberate)"
+          },
+          {
+            "section": "framing_and_classification",
+            "check": "stakes_assessed",
+            "status": "missing",
+            "evidence": "stakes assessed \u2014 stakes x reversibility sets the effort budget"
+          },
+          {
+            "section": "options",
+            "check": "at_least_three_options",
+            "status": "missing",
+            "evidence": "generate at least three options \u2014 binary choices are usually false binaries"
+          },
+          {
+            "section": "options",
+            "check": "status_quo_option_included",
+            "status": "missing",
+            "evidence": "the options include 'do nothing / wait'"
+          },
+          {
+            "section": "options",
+            "check": "smaller_reversible_step_included",
+            "status": "missing",
+            "evidence": "the options include a smaller reversible step"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "criteria_listed",
+            "status": "missing",
+            "evidence": "what matters is defined (cost, risk, time-to-value, optionality)"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "criteria_defined_before_scoring",
+            "status": "missing",
+            "evidence": "criteria are defined BEFORE scoring options \u2014 criteria after scores is rationalization"
+          },
+          {
+            "section": "criteria_before_evaluation",
+            "check": "weights_assigned_before_scoring",
+            "status": "missing",
+            "evidence": "weights are assigned before evaluation, not fitted to the scores afterwards"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "fitting_evaluation_method_named",
+            "status": "missing",
+            "evidence": "evaluate with a fitting tool \u2014 decision matrix for multi-criteria, expected value / decision trees when probabilities are estimable, scenario thinking when they are not; the method used is named"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "uncertainty_flagged",
+            "status": "missing",
+            "evidence": "flag the uncertainty in the evaluation"
+          },
+          {
+            "section": "evaluation_and_uncertainty",
+            "check": "expected_value_used_when_probabilities_estimable",
+            "status": "missing",
+            "evidence": "probabilities are not declared estimable \u2014 expected value is not required; scenario thinking is the fitting tool"
+          },
+          {
+            "section": "pre_mortem",
+            "check": "premortem_conducted_for_material_decision",
+            "status": "missing",
+            "evidence": "decision is not declared material \u2014 a pre-mortem is not required by the quality gate"
+          },
+          {
+            "section": "pre_mortem",
+            "check": "premortem_top_risks_hedged_for_material_decision",
+            "status": "missing",
+            "evidence": "decision is not declared material \u2014 pre-mortem risk hedging is not required"
+          },
+          {
+            "section": "rush_and_mood_trap",
+            "check": "irreversible_decision_not_made_in_rush",
+            "status": "missing",
+            "evidence": "decision is not classified irreversible \u2014 the rush red line does not bind it"
+          },
+          {
+            "section": "rush_and_mood_trap",
+            "check": "irreversible_decision_not_made_in_a_mood",
+            "status": "missing",
+            "evidence": "decision is not classified irreversible \u2014 the mood red line does not bind it"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "choice_logged",
+            "status": "missing",
+            "evidence": "the choice is logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "rationale_logged",
+            "status": "missing",
+            "evidence": "the rationale is logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "assumptions_logged",
+            "status": "missing",
+            "evidence": "the assumptions behind the choice are logged"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "review_date_set",
+            "status": "missing",
+            "evidence": "a review date is set \u2014 review on schedule: outcomes vs expectations; separate luck from process; update"
+          },
+          {
+            "section": "decision_log_and_review",
+            "check": "decision_communicated_with_why",
+            "status": "missing",
+            "evidence": "the decision is communicated with the 'why'"
+          }
+        ],
+        "summary": "1 pass, 0 fail, 23 missing of 24 checks across seven sections.",
+        "stamp": "DECISION-TRAP SWEEP\ndecision: Minimal decision\nVERDICT: INSUFFICIENT_EVIDENCE\n  framing_and_classification   insufficient_evidence\n  options                      insufficient_evidence\n  criteria_before_evaluation   insufficient_evidence\n  evaluation_and_uncertainty   insufficient_evidence\n  pre_mortem                   insufficient_evidence\n  rush_and_mood_trap           insufficient_evidence\n  decision_log_and_review      insufficient_evidence\n1 pass, 0 fail, 23 missing of 24 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Classification expects string, options expects object. Atom returns 422 for type mismatch."
+      },
+      "input": {
+        "decision": "Malformed input",
+        "framing": {
+          "classification": 123
+        },
+        "options": "not-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "framing.classification",
+        "detail": "framing.classification must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

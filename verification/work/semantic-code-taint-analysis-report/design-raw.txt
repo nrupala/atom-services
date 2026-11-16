@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "graph": {
+          "nodes": [
+            {"id": "n1", "role": "source", "kind": "input"},
+            {"id": "n2", "role": "sink", "kind": "exec"}
+          ],
+          "edges": [
+            {"from": "n1", "to": "n2", "kind": "flow"}
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "TAINTED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Valid tainted path from source to exec sink. computed_spot_checks: path_length=1, severity=critical, verdict=TAINTED"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "graph": {
+          "nodes": [
+            {"id": "n1", "role": "source", "kind": "input"},
+            {"id": "n2", "role": "sink", "kind": "exec"}
+          ],
+          "edges": [
+            {"from": "n1", "to": "n3", "kind": "flow"}
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": ["edge_node_existence_check"],
+        "notes": "Edge references non-existent node n3; edge is dropped, resulting in no path and insufficient evidence."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "graph": {
+          "nodes": [
+            {"id": "n1", "role": "source", "kind": "input"}
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing sink node prevents taint analysis, resulting in INSUFFICIENT_EVIDENCE."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "graph": {
+          "nodes": "not_a_list",
+          "edges": 123
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: nodes must be a list and edges must be a list."
+      }
+    }
+  ]
+}

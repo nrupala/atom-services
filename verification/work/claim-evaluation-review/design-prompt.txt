@@ -1,0 +1,350 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: claim-evaluation-review
+
+=== contract.yaml ===
+service_name: claim-evaluation-review
+display_name: Claim evaluation review
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:critical-thinking
+binding:
+  skill: critical-thinking
+  skill_path: workspace/mymilo-build/skills/critical-thinking/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+- human
+keys:
+  namespace: claim_evaluation_review
+  prefix: atm_1_claim_evaluation_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Pitch and claim evaluations
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Claim evaluation review — `claim-evaluation-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Think clearly under pressure — evidence hierarchy, base rates, steelmanning, fallacy checks, calibration.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Pitch and claim evaluations**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the claim-evaluation-review manifest
+
+This atom does not evaluate a claim and exercises no judgment
+of its own. The caller submits one JSON manifest declaring a
+claim-evaluation artifact — a declared claim set, its
+evidence-hierarchy and conflict record, its base-rate /
+reference-class record, its steelman and fallacy spot-check
+record, its calibration record, and its second-order and
+written-judgment record — and the atom validates that artifact
+deterministically. This is the claim-evaluation REVIEW over a
+declared claim set, built from the bound skill's claim-evaluation
+method (its eight method steps, four quality gates and three
+red lines); it is not the narrower base-rate card that shares
+the same bound skill. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`CLAIM_EVALUATION_NOT_COMPLETE`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `claims` (list of claim entries; absent / not a list / empty = all four computed claim-set checks missing) | claim_set_and_evidence |
+| `claims[].label` (string; must be non-empty for the entry to be complete) | claim_set_and_evidence |
+| `claims[].restated_precisely` | claim_set_and_evidence |
+| `claims[].supporting_evidence_sought` | claim_set_and_evidence |
+| `claims[].refuting_evidence_sought` | claim_set_and_evidence |
+| `claims[].evidence_presence_assessed` | claim_set_and_evidence |
+| `hierarchy.evidence_ranked_by_hierarchy` | evidence_hierarchy_and_conflicts |
+| `hierarchy.conflicts_noted` | evidence_hierarchy_and_conflicts |
+| `hierarchy.conflict_reasons_and_incentives_examined` | evidence_hierarchy_and_conflicts |
+| `hierarchy.conclusions_from_vibes_or_authority_alone` (must be `false` to pass — skill red line) | evidence_hierarchy_and_conflicts |
+| `base_rates.considered_first` | base_rates_and_reference_class |
+| `base_rates.reference_class_identified` | base_rates_and_reference_class |
+| `base_rates.used_where_applicable` | base_rates_and_reference_class |
+| `base_rates.base_rate_percent` (number; computed, see below) | base_rates_and_reference_class |
+| `steelman.strongest_counterargument_constructed` | steelman_and_fallacy_screen |
+| `steelman.strongest_counterargument_engaged` | steelman_and_fallacy_screen |
+| `steelman.straw_manning_in_own_favor` (must be `false` to pass — skill red line) | steelman_and_fallacy_screen |
+| `fallacy_screen.fallacies_checked` (list of strings; computed, see below) | steelman_and_fallacy_screen |
+| `calibration.confidence_stated` | calibration |
+| `calibration.confidence_percent` (number; computed, see below) | calibration |
+| `calibration.outcomes_reviewed` | calibration |
+| `calibration.hit_rate_tracked_by_confidence_band` | calibration |
+| `calibration.outcomes_correct` (number; computed, see below) | calibration |
+| `calibration.outcomes_total` (number; computed, see below) | calibration |
+| `calibration.declared_hit_rate_percent` (number; computed, see below) | calibration |
+| `calibration.certainty_outruns_evidence` (must be `false` to pass — skill red line) | calibration |
+| `second_order.second_order_thinking_applied` | second_order_and_judgment |
+| `judgment.judgment_written` | second_order_and_judgment |
+| `judgment.judgment_includes_key_uncertainties` | second_order_and_judgment |
+| `judgment.judgment_checkable_later` | second_order_and_judgment |
+
+Eight checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Claim entries:** every declared claim entry passes the
+  entries check only when it carries a non-empty `label` string
+  and all four entry booleans. A missing or empty `claims` list
+  is missing evidence; an incomplete entry makes all four
+  claim-set checks missing (the set cannot be evaluated whole).
+  The output reports `claims_evaluated` (the count of complete
+  claim entries).
+- **All claims restated precisely:** passes only when every
+  complete claim entry declares `restated_precisely` true
+  (quality gate: "Claims restated precisely").
+- **Supporting AND refuting evidence sought:** passes only when
+  every complete claim entry declares both
+  `supporting_evidence_sought` and `refuting_evidence_sought`
+  true (quality gate: "supporting AND refuting evidence
+  sought").
+- **Evidence presence assessed:** passes only when every
+  complete claim entry declares `evidence_presence_assessed`
+  true (method step 1: "Is any actually present?"). Whether
+  evidence is in fact present for a claim is not judged — only
+  that its presence was assessed, per claim.
+- **Base-rate percent range:** method step 3 states a base rate
+  for a reference class. The declared
+  `base_rates.base_rate_percent` is a percent, so it passes
+  only inside 0–100 inclusive — the definition of a percent,
+  not a judged level. No base-rate value is imposed (see
+  thresholds declined). The output reports it as
+  `base_rate_percent` (null when no number is declared).
+- **Fallacy coverage:** method step 5 names the spot-check —
+  ad hominem, straw man, false dilemma, appeal to
+  authority/antiquity, survivorship stories, motivated
+  reasoning, cherry-picked windows. The slash in the skill's
+  "authority/antiquity" separates two named appeals, so the
+  stated set is eight tokens: `ad_hominem`, `straw_man`,
+  `false_dilemma`, `appeal_to_authority`, `appeal_to_antiquity`,
+  `survivorship_stories`, `motivated_reasoning`,
+  `cherry_picked_windows`. The declared
+  `fallacy_screen.fallacies_checked` list passes only when it
+  contains all eight; unknown entries do not count toward
+  coverage. A missing list is missing evidence; an empty list
+  is present and fails. The output reports the omitted stated
+  entries as `fallacies_not_checked` (null when no list is
+  declared). Entries are validated as strings only, never
+  enum-checked — coverage is a verdict check, not a type error.
+- **Confidence percent range:** method step 6 states confidence
+  as a percent ("80% sure"). The declared
+  `calibration.confidence_percent` therefore passes only inside
+  0–100 inclusive — again the definition of a percent. The
+  skill's 80% is an example of stating confidence, **not** a
+  required level, so no confidence level is imposed. The output
+  reports it as `confidence_percent` (null likewise).
+- **Calibration hit rate:** method step 6 states "track hit
+  rate". The declared `calibration.declared_hit_rate_percent`
+  therefore passes only when it equals
+  `calibration.outcomes_correct` / `calibration.outcomes_total`
+  × 100, with a positive total (a zero total fails — no hit
+  rate exists). No hit-rate level, band width, or minimum
+  outcome count is imposed — only the arithmetic is re-derived.
+  The output reports `computed_hit_rate_percent` and
+  `hit_rate_difference` (declared minus computed, null when
+  either cannot be computed).
+
+That is eight computed checks counting claim entries; the
+`computed_status` outcome is taken over the other seven.
+
+**Fixed serialization rule:** computed amounts and ratios are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the seven computed checks cannot be completed).
+
+The verdict is one of `CLAIM_EVALUATION_COMPLETE` (all 26 checks
+pass), `CLAIM_EVALUATION_NOT_COMPLETE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: claim_set_and_evidence,
+evidence_hierarchy_and_conflicts, base_rates_and_reference_class,
+steelman_and_fallacy_screen, calibration,
+second_order_and_judgment.
+
+## Checks by section
+
+- **claim_set_and_evidence (4, all computed):**
+  claim_entries_complete,
+  all_claims_restated_precisely,
+  all_claims_supporting_and_refuting_evidence_sought,
+  all_claims_evidence_presence_assessed.
+- **evidence_hierarchy_and_conflicts (4):**
+  evidence_ranked_by_hierarchy, conflicts_noted,
+  conflict_reasons_and_incentives_examined,
+  no_conclusions_from_vibes_or_authority_alone (red line, false).
+- **base_rates_and_reference_class (4):**
+  base_rates_considered_first, reference_class_identified,
+  base_rates_used_where_applicable,
+  base_rate_percent_within_percent_range (computed).
+- **steelman_and_fallacy_screen (4):**
+  strongest_counterargument_constructed,
+  strongest_counterargument_engaged,
+  no_straw_manning_in_own_favor (red line, false),
+  fallacy_screen_covers_stated_fallacies (computed).
+- **calibration (6):** confidence_stated,
+  confidence_percent_within_percent_range (computed),
+  outcomes_reviewed, hit_rate_tracked_by_confidence_band,
+  declared_hit_rate_matches_correct_divided_by_total (computed),
+  certainty_does_not_outrun_evidence (red line, false).
+- **second_order_and_judgment (4):**
+  second_order_thinking_applied, judgment_written,
+  judgment_includes_key_uncertainties, judgment_checkable_later.
+
+## Honest scoping
+
+This atom audits a **declared** claim-evaluation artifact — it
+does not read the underlying claims, pitches, articles or
+evidence, verify that a declared value is true, or decide
+whether any claim is true, well-supported, or worth acting on.
+The register's named doubt for this atom — overlaps
+critical-reasoning — is answered by this framing: this atom is
+the claim-set review from the critical-thinking method (claim →
+evidence over a set, hierarchy, base rates, steelman, fallacy
+spot-check, calibration, second-order effects, written
+judgment), not an argument-anatomy audit and not a base-rate
+card. An artifact is complete *on the caller's declared
+evidence* even if its underlying claims are false. It is a
+completeness and consistency audit, **not a claim verdict**: it
+never decides whether the evidence actually supports a claim,
+whether the steelman was well built, whether the reference
+class was the right one, or whether the stated confidence was
+warranted.
+
+**Thresholds declined (named explicitly):** no minimum number
+of claims in the set (the skill states none — a single-claim
+set can pass); no base-rate level imposed and no judgment that
+a base rate is high or low (the skill states no number); no
+confidence level required (the skill's "80% sure" is an
+example, not a threshold) and no overconfidence threshold or
+gap between confidence and hit rate imposed (the skill says
+"most find they're overconfident" but states no gap number);
+no hit-rate level, confidence-band width, or minimum number of
+tracked outcomes imposed (only that a total be positive so the
+declared hit rate can be re-derived); no minimum evidence tier
+required (the skill states the hierarchy order — measurements/
+data > documents/logs > expert synthesis > hearsay — but
+mandates no tier as a pass mark, so only that ranking was
+applied is checked); no fallacy-severity or count tolerance
+(coverage is the skill's exact stated set); no judgment length
+(the skill says "short" but states no word count); no
+second-order horizon (the skill names the effect kinds, not a
+timeframe).
+
+Named exclusions: no evaluation of any claim from raw source
+material; no verification of any declared evidence, base rate,
+confidence, or outcome count; no truth, support, steelman-quality,
+reference-class-choice, or confidence-warrantedness judgment;
+no live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Overlaps critical-reasoning
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

@@ -1,0 +1,816 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: predictive-maintenance-failure-risk-assessment
+
+=== contract.yaml ===
+service_name: predictive-maintenance-failure-risk-assessment
+display_name: Predictive maintenance failure risk assessment
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:predictive-maintenance
+binding:
+  skill: predictive-maintenance
+  skill_path: workspace/mymilo-build/skills/predictive-maintenance/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/predictive_maintenance_failure_risk_assessment.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_predictive_maintenance_failure_risk_assessment.py — 21 tests, all passing 2026-11-15
+keys:
+  namespace: predictive_maintenance_failure_risk_assessment
+  prefix: atm_1_predictive_maintenance_failure_risk_assessment_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Industrial motor and transformer clients
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Predictive maintenance failure risk assessment — `predictive-maintenance-failure-risk-assessment`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Electrical & energy who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Industrial motor and transformer clients**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the failure-risk evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`ASSESSMENT_UNSOUND`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `asset` (string; carried into the verdict output, not itself checked) | — |
+| `strategy.asset_criticality_assessed` | strategy_fit |
+| `strategy.failure_cost_assessed` | strategy_fit |
+| `strategy.matched_to_criticality_and_failure_cost` | strategy_fit |
+| `strategy.pdm_justified_for_asset` | strategy_fit |
+| `pf_curve.detectable_point_identified` | pf_window |
+| `pf_curve.detection_early_in_window` | pf_window |
+| `pf_curve.planning_runway_sufficient` | pf_window |
+| `monitoring.techniques_matched_to_failure_modes` | condition_monitoring |
+| `monitoring.sensor_coverage_covers_failure_modes` | condition_monitoring |
+| `monitoring.operating_parameters_monitored` | condition_monitoring |
+| `prediction.healthy_baseline_established` | prediction |
+| `prediction.anomaly_detection_or_rul_in_place` | prediction |
+| `prediction.fault_labels_available_or_imbalance_handled` | prediction |
+| `prediction.uncertainty_reported` | prediction |
+| `prediction.thresholds_tuned_to_missed_failure_vs_false_alarm_cost` | prediction |
+| `reliability.fmea_completed` | reliability_frame |
+| `reliability.prioritised_by_severity_occurrence_detectability` | reliability_frame |
+| `reliability.rcm_strategy_per_failure_mode` | reliability_frame |
+| `reliability.mtbf_mttr_tracked` | reliability_frame |
+| `reliability.fmea_and_engineering_judgement_not_replaced` | reliability_frame |
+| `integration.sensor_quality_and_calibration_verified` | data_and_integration |
+| `integration.leakage_label_scarcity_and_drift_watched` | data_and_integration |
+| `integration.edge_vs_cloud_inference_decided` | data_and_integration |
+| `integration.work_orders_closed_into_cmms` | data_and_integration |
+
+The verdict is one of `ASSESSMENT_SOUND` (all 24 checks pass),
+`ASSESSMENT_UNSOUND` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+strategy_fit, pf_window, condition_monitoring, prediction,
+reliability_frame, data_and_integration.
+
+## Scoping — declared, not measured
+
+This atom checks **caller-declared evidence** about a predictive
+maintenance programme; it does not measure the asset itself. The bound
+skill states no numeric thresholds, so none are invented here: the
+manifest declares the evidence and the core checks the declared
+fields. Named exclusions: no sensor or SCADA data ingestion, no ML
+inference (no anomaly detection, RUL estimation, or fault
+classification is run), no RPN arithmetic over raw severity /
+occurrence / detectability scores, and no remaining-life or
+failure-probability figure is computed. Those belong to the caller's
+own monitoring and models; this atom verifies that the programme
+around them follows the skill — strategy matched to criticality and
+failure cost, detection early in the P-F window, honest label and
+threshold discipline, FMEA/RCM framing, calibrated sensors, and the
+loop closed into the CMMS.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "predictive-maintenance-failure-risk-assessment",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "ASSESSMENT_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 24 boolean fields set to true; expects full pass."
+      },
+      "input": {
+        "asset": "Turbine-01",
+        "strategy": {
+          "asset_criticality_assessed": true,
+          "failure_cost_assessed": true,
+          "matched_to_criticality_and_failure_cost": true,
+          "pdm_justified_for_asset": true
+        },
+        "pf_curve": {
+          "detectable_point_identified": true,
+          "detection_early_in_window": true,
+          "planning_runway_sufficient": true
+        },
+        "monitoring": {
+          "techniques_matched_to_failure_modes": true,
+          "sensor_coverage_covers_failure_modes": true,
+          "operating_parameters_monitored": true
+        },
+        "prediction": {
+          "healthy_baseline_established": true,
+          "anomaly_detection_or_rul_in_place": true,
+          "fault_labels_available_or_imbalance_handled": true,
+          "uncertainty_reported": true,
+          "thresholds_tuned_to_missed_failure_vs_false_alarm_cost": true
+        },
+        "reliability": {
+          "fmea_completed": true,
+          "prioritised_by_severity_occurrence_detectability": true,
+          "rcm_strategy_per_failure_mode": true,
+          "mtbf_mttr_tracked": true,
+          "fmea_and_engineering_judgement_not_replaced": true
+        },
+        "integration": {
+          "sensor_quality_and_calibration_verified": true,
+          "leakage_label_scarcity_and_drift_watched": true,
+          "edge_vs_cloud_inference_decided": true,
+          "work_orders_closed_into_cmms": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "predictive-maintenance-failure-risk-assessment",
+        "atom_version": "0.1.0",
+        "asset": "Turbine-01",
+        "verdict": "ASSESSMENT_SOUND",
+        "sections": {
+          "strategy_fit": "pass",
+          "pf_window": "pass",
+          "condition_monitoring": "pass",
+          "prediction": "pass",
+          "reliability_frame": "pass",
+          "data_and_integration": "pass"
+        },
+        "checks": [
+          {
+            "section": "strategy_fit",
+            "check": "asset_criticality_assessed",
+            "status": "pass",
+            "evidence": "match strategy to asset criticality and failure cost \u2014 not everything deserves PdM"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "failure_cost_assessed",
+            "status": "pass",
+            "evidence": "the cost of failure is assessed before a strategy is chosen"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "strategy_matched_to_criticality_and_failure_cost",
+            "status": "pass",
+            "evidence": "reactive is fine only for non-critical, cheap-to-replace assets; predictive is the sweet spot for critical assets"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "pdm_justified_for_this_asset",
+            "status": "pass",
+            "evidence": "PdM on assets that don't justify it is refused"
+          },
+          {
+            "section": "pf_window",
+            "check": "detectable_point_identified",
+            "status": "pass",
+            "evidence": "between the point a failure becomes detectable (P) and functional failure (F) lies a window \u2014 P is identified"
+          },
+          {
+            "section": "pf_window",
+            "check": "detection_early_in_window",
+            "status": "pass",
+            "evidence": "PdM detects early in that window and acts before F"
+          },
+          {
+            "section": "pf_window",
+            "check": "planning_runway_sufficient",
+            "status": "pass",
+            "evidence": "earlier, more reliable detection = longer planning runway"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "techniques_matched_to_failure_modes",
+            "status": "pass",
+            "evidence": "techniques are matched to the failure modes \u2014 vibration analysis, thermography, MCSA / electrical signature, oil analysis / DGA, acoustic / ultrasonic, operating parameters"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "sensor_coverage_covers_failure_modes",
+            "status": "pass",
+            "evidence": "the sensing in place covers the failure modes that matter for this asset"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "operating_parameters_monitored",
+            "status": "pass",
+            "evidence": "operating parameters \u2014 load, pressure, temperature, electrical params via SCADA/IoT \u2014 are monitored"
+          },
+          {
+            "section": "prediction",
+            "check": "healthy_baseline_established",
+            "status": "pass",
+            "evidence": "anomaly detection on streaming data \u2014 baseline \"healthy\" first, then flag deviations"
+          },
+          {
+            "section": "prediction",
+            "check": "anomaly_detection_or_rul_in_place",
+            "status": "pass",
+            "evidence": "anomaly detection and/or remaining useful life (RUL) estimation is in place on the degradation signals"
+          },
+          {
+            "section": "prediction",
+            "check": "fault_labels_available_or_imbalance_handled",
+            "status": "pass",
+            "evidence": "\"classifying\" faults with no failure labels is refused \u2014 failure labels are usually scarce, so handle class imbalance honestly"
+          },
+          {
+            "section": "prediction",
+            "check": "uncertainty_reported",
+            "status": "pass",
+            "evidence": "baseline first; report uncertainty"
+          },
+          {
+            "section": "prediction",
+            "check": "thresholds_tuned_to_missed_failure_vs_false_alarm_cost",
+            "status": "pass",
+            "evidence": "tune precision/recall against the cost of a missed failure vs a false alarm \u2014 an alert that cries wolf gets ignored; alert thresholds set without regard to false-alarm cost are refused"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "fmea_completed",
+            "status": "pass",
+            "evidence": "FMEA \u2014 enumerate failure modes and effects"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "prioritised_by_severity_occurrence_detectability",
+            "status": "pass",
+            "evidence": "prioritize by severity x occurrence x detectability (RPN)"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "rcm_strategy_per_failure_mode",
+            "status": "pass",
+            "evidence": "RCM \u2014 choose the right strategy per failure mode, driven by consequence"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "mtbf_mttr_tracked",
+            "status": "pass",
+            "evidence": "track MTBF / MTTR, availability, and downtime cost to justify PdM investment"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "engineering_judgement_not_replaced_by_black_box",
+            "status": "pass",
+            "evidence": "replacing FMEA and engineering judgment with a black box is refused"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "sensor_quality_and_calibration_verified",
+            "status": "pass",
+            "evidence": "sensor quality and calibration are foundational \u2014 garbage sensors, garbage predictions; ignoring sensor quality/calibration is refused"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "leakage_label_scarcity_and_drift_watched",
+            "status": "pass",
+            "evidence": "data discipline: watch leakage, label scarcity, and drift"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "edge_vs_cloud_inference_decided",
+            "status": "pass",
+            "evidence": "decide edge vs cloud inference"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "work_orders_closed_into_cmms",
+            "status": "pass",
+            "evidence": "sensors/IoT -> data platform -> models -> work orders, closed back into the CMMS/EAM"
+          }
+        ],
+        "summary": "24 pass, 0 fail, 0 missing of 24 checks across six sections.",
+        "stamp": "PREDICTIVE MAINTENANCE FAILURE RISK ASSESSMENT\nasset: Turbine-01\nVERDICT: ASSESSMENT_SOUND\n  strategy_fit         pass\n  pf_window            pass\n  condition_monitoring pass\n  prediction           pass\n  reliability_frame    pass\n  data_and_integration pass\n24 pass, 0 fail, 0 missing of 24 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "ASSESSMENT_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "strategy.matched_to_criticality_and_failure_cost",
+          "pf_curve.detection_early_in_window"
+        ],
+        "notes": "Two fields explicitly set to false, triggering assessment failure."
+      },
+      "input": {
+        "asset": "Motor-02",
+        "strategy": {
+          "asset_criticality_assessed": true,
+          "failure_cost_assessed": true,
+          "matched_to_criticality_and_failure_cost": false,
+          "pdm_justified_for_asset": true
+        },
+        "pf_curve": {
+          "detectable_point_identified": true,
+          "detection_early_in_window": false,
+          "planning_runway_sufficient": true
+        },
+        "monitoring": {
+          "techniques_matched_to_failure_modes": true,
+          "sensor_coverage_covers_failure_modes": true,
+          "operating_parameters_monitored": true
+        },
+        "prediction": {
+          "healthy_baseline_established": true,
+          "anomaly_detection_or_rul_in_place": true,
+          "fault_labels_available_or_imbalance_handled": true,
+          "uncertainty_reported": true,
+          "thresholds_tuned_to_missed_failure_vs_false_alarm_cost": true
+        },
+        "reliability": {
+          "fmea_completed": true,
+          "prioritised_by_severity_occurrence_detectability": true,
+          "rcm_strategy_per_failure_mode": true,
+          "mtbf_mttr_tracked": true,
+          "fmea_and_engineering_judgement_not_replaced": true
+        },
+        "integration": {
+          "sensor_quality_and_calibration_verified": true,
+          "leakage_label_scarcity_and_drift_watched": true,
+          "edge_vs_cloud_inference_decided": true,
+          "work_orders_closed_into_cmms": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "predictive-maintenance-failure-risk-assessment",
+        "atom_version": "0.1.0",
+        "asset": "Motor-02",
+        "verdict": "ASSESSMENT_UNSOUND",
+        "sections": {
+          "strategy_fit": "fail",
+          "pf_window": "fail",
+          "condition_monitoring": "pass",
+          "prediction": "pass",
+          "reliability_frame": "pass",
+          "data_and_integration": "pass"
+        },
+        "checks": [
+          {
+            "section": "strategy_fit",
+            "check": "asset_criticality_assessed",
+            "status": "pass",
+            "evidence": "match strategy to asset criticality and failure cost \u2014 not everything deserves PdM"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "failure_cost_assessed",
+            "status": "pass",
+            "evidence": "the cost of failure is assessed before a strategy is chosen"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "strategy_matched_to_criticality_and_failure_cost",
+            "status": "fail",
+            "evidence": "reactive is fine only for non-critical, cheap-to-replace assets; predictive is the sweet spot for critical assets"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "pdm_justified_for_this_asset",
+            "status": "pass",
+            "evidence": "PdM on assets that don't justify it is refused"
+          },
+          {
+            "section": "pf_window",
+            "check": "detectable_point_identified",
+            "status": "pass",
+            "evidence": "between the point a failure becomes detectable (P) and functional failure (F) lies a window \u2014 P is identified"
+          },
+          {
+            "section": "pf_window",
+            "check": "detection_early_in_window",
+            "status": "fail",
+            "evidence": "PdM detects early in that window and acts before F"
+          },
+          {
+            "section": "pf_window",
+            "check": "planning_runway_sufficient",
+            "status": "pass",
+            "evidence": "earlier, more reliable detection = longer planning runway"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "techniques_matched_to_failure_modes",
+            "status": "pass",
+            "evidence": "techniques are matched to the failure modes \u2014 vibration analysis, thermography, MCSA / electrical signature, oil analysis / DGA, acoustic / ultrasonic, operating parameters"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "sensor_coverage_covers_failure_modes",
+            "status": "pass",
+            "evidence": "the sensing in place covers the failure modes that matter for this asset"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "operating_parameters_monitored",
+            "status": "pass",
+            "evidence": "operating parameters \u2014 load, pressure, temperature, electrical params via SCADA/IoT \u2014 are monitored"
+          },
+          {
+            "section": "prediction",
+            "check": "healthy_baseline_established",
+            "status": "pass",
+            "evidence": "anomaly detection on streaming data \u2014 baseline \"healthy\" first, then flag deviations"
+          },
+          {
+            "section": "prediction",
+            "check": "anomaly_detection_or_rul_in_place",
+            "status": "pass",
+            "evidence": "anomaly detection and/or remaining useful life (RUL) estimation is in place on the degradation signals"
+          },
+          {
+            "section": "prediction",
+            "check": "fault_labels_available_or_imbalance_handled",
+            "status": "pass",
+            "evidence": "\"classifying\" faults with no failure labels is refused \u2014 failure labels are usually scarce, so handle class imbalance honestly"
+          },
+          {
+            "section": "prediction",
+            "check": "uncertainty_reported",
+            "status": "pass",
+            "evidence": "baseline first; report uncertainty"
+          },
+          {
+            "section": "prediction",
+            "check": "thresholds_tuned_to_missed_failure_vs_false_alarm_cost",
+            "status": "pass",
+            "evidence": "tune precision/recall against the cost of a missed failure vs a false alarm \u2014 an alert that cries wolf gets ignored; alert thresholds set without regard to false-alarm cost are refused"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "fmea_completed",
+            "status": "pass",
+            "evidence": "FMEA \u2014 enumerate failure modes and effects"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "prioritised_by_severity_occurrence_detectability",
+            "status": "pass",
+            "evidence": "prioritize by severity x occurrence x detectability (RPN)"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "rcm_strategy_per_failure_mode",
+            "status": "pass",
+            "evidence": "RCM \u2014 choose the right strategy per failure mode, driven by consequence"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "mtbf_mttr_tracked",
+            "status": "pass",
+            "evidence": "track MTBF / MTTR, availability, and downtime cost to justify PdM investment"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "engineering_judgement_not_replaced_by_black_box",
+            "status": "pass",
+            "evidence": "replacing FMEA and engineering judgment with a black box is refused"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "sensor_quality_and_calibration_verified",
+            "status": "pass",
+            "evidence": "sensor quality and calibration are foundational \u2014 garbage sensors, garbage predictions; ignoring sensor quality/calibration is refused"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "leakage_label_scarcity_and_drift_watched",
+            "status": "pass",
+            "evidence": "data discipline: watch leakage, label scarcity, and drift"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "edge_vs_cloud_inference_decided",
+            "status": "pass",
+            "evidence": "decide edge vs cloud inference"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "work_orders_closed_into_cmms",
+            "status": "pass",
+            "evidence": "sensors/IoT -> data platform -> models -> work orders, closed back into the CMMS/EAM"
+          }
+        ],
+        "summary": "22 pass, 2 fail, 0 missing of 24 checks across six sections.",
+        "stamp": "PREDICTIVE MAINTENANCE FAILURE RISK ASSESSMENT\nasset: Motor-02\nVERDICT: ASSESSMENT_UNSOUND\n  strategy_fit         fail\n  pf_window            fail\n  condition_monitoring pass\n  prediction           pass\n  reliability_frame    pass\n  data_and_integration pass\n22 pass, 2 fail, 0 missing of 24 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing 23 required fields results in insufficient evidence."
+      },
+      "input": {
+        "asset": "Sparse-Asset",
+        "strategy": {
+          "asset_criticality_assessed": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "predictive-maintenance-failure-risk-assessment",
+        "atom_version": "0.1.0",
+        "asset": "Sparse-Asset",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "strategy_fit": "insufficient_evidence",
+          "pf_window": "insufficient_evidence",
+          "condition_monitoring": "insufficient_evidence",
+          "prediction": "insufficient_evidence",
+          "reliability_frame": "insufficient_evidence",
+          "data_and_integration": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "strategy_fit",
+            "check": "asset_criticality_assessed",
+            "status": "pass",
+            "evidence": "match strategy to asset criticality and failure cost \u2014 not everything deserves PdM"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "failure_cost_assessed",
+            "status": "missing",
+            "evidence": "the cost of failure is assessed before a strategy is chosen"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "strategy_matched_to_criticality_and_failure_cost",
+            "status": "missing",
+            "evidence": "reactive is fine only for non-critical, cheap-to-replace assets; predictive is the sweet spot for critical assets"
+          },
+          {
+            "section": "strategy_fit",
+            "check": "pdm_justified_for_this_asset",
+            "status": "missing",
+            "evidence": "PdM on assets that don't justify it is refused"
+          },
+          {
+            "section": "pf_window",
+            "check": "detectable_point_identified",
+            "status": "missing",
+            "evidence": "between the point a failure becomes detectable (P) and functional failure (F) lies a window \u2014 P is identified"
+          },
+          {
+            "section": "pf_window",
+            "check": "detection_early_in_window",
+            "status": "missing",
+            "evidence": "PdM detects early in that window and acts before F"
+          },
+          {
+            "section": "pf_window",
+            "check": "planning_runway_sufficient",
+            "status": "missing",
+            "evidence": "earlier, more reliable detection = longer planning runway"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "techniques_matched_to_failure_modes",
+            "status": "missing",
+            "evidence": "techniques are matched to the failure modes \u2014 vibration analysis, thermography, MCSA / electrical signature, oil analysis / DGA, acoustic / ultrasonic, operating parameters"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "sensor_coverage_covers_failure_modes",
+            "status": "missing",
+            "evidence": "the sensing in place covers the failure modes that matter for this asset"
+          },
+          {
+            "section": "condition_monitoring",
+            "check": "operating_parameters_monitored",
+            "status": "missing",
+            "evidence": "operating parameters \u2014 load, pressure, temperature, electrical params via SCADA/IoT \u2014 are monitored"
+          },
+          {
+            "section": "prediction",
+            "check": "healthy_baseline_established",
+            "status": "missing",
+            "evidence": "anomaly detection on streaming data \u2014 baseline \"healthy\" first, then flag deviations"
+          },
+          {
+            "section": "prediction",
+            "check": "anomaly_detection_or_rul_in_place",
+            "status": "missing",
+            "evidence": "anomaly detection and/or remaining useful life (RUL) estimation is in place on the degradation signals"
+          },
+          {
+            "section": "prediction",
+            "check": "fault_labels_available_or_imbalance_handled",
+            "status": "missing",
+            "evidence": "\"classifying\" faults with no failure labels is refused \u2014 failure labels are usually scarce, so handle class imbalance honestly"
+          },
+          {
+            "section": "prediction",
+            "check": "uncertainty_reported",
+            "status": "missing",
+            "evidence": "baseline first; report uncertainty"
+          },
+          {
+            "section": "prediction",
+            "check": "thresholds_tuned_to_missed_failure_vs_false_alarm_cost",
+            "status": "missing",
+            "evidence": "tune precision/recall against the cost of a missed failure vs a false alarm \u2014 an alert that cries wolf gets ignored; alert thresholds set without regard to false-alarm cost are refused"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "fmea_completed",
+            "status": "missing",
+            "evidence": "FMEA \u2014 enumerate failure modes and effects"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "prioritised_by_severity_occurrence_detectability",
+            "status": "missing",
+            "evidence": "prioritize by severity x occurrence x detectability (RPN)"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "rcm_strategy_per_failure_mode",
+            "status": "missing",
+            "evidence": "RCM \u2014 choose the right strategy per failure mode, driven by consequence"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "mtbf_mttr_tracked",
+            "status": "missing",
+            "evidence": "track MTBF / MTTR, availability, and downtime cost to justify PdM investment"
+          },
+          {
+            "section": "reliability_frame",
+            "check": "engineering_judgement_not_replaced_by_black_box",
+            "status": "missing",
+            "evidence": "replacing FMEA and engineering judgment with a black box is refused"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "sensor_quality_and_calibration_verified",
+            "status": "missing",
+            "evidence": "sensor quality and calibration are foundational \u2014 garbage sensors, garbage predictions; ignoring sensor quality/calibration is refused"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "leakage_label_scarcity_and_drift_watched",
+            "status": "missing",
+            "evidence": "data discipline: watch leakage, label scarcity, and drift"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "edge_vs_cloud_inference_decided",
+            "status": "missing",
+            "evidence": "decide edge vs cloud inference"
+          },
+          {
+            "section": "data_and_integration",
+            "check": "work_orders_closed_into_cmms",
+            "status": "missing",
+            "evidence": "sensors/IoT -> data platform -> models -> work orders, closed back into the CMMS/EAM"
+          }
+        ],
+        "summary": "1 pass, 0 fail, 23 missing of 24 checks across six sections.",
+        "stamp": "PREDICTIVE MAINTENANCE FAILURE RISK ASSESSMENT\nasset: Sparse-Asset\nVERDICT: INSUFFICIENT_EVIDENCE\n  strategy_fit         insufficient_evidence\n  pf_window            insufficient_evidence\n  condition_monitoring insufficient_evidence\n  prediction           insufficient_evidence\n  reliability_frame    insufficient_evidence\n  data_and_integration insufficient_evidence\n1 pass, 0 fail, 23 missing of 24 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on strategy object and asset string field."
+      },
+      "input": {
+        "asset": 12345,
+        "strategy": "invalid_string_instead_of_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "asset",
+        "detail": "asset must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

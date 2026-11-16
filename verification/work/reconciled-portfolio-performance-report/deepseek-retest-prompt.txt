@@ -1,0 +1,519 @@
+You are an INDEPENDENT second tester for a deterministic API atom. The evidence below records real HTTP calls to the live gateway.
+
+Your job: INDEPENDENTLY RECOMPUTE the atom's computed quantities BY HAND from each case's INPUT (per the formulas/rules in SERVICE.md), and verify the artifact's numbers and verdict/status against your recomputation. Do not trust the artifact's own summary. Also check: malformed input should return HTTP 422 (never a verdict); determinism and MCP/REST parity flags are given per case.
+
+ATOM: reconciled-portfolio-performance-report
+
+
+RETEST WAVE (2026-11-15, fix-stream deploy 7f9cae9fdd60417eb72062905a066554, gateway v1.1.0): this is a re-run of the same recorded battery after a fix for F1 (malformed type-violating input previously returned HTTP 200 instead of HTTP 422 invalid_input). Judge the NEW evidence below fresh.
+
+=== SERVICE.md (computed rules) ===
+# Reconciled portfolio performance report — `reconciled-portfolio-performance-report`
+
+**Deliverable type:** REPORT. This atom sells the report it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Track and attribute honestly — positions ledger, TWR/IRR math, benchmarks, tax lots, privacy scrubbed.
+
+A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this report on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Investment ledger review and attribution**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the performance manifest
+
+The caller submits one JSON manifest. `portfolio` (string) is carried
+into the output, not itself analysed. Everything below is computed
+over the submitted declarations only; nothing is defaulted, fetched
+or interpolated — a figure whose inputs were not submitted is a
+labeled gap (null), never silently filled in. The manifest carries
+no account numbers or identifiers (the skill's privacy rule):
+aggregate figures only.
+
+| Field | Read from |
+|---|---|
+| `portfolio` (string; carried into the output, not itself analysed) | manifest |
+| `beginning_value` (number; portfolio value at the start of the first period — required) | manifest |
+| `period_end_values` (list of numbers; declared portfolio value at the end of each period, in period order — at least 2 valid entries required; non-numeric entries are counted in `counts.invalid_value_entries` and excluded) | manifest |
+| `external_flows` (list of numbers, aligned period-for-period with `period_end_values`; each entry is the net external cash flow at the BEGINNING of its period — contributions positive, withdrawals negative. Absent or misaligned = period returns are gaps, never defaulted to zero) | manifest |
+| `benchmark_name` (string; the benchmark chosen in advance, carried into the benchmark section) | manifest |
+| `benchmark_returns` (list of numbers; benchmark periodic returns, aligned period-for-period with `period_end_values`) | manifest |
+| `declared_returns` (list of numbers; the caller's own declared period returns, aligned period-for-period — reconciled against the computed period returns) | manifest |
+| `holdings` (list of entries, below — the declared positions ledger) | manifest |
+| `holdings[].id` (string; carried into the holding rows) | entry |
+| `holdings[].quantity` / `holdings[].price` (numbers; holding value = quantity × price — an entry without both numeric is counted in `counts.invalid_holdings` and excluded) | entry |
+| `transactions` (list of entries, below — the ledger's external-flow record) | manifest |
+| `transactions[].kind` (`"contribution"` or `"withdrawal"`; anything else is counted in `counts.invalid_transactions` and excluded) | entry |
+| `transactions[].amount` (number ≥ 0; the magnitude of that contribution or withdrawal) | entry |
+
+## What is computed
+
+- **Period returns** (flow-adjusted, from the declared values):
+  r_i = V_i ÷ (V_{i−1} + F_i) − 1, with V_{−1} the beginning value
+  and F_i the flow at the beginning of period i. A period whose
+  base (previous value plus its flow) is not positive has no
+  defined return; the whole return path is then a labeled gap —
+  adjusted and unadjusted periods are never mixed.
+- **Performance math, stated explicitly** (the skill: "pick, state
+  which, and never mix. Show both when they tell different
+  stories"): **time-weighted return** — the chain product of
+  (1 + r_i) − 1, independent of cash-flow timing — and
+  **money-weighted return (IRR) per period** — the rate solving
+  B(1+r)^n + Σ F_i (1+r)^(n−i) = final value, found by a fixed
+  bracket search (lower bracket −0.999999; upper bracket 1, 3, 7, …
+  doubling-plus-one up to 1048575) followed by exactly 200
+  bisection iterations, integer powers by repeated multiplication.
+  When no sign-changing bracket exists in that searched range the
+  IRR is a labeled gap, not a guess. Both are always labeled
+  separately, the mean period return is shown, and the
+  **TWR − IRR difference** is reported as its own figure. Also:
+  value change, net external flows and total gain after flows
+  (final − beginning − net flows).
+- **Reconciliation** (the skill: reconcile to statements,
+  discrepancies fixed at the source — this core reports the
+  discrepancies as numbers and never edits a declared figure).
+  Three legs: (1) **flows vs ledger** — declared net external
+  flows minus ledger net (contributions − withdrawals from
+  `transactions`); (2) **holdings vs declared value** — the
+  holdings ledger total (Σ quantity × price) minus the final
+  declared period-end value, and that difference as a fraction of
+  the final value; (3) **declared vs computed returns** — the
+  per-period differences, the largest absolute difference, and the
+  count of periods whose difference is not zero at the report's
+  six-decimal precision. A discrepancy is a *finding*, not a gap:
+  a fully evidenced report with a nonzero discrepancy is
+  `complete`, with the discrepancy printed.
+- **Benchmark comparison** (only over a series aligned
+  period-for-period): benchmark total return (chain product),
+  benchmark mean period return, excess total return (portfolio
+  TWR − benchmark total) and the count of periods in which the
+  portfolio period return exceeded the benchmark's.
+- **Holdings ledger:** per-holding value (quantity × price) and
+  share of the holdings total, the holdings total, and the
+  largest holding.
+- **Layers:** values, performance, reconciliation, benchmark and
+  holdings are each reported `present` or `absent` — missing
+  layers are gaps, not guesses.
+- **Not computed — named exclusions:** **XIRR** (the skill names
+  it but states no date or day-count convention; this core
+  computes the periodic IRR on the submitted period grid
+  instead); **attribution decomposition** (allocation vs
+  selection vs timing vs costs vs currency — the skill asks for a
+  written one-paragraph truth, a judgment artifact, and supplies
+  no input data model or formula for the decomposition);
+  **tax lots / adjusted cost base** (the skill asks for awareness
+  and clean data for an accountant, and states no jurisdictional
+  computation); **benchmark fees/taxes adjustment** ("including
+  fees and taxes where material" — no materiality rule or tax
+  model is stated). No recommendation, and nothing labeled
+  optimal or recommended, is ever produced.
+
+**Serialization rule (both implementations, byte-identical):** every
+computed floating quantity is rendered as a string with exactly six
+decimal places, rounded half away from zero on the binary double
+(scaled = ⌊|x|·10⁶ + 0.5⌋; zero renders `0.000000`, never
+`-0.000000`). Counts and period indices stay integers. Declared
+quantities echoed into the report (beginning and period-end values,
+flows, quantities, prices, amounts) are rendered under the same
+rule. All internal arithmetic is IEEE-754 double arithmetic in a
+fixed loop order using only +, −, ×, ÷ (and integer powers by
+repeated multiplication).
+
+The output status is one of `complete` (a numeric beginning value,
+a values series with at least 2 valid observations, flows aligned,
+and no gaps of any kind), `partial` (performance computed but some
+figure or section is a labeled gap — missing flows, misaligned
+series, invalid entries, an unbracketed money-weighted return), or
+`insufficient_evidence` (no numeric beginning value, or fewer than
+2 valid numeric period-end values), with `counts`, the ordered
+`gaps` list naming every gap, the sections above (null when their
+inputs are absent), and the non-advisory disclaimer carried on
+every output: educational reporting only — the tool calculates;
+the user decides.
+
+## Status
+
+Tier A · status: **built-locally** — deterministic core built and
+verified locally (Python oracle + byte-identical TypeScript port);
+no endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Finance-adjacent; reporting not advice
+
+
+=== cases.json (inputs + expectations) ===
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "portfolio": "Test Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [
+          1100.0,
+          1210.0
+        ],
+        "external_flows": [
+          0.0,
+          0.0
+        ],
+        "benchmark_name": "S&P500",
+        "benchmark_returns": [
+          0.05,
+          0.05
+        ],
+        "declared_returns": [
+          0.1,
+          0.1
+        ],
+        "holdings": [
+          {
+            "id": "A",
+            "quantity": 10,
+            "price": 121.0
+          }
+        ],
+        "transactions": [
+          {
+            "kind": "contribution",
+            "amount": 0.0
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "complete",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All inputs valid, aligned, and sufficient for complete status. computed_spot_checks: period_returns=[0.100000, 0.100000], TWR=0.210000, holdings_total=1210.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "portfolio": "Violated Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [
+          1100.0,
+          1210.0
+        ],
+        "external_flows": [
+          0.0
+        ],
+        "benchmark_name": "None",
+        "benchmark_returns": [
+          0.0,
+          0.0
+        ],
+        "declared_returns": [
+          0.0,
+          0.0
+        ],
+        "holdings": [],
+        "transactions": []
+      },
+      "expect": {
+        "outcome": "partial",
+        "http": 200,
+        "failing_checks": [
+          "external_flows_alignment",
+          "holdings_ledger_reconciliation"
+        ],
+        "notes": "Flows are misaligned (length 1 vs 2) and holdings are empty vs final value, resulting in partial status."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "portfolio": "Sparse Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [
+          1100.0
+        ]
+      },
+      "expect": {
+        "outcome": "insufficient_evidence",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Fewer than 2 valid period-end values provided."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "portfolio": 12345,
+        "beginning_value": "one thousand",
+        "period_end_values": "not a list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violations: portfolio must be string, beginning_value must be number, period_end_values must be list."
+      }
+    }
+  ]
+}
+
+=== NEW EVIDENCE ARTIFACTS (real HTTP calls, retest) ===
+{
+  "full-pass": {
+    "http_status": 200,
+    "artifact": {
+      "service": "reconciled-portfolio-performance-report",
+      "atom_version": "0.1.0",
+      "portfolio": "Test Portfolio",
+      "status": "complete",
+      "layers": {
+        "values": "present",
+        "performance": "present",
+        "reconciliation": "present",
+        "benchmark": "present",
+        "holdings": "present"
+      },
+      "counts": {
+        "periods": 2,
+        "invalid_value_entries": 0,
+        "invalid_flow_entries": 0,
+        "holdings": 1,
+        "invalid_holdings": 0,
+        "transactions": 1,
+        "invalid_transactions": 0
+      },
+      "gaps": [],
+      "performance": {
+        "periods": 2,
+        "beginning_value": "1000.000000",
+        "final_value": "1210.000000",
+        "value_change": "210.000000",
+        "net_external_flows": "0.000000",
+        "total_gain_after_flows": "210.000000",
+        "period_returns": [
+          "0.100000",
+          "0.100000"
+        ],
+        "time_weighted_return": "0.210000",
+        "money_weighted_return_per_period": "0.100000",
+        "mean_period_return": "0.100000",
+        "twr_irr_difference": "0.110000",
+        "methods": [
+          "time_weighted_return",
+          "money_weighted_return_per_period"
+        ]
+      },
+      "benchmark": {
+        "name": "S&P500",
+        "aligned": true,
+        "periods": 2,
+        "total_return": "0.102500",
+        "mean_return_per_period": "0.050000",
+        "excess_total_return": "0.107500",
+        "periods_portfolio_ahead": 2
+      },
+      "reconciliation": {
+        "flows_vs_ledger": {
+          "declared_net_external_flows": "0.000000",
+          "ledger_contributions": "0.000000",
+          "ledger_withdrawals": "0.000000",
+          "ledger_net_external_flows": "0.000000",
+          "difference": "0.000000"
+        },
+        "holdings_vs_declared_value": {
+          "holdings_total_value": "1210.000000",
+          "final_declared_value": "1210.000000",
+          "difference": "0.000000",
+          "difference_fraction_of_final": "0.000000"
+        },
+        "declared_vs_computed_returns": {
+          "aligned": true,
+          "compared_periods": 2,
+          "differences": [
+            "0.000000",
+            "0.000000"
+          ],
+          "max_abs_difference": "0.000000",
+          "mismatched_periods": 0
+        }
+      },
+      "holdings": {
+        "holdings_count": 1,
+        "total_value": "1210.000000",
+        "rows": [
+          {
+            "id": "A",
+            "quantity": "10.000000",
+            "price": "121.000000",
+            "value": "1210.000000",
+            "share_of_holdings": "1.000000"
+          }
+        ],
+        "largest_holding_id": "A",
+        "largest_holding_share": "1.000000"
+      },
+      "disclaimer": "Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.",
+      "summary": "Reconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.",
+      "stamp": "RECONCILED PORTFOLIO PERFORMANCE REPORT\nportfolio: Test Portfolio\nSTATUS: complete\nReconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides."
+    },
+    "determinism_byte_identical": true,
+    "parity_structured_equal": true
+  },
+  "violations": {
+    "http_status": 200,
+    "artifact": {
+      "service": "reconciled-portfolio-performance-report",
+      "atom_version": "0.1.0",
+      "portfolio": "Violated Portfolio",
+      "status": "partial",
+      "layers": {
+        "values": "present",
+        "performance": "present",
+        "reconciliation": "present",
+        "benchmark": "present",
+        "holdings": "present"
+      },
+      "counts": {
+        "periods": 2,
+        "invalid_value_entries": 0,
+        "invalid_flow_entries": 0,
+        "holdings": 0,
+        "invalid_holdings": 0,
+        "transactions": 0,
+        "invalid_transactions": 0
+      },
+      "gaps": [
+        "external_flows does not align with period_end_values (1 valid of 1 submitted vs 2 periods) \u2014 time-weighted and money-weighted returns are gaps",
+        "declared_returns cannot be reconciled \u2014 computed period returns are gaps"
+      ],
+      "performance": {
+        "periods": 2,
+        "beginning_value": "1000.000000",
+        "final_value": "1210.000000",
+        "value_change": "210.000000",
+        "net_external_flows": null,
+        "total_gain_after_flows": null,
+        "period_returns": null,
+        "time_weighted_return": null,
+        "money_weighted_return_per_period": null,
+        "mean_period_return": null,
+        "twr_irr_difference": null,
+        "methods": [
+          "time_weighted_return",
+          "money_weighted_return_per_period"
+        ]
+      },
+      "benchmark": {
+        "name": "None",
+        "aligned": true,
+        "periods": 2,
+        "total_return": "0.000000",
+        "mean_return_per_period": "0.000000",
+        "excess_total_return": null,
+        "periods_portfolio_ahead": null
+      },
+      "reconciliation": {
+        "flows_vs_ledger": {
+          "declared_net_external_flows": null,
+          "ledger_contributions": "0.000000",
+          "ledger_withdrawals": "0.000000",
+          "ledger_net_external_flows": "0.000000",
+          "difference": null
+        },
+        "holdings_vs_declared_value": {
+          "holdings_total_value": "0.000000",
+          "final_declared_value": "1210.000000",
+          "difference": "-1210.000000",
+          "difference_fraction_of_final": "-1.000000"
+        },
+        "declared_vs_computed_returns": {
+          "aligned": false,
+          "compared_periods": 0,
+          "differences": null,
+          "max_abs_difference": null,
+          "mismatched_periods": null
+        }
+      },
+      "holdings": {
+        "holdings_count": 0,
+        "total_value": "0.000000",
+        "rows": [],
+        "largest_holding_id": null,
+        "largest_holding_share": null
+      },
+      "disclaimer": "Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.",
+      "summary": "Performance over 2 periods: beginning value 1000.000000, final value 1210.000000; time-weighted and money-weighted returns are gaps; 2 gaps.",
+      "stamp": "RECONCILED PORTFOLIO PERFORMANCE REPORT\nportfolio: Violated Portfolio\nSTATUS: partial\nPerformance over 2 periods: beginning value 1000.000000, final value 1210.000000; time-weighted and money-weighted returns are gaps; 2 gaps.\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "sparse": {
+    "http_status": 200,
+    "artifact": {
+      "service": "reconciled-portfolio-performance-report",
+      "atom_version": "0.1.0",
+      "portfolio": "Sparse Portfolio",
+      "status": "insufficient_evidence",
+      "layers": {
+        "values": "present",
+        "performance": "absent",
+        "reconciliation": "absent",
+        "benchmark": "absent",
+        "holdings": "absent"
+      },
+      "counts": {
+        "periods": 1,
+        "invalid_value_entries": 0,
+        "invalid_flow_entries": 0,
+        "holdings": 0,
+        "invalid_holdings": 0,
+        "transactions": 0,
+        "invalid_transactions": 0
+      },
+      "gaps": [
+        "period_end_values: a series with at least 2 valid numeric period-end values is required \u2014 reconciled performance cannot be computed"
+      ],
+      "performance": null,
+      "benchmark": null,
+      "reconciliation": null,
+      "holdings": null,
+      "disclaimer": "Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.",
+      "summary": "Insufficient evidence: beginning value present, period-end values series has 1 valid numeric observations (need a numeric beginning value and at least 2) \u2014 reconciled portfolio performance cannot be computed.",
+      "stamp": "RECONCILED PORTFOLIO PERFORMANCE REPORT\nportfolio: Sparse Portfolio\nSTATUS: insufficient_evidence\nInsufficient evidence: beginning value present, period-end values series has 1 valid numeric observations (need a numeric beginning value and at least 2) \u2014 reconciled portfolio performance cannot be computed.\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "malformed": {
+    "http_status": 422,
+    "artifact": {
+      "ok": false,
+      "error": "invalid_input",
+      "field": "portfolio",
+      "detail": "portfolio must be a string"
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  }
+}
+
+SPECIAL F2 CHECK: in the violations artifact, reconciliation.holdings_vs_declared_value.difference must equal "-1210.000000" and difference_fraction_of_final must equal "-1.000000" (declared empty holdings [] vs final value 1210). Recompute this yourself and include both as computed_checks.
+
+Independently recompute the headline computed quantities for the full-pass and violations cases BY HAND from the inputs above (show arithmetic in your detail fields), compare with the artifacts, check malformed returns HTTP 422 with error invalid_input and never a verdict, and state a verdict.
+
+Answer with JSON only, exactly this shape:
+{"verdict": "PASS"|"FAIL", "findings": [{"case":"<id>","expected":"...","actual":"...","detail":"..."}], "computed_checks": [{"quantity":"...","expected":"<your hand-computed value>","actual":"<artifact value>","match":true}], "notes":"..."}

@@ -1,0 +1,1167 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: brand-mention-monitoring-triage-digest
+
+=== contract.yaml ===
+service_name: brand-mention-monitoring-triage-digest
+display_name: Brand mention monitoring triage digest
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:social-listening
+binding:
+  skill: social-listening
+  skill_path: workspace/mymilo-build/skills/social-listening/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- agent
+keys:
+  namespace: brand_mention_monitoring_triage_digest
+  prefix: atm_1_brand_mention_monitoring_triage_digest_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Monitoring Nrupal and product mentions
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Brand mention monitoring triage digest — `brand-mention-monitoring-triage-digest`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Track mentions and reputation across the web - monitoring coverage, alert triage, response policy, reporting.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Everyday life who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Monitoring Nrupal and product mentions**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the brand-mention-monitoring manifest
+
+The caller submits one JSON manifest: one declared monitoring /
+triage / digest setup — the watch the caller declares they run
+for a brand — worked through the bound skill's method. Every
+field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a field
+present but false / invalid = the check fails
+(`TRIAGE_DIGEST_NOT_READY`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `brand` (string; carried into the verdict output, not itself checked) | — |
+| `inventory.names_handles_products_listed` | inventory_and_coverage |
+| `inventory.misspellings_and_variants_included` | inventory_and_coverage |
+| `inventory.owned_vs_third_party_distinguished` | inventory_and_coverage |
+| `coverage.sources_listed` | inventory_and_coverage |
+| `coverage.blind_spots_acknowledged` | inventory_and_coverage |
+| `coverage.mechanism_configured_per_source` | inventory_and_coverage |
+| `coverage.cadence_defined` | inventory_and_coverage |
+| `coverage.crisis_cadence_realtime` | inventory_and_coverage |
+| `coverage.routine_cadence_daily_digest` | inventory_and_coverage |
+| `triage.rubric_documented` | triage_rubric |
+| `triage.dimensions` (list of strings; computed, see below) | triage_rubric |
+| `triage.routes` (list of strings; computed, see below) | triage_rubric |
+| `triage.escalation_path_documented` | triage_rubric |
+| `triage.false_positives_tracked` | triage_rubric |
+| `response.authority_to_speak_defined` | response_policy |
+| `response.tone_rules_defined` | response_policy |
+| `response.dm_move_criteria_defined` | response_policy |
+| `response.statement_criteria_defined` | response_policy |
+| `response.templates_approved` | response_policy |
+| `alerts.thresholds_defined` | alert_hygiene_and_evidence |
+| `alerts.dedupe_enabled` | alert_hygiene_and_evidence |
+| `alerts.quiet_hours_defined` | alert_hygiene_and_evidence |
+| `alerts.tested_after_setup` | alert_hygiene_and_evidence |
+| `evidence.archiving_required_before_response` | alert_hygiene_and_evidence |
+| `counts.total_mentions` (number; computed, see below) | alert_hygiene_and_evidence |
+| `counts.actions_taken` (number; computed, see below) | alert_hygiene_and_evidence |
+| `counts.actions_with_evidence_archived` (number; computed, see below) | alert_hygiene_and_evidence |
+| `digest.weekly_cadence` | digest_reporting |
+| `digest.includes_notable_mentions` | digest_reporting |
+| `digest.includes_trend_notes` | digest_reporting |
+| `digest.sentiment_included` | digest_reporting |
+| `digest.sentiment_caveats_stated` | digest_reporting |
+| `digest.actions_taken_listed` | digest_reporting |
+| `digest.signal_separated_from_noise` | digest_reporting |
+| `conduct.astroturfing_fake_reviews_or_manufactured_engagement` (must be `false` to pass — skill red line) | red_lines |
+| `conduct.public_argument_without_policy_backing` (must be `false` to pass — skill red line) | red_lines |
+| `conduct.retaliation_against_mentioners` (must be `false` to pass — skill red line) | red_lines |
+| `conduct.private_data_of_individuals_exposed` (must be `false` to pass — skill red line) | red_lines |
+| `conduct.defamation_or_impersonation_fought_publicly_instead_of_counsel` (must be `false` to pass — skill red line) | red_lines |
+
+Three checks are computed from the declared values, using only
+what the skill itself states plus the set logic and arithmetic
+of the declared values — no outside threshold is imported:
+
+- **Triage-dimension coverage:** the skill's method step 3
+  defines the triage rubric as "severity × reach × authenticity
+  (is it spam/astroturf?)". The declared `triage.dimensions` list
+  therefore passes only when it contains all three stated
+  entries (`severity`, `reach`, `authenticity`); unknown entries
+  do not count toward coverage. A missing list is missing
+  evidence; an empty list is present and fails. The output
+  reports the omitted stated entries as
+  `triage_dimensions_missing` (null when no list is declared).
+  Entries are validated as strings only, never enum-checked —
+  coverage is a verdict check, not a type error.
+- **Triage-route coverage:** the skill's method step 3 names the
+  routes — "Route: ignore / monitor / reply / escalate / legal".
+  The declared `triage.routes` list therefore passes only when
+  it contains all five stated entries (`ignore`, `monitor`,
+  `reply`, `escalate`, `legal`); unknown entries do not count
+  toward coverage. A missing list is missing evidence; an empty
+  list is present and fails. The output reports the omitted
+  stated entries as `triage_routes_missing` (null when no list
+  is declared). Entries are validated as strings only, never
+  enum-checked — coverage is a verdict check, not a type error.
+- **Evidence for every action:** the skill's quality gate is
+  "Evidence archived for every action taken", and method step 6
+  requires archiving every actionable mention (screenshot +
+  link) before responding. When the manifest declares
+  `counts.total_mentions`, `counts.actions_taken`, and
+  `counts.actions_with_evidence_archived`, the check passes only
+  when the archived count equals the actions-taken count and
+  the counts are coherent (none negative, actions taken no more
+  than total mentions). If any of the three numbers is absent,
+  the check is missing evidence. The output reports
+  `actions_without_archived_evidence` (actions taken minus
+  actions with evidence archived, null when either count cannot
+  be read).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three computed checks cannot be completed).
+
+The verdict is one of `TRIAGE_DIGEST_READY` (all 37 checks
+pass), `TRIAGE_DIGEST_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across six sections: inventory_and_coverage,
+triage_rubric, response_policy, alert_hygiene_and_evidence,
+digest_reporting, red_lines.
+
+## Honest scoping
+
+This atom audits a **declared** monitoring setup — it does not
+listen to live social feeds, fetch or search for mentions,
+classify the sentiment of any real post, or verify that a
+declared value is true. The caller declares its own inventory,
+coverage, rubric, policy, alert hygiene, counts, and digest
+shape, and this core checks only their completeness against the
+skill's method and the internal consistency of the declared
+counts. A setup is ready *on the caller's declared evidence*
+even if the brand's actual reputation is poor or the declared
+monitoring never actually runs. It is a completeness and
+consistency audit, **not a reputation review**: it never decides
+whether a mention is genuinely severe, whether the sentiment
+reading is right, whether a reply was wise, or whether the
+coverage is actually sufficient for the brand — only that the
+declared setup contains what the skill's method, quality gates,
+and red lines demand.
+
+Named exclusions: no live listening, searching, or fetching of
+any platform or feed (the atom audits declarations, it does not
+monitor); no sentiment classification or scoring of real
+mentions (the skill requires sentiment *with caveats* in the
+digest but states no classifier or scale, so none is imposed);
+no severity, reach, or alert threshold of any kind (the skill
+requires thresholds to be defined but states no values, so only
+their declared existence is checked — no numeric threshold is
+invented here); no verification that archived evidence exists or
+that templates, alerts, or coverage mechanisms actually work —
+only the caller's declarations and their arithmetic are checked.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "brand-mention-monitoring-triage-digest",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "TRIAGE_DIGEST_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean flags are true, red lines are false, computed lists are complete, and evidence counts are consistent. computed_spot_checks: actions_without_archived_evidence=0 [Tester correction: added structured computed_spot_checks list \u2014 Gemini only embedded the spot check in notes.]",
+        "computed_spot_checks": [
+          "triage_dimensions_missing = []",
+          "triage_routes_missing = []",
+          "actions_without_archived_evidence = 0 (5 - 5)",
+          "computed_status = within_stated_limits_on_declared_evidence"
+        ]
+      },
+      "input": {
+        "brand": "Nrupal",
+        "inventory": {
+          "names_handles_products_listed": true,
+          "misspellings_and_variants_included": true,
+          "owned_vs_third_party_distinguished": true
+        },
+        "coverage": {
+          "sources_listed": true,
+          "blind_spots_acknowledged": true,
+          "mechanism_configured_per_source": true,
+          "cadence_defined": true,
+          "crisis_cadence_realtime": true,
+          "routine_cadence_daily_digest": true
+        },
+        "triage": {
+          "rubric_documented": true,
+          "dimensions": [
+            "severity",
+            "reach",
+            "authenticity"
+          ],
+          "routes": [
+            "ignore",
+            "monitor",
+            "reply",
+            "escalate",
+            "legal"
+          ],
+          "escalation_path_documented": true,
+          "false_positives_tracked": true
+        },
+        "response": {
+          "authority_to_speak_defined": true,
+          "tone_rules_defined": true,
+          "dm_move_criteria_defined": true,
+          "statement_criteria_defined": true,
+          "templates_approved": true
+        },
+        "alerts": {
+          "thresholds_defined": true,
+          "dedupe_enabled": true,
+          "quiet_hours_defined": true,
+          "tested_after_setup": true
+        },
+        "evidence": {
+          "archiving_required_before_response": true
+        },
+        "counts": {
+          "total_mentions": 10,
+          "actions_taken": 5,
+          "actions_with_evidence_archived": 5
+        },
+        "digest": {
+          "weekly_cadence": true,
+          "includes_notable_mentions": true,
+          "includes_trend_notes": true,
+          "sentiment_included": true,
+          "sentiment_caveats_stated": true,
+          "actions_taken_listed": true,
+          "signal_separated_from_noise": true
+        },
+        "conduct": {
+          "astroturfing_fake_reviews_or_manufactured_engagement": false,
+          "public_argument_without_policy_backing": false,
+          "retaliation_against_mentioners": false,
+          "private_data_of_individuals_exposed": false,
+          "defamation_or_impersonation_fought_publicly_instead_of_counsel": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "brand-mention-monitoring-triage-digest",
+        "atom_version": "0.1.0",
+        "brand": "Nrupal",
+        "verdict": "TRIAGE_DIGEST_READY",
+        "sections": {
+          "inventory_and_coverage": "pass",
+          "triage_rubric": "pass",
+          "response_policy": "pass",
+          "alert_hygiene_and_evidence": "pass",
+          "digest_reporting": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "inventory_and_coverage",
+            "check": "names_handles_products_listed",
+            "status": "pass",
+            "evidence": "method step 1: names, handles and products under watch are listed"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "misspellings_and_variants_included",
+            "status": "pass",
+            "evidence": "method step 1: misspellings and variants of the watched names are included in the inventory"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "owned_vs_third_party_distinguished",
+            "status": "pass",
+            "evidence": "method step 1: owned channels are distinguished from third-party sources"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "coverage_sources_listed",
+            "status": "pass",
+            "evidence": "method step 1: where discussion happens is listed \u2014 the coverage list is written"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "blind_spots_acknowledged",
+            "status": "pass",
+            "evidence": "quality gate: the coverage list acknowledges its blind spots (e.g. logged-in-only platforms, DMs)"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "coverage_mechanism_configured_per_source",
+            "status": "pass",
+            "evidence": "method step 2: a coverage mechanism (RSS, APIs, saved searches, alerts, webmentions) is configured per source"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "cadence_defined",
+            "status": "pass",
+            "evidence": "method step 2: a monitoring cadence is defined"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "crisis_cadence_realtime",
+            "status": "pass",
+            "evidence": "method step 2: the cadence is real-time for crises"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "routine_cadence_daily_digest",
+            "status": "pass",
+            "evidence": "method step 2: the cadence is a daily digest otherwise"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "triage_rubric_documented",
+            "status": "pass",
+            "evidence": "quality gate: the triage rubric is documented"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "all_stated_triage_dimensions_used",
+            "status": "pass",
+            "evidence": "method step 3: the rubric scores every dimension the skill names \u2014 severity, reach, authenticity (is it spam/astroturf?)"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "all_stated_triage_routes_defined",
+            "status": "pass",
+            "evidence": "method step 3: the rubric defines every route the skill names \u2014 ignore, monitor, reply, escalate, legal"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "escalation_path_documented",
+            "status": "pass",
+            "evidence": "quality gate: the escalation path is documented"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "false_positives_tracked",
+            "status": "pass",
+            "evidence": "method step 3: false positives get tracked too"
+          },
+          {
+            "section": "response_policy",
+            "check": "authority_to_speak_defined",
+            "status": "pass",
+            "evidence": "quality gate: authority to speak is defined \u2014 who may speak as the brand"
+          },
+          {
+            "section": "response_policy",
+            "check": "tone_rules_defined",
+            "status": "pass",
+            "evidence": "method step 4: tone rules for responses are defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "dm_move_criteria_defined",
+            "status": "pass",
+            "evidence": "method step 4: when to take a conversation to DM is defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "statement_criteria_defined",
+            "status": "pass",
+            "evidence": "method step 4: when to publish a statement is defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "response_templates_approved",
+            "status": "pass",
+            "evidence": "quality gate: response templates for common cases are drafted and approved"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_thresholds_defined",
+            "status": "pass",
+            "evidence": "method step 5: alert thresholds are defined"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_dedupe_enabled",
+            "status": "pass",
+            "evidence": "method step 5: alerts are deduplicated \u2014 no alert storms"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_quiet_hours_defined",
+            "status": "pass",
+            "evidence": "method step 5: alert quiet hours are defined"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alerts_tested_after_setup",
+            "status": "pass",
+            "evidence": "method step 5: alerts are tested after setup"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "evidence_archived_before_response",
+            "status": "pass",
+            "evidence": "method step 6: every actionable mention is archived (screenshot + link) before responding \u2014 posts get deleted"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "evidence_archived_for_every_action",
+            "status": "pass",
+            "evidence": "quality gate: evidence is archived for every action taken \u2014 the archived count equals the actions-taken count, with coherent counts"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_weekly_cadence",
+            "status": "pass",
+            "evidence": "method step 7: the report is a weekly digest"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_includes_notable_mentions",
+            "status": "pass",
+            "evidence": "method step 7: the digest includes notable mentions"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_includes_trend_notes",
+            "status": "pass",
+            "evidence": "method step 7: the digest includes trend notes"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_sentiment_included",
+            "status": "pass",
+            "evidence": "method step 7: the digest includes sentiment"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_sentiment_caveats_stated",
+            "status": "pass",
+            "evidence": "method step 7: sentiment is reported with caveats"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_actions_taken_listed",
+            "status": "pass",
+            "evidence": "method step 7: the digest lists actions taken"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "signal_separated_from_noise",
+            "status": "pass",
+            "evidence": "method step 7: signal is separated from noise explicitly"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_astroturfing_or_fake_engagement",
+            "status": "pass",
+            "evidence": "red line: no astroturfing, fake reviews, or manufactured engagement \u2014 ever"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_public_argument_without_policy_backing",
+            "status": "pass",
+            "evidence": "red line: the brand does not argue in public threads without policy backing"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_retaliation",
+            "status": "pass",
+            "evidence": "red line: never retaliate against mentioners"
+          },
+          {
+            "section": "red_lines",
+            "check": "private_data_stays_private",
+            "status": "pass",
+            "evidence": "red line: private data about individuals stays private"
+          },
+          {
+            "section": "red_lines",
+            "check": "defamation_impersonation_to_counsel_not_combat",
+            "status": "pass",
+            "evidence": "red line: defamation/impersonation goes to counsel, not combat"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "triage_dimensions_missing": [],
+        "triage_routes_missing": [],
+        "actions_without_archived_evidence": 0,
+        "summary": "37 pass, 0 fail, 0 missing of 37 checks across six sections.",
+        "stamp": "BRAND MENTION MONITORING TRIAGE DIGEST\nbrand: Nrupal\nVERDICT: TRIAGE_DIGEST_READY\n  inventory_and_coverage       pass\n  triage_rubric                pass\n  response_policy              pass\n  alert_hygiene_and_evidence   pass\n  digest_reporting             pass\n  red_lines                    pass\n37 pass, 0 fail, 0 missing of 37 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "TRIAGE_DIGEST_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "all_stated_triage_dimensions_used",
+          "all_stated_triage_routes_defined",
+          "evidence_archived_for_every_action",
+          "no_astroturfing_or_fake_engagement"
+        ],
+        "notes": "Violates triage coverage (missing dimensions/routes), evidence consistency (5 actions vs 2 archived), and red line (astroturfing is true). Expected computed: triage_dimensions_missing=[authenticity], triage_routes_missing=[monitor, reply, escalate, legal], actions_without_archived_evidence=3 (5-2), computed_status=outside_stated_limits_on_declared_evidence. [Tester correction: Gemini listed section names (triage_rubric, alert_hygiene_and_evidence, red_lines) instead of exact check names; corrected to the 4 exact check names, no input change.]"
+      },
+      "input": {
+        "brand": "Nrupal",
+        "triage": {
+          "dimensions": [
+            "severity",
+            "reach"
+          ],
+          "routes": [
+            "ignore"
+          ]
+        },
+        "counts": {
+          "total_mentions": 10,
+          "actions_taken": 5,
+          "actions_with_evidence_archived": 2
+        },
+        "conduct": {
+          "astroturfing_fake_reviews_or_manufactured_engagement": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "brand-mention-monitoring-triage-digest",
+        "atom_version": "0.1.0",
+        "brand": "Nrupal",
+        "verdict": "TRIAGE_DIGEST_NOT_READY",
+        "sections": {
+          "inventory_and_coverage": "insufficient_evidence",
+          "triage_rubric": "fail",
+          "response_policy": "insufficient_evidence",
+          "alert_hygiene_and_evidence": "fail",
+          "digest_reporting": "insufficient_evidence",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "inventory_and_coverage",
+            "check": "names_handles_products_listed",
+            "status": "missing",
+            "evidence": "method step 1: names, handles and products under watch are listed"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "misspellings_and_variants_included",
+            "status": "missing",
+            "evidence": "method step 1: misspellings and variants of the watched names are included in the inventory"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "owned_vs_third_party_distinguished",
+            "status": "missing",
+            "evidence": "method step 1: owned channels are distinguished from third-party sources"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "coverage_sources_listed",
+            "status": "missing",
+            "evidence": "method step 1: where discussion happens is listed \u2014 the coverage list is written"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "blind_spots_acknowledged",
+            "status": "missing",
+            "evidence": "quality gate: the coverage list acknowledges its blind spots (e.g. logged-in-only platforms, DMs)"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "coverage_mechanism_configured_per_source",
+            "status": "missing",
+            "evidence": "method step 2: a coverage mechanism (RSS, APIs, saved searches, alerts, webmentions) is configured per source"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "cadence_defined",
+            "status": "missing",
+            "evidence": "method step 2: a monitoring cadence is defined"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "crisis_cadence_realtime",
+            "status": "missing",
+            "evidence": "method step 2: the cadence is real-time for crises"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "routine_cadence_daily_digest",
+            "status": "missing",
+            "evidence": "method step 2: the cadence is a daily digest otherwise"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "triage_rubric_documented",
+            "status": "missing",
+            "evidence": "quality gate: the triage rubric is documented"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "all_stated_triage_dimensions_used",
+            "status": "fail",
+            "evidence": "method step 3: the rubric scores every dimension the skill names \u2014 severity, reach, authenticity (is it spam/astroturf?)"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "all_stated_triage_routes_defined",
+            "status": "fail",
+            "evidence": "method step 3: the rubric defines every route the skill names \u2014 ignore, monitor, reply, escalate, legal"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "escalation_path_documented",
+            "status": "missing",
+            "evidence": "quality gate: the escalation path is documented"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "false_positives_tracked",
+            "status": "missing",
+            "evidence": "method step 3: false positives get tracked too"
+          },
+          {
+            "section": "response_policy",
+            "check": "authority_to_speak_defined",
+            "status": "missing",
+            "evidence": "quality gate: authority to speak is defined \u2014 who may speak as the brand"
+          },
+          {
+            "section": "response_policy",
+            "check": "tone_rules_defined",
+            "status": "missing",
+            "evidence": "method step 4: tone rules for responses are defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "dm_move_criteria_defined",
+            "status": "missing",
+            "evidence": "method step 4: when to take a conversation to DM is defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "statement_criteria_defined",
+            "status": "missing",
+            "evidence": "method step 4: when to publish a statement is defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "response_templates_approved",
+            "status": "missing",
+            "evidence": "quality gate: response templates for common cases are drafted and approved"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_thresholds_defined",
+            "status": "missing",
+            "evidence": "method step 5: alert thresholds are defined"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_dedupe_enabled",
+            "status": "missing",
+            "evidence": "method step 5: alerts are deduplicated \u2014 no alert storms"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_quiet_hours_defined",
+            "status": "missing",
+            "evidence": "method step 5: alert quiet hours are defined"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alerts_tested_after_setup",
+            "status": "missing",
+            "evidence": "method step 5: alerts are tested after setup"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "evidence_archived_before_response",
+            "status": "missing",
+            "evidence": "method step 6: every actionable mention is archived (screenshot + link) before responding \u2014 posts get deleted"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "evidence_archived_for_every_action",
+            "status": "fail",
+            "evidence": "quality gate: evidence is archived for every action taken \u2014 the archived count equals the actions-taken count, with coherent counts"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_weekly_cadence",
+            "status": "missing",
+            "evidence": "method step 7: the report is a weekly digest"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_includes_notable_mentions",
+            "status": "missing",
+            "evidence": "method step 7: the digest includes notable mentions"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_includes_trend_notes",
+            "status": "missing",
+            "evidence": "method step 7: the digest includes trend notes"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_sentiment_included",
+            "status": "missing",
+            "evidence": "method step 7: the digest includes sentiment"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_sentiment_caveats_stated",
+            "status": "missing",
+            "evidence": "method step 7: sentiment is reported with caveats"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_actions_taken_listed",
+            "status": "missing",
+            "evidence": "method step 7: the digest lists actions taken"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "signal_separated_from_noise",
+            "status": "missing",
+            "evidence": "method step 7: signal is separated from noise explicitly"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_astroturfing_or_fake_engagement",
+            "status": "fail",
+            "evidence": "red line: no astroturfing, fake reviews, or manufactured engagement \u2014 ever"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_public_argument_without_policy_backing",
+            "status": "missing",
+            "evidence": "red line: the brand does not argue in public threads without policy backing"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_retaliation",
+            "status": "missing",
+            "evidence": "red line: never retaliate against mentioners"
+          },
+          {
+            "section": "red_lines",
+            "check": "private_data_stays_private",
+            "status": "missing",
+            "evidence": "red line: private data about individuals stays private"
+          },
+          {
+            "section": "red_lines",
+            "check": "defamation_impersonation_to_counsel_not_combat",
+            "status": "missing",
+            "evidence": "red line: defamation/impersonation goes to counsel, not combat"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "triage_dimensions_missing": [
+          "authenticity"
+        ],
+        "triage_routes_missing": [
+          "monitor",
+          "reply",
+          "escalate",
+          "legal"
+        ],
+        "actions_without_archived_evidence": 3,
+        "summary": "0 pass, 4 fail, 33 missing of 37 checks across six sections.",
+        "stamp": "BRAND MENTION MONITORING TRIAGE DIGEST\nbrand: Nrupal\nVERDICT: TRIAGE_DIGEST_NOT_READY\n  inventory_and_coverage       insufficient_evidence\n  triage_rubric                fail\n  response_policy              insufficient_evidence\n  alert_hygiene_and_evidence   fail\n  digest_reporting             insufficient_evidence\n  red_lines                    fail\n0 pass, 4 fail, 33 missing of 37 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Manifest is missing almost all required fields; atom returns insufficient evidence status."
+      },
+      "input": {
+        "brand": "Nrupal"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "brand-mention-monitoring-triage-digest",
+        "atom_version": "0.1.0",
+        "brand": "Nrupal",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "inventory_and_coverage": "insufficient_evidence",
+          "triage_rubric": "insufficient_evidence",
+          "response_policy": "insufficient_evidence",
+          "alert_hygiene_and_evidence": "insufficient_evidence",
+          "digest_reporting": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "inventory_and_coverage",
+            "check": "names_handles_products_listed",
+            "status": "missing",
+            "evidence": "method step 1: names, handles and products under watch are listed"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "misspellings_and_variants_included",
+            "status": "missing",
+            "evidence": "method step 1: misspellings and variants of the watched names are included in the inventory"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "owned_vs_third_party_distinguished",
+            "status": "missing",
+            "evidence": "method step 1: owned channels are distinguished from third-party sources"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "coverage_sources_listed",
+            "status": "missing",
+            "evidence": "method step 1: where discussion happens is listed \u2014 the coverage list is written"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "blind_spots_acknowledged",
+            "status": "missing",
+            "evidence": "quality gate: the coverage list acknowledges its blind spots (e.g. logged-in-only platforms, DMs)"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "coverage_mechanism_configured_per_source",
+            "status": "missing",
+            "evidence": "method step 2: a coverage mechanism (RSS, APIs, saved searches, alerts, webmentions) is configured per source"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "cadence_defined",
+            "status": "missing",
+            "evidence": "method step 2: a monitoring cadence is defined"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "crisis_cadence_realtime",
+            "status": "missing",
+            "evidence": "method step 2: the cadence is real-time for crises"
+          },
+          {
+            "section": "inventory_and_coverage",
+            "check": "routine_cadence_daily_digest",
+            "status": "missing",
+            "evidence": "method step 2: the cadence is a daily digest otherwise"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "triage_rubric_documented",
+            "status": "missing",
+            "evidence": "quality gate: the triage rubric is documented"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "all_stated_triage_dimensions_used",
+            "status": "missing",
+            "evidence": "method step 3: the rubric scores every dimension the skill names \u2014 severity, reach, authenticity (is it spam/astroturf?)"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "all_stated_triage_routes_defined",
+            "status": "missing",
+            "evidence": "method step 3: the rubric defines every route the skill names \u2014 ignore, monitor, reply, escalate, legal"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "escalation_path_documented",
+            "status": "missing",
+            "evidence": "quality gate: the escalation path is documented"
+          },
+          {
+            "section": "triage_rubric",
+            "check": "false_positives_tracked",
+            "status": "missing",
+            "evidence": "method step 3: false positives get tracked too"
+          },
+          {
+            "section": "response_policy",
+            "check": "authority_to_speak_defined",
+            "status": "missing",
+            "evidence": "quality gate: authority to speak is defined \u2014 who may speak as the brand"
+          },
+          {
+            "section": "response_policy",
+            "check": "tone_rules_defined",
+            "status": "missing",
+            "evidence": "method step 4: tone rules for responses are defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "dm_move_criteria_defined",
+            "status": "missing",
+            "evidence": "method step 4: when to take a conversation to DM is defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "statement_criteria_defined",
+            "status": "missing",
+            "evidence": "method step 4: when to publish a statement is defined"
+          },
+          {
+            "section": "response_policy",
+            "check": "response_templates_approved",
+            "status": "missing",
+            "evidence": "quality gate: response templates for common cases are drafted and approved"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_thresholds_defined",
+            "status": "missing",
+            "evidence": "method step 5: alert thresholds are defined"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_dedupe_enabled",
+            "status": "missing",
+            "evidence": "method step 5: alerts are deduplicated \u2014 no alert storms"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alert_quiet_hours_defined",
+            "status": "missing",
+            "evidence": "method step 5: alert quiet hours are defined"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "alerts_tested_after_setup",
+            "status": "missing",
+            "evidence": "method step 5: alerts are tested after setup"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "evidence_archived_before_response",
+            "status": "missing",
+            "evidence": "method step 6: every actionable mention is archived (screenshot + link) before responding \u2014 posts get deleted"
+          },
+          {
+            "section": "alert_hygiene_and_evidence",
+            "check": "evidence_archived_for_every_action",
+            "status": "missing",
+            "evidence": "quality gate: evidence is archived for every action taken \u2014 the archived count equals the actions-taken count, with coherent counts"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_weekly_cadence",
+            "status": "missing",
+            "evidence": "method step 7: the report is a weekly digest"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_includes_notable_mentions",
+            "status": "missing",
+            "evidence": "method step 7: the digest includes notable mentions"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_includes_trend_notes",
+            "status": "missing",
+            "evidence": "method step 7: the digest includes trend notes"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_sentiment_included",
+            "status": "missing",
+            "evidence": "method step 7: the digest includes sentiment"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_sentiment_caveats_stated",
+            "status": "missing",
+            "evidence": "method step 7: sentiment is reported with caveats"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "digest_actions_taken_listed",
+            "status": "missing",
+            "evidence": "method step 7: the digest lists actions taken"
+          },
+          {
+            "section": "digest_reporting",
+            "check": "signal_separated_from_noise",
+            "status": "missing",
+            "evidence": "method step 7: signal is separated from noise explicitly"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_astroturfing_or_fake_engagement",
+            "status": "missing",
+            "evidence": "red line: no astroturfing, fake reviews, or manufactured engagement \u2014 ever"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_public_argument_without_policy_backing",
+            "status": "missing",
+            "evidence": "red line: the brand does not argue in public threads without policy backing"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_retaliation",
+            "status": "missing",
+            "evidence": "red line: never retaliate against mentioners"
+          },
+          {
+            "section": "red_lines",
+            "check": "private_data_stays_private",
+            "status": "missing",
+            "evidence": "red line: private data about individuals stays private"
+          },
+          {
+            "section": "red_lines",
+            "check": "defamation_impersonation_to_counsel_not_combat",
+            "status": "missing",
+            "evidence": "red line: defamation/impersonation goes to counsel, not combat"
+          }
+        ],
+        "computed_status": null,
+        "triage_dimensions_missing": null,
+        "triage_routes_missing": null,
+        "actions_without_archived_evidence": null,
+        "summary": "0 pass, 0 fail, 37 missing of 37 checks across six sections.",
+        "stamp": "BRAND MENTION MONITORING TRIAGE DIGEST\nbrand: Nrupal\nVERDICT: INSUFFICIENT_EVIDENCE\n  inventory_and_coverage       insufficient_evidence\n  triage_rubric                insufficient_evidence\n  response_policy              insufficient_evidence\n  alert_hygiene_and_evidence   insufficient_evidence\n  digest_reporting             insufficient_evidence\n  red_lines                    insufficient_evidence\n0 pass, 0 fail, 37 missing of 37 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: inventory expects object, total_mentions expects number."
+      },
+      "input": {
+        "brand": "Nrupal",
+        "inventory": "not-an-object",
+        "counts": {
+          "total_mentions": "ten"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "inventory",
+        "detail": "inventory must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

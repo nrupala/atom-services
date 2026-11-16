@@ -1,0 +1,156 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "ledger_name": "Production Ledger",
+        "version": "1.0.0",
+        "append_only": {
+          "events_immutable": true,
+          "update_on_posted_entries": false,
+          "delete_on_posted_entries": false,
+          "no_mutation_paths_verified": true,
+          "correction_model": "reversing_entry",
+          "corrections_reference_original": true,
+          "retention_and_legal_holds": true
+        },
+        "money": {
+          "moves_money": true,
+          "double_entry": true,
+          "transaction_sum_zero": true,
+          "amount_representation": "integer_minor_units",
+          "currency_explicit_per_entry": true,
+          "fx_rates_recorded_at_event_time": true
+        },
+        "structure": {
+          "accounts_entries_transactions": true,
+          "transactions_atomic": true,
+          "stable_ids": true,
+          "event_fields": ["timestamp", "actor", "source"]
+        },
+        "derived_state": {
+          "balances_are_projections": true,
+          "projections_recomputable": true,
+          "checkpoint_hashes": true
+        },
+        "reconciliation": {
+          "cadence": "daily",
+          "discrepancy_workflow_recorded": true,
+          "unreconciled_period_closed_silently": false
+        },
+        "reporting": {
+          "audit_queries_who_what_when_why": true,
+          "tax_ready_exports": true
+        },
+        "security": {
+          "encryption_at_rest": true,
+          "scoped_access": true
+        },
+        "recovery": {
+          "restore_drill_done": true,
+          "restore_replay_verified": true
+        },
+        "tests": {
+          "balance_invariant_tests": true
+        }
+      },
+      "expect": {
+        "outcome": "SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid; satisfies all 29 checks."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "ledger_name": "Broken Ledger",
+        "version": "0.9.0",
+        "append_only": {
+          "events_immutable": false,
+          "update_on_posted_entries": true,
+          "delete_on_posted_entries": false,
+          "no_mutation_paths_verified": true,
+          "correction_model": "reversing_entry",
+          "corrections_reference_original": true,
+          "retention_and_legal_holds": true
+        },
+        "money": {
+          "moves_money": false
+        },
+        "structure": {
+          "accounts_entries_transactions": true,
+          "transactions_atomic": true,
+          "stable_ids": true,
+          "event_fields": ["timestamp", "actor"]
+        },
+        "derived_state": {
+          "balances_are_projections": true,
+          "projections_recomputable": true,
+          "checkpoint_hashes": true
+        },
+        "reconciliation": {
+          "cadence": "daily",
+          "discrepancy_workflow_recorded": true,
+          "unreconciled_period_closed_silently": false
+        },
+        "reporting": {
+          "audit_queries_who_what_when_why": true,
+          "tax_ready_exports": true
+        },
+        "security": {
+          "encryption_at_rest": true,
+          "scoped_access": true
+        },
+        "recovery": {
+          "restore_drill_done": true,
+          "restore_replay_verified": true
+        },
+        "tests": {
+          "balance_invariant_tests": true
+        }
+      },
+      "expect": {
+        "outcome": "UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "events_immutable",
+          "no_update_on_posted_entries",
+          "every_event_carries_timestamp_actor_source"
+        ],
+        "notes": "Violates immutability, update policy, and event field requirements."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "ledger_name": "Minimal Ledger",
+        "version": "0.0.1"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing almost all required fields for audit."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "ledger_name": "Malformed Ledger",
+        "version": "1.0.0",
+        "append_only": "should_be_an_object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: append_only field provided as string instead of object."
+      }
+    }
+  ]
+}

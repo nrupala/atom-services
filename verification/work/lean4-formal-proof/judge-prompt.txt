@@ -1,0 +1,879 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: lean4-formal-proof
+
+=== contract.yaml ===
+service_name: lean4-formal-proof
+display_name: Lean4 formal proof
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:lean4-proving
+binding:
+  skill: lean4-proving
+  skill_path: workspace/mymilo-build/skills/lean4-proving/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/lean4_formal_proof.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_lean4_formal_proof.py — 24 tests, all passing 2026-11-15
+endpoints:
+- API
+- MCP
+- agent
+keys:
+  namespace: lean4_formal_proof
+  prefix: atm_1_lean4_formal_proof_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: SAIC formal verification proof work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Lean4 formal proof — `lean4-formal-proof`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Formal verification with Lean 4 — propositions as types, structured proofs, statements you can trust.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **SAIC formal verification proof work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the Lean 4 proof evidence manifest
+
+This atom does not prove theorems — proving is generative work. It
+audits a *declared* Lean 4 proof artifact: the caller submits one
+JSON manifest declaring the proof's setup, statements, definitions,
+proof integrity, per-theorem declarations, build attestation and
+model alignment. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_VERIFIED`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `setup.toolchain_pinned` | project_setup |
+| `setup.versions_pinned` | project_setup |
+| `setup.ci_runs_lake_build` | project_setup |
+| `setup.lake_build_green` | project_setup |
+| `statements.stated_before_proving` | statement_integrity |
+| `statements.meaning_checked_before_proving` | statement_integrity |
+| `statements.reviewed_independently_of_tactics` | statement_integrity |
+| `statements.weakened_silently` (must be `false` to pass) | statement_integrity |
+| `statements.unproven_claims_presented_as_verified` (must be `false` to pass) | statement_integrity |
+| `definitions.total` | definitions_and_model |
+| `definitions.executable` | definitions_and_model |
+| `definitions.specs_separate_from_implementation` | definitions_and_model |
+| `proof.structured_and_readable` | proof_integrity |
+| `proof.cheating_items_tracked_as_tickets` | proof_integrity |
+| `proof.cheating_smuggled_into_deliverable` (must be `false` to pass) | proof_integrity |
+| `theorems` (list of theorem declarations; absent / not a list / empty = all five computed checks missing) | theorem_declarations |
+| `theorems[].name` (non-empty string) | theorem_declarations |
+| `theorems[].sorry_count` (integer ≥ 0; must be `0` in every delivered theorem) | theorem_declarations |
+| `theorems[].axioms` (list of strings; every entry must be a standard kernel axiom: `propext`, `Classical.choice`, `Quot.sound`) | theorem_declarations |
+| `theorems[].native_decide_used` (must be `false` in every delivered theorem) | theorem_declarations |
+| `theorems[].kernel_checked` (must be `true` in every delivered theorem) | theorem_declarations |
+| `attestation.build_log_retained` | build_attestation |
+| `attestation.axiom_audit_performed` | build_attestation |
+| `attestation.reproduction_recipe_present` | build_attestation |
+| `alignment.mapping_documented` | model_alignment |
+| `alignment.changes_ported_through_model` | model_alignment |
+| `alignment.model_and_implementation_in_sync` | model_alignment |
+
+Five checks are computed, not declared: the `theorems` list is
+checked for well-formedness, zero `sorry` in every theorem, no
+axioms beyond the standard kernel axioms, no `native_decide`
+shortcuts, and kernel-check status on every theorem. The verdict
+dict also reports `theorems_evaluated` and `theorems_with_sorry`
+counts.
+
+The verdict is one of `VERIFIED` (all 26 checks pass),
+`NOT_VERIFIED` (any check fails — one failure breaks the claim), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: project_setup, statement_integrity,
+definitions_and_model, proof_integrity, theorem_declarations,
+build_attestation, model_alignment.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Checkable: lake build, zero sorry
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "lean4-formal-proof",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "VERIFIED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean requirements met; theorems list valid; computed_spot_checks: theorems_evaluated=1, theorems_with_sorry=0"
+      },
+      "input": {
+        "project": "verified-math-lib",
+        "setup": {
+          "toolchain_pinned": true,
+          "versions_pinned": true,
+          "ci_runs_lake_build": true,
+          "lake_build_green": true
+        },
+        "statements": {
+          "stated_before_proving": true,
+          "meaning_checked_before_proving": true,
+          "reviewed_independently_of_tactics": true,
+          "weakened_silently": false,
+          "unproven_claims_presented_as_verified": false
+        },
+        "definitions": {
+          "total": true,
+          "executable": true,
+          "specs_separate_from_implementation": true
+        },
+        "proof": {
+          "structured_and_readable": true,
+          "cheating_items_tracked_as_tickets": true,
+          "cheating_smuggled_into_deliverable": false
+        },
+        "theorems": [
+          {
+            "name": "thm1",
+            "sorry_count": 0,
+            "axioms": [
+              "propext"
+            ],
+            "native_decide_used": false,
+            "kernel_checked": true
+          }
+        ],
+        "attestation": {
+          "build_log_retained": true,
+          "axiom_audit_performed": true,
+          "reproduction_recipe_present": true
+        },
+        "alignment": {
+          "mapping_documented": true,
+          "changes_ported_through_model": true,
+          "model_and_implementation_in_sync": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "lean4-formal-proof",
+        "atom_version": "0.1.0",
+        "project": "verified-math-lib",
+        "verdict": "VERIFIED",
+        "sections": {
+          "project_setup": "pass",
+          "statement_integrity": "pass",
+          "definitions_and_model": "pass",
+          "proof_integrity": "pass",
+          "theorem_declarations": "pass",
+          "build_attestation": "pass",
+          "model_alignment": "pass"
+        },
+        "checks": [
+          {
+            "section": "project_setup",
+            "check": "toolchain_pinned",
+            "status": "pass",
+            "evidence": "elan toolchain pinned \u2014 the proof is checked by a known toolchain, not whatever is installed"
+          },
+          {
+            "section": "project_setup",
+            "check": "dependency_versions_pinned",
+            "status": "pass",
+            "evidence": "lake / Mathlib versions pinned \u2014 the proof's dependencies do not drift"
+          },
+          {
+            "section": "project_setup",
+            "check": "ci_runs_lake_build",
+            "status": "pass",
+            "evidence": "CI runs lake build so proofs stay green"
+          },
+          {
+            "section": "project_setup",
+            "check": "lake_build_green",
+            "status": "pass",
+            "evidence": "lake build is green \u2014 the proofs compile"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_stated_before_proving",
+            "status": "pass",
+            "evidence": "the theorem is stated first \u2014 theorem name (args) : Prop \u2014 before any proving begins"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_meaning_checked",
+            "status": "pass",
+            "evidence": "the statement is checked to say what it means before proving it"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_reviewed_independently_of_tactics",
+            "status": "pass",
+            "evidence": "statements are reviewed independently of tactics by a second pair of eyes \u2014 a proof of the wrong theorem is worthless"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_not_weakened_silently",
+            "status": "pass",
+            "evidence": "never weaken a statement silently to make it provable"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "unproven_claims_not_presented_as_verified",
+            "status": "pass",
+            "evidence": "no unproven claims dressed as formally verified"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "definitions_are_total",
+            "status": "pass",
+            "evidence": "definitions of the system model are total \u2014 no partial definitions hiding the hard cases"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "definitions_are_executable",
+            "status": "pass",
+            "evidence": "definitions of the system model are executable"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "specs_separate_from_implementation",
+            "status": "pass",
+            "evidence": "specs are separate from implementation"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "proofs_structured_and_readable",
+            "status": "pass",
+            "evidence": "structured proofs, kept readable \u2014 proofs are code and docs"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "cheating_items_tracked_as_tickets",
+            "status": "pass",
+            "evidence": "sorry, new axioms and native_decide shortcuts are tracked as tickets, never smuggled into deliverables"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "cheating_not_smuggled_into_deliverable",
+            "status": "pass",
+            "evidence": "no cheating smuggled into the deliverable"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "theorems_present_and_wellformed",
+            "status": "pass",
+            "evidence": "each delivered theorem is declared with its name, sorry count, axiom list, native_decide use and kernel-check status"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_sorry_in_declared_theorems",
+            "status": "pass",
+            "evidence": "zero sorry/admit in delivered theorems \u2014 a landmark proof ships with zero sorry"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_extra_axioms_in_declared_theorems",
+            "status": "pass",
+            "evidence": "no axioms beyond the standard kernel axioms (propext, Classical.choice, Quot.sound) \u2014 new axioms are tracked as cheating, never smuggled"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_native_decide_in_declared_theorems",
+            "status": "pass",
+            "evidence": "no native_decide shortcuts in delivered theorems"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "all_declared_theorems_kernel_checked",
+            "status": "pass",
+            "evidence": "every delivered theorem is kernel-checked \u2014 the statement you can trust is the one the kernel accepted"
+          },
+          {
+            "section": "build_attestation",
+            "check": "build_log_retained",
+            "status": "pass",
+            "evidence": "the lake build output is retained as the kernel-check attestation"
+          },
+          {
+            "section": "build_attestation",
+            "check": "axiom_audit_performed",
+            "status": "pass",
+            "evidence": "an axiom audit (#print axioms) is performed for each delivered theorem"
+          },
+          {
+            "section": "build_attestation",
+            "check": "reproduction_recipe_present",
+            "status": "pass",
+            "evidence": "a clean-checkout rebuild recipe is present \u2014 the proof re-checks from scratch"
+          },
+          {
+            "section": "model_alignment",
+            "check": "model_implementation_mapping_documented",
+            "status": "pass",
+            "evidence": "the model-to-implementation mapping is documented"
+          },
+          {
+            "section": "model_alignment",
+            "check": "implementation_changes_ported_through_model",
+            "status": "pass",
+            "evidence": "port changes go back through the model"
+          },
+          {
+            "section": "model_alignment",
+            "check": "model_and_implementation_in_sync",
+            "status": "pass",
+            "evidence": "the verified model and the implementation are in sync"
+          }
+        ],
+        "summary": "26 pass, 0 fail, 0 missing of 26 checks across seven sections.",
+        "theorems_evaluated": 1,
+        "theorems_with_sorry": 0,
+        "stamp": "LEAN4 FORMAL PROOF\nproject: verified-math-lib\nVERDICT: VERIFIED\n  project_setup            pass\n  statement_integrity      pass\n  definitions_and_model    pass\n  proof_integrity          pass\n  theorem_declarations     pass\n  build_attestation        pass\n  model_alignment          pass\n26 pass, 0 fail, 0 missing of 26 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_VERIFIED",
+        "http": 200,
+        "failing_checks": [
+          "statement_integrity",
+          "theorem_declarations"
+        ],
+        "notes": "weakened_silently is true (violates constraint) and sorry_count > 0"
+      },
+      "input": {
+        "project": "broken-proof",
+        "setup": {
+          "toolchain_pinned": true,
+          "versions_pinned": true,
+          "ci_runs_lake_build": true,
+          "lake_build_green": true
+        },
+        "statements": {
+          "stated_before_proving": true,
+          "meaning_checked_before_proving": true,
+          "reviewed_independently_of_tactics": true,
+          "weakened_silently": true,
+          "unproven_claims_presented_as_verified": false
+        },
+        "definitions": {
+          "total": true,
+          "executable": true,
+          "specs_separate_from_implementation": true
+        },
+        "proof": {
+          "structured_and_readable": true,
+          "cheating_items_tracked_as_tickets": true,
+          "cheating_smuggled_into_deliverable": false
+        },
+        "theorems": [
+          {
+            "name": "bad_thm",
+            "sorry_count": 5,
+            "axioms": [
+              "propext"
+            ],
+            "native_decide_used": false,
+            "kernel_checked": true
+          }
+        ],
+        "attestation": {
+          "build_log_retained": true,
+          "axiom_audit_performed": true,
+          "reproduction_recipe_present": true
+        },
+        "alignment": {
+          "mapping_documented": true,
+          "changes_ported_through_model": true,
+          "model_and_implementation_in_sync": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "lean4-formal-proof",
+        "atom_version": "0.1.0",
+        "project": "broken-proof",
+        "verdict": "NOT_VERIFIED",
+        "sections": {
+          "project_setup": "pass",
+          "statement_integrity": "fail",
+          "definitions_and_model": "pass",
+          "proof_integrity": "pass",
+          "theorem_declarations": "fail",
+          "build_attestation": "pass",
+          "model_alignment": "pass"
+        },
+        "checks": [
+          {
+            "section": "project_setup",
+            "check": "toolchain_pinned",
+            "status": "pass",
+            "evidence": "elan toolchain pinned \u2014 the proof is checked by a known toolchain, not whatever is installed"
+          },
+          {
+            "section": "project_setup",
+            "check": "dependency_versions_pinned",
+            "status": "pass",
+            "evidence": "lake / Mathlib versions pinned \u2014 the proof's dependencies do not drift"
+          },
+          {
+            "section": "project_setup",
+            "check": "ci_runs_lake_build",
+            "status": "pass",
+            "evidence": "CI runs lake build so proofs stay green"
+          },
+          {
+            "section": "project_setup",
+            "check": "lake_build_green",
+            "status": "pass",
+            "evidence": "lake build is green \u2014 the proofs compile"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_stated_before_proving",
+            "status": "pass",
+            "evidence": "the theorem is stated first \u2014 theorem name (args) : Prop \u2014 before any proving begins"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_meaning_checked",
+            "status": "pass",
+            "evidence": "the statement is checked to say what it means before proving it"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_reviewed_independently_of_tactics",
+            "status": "pass",
+            "evidence": "statements are reviewed independently of tactics by a second pair of eyes \u2014 a proof of the wrong theorem is worthless"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_not_weakened_silently",
+            "status": "fail",
+            "evidence": "never weaken a statement silently to make it provable"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "unproven_claims_not_presented_as_verified",
+            "status": "pass",
+            "evidence": "no unproven claims dressed as formally verified"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "definitions_are_total",
+            "status": "pass",
+            "evidence": "definitions of the system model are total \u2014 no partial definitions hiding the hard cases"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "definitions_are_executable",
+            "status": "pass",
+            "evidence": "definitions of the system model are executable"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "specs_separate_from_implementation",
+            "status": "pass",
+            "evidence": "specs are separate from implementation"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "proofs_structured_and_readable",
+            "status": "pass",
+            "evidence": "structured proofs, kept readable \u2014 proofs are code and docs"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "cheating_items_tracked_as_tickets",
+            "status": "pass",
+            "evidence": "sorry, new axioms and native_decide shortcuts are tracked as tickets, never smuggled into deliverables"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "cheating_not_smuggled_into_deliverable",
+            "status": "pass",
+            "evidence": "no cheating smuggled into the deliverable"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "theorems_present_and_wellformed",
+            "status": "pass",
+            "evidence": "each delivered theorem is declared with its name, sorry count, axiom list, native_decide use and kernel-check status"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_sorry_in_declared_theorems",
+            "status": "fail",
+            "evidence": "zero sorry/admit in delivered theorems \u2014 a landmark proof ships with zero sorry"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_extra_axioms_in_declared_theorems",
+            "status": "pass",
+            "evidence": "no axioms beyond the standard kernel axioms (propext, Classical.choice, Quot.sound) \u2014 new axioms are tracked as cheating, never smuggled"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_native_decide_in_declared_theorems",
+            "status": "pass",
+            "evidence": "no native_decide shortcuts in delivered theorems"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "all_declared_theorems_kernel_checked",
+            "status": "pass",
+            "evidence": "every delivered theorem is kernel-checked \u2014 the statement you can trust is the one the kernel accepted"
+          },
+          {
+            "section": "build_attestation",
+            "check": "build_log_retained",
+            "status": "pass",
+            "evidence": "the lake build output is retained as the kernel-check attestation"
+          },
+          {
+            "section": "build_attestation",
+            "check": "axiom_audit_performed",
+            "status": "pass",
+            "evidence": "an axiom audit (#print axioms) is performed for each delivered theorem"
+          },
+          {
+            "section": "build_attestation",
+            "check": "reproduction_recipe_present",
+            "status": "pass",
+            "evidence": "a clean-checkout rebuild recipe is present \u2014 the proof re-checks from scratch"
+          },
+          {
+            "section": "model_alignment",
+            "check": "model_implementation_mapping_documented",
+            "status": "pass",
+            "evidence": "the model-to-implementation mapping is documented"
+          },
+          {
+            "section": "model_alignment",
+            "check": "implementation_changes_ported_through_model",
+            "status": "pass",
+            "evidence": "port changes go back through the model"
+          },
+          {
+            "section": "model_alignment",
+            "check": "model_and_implementation_in_sync",
+            "status": "pass",
+            "evidence": "the verified model and the implementation are in sync"
+          }
+        ],
+        "summary": "24 pass, 2 fail, 0 missing of 26 checks across seven sections.",
+        "theorems_evaluated": 1,
+        "theorems_with_sorry": 1,
+        "stamp": "LEAN4 FORMAL PROOF\nproject: broken-proof\nVERDICT: NOT_VERIFIED\n  project_setup            pass\n  statement_integrity      fail\n  definitions_and_model    pass\n  proof_integrity          pass\n  theorem_declarations     fail\n  build_attestation        pass\n  model_alignment          pass\n24 pass, 2 fail, 0 missing of 26 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of required fields; atom cannot perform full verification"
+      },
+      "input": {
+        "project": "incomplete-manifest"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "lean4-formal-proof",
+        "atom_version": "0.1.0",
+        "project": "incomplete-manifest",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "project_setup": "insufficient_evidence",
+          "statement_integrity": "insufficient_evidence",
+          "definitions_and_model": "insufficient_evidence",
+          "proof_integrity": "insufficient_evidence",
+          "theorem_declarations": "insufficient_evidence",
+          "build_attestation": "insufficient_evidence",
+          "model_alignment": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "project_setup",
+            "check": "toolchain_pinned",
+            "status": "missing",
+            "evidence": "elan toolchain pinned \u2014 the proof is checked by a known toolchain, not whatever is installed"
+          },
+          {
+            "section": "project_setup",
+            "check": "dependency_versions_pinned",
+            "status": "missing",
+            "evidence": "lake / Mathlib versions pinned \u2014 the proof's dependencies do not drift"
+          },
+          {
+            "section": "project_setup",
+            "check": "ci_runs_lake_build",
+            "status": "missing",
+            "evidence": "CI runs lake build so proofs stay green"
+          },
+          {
+            "section": "project_setup",
+            "check": "lake_build_green",
+            "status": "missing",
+            "evidence": "lake build is green \u2014 the proofs compile"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_stated_before_proving",
+            "status": "missing",
+            "evidence": "the theorem is stated first \u2014 theorem name (args) : Prop \u2014 before any proving begins"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_meaning_checked",
+            "status": "missing",
+            "evidence": "the statement is checked to say what it means before proving it"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_reviewed_independently_of_tactics",
+            "status": "missing",
+            "evidence": "statements are reviewed independently of tactics by a second pair of eyes \u2014 a proof of the wrong theorem is worthless"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "statement_not_weakened_silently",
+            "status": "missing",
+            "evidence": "never weaken a statement silently to make it provable"
+          },
+          {
+            "section": "statement_integrity",
+            "check": "unproven_claims_not_presented_as_verified",
+            "status": "missing",
+            "evidence": "no unproven claims dressed as formally verified"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "definitions_are_total",
+            "status": "missing",
+            "evidence": "definitions of the system model are total \u2014 no partial definitions hiding the hard cases"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "definitions_are_executable",
+            "status": "missing",
+            "evidence": "definitions of the system model are executable"
+          },
+          {
+            "section": "definitions_and_model",
+            "check": "specs_separate_from_implementation",
+            "status": "missing",
+            "evidence": "specs are separate from implementation"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "proofs_structured_and_readable",
+            "status": "missing",
+            "evidence": "structured proofs, kept readable \u2014 proofs are code and docs"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "cheating_items_tracked_as_tickets",
+            "status": "missing",
+            "evidence": "sorry, new axioms and native_decide shortcuts are tracked as tickets, never smuggled into deliverables"
+          },
+          {
+            "section": "proof_integrity",
+            "check": "cheating_not_smuggled_into_deliverable",
+            "status": "missing",
+            "evidence": "no cheating smuggled into the deliverable"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "theorems_present_and_wellformed",
+            "status": "missing",
+            "evidence": "each delivered theorem is declared with its name, sorry count, axiom list, native_decide use and kernel-check status"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_sorry_in_declared_theorems",
+            "status": "missing",
+            "evidence": "zero sorry/admit in delivered theorems \u2014 a landmark proof ships with zero sorry"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_extra_axioms_in_declared_theorems",
+            "status": "missing",
+            "evidence": "no axioms beyond the standard kernel axioms (propext, Classical.choice, Quot.sound) \u2014 new axioms are tracked as cheating, never smuggled"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "no_native_decide_in_declared_theorems",
+            "status": "missing",
+            "evidence": "no native_decide shortcuts in delivered theorems"
+          },
+          {
+            "section": "theorem_declarations",
+            "check": "all_declared_theorems_kernel_checked",
+            "status": "missing",
+            "evidence": "every delivered theorem is kernel-checked \u2014 the statement you can trust is the one the kernel accepted"
+          },
+          {
+            "section": "build_attestation",
+            "check": "build_log_retained",
+            "status": "missing",
+            "evidence": "the lake build output is retained as the kernel-check attestation"
+          },
+          {
+            "section": "build_attestation",
+            "check": "axiom_audit_performed",
+            "status": "missing",
+            "evidence": "an axiom audit (#print axioms) is performed for each delivered theorem"
+          },
+          {
+            "section": "build_attestation",
+            "check": "reproduction_recipe_present",
+            "status": "missing",
+            "evidence": "a clean-checkout rebuild recipe is present \u2014 the proof re-checks from scratch"
+          },
+          {
+            "section": "model_alignment",
+            "check": "model_implementation_mapping_documented",
+            "status": "missing",
+            "evidence": "the model-to-implementation mapping is documented"
+          },
+          {
+            "section": "model_alignment",
+            "check": "implementation_changes_ported_through_model",
+            "status": "missing",
+            "evidence": "port changes go back through the model"
+          },
+          {
+            "section": "model_alignment",
+            "check": "model_and_implementation_in_sync",
+            "status": "missing",
+            "evidence": "the verified model and the implementation are in sync"
+          }
+        ],
+        "summary": "0 pass, 0 fail, 26 missing of 26 checks across seven sections.",
+        "theorems_evaluated": 0,
+        "theorems_with_sorry": 0,
+        "stamp": "LEAN4 FORMAL PROOF\nproject: incomplete-manifest\nVERDICT: INSUFFICIENT_EVIDENCE\n  project_setup            insufficient_evidence\n  statement_integrity      insufficient_evidence\n  definitions_and_model    insufficient_evidence\n  proof_integrity          insufficient_evidence\n  theorem_declarations     insufficient_evidence\n  build_attestation        insufficient_evidence\n  model_alignment          insufficient_evidence\n0 pass, 0 fail, 26 missing of 26 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Schema violation: setup expected object, got string; theorems expected list, got string"
+      },
+      "input": {
+        "project": "malformed-input",
+        "setup": "not-an-object",
+        "theorems": "should-be-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "setup",
+        "detail": "setup must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

@@ -1,0 +1,138 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "entity": "Acme Corp",
+        "source": {
+          "single_system_maintained": true,
+          "contacts_carry_who_what_context_minimum": true,
+          "dedupe_cadence_set": true,
+          "stale_contacts_flagged_not_trusted": true
+        },
+        "contact_rules": {
+          "sensitivity_flags_honored": true,
+          "sensitivity_flags_override_everything": true,
+          "outreach_drafted_for_review_never_auto_sent": true,
+          "nothing_personal_shared_beyond_purpose": true,
+          "unapproved_outreach_sent": false,
+          "bulk_unsolicited_outreach_sent": false,
+          "personal_contacts_uploaded_to_third_parties_without_purpose_and_consent": false
+        },
+        "pipeline": {
+          "stages_used": ["lead", "qualified", "proposal", "decision", "won", "lost"],
+          "entry_criteria_defined_for_each_stage": true,
+          "exit_criteria_defined_for_each_stage": true,
+          "deals_advance_on_evidence_not_optimism": true,
+          "stale_threshold_days": 30,
+          "deals": [
+            {
+              "stage": "lead",
+              "value": 1000.0,
+              "age_days": 10,
+              "has_next_step": true,
+              "has_next_step_date": true,
+              "open": true
+            }
+          ]
+        },
+        "follow_up": {
+          "cadence_scheduled": true,
+          "every_touch_carries_value": true,
+          "every_interaction_logged_with_what_said_promised_next": true,
+          "promises_tracked_until_delivered": true
+        },
+        "reporting": {
+          "pipeline_reported_by_stage_and_age": true,
+          "conversion_rates_by_stage_reported": true,
+          "stuck_deal_list_maintained": true,
+          "stuck_deal_review_held_on_cadence": true,
+          "forecasts_use_honest_probabilities": true
+        },
+        "consent": {
+          "marketing_consent_recorded": true,
+          "consent_flags_current": true,
+          "unsubscribe_honored_instantly": true,
+          "segmentation_per_consent": true,
+          "scraped_third_party_personal_data_into_crm": false
+        },
+        "win_loss": {
+          "reasons_captured": true,
+          "reasons_include_yours_and_theirs": true,
+          "feeds_messaging_product_and_process_improvements": true
+        },
+        "minimal_data": {
+          "only_relationship_needed_data_collected": true,
+          "retention_for_dead_leads_defined": true
+        }
+      },
+      "expect": {
+        "outcome": "CRM_PIPELINE_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: deal_count=1, open_deal_count=1, computed_open_value_total=1000.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "contact_rules": {
+          "unapproved_outreach_sent": true,
+          "bulk_unsolicited_outreach_sent": false,
+          "personal_contacts_uploaded_to_third_parties_without_purpose_and_consent": false
+        },
+        "pipeline": {
+          "stages_used": ["lead"],
+          "deals": [
+            {
+              "stage": "lead",
+              "value": 100.0,
+              "age_days": 50,
+              "has_next_step": false,
+              "has_next_step_date": false,
+              "open": true
+            }
+          ],
+          "stale_threshold_days": 30
+        }
+      },
+      "expect": {
+        "outcome": "CRM_PIPELINE_NOT_READY",
+        "http": 200,
+        "failing_checks": ["pipeline_stages_and_deals", "contact_rules_and_privacy"],
+        "notes": "Fails due to incomplete stages list, missing next-step data, and stale deal count > 0."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "entity": "Minimal Corp"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of required fields; atom cannot compute verdict."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "pipeline": {
+          "stages_used": "not-a-list",
+          "stale_threshold_days": "thirty"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: stages_used expects list, stale_threshold_days expects number."
+      }
+    }
+  ]
+}

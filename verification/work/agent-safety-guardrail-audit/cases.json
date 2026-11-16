@@ -1,0 +1,135 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "system": "test-agent",
+        "version": "1.0.0",
+        "guardrails_disabled": false,
+        "injection_defense": {
+          "external_content_treated_as_data": true,
+          "suspicious_imperatives_flagged": true,
+          "test_suite": {
+            "present": true,
+            "passing": true
+          }
+        },
+        "tool_access": {
+          "scoped_to_job": true,
+          "read_write_separated": true,
+          "destructive_tools_gated": true,
+          "shell_access": true,
+          "shell_sandboxed": true
+        },
+        "approvals": {
+          "destructive_actions_require_approval": true,
+          "verified": true,
+          "covered_actions": [
+            "deploys",
+            "payments",
+            "deletions",
+            "external_sends",
+            "credential_changes"
+          ],
+          "bypassable_by_agent": false
+        },
+        "sandbox": {
+          "enabled": true,
+          "filesystem_scope_minimal": true,
+          "egress_restricted": true,
+          "resource_caps_enforced": true,
+          "abuse_test_passed": true
+        },
+        "budgets": {
+          "caps_set": true,
+          "alert_before_cap": true
+        },
+        "circuit_breakers": {
+          "loop_detection_enabled": true
+        },
+        "kill_switch": {
+          "present": true,
+          "tested": true
+        },
+        "output_validation": {
+          "schema_checked": true,
+          "model_output_evaled": false,
+          "downstream_parameterized": true
+        },
+        "secrets": {
+          "values_in_context": false,
+          "pii_in_context": false,
+          "credential_handles_only": true,
+          "exfiltration_paths_tested": true
+        },
+        "red_team": {
+          "injection_suite_run": true,
+          "jailbreak_tested": true,
+          "canary_tokens_used": true,
+          "findings_become_regression_tests": true
+        }
+      },
+      "expect": {
+        "outcome": "GUARDED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 34 checks satisfied. Computed spot checks: 8 sections passed, 0 violations."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "guardrails_disabled": true,
+        "approvals": {
+          "bypassable_by_agent": true
+        },
+        "output_validation": {
+          "model_output_evaled": true
+        },
+        "secrets": {
+          "values_in_context": true
+        }
+      },
+      "expect": {
+        "outcome": "NOT_GUARDED",
+        "http": 200,
+        "failing_checks": [
+          "approval_gates",
+          "output_validation",
+          "secrets_hygiene"
+        ],
+        "notes": "Violates mandatory negative constraints: guardrails_disabled must be false, bypassable_by_agent must be false, model_output_evaled must be false, values_in_context must be false."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "system": "minimal-agent",
+        "version": "0.1.0"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields absent, resulting in insufficient evidence to determine guardrail status."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "guardrails_disabled": "not-a-boolean",
+        "tool_access": "should-be-an-object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for boolean and object fields triggers validation error."
+      }
+    }
+  ]
+}

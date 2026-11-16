@@ -1,0 +1,801 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: bias-controlled-quant-study-pack
+
+=== contract.yaml ===
+service_name: bias-controlled-quant-study-pack
+display_name: Bias controlled quant study pack
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:quant-research
+binding:
+  skill: quant-research
+  skill_path: workspace/mymilo-build/skills/quant-research/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- agent
+keys:
+  namespace: bias_controlled_quant_study_pack
+  prefix: atm_1_bias_controlled_quant_study_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Research Analyst signal research
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Bias controlled quant study pack — `bias-controlled-quant-study-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Research markets with statistical honesty — distributions, biases, data hygiene, and falsifiable hypotheses.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Research Analyst signal research**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the bias-controlled-quant-study-pack manifest
+
+The caller submits one JSON manifest: one quant study pack — a
+single market study worked through the bound skill's method,
+with bias control at its centre. Every field below is read by
+the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`STUDY_PACK_NOT_COMPLETE`). All
+fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `study` (string; carried into the verdict output, not itself checked) | — |
+| `hypothesis.hypothesis_written` | hypothesis_preregistration |
+| `hypothesis.prediction_stated` | hypothesis_preregistration |
+| `hypothesis.falsification_test_defined` | hypothesis_preregistration |
+| `hypothesis.results_looked_at_before_registration` (must be `false` to pass — method step 1: registration comes BEFORE looking at results) | hypothesis_preregistration |
+| `data.provenance_documented` | data_hygiene |
+| `data.snapshot_version_documented` | data_hygiene |
+| `data.adjusted_prices` | data_hygiene |
+| `data.delisted_names_retained` | data_hygiene |
+| `data.survivorship_gap_present` (must be `false` to pass — quality gate: no survivorship gap) | data_hygiene |
+| `data.point_in_time_fundamentals` | data_hygiene |
+| `data.restatement_peeking` (must be `false` to pass — method step 2: no restatement peeking) | data_hygiene |
+| `data.timezone_timestamp_discipline` | data_hygiene |
+| `distribution.fat_tails_considered` | distribution_reality |
+| `distribution.volatility_clustering_considered` | distribution_reality |
+| `distribution.gaussian_assumed` (must be `false` to pass — method step 3: don't assume Gaussian) | distribution_reality |
+| `distribution.crisis_correlations_considered` | distribution_reality |
+| `stationarity.stability_tested` | stationarity_and_stability |
+| `stationarity.stability_periods` (list of strings; computed, see below) | stationarity_and_stability |
+| `stationarity.regime_context_provided` | stationarity_and_stability |
+| `stationarity.mechanism_stated` | stationarity_and_stability |
+| `stationarity.claim_made_without_regime_context` (must be `false` to pass — skill red line) | stationarity_and_stability |
+| `multiple_testing.controlled` | multiple_testing |
+| `multiple_testing.deflated_significance_applied` | multiple_testing |
+| `multiple_testing.holdout_used` | multiple_testing |
+| `multiple_testing.signals_tested` (number; computed, see below) | multiple_testing |
+| `multiple_testing.signals_reported` (number; computed, see below) | multiple_testing |
+| `multiple_testing.p_hacked_screen_presented_as_strategy` (must be `false` to pass — skill red line) | multiple_testing |
+| `multiple_testing.result_from_single_sample` (must be `false` to pass — skill red line) | multiple_testing |
+| `costs.costs_included` | costs |
+| `costs.included` (list of strings; computed, see below) | costs |
+| `costs.results_net_of_costs` | costs |
+| `reproducibility.seeded_runs` | reproducibility |
+| `reproducibility.snapshot_pinned` | reproducibility |
+| `reproducibility.code_versioned` | reproducibility |
+| `reproducibility.rerunnable_by_others` | reproducibility |
+
+Three checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic / set logic of
+the declared values — no outside threshold is imported:
+
+- **Cost coverage:** the skill's method step 6 is "Costs from
+  day one: spreads, fees, slippage, borrow, taxes". The declared
+  `costs.included` list therefore passes only when it contains
+  all five stated entries (`spreads`, `fees`, `slippage`,
+  `borrow`, `taxes`); unknown entries do not count toward
+  coverage. A missing list is missing evidence; an empty list is
+  present and fails. The output reports the omitted stated
+  entries as `costs_not_included` (null when no list is
+  declared). Entries are validated as strings only, never
+  enum-checked — coverage is a verdict check, not a type error.
+- **Stability across periods:** the skill's method step 4 is
+  "test stability across periods", and its quality gate repeats
+  "stability checked across periods". The declared
+  `stationarity.stability_periods` list therefore passes only
+  when it names at least two **distinct** periods — stability
+  across periods cannot be shown inside a single period, and a
+  period repeated is still one period. No period length, no
+  count above two, and no period identity is imposed: the skill
+  states none. A missing list is missing evidence; an empty or
+  single-distinct-period list is present and fails. The output
+  reports the distinct count as `stability_period_count` (null
+  when no list is declared). Entries are validated as strings
+  only, never enum-checked.
+- **Reported-within-tested coherence:** the skill's method step
+  5 is "screens test thousands of things — the best of 10,000
+  random signals looks great; control for it". When the pack
+  declares both `multiple_testing.signals_tested` and
+  `multiple_testing.signals_reported`, the check passes only
+  when both are whole numbers, zero or more, and the reported
+  count does not exceed the tested count — a study cannot
+  report more results than the signals it tested. If either
+  number is absent, the check is missing evidence. The skill
+  states no significance level, no deflation formula, and no
+  maximum number of tests, so none is imposed: this is pure
+  accounting coherence between the two declared counts. The
+  output reports `signals_tested`, `signals_reported`, and
+  `signals_reported_minus_tested` (each null when it cannot be
+  computed from the declared counts).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three computed checks cannot be completed).
+
+The verdict is one of `STUDY_PACK_COMPLETE` (all 34 checks
+pass), `STUDY_PACK_NOT_COMPLETE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: hypothesis_preregistration,
+data_hygiene, distribution_reality, stationarity_and_stability,
+multiple_testing, costs, reproducibility.
+
+## Honest scoping
+
+This atom audits a **declared** study pack — it does not fetch
+market data, run the study, replicate its results, or verify
+that a declared value is true. The register's named work for
+this atom — Research Analyst signal research — stays the
+caller's: the pack declares its own hypothesis registration,
+data hygiene, bias controls, and counts, and this core checks
+only their completeness and internal coherence on the declared
+evidence. A pack is complete *on the caller's declared
+evidence* even if its hypothesis is wrong and its result would
+not survive live trading. It is a completeness and coherence
+audit, **not a research review**: it never decides whether the
+hypothesis is sound, whether the data actually was clean,
+whether the mechanism is real, or whether the reported edge
+will persist — only that the pack contains what the skill's
+method, quality gates, and red lines demand, and that its
+declared counts and lists agree with themselves.
+
+Named exclusions: no market-data fetching or verification of
+any declared dataset, price adjustment, or fundamental (data
+sourcing stays the caller's); no significance testing, p-value
+computation, or deflated-Sharpe calculation (the skill requires
+deflated significance *awareness* and multiple-testing control
+as declared practices but states no formula, level, or pass
+mark, so none is computed or imposed); no minimum sample size,
+observation count, or period length (the skill states none);
+no judgment of whether a declared stability period is a
+meaningful regime split (only distinctness and the
+across-periods minimum the skill's own wording carries are
+checked); no live-trading, capacity, or execution review.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "study": "Market Alpha Study 2024",
+      "hypothesis": {
+        "hypothesis_written": true,
+        "prediction_stated": true,
+        "falsification_test_defined": true,
+        "results_looked_at_before_registration": false
+      },
+      "data": {
+        "provenance_documented": true,
+        "snapshot_version_documented": true,
+        "adjusted_prices": true,
+        "delisted_names_retained": true,
+        "survivorship_gap_present": false,
+        "point_in_time_fundamentals": true,
+        "restatement_peeking": false,
+        "timezone_timestamp_discipline": true
+      },
+      "distribution": {
+        "fat_tails_considered": true,
+        "volatility_clustering_considered": true,
+        "gaussian_assumed": false,
+        "crisis_correlations_considered": true
+      },
+      "stationarity": {
+        "stability_tested": true,
+        "stability_periods": [
+          "2010-2015",
+          "2016-2020"
+        ],
+        "regime_context_provided": true,
+        "mechanism_stated": true,
+        "claim_made_without_regime_context": false
+      },
+      "multiple_testing": {
+        "controlled": true,
+        "deflated_significance_applied": true,
+        "holdout_used": true,
+        "signals_tested": 100,
+        "signals_reported": 5,
+        "p_hacked_screen_presented_as_strategy": false,
+        "result_from_single_sample": false
+      },
+      "costs": {
+        "costs_included": true,
+        "included": [
+          "spreads",
+          "fees",
+          "slippage",
+          "borrow",
+          "taxes"
+        ],
+        "results_net_of_costs": true
+      },
+      "reproducibility": {
+        "seeded_runs": true,
+        "snapshot_pinned": true,
+        "code_versioned": true,
+        "rerunnable_by_others": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "bias-controlled-quant-study-pack",
+      "atom_version": "0.1.0",
+      "study": "Market Alpha Study 2024",
+      "verdict": "STUDY_PACK_COMPLETE",
+      "sections": {
+        "hypothesis_preregistration": "pass",
+        "data_hygiene": "pass",
+        "distribution_reality": "pass",
+        "stationarity_and_stability": "pass",
+        "multiple_testing": "pass",
+        "costs": "pass",
+        "reproducibility": "pass"
+      },
+      "checks": [
+        {
+          "section": "hypothesis_preregistration",
+          "check": "hypothesis_written_before_analysis",
+          "status": "pass",
+          "evidence": "method step 1: the hypothesis is written before analysis (pre-registration)"
+        },
+        {
+          "section": "hypothesis_preregistration",
+          "check": "prediction_stated_before_analysis",
+          "status": "pass",
+          "evidence": "method step 1: the prediction the hypothesis makes is stated before looking at results"
+        },
+        {
+          "section": "hypothesis_preregistration",
+          "check": "falsification_test_defined_before_analysis",
+          "status": "pass",
+          "evidence": "quality gate: the falsification test is written before analysis \u2014 what result would kill the hypothesis"
+        },
+        {
+          "section": "hypothesis_preregistration",
+          "check": "results_not_seen_before_registration",
+          "status": "pass",
+          "evidence": "method step 1: results are not looked at before the hypothesis, prediction and falsification test are written"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "data_provenance_documented",
+          "status": "pass",
+          "evidence": "quality gate: data provenance is documented \u2014 where every series came from"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "snapshot_version_documented",
+          "status": "pass",
+          "evidence": "method step 2: the data snapshot version is documented alongside the provenance"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "prices_adjusted_for_splits_and_dividends",
+          "status": "pass",
+          "evidence": "method step 2: adjusted prices (splits/dividends) are done correctly"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "delisted_names_retained",
+          "status": "pass",
+          "evidence": "method step 2: delisted names are retained in the dataset (survivorship)"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "no_survivorship_gap",
+          "status": "pass",
+          "evidence": "quality gate: there is no survivorship gap \u2014 the dataset is not silently limited to names that survived"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "point_in_time_fundamentals_used",
+          "status": "pass",
+          "evidence": "method step 2: fundamentals are point-in-time \u2014 the values as known on the date, not as later restated"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "no_restatement_peeking",
+          "status": "pass",
+          "evidence": "method step 2: no restatement peeking \u2014 later restated fundamentals are not read back into earlier dates"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "timezone_and_timestamp_discipline",
+          "status": "pass",
+          "evidence": "method step 2: timezone and timestamp discipline is applied across the dataset"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "fat_tails_accounted_for",
+          "status": "pass",
+          "evidence": "method step 3: fat tails are accounted for \u2014 extreme moves are more common than a normal distribution implies"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "volatility_clustering_accounted_for",
+          "status": "pass",
+          "evidence": "method step 3: volatility clustering is accounted for \u2014 turbulent and quiet periods bunch together"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "gaussian_not_assumed",
+          "status": "pass",
+          "evidence": "method step 3: a Gaussian distribution is not assumed \u2014 returns are non-normal"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "crisis_correlation_rise_accounted_for",
+          "status": "pass",
+          "evidence": "method step 3: the rise of correlations in crises is accounted for \u2014 diversification fails exactly when needed"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "stability_tested_across_periods",
+          "status": "pass",
+          "evidence": "method step 4: stability is tested across periods \u2014 regimes end and relationships decay"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "stability_periods_cover_multiple_periods",
+          "status": "pass",
+          "evidence": "method step 4: the declared stability periods cover at least two distinct periods \u2014 stability 'across periods' cannot be shown inside a single period, and a repeated period is still one period"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "regime_context_provided",
+          "status": "pass",
+          "evidence": "red line: performance claims carry their regime context \u2014 which regimes the study period covers"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "mechanism_theory_stated",
+          "status": "pass",
+          "evidence": "method step 4: the study rests on a theory with a mechanism, preferred over a curve fit without one"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "no_claim_without_regime_context",
+          "status": "pass",
+          "evidence": "red line: no 'works since 2021' claims without regime context"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "multiple_testing_controlled",
+          "status": "pass",
+          "evidence": "quality gate: multiple testing is controlled \u2014 a screen that tests thousands of things expects lucky winners by chance alone"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "deflated_significance_awareness_applied",
+          "status": "pass",
+          "evidence": "method step 5: deflated significance awareness is applied \u2014 significance is read against how many things were tested"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "holdout_discipline_applied",
+          "status": "pass",
+          "evidence": "method step 5: holdout discipline is applied \u2014 part of the evidence is kept back and not used to select the result"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "reported_signals_within_tested_count",
+          "status": "pass",
+          "evidence": "method step 5: the signals reported as results never exceed the signals actually tested, and both declared counts are whole numbers \u2014 pure accounting coherence between the two counts the pack itself declares"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "no_phacked_screen_presented_as_strategy",
+          "status": "pass",
+          "evidence": "red line: no p-hacked screens presented as strategy"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "result_not_from_single_lucky_sample",
+          "status": "pass",
+          "evidence": "red line: no result from one lucky sample"
+        },
+        {
+          "section": "costs",
+          "check": "costs_included_from_day_one",
+          "status": "pass",
+          "evidence": "quality gate: costs are included from day one \u2014 a paper edge that dies after costs is not an edge"
+        },
+        {
+          "section": "costs",
+          "check": "all_stated_costs_included",
+          "status": "pass",
+          "evidence": "method step 6: the included costs cover every cost the skill names \u2014 spreads, fees, slippage, borrow, taxes"
+        },
+        {
+          "section": "costs",
+          "check": "results_reported_net_of_costs",
+          "status": "pass",
+          "evidence": "method step 6: results are reported net of costs \u2014 the edge shown is the edge after spreads, fees, slippage, borrow and taxes"
+        },
+        {
+          "section": "reproducibility",
+          "check": "seeded_runs",
+          "status": "pass",
+          "evidence": "method step 7: runs are seeded \u2014 the same inputs rerun to the same outputs"
+        },
+        {
+          "section": "reproducibility",
+          "check": "data_snapshot_pinned",
+          "status": "pass",
+          "evidence": "quality gate: the data snapshot is pinned \u2014 results are reproducible from the snapshot"
+        },
+        {
+          "section": "reproducibility",
+          "check": "notebooks_and_scripts_versioned",
+          "status": "pass",
+          "evidence": "method step 7: notebooks and scripts are versioned \u2014 the exact code that produced the result is on record"
+        },
+        {
+          "section": "reproducibility",
+          "check": "results_rerunnable_by_someone_else",
+          "status": "pass",
+          "evidence": "method step 7: results are rerunnable by someone else from the seeded runs, the pinned snapshot and the versioned code"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "stability_period_count": 2,
+      "signals_tested": 100,
+      "signals_reported": 5,
+      "signals_reported_minus_tested": -95,
+      "costs_not_included": [],
+      "summary": "34 pass, 0 fail, 0 missing of 34 checks across seven sections.",
+      "stamp": "BIAS-CONTROLLED QUANT STUDY PACK\nstudy: Market Alpha Study 2024\nVERDICT: STUDY_PACK_COMPLETE\n  hypothesis_preregistration   pass\n  data_hygiene                 pass\n  distribution_reality         pass\n  stationarity_and_stability   pass\n  multiple_testing             pass\n  costs                        pass\n  reproducibility              pass\n34 pass, 0 fail, 0 missing of 34 checks across seven sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "hypothesis": {
+        "results_looked_at_before_registration": true
+      },
+      "data": {
+        "survivorship_gap_present": true,
+        "restatement_peeking": true
+      },
+      "distribution": {
+        "gaussian_assumed": true
+      },
+      "stationarity": {
+        "stability_periods": [
+          "2020-2021",
+          "2020-2021"
+        ],
+        "claim_made_without_regime_context": true
+      },
+      "multiple_testing": {
+        "signals_tested": 5,
+        "signals_reported": 10,
+        "p_hacked_screen_presented_as_strategy": true,
+        "result_from_single_sample": true
+      },
+      "costs": {
+        "included": [
+          "spreads"
+        ]
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "bias-controlled-quant-study-pack",
+      "atom_version": "0.1.0",
+      "study": null,
+      "verdict": "STUDY_PACK_NOT_COMPLETE",
+      "sections": {
+        "hypothesis_preregistration": "fail",
+        "data_hygiene": "fail",
+        "distribution_reality": "fail",
+        "stationarity_and_stability": "fail",
+        "multiple_testing": "fail",
+        "costs": "fail",
+        "reproducibility": "insufficient_evidence"
+      },
+      "checks": [
+        {
+          "section": "hypothesis_preregistration",
+          "check": "hypothesis_written_before_analysis",
+          "status": "missing",
+          "evidence": "method step 1: the hypothesis is written before analysis (pre-registration)"
+        },
+        {
+          "section": "hypothesis_preregistration",
+          "check": "prediction_stated_before_analysis",
+          "status": "missing",
+          "evidence": "method step 1: the prediction the hypothesis makes is stated before looking at results"
+        },
+        {
+          "section": "hypothesis_preregistration",
+          "check": "falsification_test_defined_before_analysis",
+          "status": "missing",
+          "evidence": "quality gate: the falsification test is written before analysis \u2014 what result would kill the hypothesis"
+        },
+        {
+          "section": "hypothesis_preregistration",
+          "check": "results_not_seen_before_registration",
+          "status": "fail",
+          "evidence": "method step 1: results are not looked at before the hypothesis, prediction and falsification test are written"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "data_provenance_documented",
+          "status": "missing",
+          "evidence": "quality gate: data provenance is documented \u2014 where every series came from"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "snapshot_version_documented",
+          "status": "missing",
+          "evidence": "method step 2: the data snapshot version is documented alongside the provenance"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "prices_adjusted_for_splits_and_dividends",
+          "status": "missing",
+          "evidence": "method step 2: adjusted prices (splits/dividends) are done correctly"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "delisted_names_retained",
+          "status": "missing",
+          "evidence": "method step 2: delisted names are retained in the dataset (survivorship)"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "no_survivorship_gap",
+          "status": "fail",
+          "evidence": "quality gate: there is no survivorship gap \u2014 the dataset is not silently limited to names that survived"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "point_in_time_fundamentals_used",
+          "status": "missing",
+          "evidence": "method step 2: fundamentals are point-in-time \u2014 the values as known on the date, not as later restated"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "no_restatement_peeking",
+          "status": "fail",
+          "evidence": "method step 2: no restatement peeking \u2014 later restated fundamentals are not read back into earlier dates"
+        },
+        {
+          "section": "data_hygiene",
+          "check": "timezone_and_timestamp_discipline",
+          "status": "missing",
+          "evidence": "method step 2: timezone and timestamp discipline is applied across the dataset"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "fat_tails_accounted_for",
+          "status": "missing",
+          "evidence": "method step 3: fat tails are accounted for \u2014 extreme moves are more common than a normal distribution implies"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "volatility_clustering_accounted_for",
+          "status": "missing",
+          "evidence": "method step 3: volatility clustering is accounted for \u2014 turbulent and quiet periods bunch together"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "gaussian_not_assumed",
+          "status": "fail",
+          "evidence": "method step 3: a Gaussian distribution is not assumed \u2014 returns are non-normal"
+        },
+        {
+          "section": "distribution_reality",
+          "check": "crisis_correlation_rise_accounted_for",
+          "status": "missing",
+          "evidence": "method step 3: the rise of correlations in crises is accounted for \u2014 diversification fails exactly when needed"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "stability_tested_across_periods",
+          "status": "missing",
+          "evidence": "method step 4: stability is tested across periods \u2014 regimes end and relationships decay"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "stability_periods_cover_multiple_periods",
+          "status": "fail",
+          "evidence": "method step 4: the declared stability periods cover at least two distinct periods \u2014 stability 'across periods' cannot be shown inside a single period, and a repeated period is still one period"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "regime_context_provided",
+          "status": "missing",
+          "evidence": "red line: performance claims carry their regime context \u2014 which regimes the study period covers"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "mechanism_theory_stated",
+          "status": "missing",
+          "evidence": "method step 4: the study rests on a theory with a mechanism, preferred over a curve fit without one"
+        },
+        {
+          "section": "stationarity_and_stability",
+          "check": "no_claim_without_regime_context",
+          "status": "fail",
+          "evidence": "red line: no 'works since 2021' claims without regime context"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "multiple_testing_controlled",
+          "status": "missing",
+          "evidence": "quality gate: multiple testing is controlled \u2014 a screen that tests thousands of things expects lucky winners by chance alone"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "deflated_significance_awareness_applied",
+          "status": "missing",
+          "evidence": "method step 5: deflated significance awareness is applied \u2014 significance is read against how many things were tested"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "holdout_discipline_applied",
+          "status": "missing",
+          "evidence": "method step 5: holdout discipline is applied \u2014 part of the evidence is kept back and not used to select the result"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "reported_signals_within_tested_count",
+          "status": "fail",
+          "evidence": "method step 5: the signals reported as results never exceed the signals actually tested, and both declared counts are whole numbers \u2014 pure accounting coherence between the two counts the pack itself declares"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "no_phacked_screen_presented_as_strategy",
+          "status": "fail",
+          "evidence": "red line: no p-hacked screens presented as strategy"
+        },
+        {
+          "section": "multiple_testing",
+          "check": "result_not_from_single_lucky_sample",
+          "status": "fail",
+          "evidence": "red line: no result from one lucky sample"
+        },
+        {
+          "section": "costs",
+          "check": "costs_included_from_day_one",
+          "status": "missing",
+          "evidence": "quality gate: costs are included from day one \u2014 a paper edge that dies after costs is not an edge"
+        },
+        {
+          "section": "costs",
+          "check": "all_stated_costs_included",
+          "status": "fail",
+          "evidence": "method step 6: the included costs cover every cost the skill names \u2014 spreads, fees, slippage, borrow, taxes"
+        },
+        {
+          "section": "costs",
+          "check": "results_reported_net_of_costs",
+          "status": "missing",
+          "evidence": "method step 6: results are reported net of costs \u2014 the edge shown is the edge after spreads, fees, slippage, borrow and taxes"
+        },
+        {
+          "section": "reproducibility",
+          "check": "seeded_runs",
+          "status": "missing",
+          "evidence": "method step 7: runs are seeded \u2014 the same inputs rerun to the same outputs"
+        },
+        {
+          "section": "reproducibility",
+          "check": "data_snapshot_pinned",
+          "status": "missing",
+          "evidence": "quality gate: the data snapshot is pinned \u2014 results are reproducible from the snapshot"
+        },
+        {
+          "section": "reproducibility",
+          "check": "notebooks_and_scripts_versioned",
+          "status": "missing",
+          "evidence": "method step 7: notebooks and scripts are versioned \u2014 the exact code that produced the result is on record"
+        },
+        {
+          "section": "reproducibility",
+          "check": "results_rerunnable_by_someone_else",
+          "status": "missing",
+          "evidence": "method step 7: results are rerunnable by someone else from the seeded runs, the pinned snapshot and the versioned code"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "stability_period_count": 1,
+      "signals_tested": 5,
+      "signals_reported": 10,
+      "signals_reported_minus_tested": 5,
+      "costs_not_included": [
+        "fees",
+        "slippage",
+        "borrow",
+        "taxes"
+      ],
+      "summary": "0 pass, 10 fail, 24 missing of 34 checks across seven sections.",
+      "stamp": "BIAS-CONTROLLED QUANT STUDY PACK\nstudy: None\nVERDICT: STUDY_PACK_NOT_COMPLETE\n  hypothesis_preregistration   fail\n  data_hygiene                 fail\n  distribution_reality         fail\n  stationarity_and_stability   fail\n  multiple_testing             fail\n  costs                        fail\n  reproducibility              insufficient_evidence\n0 pass, 10 fail, 24 missing of 34 checks across seven sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

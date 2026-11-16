@@ -1,0 +1,137 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "entity": "service-alpha",
+        "pipeline": {
+          "stages": [
+            {"name": "lint", "minutes": 1.0},
+            {"name": "typecheck", "minutes": 2.0},
+            {"name": "test", "minutes": 5.0},
+            {"name": "build", "minutes": 3.0},
+            {"name": "package_sign", "minutes": 1.0},
+            {"name": "publish", "minutes": 1.0}
+          ],
+          "declared_total_minutes": 13.0,
+          "fails_fast": true,
+          "reports_first_real_cause": true,
+          "is_primary_green_gate": true
+        },
+        "determinism": {
+          "lockfile_enforced_installs": true,
+          "tool_versions_pinned": true,
+          "byte_exact_checkouts_where_hashes_matter": true,
+          "same_commit_same_artifact_verified": true,
+          "third_party_actions_pinned": true,
+          "unpinned_third_party_actions_present": false
+        },
+        "caching": {
+          "dependency_cache_keyed_on_lockfile": true,
+          "build_cache_keyed_on_lockfile": true,
+          "secrets_cached": false,
+          "test_fixtures_cached": false
+        },
+        "secrets": {
+          "from_secret_store_only": true,
+          "masked_in_logs": true,
+          "in_artifacts": false,
+          "error_output_scrubbed": true,
+          "appeared_in_logs_or_artifacts": false
+        },
+        "budget": {
+          "estimated_minutes_per_run": 13.0,
+          "runs_per_month": 100,
+          "declared_monthly_minutes": 1300.0,
+          "monthly_minutes_budget": 2000.0,
+          "workflows_minimal_where_constrained": true,
+          "heavy_builds_on_owned_hardware": true,
+          "duplicates_primary_gate": false
+        },
+        "provenance": {
+          "checksums_published": true,
+          "releases_signed": true,
+          "build_outputs_retained": true,
+          "manifest_hashes_retained": true,
+          "release_artifacts_carry_hash_and_signature": true
+        },
+        "deploys": {
+          "hitl_approval_required": true,
+          "rollback_path_present": true,
+          "direct_to_prod_from_laptop": false
+        },
+        "gates": {
+          "disabled_to_unblock_merge": false,
+          "overrides_logged_with_reason": true
+        }
+      },
+      "expect": {
+        "outcome": "CICD_PIPELINE_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 36 checks pass; computed_spot_checks: total_minutes=13.000000, monthly_minutes=1300.000000, budget_headroom=700.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "pipeline": {
+          "stages": [{"name": "lint", "minutes": 10.0}],
+          "declared_total_minutes": 5.0
+        },
+        "determinism": {"unpinned_third_party_actions_present": true},
+        "caching": {"secrets_cached": true},
+        "secrets": {"in_artifacts": true, "appeared_in_logs_or_artifacts": true},
+        "budget": {
+          "estimated_minutes_per_run": 10.0,
+          "runs_per_month": 10,
+          "declared_monthly_minutes": 50.0,
+          "monthly_minutes_budget": 20.0,
+          "duplicates_primary_gate": true
+        },
+        "deploys": {"direct_to_prod_from_laptop": true},
+        "gates": {"disabled_to_unblock_merge": true}
+      },
+      "expect": {
+        "outcome": "CICD_PIPELINE_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "stages_and_fail_fast",
+          "determinism_and_pinning",
+          "caching_and_secrets",
+          "budget_awareness",
+          "deploys_and_gates"
+        ],
+        "notes": "Triggers failures across all sections due to arithmetic mismatch, forbidden booleans, and budget overflow."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "entity": "minimal-test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required pipeline, determinism, and budget fields."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "pipeline": "this-should-be-an-object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on pipeline field; expected object, received string."
+      }
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: release-readiness-verdict
+
+=== contract.yaml ===
+# HAND-BUILT: built out in full for release slot #1. The generator never overwrites this file.
+service_name: release-readiness-verdict
+display_name: Release-readiness verdict
+tier: A
+status: built-locally
+atom_version: 0.1.0
+queue_position: 1
+sources:
+- knowledge-atom:#13
+binding:
+  skill: release-management
+  skill_path: workspace/mymilo-build/skills/release-management/SKILL.md
+  skill_version: '1'
+  rule: R1 — fixes land in the skill first; the atom re-deploys from the refined
+    skill and must pass regression before its version bumps. A skill refinement
+    marks this atom stale until re-verified.
+deliverable_type: VERDICT
+endpoints:
+- API
+- MCP
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/release_readiness.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  keys_reference: src/keys.py — per-atom HMAC key derivation/verification
+  tests: tests/test_release_readiness.py — 16 tests, all passing 2026-11-15
+  benchmark: src/bench.py
+keys:
+  namespace: release_readiness_verdict
+  prefix: atm_1_release_readiness_verdict_
+  issuance: Per user, per atom. Self-serve — sign up, open this atom, issue key.
+    Key = HMAC-SHA256(master_secret, email | atom_service | issued_at),
+    version-prefixed; regenerated on demand after the user authenticates, never
+    stored (record holds email, atom, issued_at, fingerprint).
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: SPEC default — the per-key rate limit is the capacity guard for open
+    public usage; tuned at build-out from measured production cost.
+pricing:
+  unit: call
+  rate: null
+  rate_status: pending
+  measured_cost:
+    verdict_ms_per_call: 0.1166
+    key_derivation_ms_per_call: 0.0122
+    llm_tokens_per_call: 0
+    network_calls_per_call: 0
+    measured: 2026-11-15, src/bench.py, 20000 iterations, build VM (shared vCPU)
+    note: Marginal compute ~zero; hosted marginal cost adds the serving
+      platform's per-request charge, unmeasurable until deployment. Prompt-rate
+      fallback = $0 (zero tokens), so steps 1 and 3 produce no rate. Step 2
+      (consensus) ran 2026-11-15 — Gemini $0.0005/call, DeepSeek $0.01/call,
+      OpenAI lane blocked (named in reviews/openai-review-STATUS.md) — two
+      inputs 20x apart, third missing = no consensus. Rate stays pending;
+      recorded input range $0.0005-$0.01/call. See reviews/README.md.
+  protocol: rails/billing.md — measured cost first, then three-model consensus,
+    then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup.
+self_use:
+  verdict: pass
+  workflow: Release gates run on every product
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: Wright — zero price, metered to the internal cost ledger (R2).
+
+
+=== SERVICE.md ===
+<!-- HAND-BUILT: built out in full for release slot #1. The generator never overwrites this file. -->
+# Release-readiness verdict — `release-readiness-verdict`
+
+**Deliverable type:** VERDICT. This atom sells one verdict — is this
+release ready, and on what evidence — never the release-management
+knowledge it is built from.
+
+**Queue position:** #1 in the approved release queue (owner,
+2026-10-18). **Tier A.** Bound to knowledge atom #13 and the
+`release-management` skill (R1).
+
+## What it delivers
+
+A caller submits a **release-evidence manifest** (below) describing a
+release they are about to ship. The atom probes the five release bars
+from knowledge atom #13 — **control, understanding, management,
+lifecycle, stability** — across 19 deterministic checks drawn from
+the bound skill's method, quality gates, and red lines, and returns
+one verdict:
+
+- `READY` — every check passes.
+- `NOT_READY` — at least one check fails (a bar is breached).
+- `INSUFFICIENT_EVIDENCE` — nothing fails, but evidence is missing;
+  the verdict names exactly which evidence.
+
+The core is deterministic: no model call, no network, same manifest →
+same verdict. That determinism is the product — a gate that gives a
+different answer on a re-run is not a gate.
+
+## Inputs — the release-evidence manifest
+
+| Field | Read by |
+|---|---|
+| `product`, `version` (semver) | control |
+| `version_bump_locations` (list; must name exactly one place) | control |
+| `tag.name` (= `v<version>`), `tag.annotated`, `tag.moved` | control |
+| `changelog.has_entry_for_version`, `changelog.unreleased_section_moved` | understanding |
+| `release_notes.present`, `release_notes.breaking_changes`, `release_notes.migration_steps` | understanding |
+| `approver` (named human), `approval.hitl_recorded` | management |
+| `rollout_plan.present` | management |
+| `rollback_plan.present`, `rollback_plan.testable` | lifecycle |
+| `health_check.window_hours` (must be 24–48) | lifecycle |
+| `artifacts.sealed`, `artifacts.checksum_manifest`, `artifacts.verified_before_announcement` | stability |
+| `tests.passing` | stability |
+
+A field **absent** = evidence missing. A field present but false /
+invalid = the bar fails. The distinction is deliberate: "you didn't
+show me" and "you showed me and it's wrong" are different verdicts.
+
+## Output — the verdict format
+
+```json
+{
+  "service": "release-readiness-verdict",
+  "atom_version": "0.1.0",
+  "product": "...", "version": "...",
+  "verdict": "READY | NOT_READY | INSUFFICIENT_EVIDENCE",
+  "bars": {"control": "pass|fail|insufficient_evidence", "...": "..."},
+  "checks": [{"bar": "...", "check": "...", "status": "pass|fail|missing", "evidence": "..."}],
+  "summary": "19 pass, 0 fail, 0 missing of 19 checks across five bars."
+}
+```
+
+Plus a human-readable stamp (`stamp()` in the implementation).
+
+## Buyer
+
+Teams and agents who ship software and need a release gate that is
+not their own optimism: CI pipelines, release managers, agent
+workflows that must not ship unsealed or un-rollback-able releases.
+We are the first buyer — our own release-gate program is the
+prototype (self-use workflow: **release gates run on every
+product**).
+
+## Endpoints (when live — none are yet)
+
+MCP tool + `POST /v1/release-readiness-verdict`, gated by this atom's
+own key (namespace `release_readiness_verdict`). Human face: the
+listing page's try-it form. Serving shape: `rails/serving.md`.
+
+## Pricing
+
+Unit: **per call**. Rate: **pending** under the pricing protocol
+(`rails/billing.md`) — measured compute is 0.1166 ms/call with zero
+tokens (see `maintenance.md`); the consensus step ran 2026-11-15 and
+split (Gemini $0.0005/call, DeepSeek $0.01/call, OpenAI lane
+blocked), which is not a consensus; and the prompt-rate fallback is
+$0 for a zero-token atom. No rate is published until the protocol
+honestly produces one. Review record: `reviews/README.md`.
+
+## Named doubt (from the register)
+
+Guardian Mesh adjacency; benches still unbuilt. This atom judges
+readiness from submitted evidence; it does not itself run Guardian
+Mesh probes — a manifest that lies produces a verdict on the lie,
+which is why the output carries the evidence per check.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

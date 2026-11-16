@@ -1,0 +1,190 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "agent": "milo-v4",
+        "suite": {
+          "versioned": true,
+          "criteria_written_before_run": true,
+          "acceptance_criteria_per_task": true,
+          "versioned_with_agent": true
+        },
+        "run": {
+          "model_version_pinned": true,
+          "sampling_settings_pinned": true,
+          "tool_state_pinned": true,
+          "fixtures_pinned": true,
+          "raw_transcripts_stored": true,
+          "same_suite_per_candidate": true
+        },
+        "judging": {
+          "deterministic_checks_first": true,
+          "llm_judge_used": false,
+          "judge_calibrated_against_human_labels": true,
+          "judge_blinded": true,
+          "position_bias_controls": true,
+          "model_judges_itself": false
+        },
+        "gates": {
+          "eval_runs_before_merge": true,
+          "regressions_block_merge": true,
+          "accepted_tradeoffs_written": true
+        },
+        "metrics": {
+          "steps_tracked": true,
+          "cost_tracked": true,
+          "latency_tracked": true,
+          "refusal_error_rates_tracked": true,
+          "safety_violations_tracked": true,
+          "silent_wrongness_tracked": true
+        },
+        "incidents": {
+          "misbehavior_becomes_named_tests": true,
+          "all_production_incidents_replayed": true
+        },
+        "scorecard": {
+          "published_per_run": true,
+          "stored": true
+        },
+        "tasks": [
+          {
+            "name": "t1",
+            "passed": true,
+            "cost": 0.1,
+            "allowed_cost": 0.5,
+            "latency_ms": 100,
+            "allowed_latency_ms": 500,
+            "safety_violation": false
+          }
+        ],
+        "hygiene": {
+          "contamination_checked": true,
+          "variance_reported": true,
+          "rebaselined_after_model_updates": true
+        }
+      },
+      "expect": {
+        "outcome": "TRUSTED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: tasks_total=1, tasks_passing=1, safety_violations=0"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "agent": "milo-v4",
+        "suite": {
+          "versioned": false,
+          "criteria_written_before_run": true,
+          "acceptance_criteria_per_task": true,
+          "versioned_with_agent": true
+        },
+        "run": {
+          "model_version_pinned": true,
+          "sampling_settings_pinned": true,
+          "tool_state_pinned": true,
+          "fixtures_pinned": true,
+          "raw_transcripts_stored": true,
+          "same_suite_per_candidate": true
+        },
+        "judging": {
+          "deterministic_checks_first": true,
+          "llm_judge_used": false,
+          "judge_calibrated_against_human_labels": true,
+          "judge_blinded": true,
+          "position_bias_controls": true,
+          "model_judges_itself": true
+        },
+        "gates": {
+          "eval_runs_before_merge": true,
+          "regressions_block_merge": true,
+          "accepted_tradeoffs_written": true
+        },
+        "metrics": {
+          "steps_tracked": true,
+          "cost_tracked": true,
+          "latency_tracked": true,
+          "refusal_error_rates_tracked": true,
+          "safety_violations_tracked": true,
+          "silent_wrongness_tracked": true
+        },
+        "incidents": {
+          "misbehavior_becomes_named_tests": true,
+          "all_production_incidents_replayed": true
+        },
+        "scorecard": {
+          "published_per_run": true,
+          "stored": true
+        },
+        "tasks": [
+          {
+            "name": "t1",
+            "passed": false,
+            "cost": 0.1,
+            "allowed_cost": 0.5,
+            "latency_ms": 100,
+            "allowed_latency_ms": 500,
+            "safety_violation": false
+          }
+        ],
+        "hygiene": {
+          "contamination_checked": true,
+          "variance_reported": true,
+          "rebaselined_after_model_updates": true
+        }
+      },
+      "expect": {
+        "outcome": "NOT_TRUSTED",
+        "http": 200,
+        "failing_checks": [
+          "task_suite",
+          "judging",
+          "scorecard"
+        ],
+        "notes": "Fails due to suite.versioned=false, model_judges_itself=true (uncalibrated), and task.passed=false."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "agent": "milo-v4",
+        "tasks": [
+          {
+            "name": "t1",
+            "passed": true,
+            "cost": 0.1,
+            "allowed_cost": 0.5,
+            "latency_ms": 100,
+            "allowed_latency_ms": 500,
+            "safety_violation": false
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of required fields for sections."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "agent": 12345,
+        "tasks": "not-a-list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: agent expects string, tasks expects list."
+      }
+    }
+  ]
+}

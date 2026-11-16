@@ -1,0 +1,971 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: crm-pipeline-operations
+
+=== contract.yaml ===
+service_name: crm-pipeline-operations
+display_name: Crm pipeline operations
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:crm
+binding:
+  skill: crm
+  skill_path: workspace/mymilo-build/skills/crm/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: crm_pipeline_operations
+  prefix: atm_1_crm_pipeline_operations_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Consulting pipeline follow-ups
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# CRM pipeline operations — `crm-pipeline-operations`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Run CRM with discipline — data hygiene, pipeline stages, follow-up cadences, privacy and contact rules.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Consulting pipeline follow-ups**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the CRM pipeline manifest
+
+This atom does not operate a CRM, contact anyone, or move a
+deal, and exercises no judgment of its own. The caller submits
+one JSON manifest declaring a CRM pipeline-operations artifact
+— its single-source and hygiene record, its contact-rule and
+privacy record, its declared pipeline stages with entry/exit
+criteria, its declared deal rows, its follow-up cadence and
+logging record, its reporting and forecast record, its consent
+record, its win/loss record, and its minimal-data/retention
+record — and the atom validates that artifact deterministically.
+Every field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a field
+present but false / invalid = the check fails
+(`CRM_PIPELINE_NOT_READY`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `source.single_system_maintained` | single_source_of_truth |
+| `source.contacts_carry_who_what_context_minimum` | single_source_of_truth |
+| `source.dedupe_cadence_set` | single_source_of_truth |
+| `source.stale_contacts_flagged_not_trusted` | single_source_of_truth |
+| `contact_rules.sensitivity_flags_honored` | contact_rules_and_privacy |
+| `contact_rules.sensitivity_flags_override_everything` | contact_rules_and_privacy |
+| `contact_rules.outreach_drafted_for_review_never_auto_sent` | contact_rules_and_privacy |
+| `contact_rules.nothing_personal_shared_beyond_purpose` | contact_rules_and_privacy |
+| `contact_rules.unapproved_outreach_sent` (must be `false` to pass — skill quality gate) | contact_rules_and_privacy |
+| `contact_rules.bulk_unsolicited_outreach_sent` (must be `false` to pass — skill red line) | contact_rules_and_privacy |
+| `contact_rules.personal_contacts_uploaded_to_third_parties_without_purpose_and_consent` (must be `false` to pass — skill red line) | contact_rules_and_privacy |
+| `pipeline.stages_used` (list of strings; computed, see below) | pipeline_stages_and_deals |
+| `pipeline.entry_criteria_defined_for_each_stage` | pipeline_stages_and_deals |
+| `pipeline.exit_criteria_defined_for_each_stage` | pipeline_stages_and_deals |
+| `pipeline.deals_advance_on_evidence_not_optimism` | pipeline_stages_and_deals |
+| `pipeline.stale_threshold_days` (number; caller-declared staleness window, computed, see below) | pipeline_stages_and_deals |
+| `pipeline.deals` (list of deal-row objects; computed, see below) | pipeline_stages_and_deals |
+| `pipeline.deals[].stage` (string; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].value` (number; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].age_days` (number; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].has_next_step` (boolean; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].has_next_step_date` (boolean; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].open` (boolean; deal-row field) | pipeline_stages_and_deals |
+| `follow_up.cadence_scheduled` | follow_up_cadence_and_logging |
+| `follow_up.every_touch_carries_value` | follow_up_cadence_and_logging |
+| `follow_up.every_interaction_logged_with_what_said_promised_next` | follow_up_cadence_and_logging |
+| `follow_up.promises_tracked_until_delivered` | follow_up_cadence_and_logging |
+| `reporting.pipeline_reported_by_stage_and_age` | reporting_and_forecasts |
+| `reporting.conversion_rates_by_stage_reported` | reporting_and_forecasts |
+| `reporting.stuck_deal_list_maintained` | reporting_and_forecasts |
+| `reporting.stuck_deal_review_held_on_cadence` | reporting_and_forecasts |
+| `reporting.forecasts_use_honest_probabilities` | reporting_and_forecasts |
+| `consent.marketing_consent_recorded` | consent_and_comms |
+| `consent.consent_flags_current` | consent_and_comms |
+| `consent.unsubscribe_honored_instantly` | consent_and_comms |
+| `consent.segmentation_per_consent` | consent_and_comms |
+| `consent.scraped_third_party_personal_data_into_crm` (must be `false` to pass — skill method step 6) | consent_and_comms |
+| `win_loss.reasons_captured` | win_loss_discipline |
+| `win_loss.reasons_include_yours_and_theirs` | win_loss_discipline |
+| `win_loss.feeds_messaging_product_and_process_improvements` | win_loss_discipline |
+| `minimal_data.only_relationship_needed_data_collected` | minimal_data_and_retention |
+| `minimal_data.retention_for_dead_leads_defined` | minimal_data_and_retention |
+
+Five checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+rows and the caller's own declared limit — no outside threshold
+is imported:
+
+- **Pipeline stages:** the skill's method step 3 names the
+  pipeline — lead → qualified → proposal → decision → won/lost.
+  The declared `pipeline.stages_used` list therefore passes only
+  when it contains all six stated entries (`lead`, `qualified`,
+  `proposal`, `decision`, `won`, `lost`); unknown entries do not
+  count toward coverage. A missing list is missing evidence; an
+  empty list is present and fails. The output reports the
+  omitted stated entries as `pipeline_stages_not_covered` (null
+  when no list is declared). Entries are validated as strings
+  only, never enum-checked — coverage is a verdict check, not a
+  type error.
+- **Deal rows complete:** every declared deal row must carry
+  `stage` (non-empty string), `value`, `age_days`,
+  `has_next_step`, `has_next_step_date`, and `open`. A non-empty
+  list with an incomplete row is missing evidence for every
+  row-derived check (that row cannot be evaluated); an empty
+  list is present and fails — no rows exist to prove anything
+  over.
+- **Deal stages are stated stages:** every complete row's
+  `stage` must be one of the six stages the skill names.
+- **Next step + date:** the skill's quality gate is "Next-step
+  + date on every open deal". Every declared row with
+  `open = true` must therefore declare both `has_next_step` and
+  `has_next_step_date`; closed rows are not counted. The output
+  reports `open_deals_without_next_step_or_date_count`. A zero
+  open-deal count fails — no open pipeline exists to prove this
+  over.
+- **Staleness against the caller-declared window:** the skill
+  says stale contacts/deals are "flagged, not trusted" and the
+  stuck-deal list is reviewed, but it states **no day count**.
+  An open deal is therefore counted stale only when its
+  declared `age_days` exceeds the caller's own declared
+  `pipeline.stale_threshold_days` (an age exactly equal to the
+  threshold is not stale; closed deals are not counted). The
+  check passes only when the stale count is zero, and a zero
+  open-deal count fails as above. The output reports
+  `stale_deal_count` (null when the rows or the threshold cannot
+  be evaluated).
+
+The output also reports, from the complete declared rows only
+(all null when the rows cannot be evaluated, except `deal_count`
+which is the declared list length whenever a list is declared):
+`deal_count`, `open_deal_count`, `stage_distribution` (counts
+per stated stage, in stated-stage order),
+`computed_open_value_total` (sum of `value` over open rows) and
+`computed_pipeline_value_total` (sum of `value` over all rows).
+
+**Fixed serialization rule:** computed amounts are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals. Counts and the stage distribution are reported as
+plain integers (null when they cannot be computed). That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five computed checks cannot be completed).
+
+The verdict is one of `CRM_PIPELINE_READY` (all 38 checks
+pass), `CRM_PIPELINE_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across eight sections: single_source_of_truth,
+contact_rules_and_privacy, pipeline_stages_and_deals,
+follow_up_cadence_and_logging, reporting_and_forecasts,
+consent_and_comms, win_loss_discipline,
+minimal_data_and_retention.
+
+## Honest scoping
+
+This atom audits a **declared** CRM pipeline-operations
+artifact — it does not operate a CRM, contact anyone, send or
+draft outreach, move a deal, verify that a declared value is
+true, or judge whether relationships are actually well run. The
+register's named doubt for this atom — contact privacy rules
+apply — is answered by this framing: the artifact declares
+counts, deal-row facts, and process facts only; no contact's
+personal data is an input, and this core reads none. An artifact
+is ready *on the caller's declared evidence* even if its actual
+pipeline is poor. It is a completeness and consistency audit,
+**not a CRM-quality review**: it never decides whether a next
+step is meaningful, whether a follow-up touch really carried
+value, whether a forecast probability is actually honest,
+whether entry/exit criteria are well written, or whether a
+win/loss reason is insightful — those load-bearing judgments in
+the skill cannot be reduced to deterministic checks and are
+carried only as caller-declared booleans here.
+
+**Thresholds declined (named explicitly):** the skill states no
+staleness day count, so none is imposed — only the caller's own
+declared `stale_threshold_days` is applied; the skill says
+dedupe happens "on a schedule" but states no period, so no
+dedupe frequency is imposed; the skill says follow-ups are
+"scheduled" and the stuck-deal review is held "on cadence" but
+states no interval for either, so none is imposed; the skill
+calls for conversion rates by stage "(base rates!)" but states
+no target rate, and a per-stage conversion rate cannot be
+re-derived from current-stage deal rows (rows show where deals
+are, not the flow that entered and left each stage), so no
+conversion value is computed or judged — reporting them is
+checked as a declared boolean only; the skill states no
+retention period for dead leads, so only that retention is
+*defined* is checked, never its length; the skill states no
+minimum deal count, pipeline value, or open-deal value, so none
+is imposed (the zero-open-deal failure above is a proof-existence
+rule, not a size threshold); the skill states no forecast
+probability or calibration threshold, so none is imposed.
+
+Named exclusions: no operating a CRM or any other system; no
+outreach, drafting, or contact of any kind; no verification of
+any declared count, value, stage, or process claim; no
+next-step-quality, touch-value, criteria-quality,
+probability-honesty, or win/loss-insight judgment; no live
+verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Contact privacy rules apply
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "entity": "Acme Corp",
+      "source": {
+        "single_system_maintained": true,
+        "contacts_carry_who_what_context_minimum": true,
+        "dedupe_cadence_set": true,
+        "stale_contacts_flagged_not_trusted": true
+      },
+      "contact_rules": {
+        "sensitivity_flags_honored": true,
+        "sensitivity_flags_override_everything": true,
+        "outreach_drafted_for_review_never_auto_sent": true,
+        "nothing_personal_shared_beyond_purpose": true,
+        "unapproved_outreach_sent": false,
+        "bulk_unsolicited_outreach_sent": false,
+        "personal_contacts_uploaded_to_third_parties_without_purpose_and_consent": false
+      },
+      "pipeline": {
+        "stages_used": [
+          "lead",
+          "qualified",
+          "proposal",
+          "decision",
+          "won",
+          "lost"
+        ],
+        "entry_criteria_defined_for_each_stage": true,
+        "exit_criteria_defined_for_each_stage": true,
+        "deals_advance_on_evidence_not_optimism": true,
+        "stale_threshold_days": 30,
+        "deals": [
+          {
+            "stage": "lead",
+            "value": 1000.0,
+            "age_days": 10,
+            "has_next_step": true,
+            "has_next_step_date": true,
+            "open": true
+          }
+        ]
+      },
+      "follow_up": {
+        "cadence_scheduled": true,
+        "every_touch_carries_value": true,
+        "every_interaction_logged_with_what_said_promised_next": true,
+        "promises_tracked_until_delivered": true
+      },
+      "reporting": {
+        "pipeline_reported_by_stage_and_age": true,
+        "conversion_rates_by_stage_reported": true,
+        "stuck_deal_list_maintained": true,
+        "stuck_deal_review_held_on_cadence": true,
+        "forecasts_use_honest_probabilities": true
+      },
+      "consent": {
+        "marketing_consent_recorded": true,
+        "consent_flags_current": true,
+        "unsubscribe_honored_instantly": true,
+        "segmentation_per_consent": true,
+        "scraped_third_party_personal_data_into_crm": false
+      },
+      "win_loss": {
+        "reasons_captured": true,
+        "reasons_include_yours_and_theirs": true,
+        "feeds_messaging_product_and_process_improvements": true
+      },
+      "minimal_data": {
+        "only_relationship_needed_data_collected": true,
+        "retention_for_dead_leads_defined": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "crm-pipeline-operations",
+      "atom_version": "0.1.0",
+      "entity": "Acme Corp",
+      "verdict": "CRM_PIPELINE_READY",
+      "sections": {
+        "single_source_of_truth": "pass",
+        "contact_rules_and_privacy": "pass",
+        "pipeline_stages_and_deals": "pass",
+        "follow_up_cadence_and_logging": "pass",
+        "reporting_and_forecasts": "pass",
+        "consent_and_comms": "pass",
+        "win_loss_discipline": "pass",
+        "minimal_data_and_retention": "pass"
+      },
+      "checks": [
+        {
+          "section": "single_source_of_truth",
+          "check": "single_system_maintained",
+          "status": "pass",
+          "evidence": "method step 1: one system (or structured folder) is the single source of truth for contacts and interactions"
+        },
+        {
+          "section": "single_source_of_truth",
+          "check": "contacts_carry_who_what_context_minimum",
+          "status": "pass",
+          "evidence": "method step 1: contacts carry the who/what/context minimum"
+        },
+        {
+          "section": "single_source_of_truth",
+          "check": "dedupe_cadence_set",
+          "status": "pass",
+          "evidence": "quality gate: a dedupe cadence is set \u2014 dedupe happens on a schedule"
+        },
+        {
+          "section": "single_source_of_truth",
+          "check": "stale_contacts_flagged_not_trusted",
+          "status": "pass",
+          "evidence": "method step 1: stale contacts are flagged, not trusted"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "sensitivity_flags_honored",
+          "status": "pass",
+          "evidence": "quality gate: sensitivity flags are honored"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "sensitivity_flags_override_everything",
+          "status": "pass",
+          "evidence": "red line: sensitivity flags override everything"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "outreach_drafted_for_review_never_auto_sent",
+          "status": "pass",
+          "evidence": "method step 2: outreach is drafted for review, never auto-sent"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "nothing_personal_shared_beyond_purpose",
+          "status": "pass",
+          "evidence": "method step 2: nothing personal is shared beyond its purpose"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "no_unapproved_outreach",
+          "status": "pass",
+          "evidence": "quality gate: no unapproved outreach is sent"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "no_bulk_unsolicited_outreach",
+          "status": "pass",
+          "evidence": "red line: never bulk unsolicited outreach (spam)"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "no_personal_contacts_uploaded_without_purpose_and_consent",
+          "status": "pass",
+          "evidence": "red line: personal contacts are never uploaded to third parties without purpose and consent"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "pipeline_stages_cover_stated_stages",
+          "status": "pass",
+          "evidence": "method step 3: the stages used cover every stage the skill names \u2014 lead, qualified, proposal, decision, won, lost"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "entry_criteria_defined_for_each_stage",
+          "status": "pass",
+          "evidence": "method step 3: entry criteria are defined for each pipeline stage"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "exit_criteria_defined_for_each_stage",
+          "status": "pass",
+          "evidence": "method step 3: exit criteria are defined for each pipeline stage \u2014 deals advance on evidence, not optimism"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "deals_advance_on_evidence_not_optimism",
+          "status": "pass",
+          "evidence": "method step 3: deals advance on evidence (call happened, proposal sent), not optimism"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "deal_rows_complete",
+          "status": "pass",
+          "evidence": "method step 3: every declared deal row carries a stage, a value, an age in days, a next-step flag, a next-step-date flag, and an open flag"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "deal_stages_are_stated_stages",
+          "status": "pass",
+          "evidence": "method step 3: every declared deal row's stage is one of the stages the skill names \u2014 lead, qualified, proposal, decision, won, lost"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "every_open_deal_has_next_step_and_date",
+          "status": "pass",
+          "evidence": "quality gate: every open deal carries a next step and a next-step date \u2014 the declared open rows all declare both (a zero open-deal count fails: no open pipeline exists to prove this over)"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "no_open_deal_stale_beyond_declared_threshold",
+          "status": "pass",
+          "evidence": "method step 1: stale is flagged, not trusted \u2014 no declared open deal's age in days exceeds the caller-declared stale_threshold_days; the skill states no day count, so only the caller's own declared threshold is applied (a zero open-deal count fails: no open pipeline exists to prove this over)"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "follow_up_cadence_scheduled",
+          "status": "pass",
+          "evidence": "method step 4: follow-up touches are scheduled on a cadence"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "every_follow_up_touch_carries_value",
+          "status": "pass",
+          "evidence": "method step 4: every scheduled touch carries value \u2014 an insight, a result, a useful link"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "every_interaction_logged_with_what_said_promised_next",
+          "status": "pass",
+          "evidence": "method step 4: every interaction is logged \u2014 what was said, what was promised, what is next"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "promises_tracked_until_delivered",
+          "status": "pass",
+          "evidence": "method step 4: what was promised is tracked until delivered"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "pipeline_reported_by_stage_and_age",
+          "status": "pass",
+          "evidence": "method step 5: the pipeline is reported by stage and age"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "conversion_rates_by_stage_reported",
+          "status": "pass",
+          "evidence": "method step 5: conversion rates by stage are reported \u2014 base rates, not impressions"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "stuck_deal_list_maintained",
+          "status": "pass",
+          "evidence": "method step 5: a stuck-deal list is maintained"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "stuck_deal_review_held_on_cadence",
+          "status": "pass",
+          "evidence": "quality gate: the stuck-deal review is held on cadence"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "forecasts_use_honest_probabilities",
+          "status": "pass",
+          "evidence": "method step 5: reporting feeds revenue-management forecasts with honest probabilities"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "marketing_consent_recorded",
+          "status": "pass",
+          "evidence": "method step 6: marketing consent is recorded"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "consent_flags_current",
+          "status": "pass",
+          "evidence": "quality gate: consent flags are current"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "unsubscribe_honored_instantly",
+          "status": "pass",
+          "evidence": "method step 6: unsubscribe is honored instantly"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "segmentation_per_consent",
+          "status": "pass",
+          "evidence": "method step 6: segmentation is per consent"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "no_scraping_third_party_personal_data",
+          "status": "pass",
+          "evidence": "method step 6: no third-party personal data is scraped into the CRM"
+        },
+        {
+          "section": "win_loss_discipline",
+          "check": "win_loss_reasons_captured",
+          "status": "pass",
+          "evidence": "quality gate: win/loss reasons are captured"
+        },
+        {
+          "section": "win_loss_discipline",
+          "check": "win_loss_reasons_include_yours_and_theirs",
+          "status": "pass",
+          "evidence": "method step 7: the captured reason includes yours and theirs"
+        },
+        {
+          "section": "win_loss_discipline",
+          "check": "win_loss_feeds_improvements",
+          "status": "pass",
+          "evidence": "method step 7: win/loss reasons feed messaging, product, and process improvements"
+        },
+        {
+          "section": "minimal_data_and_retention",
+          "check": "only_relationship_needed_data_collected",
+          "status": "pass",
+          "evidence": "method step 8: only what the relationship needs is collected, not everything possible"
+        },
+        {
+          "section": "minimal_data_and_retention",
+          "check": "retention_for_dead_leads_defined",
+          "status": "pass",
+          "evidence": "method step 8: retention for dead leads is defined"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "pipeline_stages_not_covered": [],
+      "deal_count": 1,
+      "open_deal_count": 1,
+      "stale_deal_count": 0,
+      "open_deals_without_next_step_or_date_count": 0,
+      "stage_distribution": {
+        "lead": 1,
+        "qualified": 0,
+        "proposal": 0,
+        "decision": 0,
+        "won": 0,
+        "lost": 0
+      },
+      "computed_open_value_total": "1000.000000",
+      "computed_pipeline_value_total": "1000.000000",
+      "summary": "38 pass, 0 fail, 0 missing of 38 checks across eight sections.",
+      "stamp": "CRM PIPELINE OPERATIONS\nentity: Acme Corp\nVERDICT: CRM_PIPELINE_READY\n  single_source_of_truth           pass\n  contact_rules_and_privacy        pass\n  pipeline_stages_and_deals        pass\n  follow_up_cadence_and_logging    pass\n  reporting_and_forecasts          pass\n  consent_and_comms                pass\n  win_loss_discipline              pass\n  minimal_data_and_retention       pass\n38 pass, 0 fail, 0 missing of 38 checks across eight sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "entity": "Acme Corp",
+      "source": {
+        "single_system_maintained": true,
+        "contacts_carry_who_what_context_minimum": true,
+        "dedupe_cadence_set": true,
+        "stale_contacts_flagged_not_trusted": true
+      },
+      "contact_rules": {
+        "sensitivity_flags_honored": true,
+        "sensitivity_flags_override_everything": true,
+        "outreach_drafted_for_review_never_auto_sent": true,
+        "nothing_personal_shared_beyond_purpose": true,
+        "unapproved_outreach_sent": true,
+        "bulk_unsolicited_outreach_sent": false,
+        "personal_contacts_uploaded_to_third_parties_without_purpose_and_consent": false
+      },
+      "pipeline": {
+        "stages_used": [
+          "lead"
+        ],
+        "entry_criteria_defined_for_each_stage": true,
+        "exit_criteria_defined_for_each_stage": true,
+        "deals_advance_on_evidence_not_optimism": true,
+        "stale_threshold_days": 30,
+        "deals": [
+          {
+            "stage": "lead",
+            "value": 100.0,
+            "age_days": 50,
+            "has_next_step": false,
+            "has_next_step_date": false,
+            "open": true
+          }
+        ]
+      },
+      "follow_up": {
+        "cadence_scheduled": true,
+        "every_touch_carries_value": true,
+        "every_interaction_logged_with_what_said_promised_next": true,
+        "promises_tracked_until_delivered": true
+      },
+      "reporting": {
+        "pipeline_reported_by_stage_and_age": true,
+        "conversion_rates_by_stage_reported": true,
+        "stuck_deal_list_maintained": true,
+        "stuck_deal_review_held_on_cadence": true,
+        "forecasts_use_honest_probabilities": true
+      },
+      "consent": {
+        "marketing_consent_recorded": true,
+        "consent_flags_current": true,
+        "unsubscribe_honored_instantly": true,
+        "segmentation_per_consent": true,
+        "scraped_third_party_personal_data_into_crm": false
+      },
+      "win_loss": {
+        "reasons_captured": true,
+        "reasons_include_yours_and_theirs": true,
+        "feeds_messaging_product_and_process_improvements": true
+      },
+      "minimal_data": {
+        "only_relationship_needed_data_collected": true,
+        "retention_for_dead_leads_defined": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "crm-pipeline-operations",
+      "atom_version": "0.1.0",
+      "entity": "Acme Corp",
+      "verdict": "CRM_PIPELINE_NOT_READY",
+      "sections": {
+        "single_source_of_truth": "pass",
+        "contact_rules_and_privacy": "fail",
+        "pipeline_stages_and_deals": "fail",
+        "follow_up_cadence_and_logging": "pass",
+        "reporting_and_forecasts": "pass",
+        "consent_and_comms": "pass",
+        "win_loss_discipline": "pass",
+        "minimal_data_and_retention": "pass"
+      },
+      "checks": [
+        {
+          "section": "single_source_of_truth",
+          "check": "single_system_maintained",
+          "status": "pass",
+          "evidence": "method step 1: one system (or structured folder) is the single source of truth for contacts and interactions"
+        },
+        {
+          "section": "single_source_of_truth",
+          "check": "contacts_carry_who_what_context_minimum",
+          "status": "pass",
+          "evidence": "method step 1: contacts carry the who/what/context minimum"
+        },
+        {
+          "section": "single_source_of_truth",
+          "check": "dedupe_cadence_set",
+          "status": "pass",
+          "evidence": "quality gate: a dedupe cadence is set \u2014 dedupe happens on a schedule"
+        },
+        {
+          "section": "single_source_of_truth",
+          "check": "stale_contacts_flagged_not_trusted",
+          "status": "pass",
+          "evidence": "method step 1: stale contacts are flagged, not trusted"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "sensitivity_flags_honored",
+          "status": "pass",
+          "evidence": "quality gate: sensitivity flags are honored"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "sensitivity_flags_override_everything",
+          "status": "pass",
+          "evidence": "red line: sensitivity flags override everything"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "outreach_drafted_for_review_never_auto_sent",
+          "status": "pass",
+          "evidence": "method step 2: outreach is drafted for review, never auto-sent"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "nothing_personal_shared_beyond_purpose",
+          "status": "pass",
+          "evidence": "method step 2: nothing personal is shared beyond its purpose"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "no_unapproved_outreach",
+          "status": "fail",
+          "evidence": "quality gate: no unapproved outreach is sent"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "no_bulk_unsolicited_outreach",
+          "status": "pass",
+          "evidence": "red line: never bulk unsolicited outreach (spam)"
+        },
+        {
+          "section": "contact_rules_and_privacy",
+          "check": "no_personal_contacts_uploaded_without_purpose_and_consent",
+          "status": "pass",
+          "evidence": "red line: personal contacts are never uploaded to third parties without purpose and consent"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "pipeline_stages_cover_stated_stages",
+          "status": "fail",
+          "evidence": "method step 3: the stages used cover every stage the skill names \u2014 lead, qualified, proposal, decision, won, lost"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "entry_criteria_defined_for_each_stage",
+          "status": "pass",
+          "evidence": "method step 3: entry criteria are defined for each pipeline stage"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "exit_criteria_defined_for_each_stage",
+          "status": "pass",
+          "evidence": "method step 3: exit criteria are defined for each pipeline stage \u2014 deals advance on evidence, not optimism"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "deals_advance_on_evidence_not_optimism",
+          "status": "pass",
+          "evidence": "method step 3: deals advance on evidence (call happened, proposal sent), not optimism"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "deal_rows_complete",
+          "status": "pass",
+          "evidence": "method step 3: every declared deal row carries a stage, a value, an age in days, a next-step flag, a next-step-date flag, and an open flag"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "deal_stages_are_stated_stages",
+          "status": "pass",
+          "evidence": "method step 3: every declared deal row's stage is one of the stages the skill names \u2014 lead, qualified, proposal, decision, won, lost"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "every_open_deal_has_next_step_and_date",
+          "status": "fail",
+          "evidence": "quality gate: every open deal carries a next step and a next-step date \u2014 the declared open rows all declare both (a zero open-deal count fails: no open pipeline exists to prove this over)"
+        },
+        {
+          "section": "pipeline_stages_and_deals",
+          "check": "no_open_deal_stale_beyond_declared_threshold",
+          "status": "fail",
+          "evidence": "method step 1: stale is flagged, not trusted \u2014 no declared open deal's age in days exceeds the caller-declared stale_threshold_days; the skill states no day count, so only the caller's own declared threshold is applied (a zero open-deal count fails: no open pipeline exists to prove this over)"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "follow_up_cadence_scheduled",
+          "status": "pass",
+          "evidence": "method step 4: follow-up touches are scheduled on a cadence"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "every_follow_up_touch_carries_value",
+          "status": "pass",
+          "evidence": "method step 4: every scheduled touch carries value \u2014 an insight, a result, a useful link"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "every_interaction_logged_with_what_said_promised_next",
+          "status": "pass",
+          "evidence": "method step 4: every interaction is logged \u2014 what was said, what was promised, what is next"
+        },
+        {
+          "section": "follow_up_cadence_and_logging",
+          "check": "promises_tracked_until_delivered",
+          "status": "pass",
+          "evidence": "method step 4: what was promised is tracked until delivered"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "pipeline_reported_by_stage_and_age",
+          "status": "pass",
+          "evidence": "method step 5: the pipeline is reported by stage and age"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "conversion_rates_by_stage_reported",
+          "status": "pass",
+          "evidence": "method step 5: conversion rates by stage are reported \u2014 base rates, not impressions"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "stuck_deal_list_maintained",
+          "status": "pass",
+          "evidence": "method step 5: a stuck-deal list is maintained"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "stuck_deal_review_held_on_cadence",
+          "status": "pass",
+          "evidence": "quality gate: the stuck-deal review is held on cadence"
+        },
+        {
+          "section": "reporting_and_forecasts",
+          "check": "forecasts_use_honest_probabilities",
+          "status": "pass",
+          "evidence": "method step 5: reporting feeds revenue-management forecasts with honest probabilities"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "marketing_consent_recorded",
+          "status": "pass",
+          "evidence": "method step 6: marketing consent is recorded"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "consent_flags_current",
+          "status": "pass",
+          "evidence": "quality gate: consent flags are current"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "unsubscribe_honored_instantly",
+          "status": "pass",
+          "evidence": "method step 6: unsubscribe is honored instantly"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "segmentation_per_consent",
+          "status": "pass",
+          "evidence": "method step 6: segmentation is per consent"
+        },
+        {
+          "section": "consent_and_comms",
+          "check": "no_scraping_third_party_personal_data",
+          "status": "pass",
+          "evidence": "method step 6: no third-party personal data is scraped into the CRM"
+        },
+        {
+          "section": "win_loss_discipline",
+          "check": "win_loss_reasons_captured",
+          "status": "pass",
+          "evidence": "quality gate: win/loss reasons are captured"
+        },
+        {
+          "section": "win_loss_discipline",
+          "check": "win_loss_reasons_include_yours_and_theirs",
+          "status": "pass",
+          "evidence": "method step 7: the captured reason includes yours and theirs"
+        },
+        {
+          "section": "win_loss_discipline",
+          "check": "win_loss_feeds_improvements",
+          "status": "pass",
+          "evidence": "method step 7: win/loss reasons feed messaging, product, and process improvements"
+        },
+        {
+          "section": "minimal_data_and_retention",
+          "check": "only_relationship_needed_data_collected",
+          "status": "pass",
+          "evidence": "method step 8: only what the relationship needs is collected, not everything possible"
+        },
+        {
+          "section": "minimal_data_and_retention",
+          "check": "retention_for_dead_leads_defined",
+          "status": "pass",
+          "evidence": "method step 8: retention for dead leads is defined"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "pipeline_stages_not_covered": [
+        "qualified",
+        "proposal",
+        "decision",
+        "won",
+        "lost"
+      ],
+      "deal_count": 1,
+      "open_deal_count": 1,
+      "stale_deal_count": 1,
+      "open_deals_without_next_step_or_date_count": 1,
+      "stage_distribution": {
+        "lead": 1,
+        "qualified": 0,
+        "proposal": 0,
+        "decision": 0,
+        "won": 0,
+        "lost": 0
+      },
+      "computed_open_value_total": "100.000000",
+      "computed_pipeline_value_total": "100.000000",
+      "summary": "34 pass, 4 fail, 0 missing of 38 checks across eight sections.",
+      "stamp": "CRM PIPELINE OPERATIONS\nentity: Acme Corp\nVERDICT: CRM_PIPELINE_NOT_READY\n  single_source_of_truth           pass\n  contact_rules_and_privacy        fail\n  pipeline_stages_and_deals        fail\n  follow_up_cadence_and_logging    pass\n  reporting_and_forecasts          pass\n  consent_and_comms                pass\n  win_loss_discipline              pass\n  minimal_data_and_retention       pass\n34 pass, 4 fail, 0 missing of 38 checks across eight sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

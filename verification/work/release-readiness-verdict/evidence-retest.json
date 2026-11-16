@@ -1,0 +1,276 @@
+{
+  "atom": "release-readiness-verdict",
+  "tested_at_utc": "2026-11-15T23:50:17.563588+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "release_readiness_verdict",
+  "mcp_tools": [
+    {
+      "name": "release_readiness_verdict",
+      "title": "Release-readiness verdict",
+      "description": "Submit a release-evidence manifest; get a deterministic READY / NOT_READY / INSUFFICIENT_EVIDENCE verdict across five release bars (control, understanding, management, lifecycle, stability) with per-check evidence.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The release-evidence manifest (see the atom's SERVICE.md for the field table).",
+        "properties": {
+          "product": {
+            "type": "string",
+            "description": "Product being released."
+          },
+          "version": {
+            "type": "string",
+            "description": "Release version, semver (e.g. 1.2.0)."
+          },
+          "version_bump_locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Places the version was bumped; must name exactly one."
+          },
+          "tag": {
+            "type": "object",
+            "description": "Release tag evidence: {name: 'v<version>', annotated: bool, moved: bool}."
+          },
+          "changelog": {
+            "type": "object",
+            "description": "Changelog evidence: {has_entry_for_version: bool, unreleased_section_moved: bool}."
+          },
+          "release_notes": {
+            "type": "object",
+            "description": "Release-notes evidence: {present: bool, breaking_changes: [...], migration_steps: [...]}."
+          },
+          "approver": {
+            "type": "string",
+            "description": "Named human who owns and approves the release."
+          },
+          "approval": {
+            "type": "object",
+            "description": "Approval evidence: {hitl_recorded: bool}."
+          },
+          "rollout_plan": {
+            "type": "object",
+            "description": "Rollout evidence: {present: bool}."
+          },
+          "rollback_plan": {
+            "type": "object",
+            "description": "Rollback evidence: {present: bool, testable: bool}."
+          },
+          "health_check": {
+            "type": "object",
+            "description": "Post-release health evidence: {window_hours: number, 24\u201348}."
+          },
+          "artifacts": {
+            "type": "object",
+            "description": "Artifact evidence: {sealed: bool, checksum_manifest: bool, verified_before_announcement: bool}."
+          },
+          "tests": {
+            "type": "object",
+            "description": "Test evidence: {passing: bool}."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 19 checks pass. Computed spot checks: 19 pass, 0 fail, 0 missing."
+      },
+      "input": {
+        "product": "milo-core",
+        "version": "1.2.3",
+        "version_bump_locations": [
+          "src/version.py"
+        ],
+        "tag": {
+          "name": "v1.2.3",
+          "annotated": true,
+          "moved": false
+        },
+        "changelog": {
+          "has_entry_for_version": true,
+          "unreleased_section_moved": true
+        },
+        "release_notes": {
+          "present": true,
+          "breaking_changes": false,
+          "migration_steps": "none"
+        },
+        "approver": "jane.doe",
+        "approval": {
+          "hitl_recorded": true
+        },
+        "rollout_plan": {
+          "present": true
+        },
+        "rollback_plan": {
+          "present": true,
+          "testable": true
+        },
+        "health_check": {
+          "window_hours": 24
+        },
+        "artifacts": {
+          "sealed": true,
+          "checksum_manifest": true,
+          "verified_before_announcement": true
+        },
+        "tests": {
+          "passing": true
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"release_notes.breaking_changes\",\"detail\":\"release_notes.breaking_changes must be a list\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"release_notes.breaking_changes\",\"detail\":\"release_notes.breaking_changes must be a list\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"error\":{\"code\":-32602,\"message\":\"release_notes.breaking_changes must be a list\"}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": false,
+      "mcp_structured_content": null
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "rollback_plan.testable",
+          "health_check.window_hours"
+        ],
+        "notes": "Rollback plan is not testable and health check window is outside 24-48 hour requirement."
+      },
+      "input": {
+        "product": "milo-core",
+        "version": "1.2.3",
+        "version_bump_locations": [
+          "src/version.py"
+        ],
+        "tag": {
+          "name": "v1.2.3",
+          "annotated": true,
+          "moved": false
+        },
+        "changelog": {
+          "has_entry_for_version": true,
+          "unreleased_section_moved": true
+        },
+        "release_notes": {
+          "present": true,
+          "breaking_changes": false,
+          "migration_steps": "none"
+        },
+        "approver": "jane.doe",
+        "approval": {
+          "hitl_recorded": true
+        },
+        "rollout_plan": {
+          "present": true
+        },
+        "rollback_plan": {
+          "present": true,
+          "testable": false
+        },
+        "health_check": {
+          "window_hours": 10
+        },
+        "artifacts": {
+          "sealed": true,
+          "checksum_manifest": true,
+          "verified_before_announcement": true
+        },
+        "tests": {
+          "passing": true
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"release_notes.breaking_changes\",\"detail\":\"release_notes.breaking_changes must be a list\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only product and version provided; all other required fields are absent."
+      },
+      "input": {
+        "product": "milo-core",
+        "version": "1.2.3"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"release-readiness-verdict\",\"atom_version\":\"0.1.0\",\"product\":\"milo-core\",\"version\":\"1.2.3\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"bars\":{\"control\":\"insufficient_evidence\",\"understanding\":\"insufficient_evidence\",\"management\":\"insufficient_evidence\",\"lifecycle\":\"insufficient_evidence\",\"stability\":\"insufficient_evidence\"},\"checks\":[{\"bar\":\"control\",\"check\":\"version_is_semver\",\"status\":\"pass\",\"evidence\":\"version='1.2.3'\"},{\"bar\":\"control\",\"check\":\"release_is_tagged\",\"status\":\"missing\",\"evidence\":\"tag=None expected v1.2.3\"},{\"bar\":\"control\",\"check\":\"tag_is_annotated\",\"status\":\"missing\",\"evidence\":\"annotated tag (skill: annotated tags, signed when keys exist)\"},{\"bar\":\"control\",\"check\":\"published_tag_not_moved\",\"status\":\"missing\",\"evidence\":\"skill red line: never move a published tag\"},{\"bar\":\"control\",\"check\":\"version_bumped_in_exactly_one_place\",\"status\":\"missing\",\"evidence\":\"version_bump_locations=None\"},{\"bar\":\"understanding\",\"check\":\"changelog_entry_for_this_version\",\"status\":\"missing\",\"evidence\":\"Keep-a-Changelog: entry for this version ships in the same change\"},{\"bar\":\"understanding\",\"check\":\"unreleased_section_moved_under_version\",\"status\":\"missing\",\"evidence\":\"[Unreleased] entries moved under the version at release\"},{\"bar\":\"understanding\",\"check\":\"release_notes_present\",\"status\":\"missing\",\"evidence\":\"user-facing notes: what changed, why it matters\"},{\"bar\":\"understanding\",\"check\":\"breaking_changes_have_migration_steps\",\"status\":\"missing\",\"evidence\":\"no breaking changes declared\"},{\"bar\":\"management\",\"check\":\"approver_named\",\"status\":\"missing\",\"evidence\":\"rollout plan names the approver\"},{\"bar\":\"management\",\"check\":\"human_approval_recorded\",\"status\":\"missing\",\"evidence\":\"skill red line: deploys stay HITL \u2014 automation prepares, humans approve\"},{\"bar\":\"management\",\"check\":\"rollout_plan_present\",\"status\":\"missing\",\"evidence\":\"canary/staged where feasible\"},{\"bar\":\"lifecycle\",\"check\":\"rollback_plan_present\",\"status\":\"missing\",\"evidence\":\"the rollback path is written before rolling out\"},{\"bar\":\"lifecycle\",\"check\":\"rollback_plan_testable\",\"status\":\"missing\",\"evidence\":\"quality gate: rollback plan exists and is testable\"},{\"bar\":\"lifecycle\",\"check\":\"post_release_health_window_24_to_48h\",\"status\":\"missing\",\"evidence\":\"window_hours=None (skill: verify health for 24\u201348h)\"},{\"bar\":\"stability\",\"check\":\"artifacts_sealed\",\"status\":\"missing\",\"evidence\":\"hash + sign build artifacts; manifest attached\"},{\"bar\":\"stability\",\"check\":\"checksum_manifest_present\",\"status\":\"missing\",\"evidence\":\"provenance manifest present\"},{\"bar\":\"stability\",\"check\":\"artifacts_verified_before_announcement\",\"status\":\"missing\",\"evidence\":\"quality gate: artifacts verified (checksums/signature) before announcement\"},{\"bar\":\"stability\",\"check\":\"tests_passing\",\"status\":\"missing\",\"evidence\":\"the release's own test evidence passes\"}],\"summary\":\"1 pass, 0 fail, 18 missing of 19 checks across five bars.\",\"stamp\":\"RELEASE-READINESS VERDICT\\nproduct: milo-core  version: 1.2.3\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  control        insufficient_evidence\\n  understanding  insufficient_evidence\\n  management     insufficient_evidence\\n  lifecycle      insufficient_evidence\\n  stability      insufficient_evidence\\n1 pass, 0 fail, 18 missing of 19 checks across five bars.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input contains type violations: product is integer instead of string, version_bump_locations is string instead of list."
+      },
+      "input": {
+        "product": 123,
+        "version": "1.2.3",
+        "version_bump_locations": "not-a-list",
+        "tag": "invalid-object-type"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"product\",\"detail\":\"product must be a string\"}"
+        }
+      ]
+    }
+  ]
+}

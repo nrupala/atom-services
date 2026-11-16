@@ -1,0 +1,189 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "pack": "auth-v1",
+        "decision_model": {
+          "decisions_enumerated": true,
+          "input_schema_defined": true,
+          "default_deny": true
+        },
+        "policies": [
+          {
+            "id": "p1",
+            "default": "deny"
+          },
+          {
+            "id": "p2",
+            "default": "deny"
+          }
+        ],
+        "policy_code": {
+          "rules_small_and_composable": true,
+          "data_separated_from_logic": true,
+          "policy_data_versioned": true,
+          "decision_explanations_available": true
+        },
+        "tests": [
+          {
+            "policy_id": "p1",
+            "kind": "positive"
+          },
+          {
+            "policy_id": "p1",
+            "kind": "negative"
+          },
+          {
+            "policy_id": "p1",
+            "kind": "edge"
+          },
+          {
+            "policy_id": "p2",
+            "kind": "positive"
+          },
+          {
+            "policy_id": "p2",
+            "kind": "negative"
+          },
+          {
+            "policy_id": "p2",
+            "kind": "edge"
+          }
+        ],
+        "testing": {
+          "tests_green": true,
+          "lint_format_clean": true,
+          "key_roles_coverage_declared": true
+        },
+        "rollout": {
+          "shadow_completed": true,
+          "staged_before_production": true,
+          "break_glass_documented_gated_audited": true,
+          "break_glass_tested": true,
+          "silent_policy_edits": false
+        },
+        "decision_logs": {
+          "record_who_decision_version_reason": true,
+          "retained_immutably": true,
+          "full_in_sensitive_flows": true
+        },
+        "governance": {
+          "second_pair_of_eyes_on_prs": true,
+          "version_and_changelog": true,
+          "human_summary_in_sync_with_code": true
+        },
+        "enforcement": {
+          "points_inventoried": true,
+          "failure_mode_chosen_per_surface": true,
+          "sensitive_surfaces_fail_closed": true,
+          "bypass_paths_present": false
+        }
+      },
+      "expect": {
+        "outcome": "READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: policy_count=2, tested_policy_count=2, test_count=6, test_coverage_ratio='1.0000'"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "pack": "auth-v1",
+        "decision_model": {
+          "decisions_enumerated": true,
+          "input_schema_defined": true,
+          "default_deny": true
+        },
+        "policies": [
+          {
+            "id": "p1",
+            "default": "allow"
+          }
+        ],
+        "policy_code": {
+          "rules_small_and_composable": true,
+          "data_separated_from_logic": true,
+          "policy_data_versioned": true,
+          "decision_explanations_available": true
+        },
+        "tests": [
+          {
+            "policy_id": "p1",
+            "kind": "positive"
+          }
+        ],
+        "testing": {
+          "tests_green": true,
+          "lint_format_clean": true,
+          "key_roles_coverage_declared": true
+        },
+        "rollout": {
+          "shadow_completed": true,
+          "staged_before_production": true,
+          "break_glass_documented_gated_audited": true,
+          "break_glass_tested": true,
+          "silent_policy_edits": true
+        },
+        "decision_logs": {
+          "record_who_decision_version_reason": true,
+          "retained_immutably": true,
+          "full_in_sensitive_flows": true
+        },
+        "governance": {
+          "second_pair_of_eyes_on_prs": true,
+          "version_and_changelog": true,
+          "human_summary_in_sync_with_code": true
+        },
+        "enforcement": {
+          "points_inventoried": true,
+          "failure_mode_chosen_per_surface": true,
+          "sensitive_surfaces_fail_closed": true,
+          "bypass_paths_present": true
+        }
+      },
+      "expect": {
+        "outcome": "NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "default_deny",
+          "silent_policy_edits",
+          "bypass_paths_present",
+          "unit_tests_per_rule"
+        ],
+        "notes": "Violates red lines: default-allow, silent edits, bypass paths, and incomplete test coverage per rule."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "pack": "minimal-pack"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required boolean fields for policy evaluation."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "pack": "bad-types",
+        "decision_model": "not-an-object",
+        "policies": "not-a-list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input schema violation: expected objects/lists, received primitives."
+      }
+    }
+  ]
+}

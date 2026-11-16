@@ -1,0 +1,229 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: acp-protocol-integration-review
+
+=== contract.yaml ===
+service_name: acp-protocol-integration-review
+display_name: Acp protocol integration review
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:acp-engineering
+binding:
+  skill: acp-engineering
+  skill_path: workspace/mymilo-build/skills/acp-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/acp_protocol_integration_review.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_acp_protocol_integration_review.py — 37 tests, all passing 2026-11-15
+keys:
+  namespace: acp_protocol_integration_review
+  prefix: atm_1_acp_protocol_integration_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Agent protocol integration builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# ACP protocol integration review — `acp-protocol-integration-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Speak both ACPs — Agent Client Protocol sessions and Agent Communication Protocol runs, done right.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Agent protocol integration builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the ACP integration manifest
+
+The caller submits one JSON manifest: a declared review pack for one
+ACP integration. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`INTEGRATION_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `implementation` (string; carried into the verdict output, not itself checked) | — |
+| `protocol.flavor` (string; must be `"ACP-client"` or `"ACP-comm"` to pass — computed, see below) | disambiguation_and_scope |
+| `protocol.disambiguated_naming` | disambiguation_and_scope |
+| `protocol.spec_version_documented` | disambiguation_and_scope |
+| `protocol.supported_subset_documented` | disambiguation_and_scope |
+| `adapter.thin` | adapter_architecture |
+| `adapter.single_core_protocol_at_edge` | adapter_architecture |
+| `adapter.business_logic_in_wire_layer` (must be `false` to pass) | adapter_architecture |
+| `surface.client_flow_complete` (required only when the flavour is `ACP-client`; otherwise the check passes as not applicable) | protocol_surface |
+| `surface.client_permissions_handled` (required only when the flavour is `ACP-client`; otherwise not applicable) | protocol_surface |
+| `surface.comm_endpoints_complete` (required only when the flavour is `ACP-comm`; otherwise not applicable) | protocol_surface |
+| `surface.comm_message_parts_typed` (required only when the flavour is `ACP-comm`; otherwise not applicable) | protocol_surface |
+| `lifecycle.unknown_sessions_or_runs_handled` | lifecycle_correctness |
+| `lifecycle.cancels_handled` | lifecycle_correctness |
+| `lifecycle.errors_handled` | lifecycle_correctness |
+| `lifecycle.reconnects_handled` | lifecycle_correctness |
+| `lifecycle.state_leaks_across_sessions` (must be `false` to pass) | lifecycle_correctness |
+| `streaming.updates_ordered` | streaming_discipline |
+| `streaming.chunk_sizes_bounded` | streaming_discipline |
+| `streaming.backpressure_addressed` | streaming_discipline |
+| `streaming.terminal_states_clear` | streaming_discipline |
+| `security.remote_endpoints_present` (gates the authentication check below) | security |
+| `security.remote_endpoints_authenticated` (required when remote endpoints are present — skill red line; otherwise the check passes as not applicable) | security |
+| `security.inputs_validated` | security |
+| `security.output_sizes_capped` | security |
+| `security.tool_execution_sandboxed` | security |
+| `honesty.unimplemented_modes_noted` | honesty_tests_and_upgrade_path |
+| `honesty.unsupported_features_faked` (must be `false` to pass — skill red line) | honesty_tests_and_upgrade_path |
+| `tests.scripted_client_handshake_covered` | honesty_tests_and_upgrade_path |
+| `tests.lifecycle_happy_error_cancel_covered` | honesty_tests_and_upgrade_path |
+| `tests.contract_tests_in_ci_per_protocol` | honesty_tests_and_upgrade_path |
+| `upgrade.sdk_upgrade_path_documented` | honesty_tests_and_upgrade_path |
+| `upgrade.adapter_tests_kept_for_sdk_swap` | honesty_tests_and_upgrade_path |
+
+One check is computed from the declared values, using only the
+skill's own vocabulary — no outside threshold is imported:
+
+- **Flavour recognition:** the skill speaks exactly two ACPs and
+  its quality gate requires disambiguated naming in docs/code
+  ("ACP-client" vs "ACP-comm"). The declared `protocol.flavor`
+  therefore passes only when it is exactly `"ACP-client"` (Agent
+  Client Protocol: `initialize` → `session/new` → `session/prompt`
+  with streamed `session/update` chunks; permissions; stdio
+  JSON-RPC) or exactly `"ACP-comm"` (Agent Communication Protocol:
+  REST — `GET /agents`, `POST /runs` (sync/async/stream),
+  `GET /runs/:id`, cancel; message parts with content types). Any
+  other declared value fails; a missing flavour is missing
+  evidence. The output also reports the derived `flavor_status`
+  (`acp_client` / `acp_comm` / `unrecognized` / null when no
+  flavour is declared). The flavour also gates the
+  protocol-surface checks: an ACP-client integration is checked on
+  its client flow and permissions handling, an ACP-comm
+  integration on its REST endpoints and typed message parts, and
+  the other flavour's checks pass as not applicable.
+
+Two skill statements are deliberately **not** turned into
+arithmetic: the skill says chunk sizes are bounded and output
+sizes are capped, but states no number for either, so both are
+declared booleans — no bound or cap is invented here.
+
+The verdict is one of `INTEGRATION_SOUND` (all 31 checks pass),
+`INTEGRATION_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: disambiguation_and_scope,
+adapter_architecture, protocol_surface, lifecycle_correctness,
+streaming_discipline, security, honesty_tests_and_upgrade_path.
+
+## Honest scoping
+
+This atom reviews **declared** evidence about an ACP integration —
+it does not connect to, probe, or run the integration, speak
+either protocol to it, execute its contract tests, or verify that
+a declared value is true. An integration is sound *on the caller's
+declared evidence*: an adapter that declares authenticated remote
+endpoints and ordered, bounded streaming passes those checks even
+if the running system does something else.
+
+Named exclusions: no check of *which* spec version is documented
+or *which* subset is supported, only that both are documented;
+no numeric bound on chunk or output sizes (the skill states
+none); no assessment of the business logic behind the adapter,
+only that none is declared in the wire layer; no live verification
+of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python oracle
+and TypeScript port built and parity-proven locally; no endpoint is
+live. Release happens one by one, by the owner's GO, per the approved
+queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

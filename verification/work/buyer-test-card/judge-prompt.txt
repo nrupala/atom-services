@@ -1,0 +1,870 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: buyer-test-card
+
+=== contract.yaml ===
+service_name: buyer-test-card
+display_name: Buyer-test card
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- knowledge-atom:#16
+binding:
+  skill: poc-validation
+  skill_path: workspace/mymilo-build/skills/poc-validation/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: buyer_test_card
+  prefix: atm_1_buyer_test_card_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Buyer test gates every offer
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Buyer-test card — `buyer-test-card`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Validate ideas with proof-of-concept work — hypothesis, success/kill criteria, timebox, evidence, decision.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Buyer test gates every offer**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the buyer-test-card manifest
+
+The caller submits one JSON manifest: one buyer-test / POC record — a
+single idea worked through the bound skill's method. Every field
+below is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but
+false / invalid = the check fails (`CARD_NOT_COMPLETE`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `idea` (string; carried into the verdict output, not itself checked) | — |
+| `decision` (string; computed, see below; also carried into the verdict output) | decision_and_findings |
+| `disposition` (string; computed, see below; also carried into the verdict output) | disposition_and_production_boundary |
+| `hypothesis.written` | hypothesis |
+| `hypothesis.single` | hypothesis |
+| `hypothesis.states_capability_under_constraints` | hypothesis |
+| `criteria.success_written_before_start` | criteria_upfront |
+| `criteria.kill_written_before_start` | criteria_upfront |
+| `criteria.agreed_by_decision_owner_before_build` | criteria_upfront |
+| `timebox.hard_limit_set` | timebox_and_scope |
+| `timebox.limit_days` (number; computed, see below) | timebox_and_scope |
+| `timebox.elapsed_days` (number; computed, see below) | timebox_and_scope |
+| `timebox.scope_limited_to_critical_path` | timebox_and_scope |
+| `timebox.scope_creep_refused_politely` | timebox_and_scope |
+| `evidence.from_measurements_tests_or_demo` | evidence |
+| `evidence.numbers_over_impressions` | evidence |
+| `evidence.stubs_and_mocks_recorded` | evidence |
+| `production_boundary.slid_into_production` (must be `false` to pass — skill red line) | disposition_and_production_boundary |
+| `production_boundary.claimed_as_production_evidence` (must be `false` to pass — skill red line) | disposition_and_production_boundary |
+| `findings.memo_written` | decision_and_findings |
+| `findings.rationale_references_criteria` | decision_and_findings |
+| `findings.decision_logged` | decision_and_findings |
+| `findings.not_tested_list_clear` | decision_and_findings |
+| `findings.adopting_routed_through_full_team_process` | decision_and_findings |
+
+Three checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic / set logic of
+the declared values — no outside threshold is imported:
+
+- **Timebox enforcement:** the skill's method step 3 is "Timebox:
+  hard limit (days, not weeks)" and its red lines bar unbounded
+  POCs. When the record declares a timebox limit in days and an
+  elapsed time in days, the timebox passes only when the limit is
+  positive, the elapsed time is not negative, and the elapsed time
+  does not exceed the declared limit. The skill states **no
+  numeric cap** on how many days a timebox may be, so none is
+  imposed — a 60-day declared limit honoured by the elapsed time
+  passes this check on its own terms. If either number is absent,
+  the check is missing evidence. The output reports
+  `timebox_limit_days` and `timebox_elapsed_days` (the declared
+  numbers, null when absent) and `timebox_overrun_days` (elapsed
+  minus limit, null when it cannot be computed).
+- **Decision vocabulary:** the skill's method step 6 names the
+  decision exactly — "adopt / adapt / abandon". A declared
+  `decision` therefore passes only when it is one of those three
+  stated entries (`adopt`, `adapt`, `abandon`); any other string
+  is present and fails, and an absent decision is missing
+  evidence. The value is validated as a string only, never
+  enum-checked as a type — membership is a verdict check, not a
+  type error.
+- **Disposition vocabulary:** the skill's method step 4 states
+  the disposition exactly — "Disposable by default: POC code is
+  throwaway unless explicitly slated for hardening — say which
+  it is". A declared `disposition` therefore passes only when it
+  is one of the two stated entries (`disposable`,
+  `slated_for_hardening`); any other string is present and fails,
+  and an absent disposition is missing evidence. The value is
+  validated as a string only, never enum-checked as a type —
+  membership is a verdict check, not a type error.
+
+**Fixed serialization rule:** the computed overrun is reported as
+a string with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three computed checks cannot be completed).
+
+The verdict is one of `CARD_COMPLETE` (all 22 checks pass),
+`CARD_NOT_COMPLETE` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+hypothesis, criteria_upfront, timebox_and_scope,
+disposition_and_production_boundary, evidence,
+decision_and_findings.
+
+## Honest scoping
+
+This atom audits a **declared** buyer-test / POC record — it does
+not run the POC, build anything, collect measurements, or verify
+that a declared value is true. It is a completeness and
+consistency audit, **not an idea review**: it never decides
+whether the hypothesis is true, whether the idea is worth
+pursuing, whether the success/kill criteria are the right ones,
+whether the evidence actually supports the decision, or whether
+the stated decision is wise — only that the record contains what
+the skill's method, quality gates, and red lines demand, and
+that its declared timebox arithmetic and its decision /
+disposition vocabulary agree with the skill's stated options. A
+card is complete *on the caller's declared evidence* even if the
+underlying POC was poorly run.
+
+Named exclusions: no POC execution or code of any kind; no
+numeric cap on the timebox (the skill's "days, not weeks" states
+no number, so none is invented — only the declared limit against
+the declared elapsed time is checked); no grading of evidence
+quality beyond the declared "numbers over impressions" step; no
+decision vocabulary beyond the three options the skill itself
+names, and no disposition vocabulary beyond the two states it
+names; no live verification of any declared fact. The register's
+named doubt for this atom — "Small alone; closest cross-inventory
+pair (cf. poc-validation) — merge decision is the owner's at
+build time" — is not resolved here: this atom is built standalone
+from the bound skill as scaffolded, and any merge stays the
+owner's decision.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "buyer-test-card",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "CARD_COMPLETE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. Computed overrun: 5 - 10 = -5.000000. computed_spot_checks: timebox_overrun_days = -5.000000",
+        "computed_spot_checks": {
+          "timebox_limit_days": 10,
+          "timebox_elapsed_days": 5,
+          "timebox_overrun_days": "-5.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "idea": "AI-driven inventory forecasting",
+        "decision": "adopt",
+        "disposition": "disposable",
+        "hypothesis": {
+          "written": true,
+          "single": true,
+          "states_capability_under_constraints": true
+        },
+        "criteria": {
+          "success_written_before_start": true,
+          "kill_written_before_start": true,
+          "agreed_by_decision_owner_before_build": true
+        },
+        "timebox": {
+          "hard_limit_set": true,
+          "limit_days": 10,
+          "elapsed_days": 5,
+          "scope_limited_to_critical_path": true,
+          "scope_creep_refused_politely": true
+        },
+        "evidence": {
+          "from_measurements_tests_or_demo": true,
+          "numbers_over_impressions": true,
+          "stubs_and_mocks_recorded": true
+        },
+        "production_boundary": {
+          "slid_into_production": false,
+          "claimed_as_production_evidence": false
+        },
+        "findings": {
+          "memo_written": true,
+          "rationale_references_criteria": true,
+          "decision_logged": true,
+          "not_tested_list_clear": true,
+          "adopting_routed_through_full_team_process": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "buyer-test-card",
+        "atom_version": "0.1.0",
+        "idea": "AI-driven inventory forecasting",
+        "decision": "adopt",
+        "disposition": "disposable",
+        "verdict": "CARD_COMPLETE",
+        "sections": {
+          "hypothesis": "pass",
+          "criteria_upfront": "pass",
+          "timebox_and_scope": "pass",
+          "disposition_and_production_boundary": "pass",
+          "evidence": "pass",
+          "decision_and_findings": "pass"
+        },
+        "checks": [
+          {
+            "section": "hypothesis",
+            "check": "hypothesis_written",
+            "status": "pass",
+            "evidence": "method step 1: one hypothesis is written down"
+          },
+          {
+            "section": "hypothesis",
+            "check": "single_hypothesis",
+            "status": "pass",
+            "evidence": "method step 1: the record carries one hypothesis, not several"
+          },
+          {
+            "section": "hypothesis",
+            "check": "hypothesis_states_capability_under_constraints",
+            "status": "pass",
+            "evidence": "method step 1: the hypothesis is in the stated form \u2014 X can do Y under constraints Z"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "success_criteria_written_before_start",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: success criteria are written before the start"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "kill_criteria_written_before_start",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: kill criteria are written before the start"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "criteria_agreed_by_decision_owner_before_build",
+            "status": "pass",
+            "evidence": "method step 2: the success and kill criteria are agreed by the decision owner before the build"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "timebox_hard_limit_set",
+            "status": "pass",
+            "evidence": "method step 3 / red line: a hard timebox limit is set \u2014 no unbounded POCs"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "timebox_within_declared_limit",
+            "status": "pass",
+            "evidence": "method step 3 / quality gate: the elapsed days do not exceed the declared timebox limit in days, the limit is positive, and the elapsed time is not negative \u2014 the skill states no numeric cap, so only the declared numbers are compared"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "scope_limited_to_critical_path",
+            "status": "pass",
+            "evidence": "method step 3: scope is the critical path, nothing more"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "scope_creep_refused_politely",
+            "status": "pass",
+            "evidence": "quality gate: scope creep is refused politely"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "disposition_is_a_stated_option",
+            "status": "pass",
+            "evidence": "method step 4: the disposition says which it is \u2014 disposable (throwaway by default) or explicitly slated_for_hardening"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "no_silent_poc_to_production",
+            "status": "pass",
+            "evidence": "red line: no silent POC-to-production gradient \u2014 the POC does not slide into production"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "poc_result_not_claimed_as_production_evidence",
+            "status": "pass",
+            "evidence": "red line: 'it worked in the POC' is never claimed as production evidence"
+          },
+          {
+            "section": "evidence",
+            "check": "evidence_from_measurements_tests_or_demo",
+            "status": "pass",
+            "evidence": "method step 5: evidence is measurements, tests, or a demo"
+          },
+          {
+            "section": "evidence",
+            "check": "evidence_numbers_over_impressions",
+            "status": "pass",
+            "evidence": "method step 5: the evidence is numbers over impressions"
+          },
+          {
+            "section": "evidence",
+            "check": "stubs_and_mocks_recorded",
+            "status": "pass",
+            "evidence": "method step 5: what was stubbed or mocked is recorded"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "findings_memo_written",
+            "status": "pass",
+            "evidence": "quality gate: a findings memo is written, with decision and evidence"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_is_a_stated_option",
+            "status": "pass",
+            "evidence": "method step 6: the decision is one of the options the skill names \u2014 adopt, adapt, or abandon"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_rationale_references_criteria",
+            "status": "pass",
+            "evidence": "method step 6: the written rationale references the criteria"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_logged",
+            "status": "pass",
+            "evidence": "method step 6: the decision is logged"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "not_tested_list_clear",
+            "status": "pass",
+            "evidence": "quality gate: a clear 'not tested / not included' list is present"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "adopting_routed_through_full_team_process",
+            "status": "pass",
+            "evidence": "method step 7: if adopting, the work is routed through the full team process (spec, build, test, review) \u2014 POCs never slide into production"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "timebox_limit_days": 10,
+        "timebox_elapsed_days": 5,
+        "timebox_overrun_days": "-5.000000",
+        "summary": "22 pass, 0 fail, 0 missing of 22 checks across six sections.",
+        "stamp": "BUYER-TEST CARD\nidea: AI-driven inventory forecasting\nVERDICT: CARD_COMPLETE\n  hypothesis                           pass\n  criteria_upfront                     pass\n  timebox_and_scope                    pass\n  disposition_and_production_boundary  pass\n  evidence                             pass\n  decision_and_findings                pass\n22 pass, 0 fail, 0 missing of 22 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "CARD_NOT_COMPLETE",
+        "http": 200,
+        "failing_checks": [
+          "timebox_within_declared_limit",
+          "disposition_is_a_stated_option",
+          "no_silent_poc_to_production",
+          "poc_result_not_claimed_as_production_evidence",
+          "decision_is_a_stated_option"
+        ],
+        "notes": "Decision 'maybe' is invalid, disposition 'production-ready' is invalid, production_boundary flags are true (violating red lines), and timebox elapsed exceeds limit.",
+        "computed_spot_checks": {
+          "timebox_limit_days": 5,
+          "timebox_elapsed_days": 10,
+          "timebox_overrun_days": "5.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "idea": "Bad POC",
+        "decision": "maybe",
+        "disposition": "production-ready",
+        "hypothesis": {
+          "written": true,
+          "single": true,
+          "states_capability_under_constraints": true
+        },
+        "criteria": {
+          "success_written_before_start": true,
+          "kill_written_before_start": true,
+          "agreed_by_decision_owner_before_build": true
+        },
+        "timebox": {
+          "hard_limit_set": true,
+          "limit_days": 5,
+          "elapsed_days": 10,
+          "scope_limited_to_critical_path": true,
+          "scope_creep_refused_politely": true
+        },
+        "evidence": {
+          "from_measurements_tests_or_demo": true,
+          "numbers_over_impressions": true,
+          "stubs_and_mocks_recorded": true
+        },
+        "production_boundary": {
+          "slid_into_production": true,
+          "claimed_as_production_evidence": true
+        },
+        "findings": {
+          "memo_written": true,
+          "rationale_references_criteria": true,
+          "decision_logged": true,
+          "not_tested_list_clear": true,
+          "adopting_routed_through_full_team_process": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "buyer-test-card",
+        "atom_version": "0.1.0",
+        "idea": "Bad POC",
+        "decision": "maybe",
+        "disposition": "production-ready",
+        "verdict": "CARD_NOT_COMPLETE",
+        "sections": {
+          "hypothesis": "pass",
+          "criteria_upfront": "pass",
+          "timebox_and_scope": "fail",
+          "disposition_and_production_boundary": "fail",
+          "evidence": "pass",
+          "decision_and_findings": "fail"
+        },
+        "checks": [
+          {
+            "section": "hypothesis",
+            "check": "hypothesis_written",
+            "status": "pass",
+            "evidence": "method step 1: one hypothesis is written down"
+          },
+          {
+            "section": "hypothesis",
+            "check": "single_hypothesis",
+            "status": "pass",
+            "evidence": "method step 1: the record carries one hypothesis, not several"
+          },
+          {
+            "section": "hypothesis",
+            "check": "hypothesis_states_capability_under_constraints",
+            "status": "pass",
+            "evidence": "method step 1: the hypothesis is in the stated form \u2014 X can do Y under constraints Z"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "success_criteria_written_before_start",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: success criteria are written before the start"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "kill_criteria_written_before_start",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: kill criteria are written before the start"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "criteria_agreed_by_decision_owner_before_build",
+            "status": "pass",
+            "evidence": "method step 2: the success and kill criteria are agreed by the decision owner before the build"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "timebox_hard_limit_set",
+            "status": "pass",
+            "evidence": "method step 3 / red line: a hard timebox limit is set \u2014 no unbounded POCs"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "timebox_within_declared_limit",
+            "status": "fail",
+            "evidence": "method step 3 / quality gate: the elapsed days do not exceed the declared timebox limit in days, the limit is positive, and the elapsed time is not negative \u2014 the skill states no numeric cap, so only the declared numbers are compared"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "scope_limited_to_critical_path",
+            "status": "pass",
+            "evidence": "method step 3: scope is the critical path, nothing more"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "scope_creep_refused_politely",
+            "status": "pass",
+            "evidence": "quality gate: scope creep is refused politely"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "disposition_is_a_stated_option",
+            "status": "fail",
+            "evidence": "method step 4: the disposition says which it is \u2014 disposable (throwaway by default) or explicitly slated_for_hardening"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "no_silent_poc_to_production",
+            "status": "fail",
+            "evidence": "red line: no silent POC-to-production gradient \u2014 the POC does not slide into production"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "poc_result_not_claimed_as_production_evidence",
+            "status": "fail",
+            "evidence": "red line: 'it worked in the POC' is never claimed as production evidence"
+          },
+          {
+            "section": "evidence",
+            "check": "evidence_from_measurements_tests_or_demo",
+            "status": "pass",
+            "evidence": "method step 5: evidence is measurements, tests, or a demo"
+          },
+          {
+            "section": "evidence",
+            "check": "evidence_numbers_over_impressions",
+            "status": "pass",
+            "evidence": "method step 5: the evidence is numbers over impressions"
+          },
+          {
+            "section": "evidence",
+            "check": "stubs_and_mocks_recorded",
+            "status": "pass",
+            "evidence": "method step 5: what was stubbed or mocked is recorded"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "findings_memo_written",
+            "status": "pass",
+            "evidence": "quality gate: a findings memo is written, with decision and evidence"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_is_a_stated_option",
+            "status": "fail",
+            "evidence": "method step 6: the decision is one of the options the skill names \u2014 adopt, adapt, or abandon"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_rationale_references_criteria",
+            "status": "pass",
+            "evidence": "method step 6: the written rationale references the criteria"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_logged",
+            "status": "pass",
+            "evidence": "method step 6: the decision is logged"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "not_tested_list_clear",
+            "status": "pass",
+            "evidence": "quality gate: a clear 'not tested / not included' list is present"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "adopting_routed_through_full_team_process",
+            "status": "pass",
+            "evidence": "method step 7: if adopting, the work is routed through the full team process (spec, build, test, review) \u2014 POCs never slide into production"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "timebox_limit_days": 5,
+        "timebox_elapsed_days": 10,
+        "timebox_overrun_days": "5.000000",
+        "summary": "17 pass, 5 fail, 0 missing of 22 checks across six sections.",
+        "stamp": "BUYER-TEST CARD\nidea: Bad POC\nVERDICT: CARD_NOT_COMPLETE\n  hypothesis                           pass\n  criteria_upfront                     pass\n  timebox_and_scope                    fail\n  disposition_and_production_boundary  fail\n  evidence                             pass\n  decision_and_findings                fail\n17 pass, 5 fail, 0 missing of 22 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most required fields are absent, triggering insufficient evidence status."
+      },
+      "input": {
+        "idea": "Minimal test"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "buyer-test-card",
+        "atom_version": "0.1.0",
+        "idea": "Minimal test",
+        "decision": null,
+        "disposition": null,
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "hypothesis": "insufficient_evidence",
+          "criteria_upfront": "insufficient_evidence",
+          "timebox_and_scope": "insufficient_evidence",
+          "disposition_and_production_boundary": "insufficient_evidence",
+          "evidence": "insufficient_evidence",
+          "decision_and_findings": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "hypothesis",
+            "check": "hypothesis_written",
+            "status": "missing",
+            "evidence": "method step 1: one hypothesis is written down"
+          },
+          {
+            "section": "hypothesis",
+            "check": "single_hypothesis",
+            "status": "missing",
+            "evidence": "method step 1: the record carries one hypothesis, not several"
+          },
+          {
+            "section": "hypothesis",
+            "check": "hypothesis_states_capability_under_constraints",
+            "status": "missing",
+            "evidence": "method step 1: the hypothesis is in the stated form \u2014 X can do Y under constraints Z"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "success_criteria_written_before_start",
+            "status": "missing",
+            "evidence": "method step 2 / quality gate: success criteria are written before the start"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "kill_criteria_written_before_start",
+            "status": "missing",
+            "evidence": "method step 2 / quality gate: kill criteria are written before the start"
+          },
+          {
+            "section": "criteria_upfront",
+            "check": "criteria_agreed_by_decision_owner_before_build",
+            "status": "missing",
+            "evidence": "method step 2: the success and kill criteria are agreed by the decision owner before the build"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "timebox_hard_limit_set",
+            "status": "missing",
+            "evidence": "method step 3 / red line: a hard timebox limit is set \u2014 no unbounded POCs"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "timebox_within_declared_limit",
+            "status": "missing",
+            "evidence": "method step 3 / quality gate: the elapsed days do not exceed the declared timebox limit in days, the limit is positive, and the elapsed time is not negative \u2014 the skill states no numeric cap, so only the declared numbers are compared"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "scope_limited_to_critical_path",
+            "status": "missing",
+            "evidence": "method step 3: scope is the critical path, nothing more"
+          },
+          {
+            "section": "timebox_and_scope",
+            "check": "scope_creep_refused_politely",
+            "status": "missing",
+            "evidence": "quality gate: scope creep is refused politely"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "disposition_is_a_stated_option",
+            "status": "missing",
+            "evidence": "method step 4: the disposition says which it is \u2014 disposable (throwaway by default) or explicitly slated_for_hardening"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "no_silent_poc_to_production",
+            "status": "missing",
+            "evidence": "red line: no silent POC-to-production gradient \u2014 the POC does not slide into production"
+          },
+          {
+            "section": "disposition_and_production_boundary",
+            "check": "poc_result_not_claimed_as_production_evidence",
+            "status": "missing",
+            "evidence": "red line: 'it worked in the POC' is never claimed as production evidence"
+          },
+          {
+            "section": "evidence",
+            "check": "evidence_from_measurements_tests_or_demo",
+            "status": "missing",
+            "evidence": "method step 5: evidence is measurements, tests, or a demo"
+          },
+          {
+            "section": "evidence",
+            "check": "evidence_numbers_over_impressions",
+            "status": "missing",
+            "evidence": "method step 5: the evidence is numbers over impressions"
+          },
+          {
+            "section": "evidence",
+            "check": "stubs_and_mocks_recorded",
+            "status": "missing",
+            "evidence": "method step 5: what was stubbed or mocked is recorded"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "findings_memo_written",
+            "status": "missing",
+            "evidence": "quality gate: a findings memo is written, with decision and evidence"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_is_a_stated_option",
+            "status": "missing",
+            "evidence": "method step 6: the decision is one of the options the skill names \u2014 adopt, adapt, or abandon"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_rationale_references_criteria",
+            "status": "missing",
+            "evidence": "method step 6: the written rationale references the criteria"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "decision_logged",
+            "status": "missing",
+            "evidence": "method step 6: the decision is logged"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "not_tested_list_clear",
+            "status": "missing",
+            "evidence": "quality gate: a clear 'not tested / not included' list is present"
+          },
+          {
+            "section": "decision_and_findings",
+            "check": "adopting_routed_through_full_team_process",
+            "status": "missing",
+            "evidence": "method step 7: if adopting, the work is routed through the full team process (spec, build, test, review) \u2014 POCs never slide into production"
+          }
+        ],
+        "computed_status": null,
+        "timebox_limit_days": null,
+        "timebox_elapsed_days": null,
+        "timebox_overrun_days": null,
+        "summary": "0 pass, 0 fail, 22 missing of 22 checks across six sections.",
+        "stamp": "BUYER-TEST CARD\nidea: Minimal test\nVERDICT: INSUFFICIENT_EVIDENCE\n  hypothesis                           insufficient_evidence\n  criteria_upfront                     insufficient_evidence\n  timebox_and_scope                    insufficient_evidence\n  disposition_and_production_boundary  insufficient_evidence\n  evidence                             insufficient_evidence\n  decision_and_findings                insufficient_evidence\n0 pass, 0 fail, 22 missing of 22 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input schema violation: hypothesis field expects object, received string."
+      },
+      "input": {
+        "idea": "Malformed test",
+        "hypothesis": "this should be an object, not a string"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "hypothesis",
+        "detail": "hypothesis must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

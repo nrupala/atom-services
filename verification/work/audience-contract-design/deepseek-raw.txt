@@ -1,0 +1,150 @@
+# Independent recompute — audience-contract-design
+
+## Rules I extracted from SERVICE.md (before looking at outputs)
+
+**26 checks across six sections.** Let me enumerate them from the input-field table:
+
+- classes_and_paths: 4 path fields + `single_class_only_shipment` (must be false) = **5 checks**
+- single_truth: 2 positive + `truth_forked_per_class` (must be false) = **3 checks**
+- progressive_formality_and_failure: 1 formality + 4 failure = **5 checks**
+- authority_lattice: 4 lattice (conditional) + `dangerous_path_skips_lattice` (must be false) = **5 checks**
+- verification_by_class: 4 = **4 checks**
+- identity_by_class: 4 = **4 checks**
+
+Total: 5+3+5+5+4+4 = **26**. ✓ Matches the stated "26 checks."
+
+**Status rules:**
+- A field **absent** → `INSUFFICIENT_EVIDENCE` (missing).
+- A field present but false where true is required (or true where false is required) → `AUDIENCE_CONTRACT_INCOMPLETE` (fail).
+- Lattice checks: required only when `dangerous_actions_present == true`; otherwise pass as "not applicable."
+- `classes_with_path_count` = count of the four path fields that are `true`; **null when none of the four is declared**.
+- `computed_status` = `within_stated_limits_on_declared_evidence` / `outside_stated_limits_on_declared_evidence` / **null when any of the four class-path checks cannot be completed**.
+- Verdict: `AUDIENCE_CONTRACT_COMPLETE` if all 26 pass; `AUDIENCE_CONTRACT_INCOMPLETE` if any fail; `INSUFFICIENT_EVIDENCE` if none fail but evidence missing.
+
+---
+
+## Case 1: `full-pass` (test-artifact-001)
+
+### classes_and_paths (5 checks)
+- human_path_defined = true → pass
+- agent_path_defined = true → pass
+- system_path_defined = true → pass
+- software_path_defined = true → pass
+- single_class_only_shipment = false → required false → pass
+
+**classes_with_path_count** = count of true among {human, agent, system, software} = 1+1+1+1 = **4**. Artifact: 4 → **MATCH**.
+
+### single_truth (3 checks)
+- canonical_source_declared = true → pass
+- renderings_generated_not_maintained = true → pass
+- truth_forked_per_class = false → required false → pass
+
+### progressive_formality_and_failure (5 checks)
+- formality_progressive_declared = true → pass
+- human_failure_defined = true → pass
+- agent_failure_defined = true → pass
+- system_failure_defined = true → pass
+- software_failure_defined = true → pass
+
+### authority_lattice (5 checks)
+`dangerous_actions_present = true` → lattice checks are **required** (not N/A).
+- capability_required = true → pass
+- human_approval_required = true → pass
+- software_determinism_required = true → pass
+- system_audit_required = true → pass
+- dangerous_path_skips_lattice = false → required false → pass
+
+### verification_by_class (4 checks)
+- agents_verified_by_software = true → pass
+- humans_verified_by_evidence = true → pass
+- software_verified_by_spec_tests = true → pass
+- systems_verified_by_audit_trails = true → pass
+
+### identity_by_class (4 checks)
+- human_passkey_or_mfa = true → pass
+- agent_scoped_short_lived_tokens = true → pass
+- system_policy_engine = true → pass
+- software_service_creds_or_mtls = true → pass
+
+### Tally
+pass = 5+3+5+5+4+4 = **26**; fail = **0**; missing = **0**.
+
+- **verdict**: all 26 pass → `AUDIENCE_CONTRACT_COMPLETE`. Artifact: `AUDIENCE_CONTRACT_COMPLETE` → **MATCH**.
+- **computed_status**: all four class-path checks completed (all present, all true) → `within_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**.
+- **summary**: "26 pass, 0 fail, 0 missing of 26 checks" → **MATCH**.
+- **sections**: all six "pass" → **MATCH** (each section has zero fails/missing).
+
+---
+
+## Case 2: `violations` (test-artifact-002)
+
+### classes_and_paths (5 checks)
+- human_path_defined = true → pass
+- agent_path_defined = true → pass
+- system_path_defined = true → pass
+- software_path_defined = true → pass
+- single_class_only_shipment = **true** → required false → **FAIL**
+
+**classes_with_path_count** = 1+1+1+1 = **4**. Artifact: 4 → **MATCH**.
+
+### single_truth (3 checks)
+- canonical_source_declared = true → pass
+- renderings_generated_not_maintained = true → pass
+- truth_forked_per_class = **true** → required false → **FAIL**
+
+### progressive_formality_and_failure (5 checks)
+- formality_progressive_declared = true → pass
+- human_failure_defined = true → pass
+- agent_failure_defined = true → pass
+- system_failure_defined = true → pass
+- software_failure_defined = true → pass
+
+### authority_lattice (5 checks)
+`dangerous_actions_present = false` → the four lattice checks are **not applicable → pass** (regardless of the absent capability/approval/determinism/audit fields).
+- capability_required → N/A → pass
+- human_approval_required → N/A → pass
+- software_determinism_required → N/A → pass
+- system_audit_required → N/A → pass
+- dangerous_path_skips_lattice = **true** → required false → **FAIL**
+
+### verification_by_class (4 checks)
+All four = true → pass ×4.
+
+### identity_by_class (4 checks)
+All four = true → pass ×4.
+
+### Tally
+pass = 4 (classes) + 2 (single_truth) + 5 (prog/fail) + 4 (lattice N/A) + 4 (verif) + 4 (identity) = **23**; fail = **3** (single_class_only_shipment, truth_forked_per_class, dangerous_path_skips_lattice); missing = **0**.
+
+- **verdict**: any fail → `AUDIENCE_CONTRACT_INCOMPLETE`. Artifact: `AUDIENCE_CONTRACT_INCOMPLETE` → **MATCH**.
+- **computed_status**: all four class-path checks completed (all present, all true) → `within_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**. (Note: `computed_status` is about the four path checks only, not the red-line shipment flag — so it correctly stays "within" even though the shipment red line fails.)
+- **summary**: "23 pass, 3 fail, 0 missing of 26 checks" → **MATCH**.
+- **sections**: classes_and_paths fail, single_truth fail, progressive_formality_and_failure pass, authority_lattice fail, verification_by_class pass, identity_by_class pass → **MATCH** (each section's status = fail iff it contains ≥1 fail).
+
+### Planted-wrong-value confirmation
+The three planted wrong values are exactly:
+1. `classes.single_class_only_shipment = true` → fails `not_single_class_only_shipment` (classes_and_paths).
+2. `single_truth.truth_forked_per_class = true` → fails `truth_not_forked_per_class` (single_truth).
+3. `authority.dangerous_path_skips_lattice = true` → fails `dangerous_path_does_not_skip_lattice` (authority_lattice).
+
+The artifact's three failing checks are exactly these three, and no others. **Confirmed: the failing checks are exactly the ones the planted wrong values should fail.** The four lattice checks correctly pass as N/A because `dangerous_actions_present = false`, and the absent capability/approval/determinism/audit fields do **not** trigger `INSUFFICIENT_EVIDENCE` (they are only required when dangerous actions are present).
+
+---
+
+## Cross-check of headline computed values
+
+| Quantity | My recompute | Artifact | Result |
+|---|---|---|---|
+| full-pass classes_with_path_count | 4 | 4 | MATCH |
+| full-pass verdict | COMPLETE | COMPLETE | MATCH |
+| full-pass computed_status | within_stated_limits | within_stated_limits | MATCH |
+| full-pass summary | 26/0/0 of 26 | 26/0/0 of 26 | MATCH |
+| violations classes_with_path_count | 4 | 4 | MATCH |
+| violations verdict | INCOMPLETE | INCOMPLETE | MATCH |
+| violations computed_status | within_stated_limits | within_stated_limits | MATCH |
+| violations summary | 23/3/0 of 26 | 23/3/0 of 26 | MATCH |
+| violations failing checks | {single_class_only_shipment, truth_forked_per_class, dangerous_path_skips_lattice} | same three | MATCH |
+
+All computed quantities and section statuses agree with my independent recompute. No rounding is involved (all quantities are integer counts); serialization is plain integer / string enum, and the artifact uses the same.
+
+AGREEMENT: full

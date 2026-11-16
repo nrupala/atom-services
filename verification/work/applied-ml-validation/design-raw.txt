@@ -1,0 +1,121 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "model": "test-model-v1",
+        "framing": {
+          "decision_named": true,
+          "error_costs_stated": true,
+          "alternatives_considered": true
+        },
+        "baseline": {
+          "defined": true,
+          "baseline_score": 0.5,
+          "model_score": 0.6,
+          "metric_direction": "higher_is_better",
+          "project_stopped_because_baseline_not_beaten": false
+        },
+        "data": {
+          "provenance_documented": true,
+          "licensing_and_consent_confirmed": true,
+          "label_quality_checked": true,
+          "edge_cases_covered": true,
+          "leakage_audited": true,
+          "training_without_rights_or_consent": false
+        },
+        "validation": {
+          "temporal_data": true,
+          "grouped_data": true,
+          "split_type": "time_and_group"
+        },
+        "ladder": {
+          "baseline_rung_evaluated": true,
+          "data_and_splits_held_fixed": true,
+          "complexity_justified_by_evaluation": true,
+          "selected_model_rung": "linear",
+          "rungs_evaluated": ["majority_heuristic", "linear"]
+        },
+        "evaluation": {
+          "decision_aligned_metrics_used": true,
+          "slice_performance_reported": true,
+          "calibration_reported": true,
+          "uncertainty_via_resampling_reported": true,
+          "conclusion_change_condition_stated": true,
+          "imbalanced_or_high_stakes": false,
+          "accuracy_only_reporting": false
+        },
+        "robustness": {
+          "distribution_shift_evaluated": true,
+          "adversarial_inputs_evaluated": true,
+          "known_failure_modes_documented": true,
+          "data_limitations_documented": true,
+          "cherry_picked_examples_presented": false,
+          "claims_exceed_measured_capability": false
+        },
+        "deployment": {
+          "data_code_model_versioned_together": true,
+          "drift_monitoring_planned": true,
+          "live_performance_monitoring_planned": true,
+          "feedback_loops_monitored": true,
+          "rollback_path_defined": true,
+          "regular_revalidation_planned": true
+        },
+        "documentation": {
+          "model_card_written_and_versioned": true
+        }
+      },
+      "expect": {
+        "outcome": "VALIDATED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: baseline_improvement=0.1000, selected_rung_index=1"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "model": "fail-model",
+        "framing": { "decision_named": true, "error_costs_stated": true, "alternatives_considered": true },
+        "baseline": { "defined": true, "baseline_score": 0.8, "model_score": 0.7, "metric_direction": "higher_is_better", "project_stopped_because_baseline_not_beaten": false },
+        "data": { "provenance_documented": true, "licensing_and_consent_confirmed": true, "label_quality_checked": true, "edge_cases_covered": true, "leakage_audited": true, "training_without_rights_or_consent": true },
+        "validation": { "temporal_data": true, "grouped_data": false, "split_type": "random" },
+        "ladder": { "baseline_rung_evaluated": true, "data_and_splits_held_fixed": true, "complexity_justified_by_evaluation": true, "selected_model_rung": "deep", "rungs_evaluated": ["deep"] },
+        "evaluation": { "decision_aligned_metrics_used": true, "slice_performance_reported": true, "calibration_reported": true, "uncertainty_via_resampling_reported": true, "conclusion_change_condition_stated": true, "imbalanced_or_high_stakes": true, "accuracy_only_reporting": true },
+        "robustness": { "distribution_shift_evaluated": true, "adversarial_inputs_evaluated": true, "known_failure_modes_documented": true, "data_limitations_documented": true, "cherry_picked_examples_presented": true, "claims_exceed_measured_capability": true },
+        "deployment": { "data_code_model_versioned_together": true, "drift_monitoring_planned": true, "live_performance_monitoring_planned": true, "feedback_loops_monitored": true, "rollback_path_defined": true, "regular_revalidation_planned": true },
+        "documentation": { "model_card_written_and_versioned": true }
+      },
+      "expect": {
+        "outcome": "NOT_VALIDATED",
+        "http": 200,
+        "failing_checks": ["baseline_beaten", "training_without_rights_or_consent", "splits_match_data", "ladder_order", "accuracy_only_reporting", "cherry_picked_examples", "claims_exceed_measured_capability"],
+        "notes": "Multiple red lines and consistency rules violated."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": { "model": "minimal-model", "framing": { "decision_named": true } },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of fields required for full validation."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": { "model": 123, "framing": "not-an-object" },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for model and framing fields."
+      }
+    }
+  ]
+}

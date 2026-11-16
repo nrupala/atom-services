@@ -1,0 +1,138 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "site": "example.com",
+        "scan": {
+          "scans_scheduled": true,
+          "scan_records_status": true,
+          "scan_records_content_hash": true,
+          "dashboard_lists_rot_with_owners": true,
+          "last_scan_within_cadence": true
+        },
+        "links": [
+          {
+            "id": "link_01",
+            "url": "https://example.com/ref1",
+            "is_published_citation": true,
+            "observed_status": "ok",
+            "archived": true,
+            "capture_hash_present": true,
+            "capture_timestamp_present": true,
+            "capture_at_cite_time": true,
+            "canonicalized": true,
+            "stable_id_present": true,
+            "content_hash": "abc123",
+            "canonical_url": "https://example.com/ref1",
+            "notarized": true,
+            "repair_action": "none_needed",
+            "repair_logged": true
+          }
+        ],
+        "archive": {
+          "capture_format_warc_or_singlefile": true,
+          "fallback_chain_configured": true
+        },
+        "canonicalization": {
+          "tracker_params_stripped": true,
+          "redirects_resolved": true,
+          "dedupe_by_content_hash": true
+        },
+        "notarization": {
+          "hash_algorithm_sha256": true,
+          "timestamp_source": "rfc3161_tsa",
+          "evidence_bundle_complete": true,
+          "tool_versions_recorded": true,
+          "verification_recipe_published": true
+        },
+        "serving": {
+          "as_seen_views_available": true,
+          "live_vs_archive_diff_available": true,
+          "provenance_badge_shows_capture_date": true,
+          "provenance_badge_shows_verification_status": true,
+          "archived_presented_as_current": false,
+          "authorship_preserved": true
+        },
+        "repair": {
+          "repairs_logged": true,
+          "silent_drops_made": false
+        },
+        "compliance": {
+          "robots_and_tos_honored": true,
+          "rate_limits_respected": true,
+          "access_controls_bypassed": false,
+          "fabricated_captures_present": false
+        }
+      },
+      "expect": {
+        "outcome": "LINK_INTEGRITY_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: links_evaluated=1, citations_total=1, rotted_citations=0, unarchived_citations=0"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "site": "example.com",
+        "links": [
+          {
+            "id": "link_02",
+            "url": "https://example.com/dead",
+            "is_published_citation": true,
+            "observed_status": "dead",
+            "archived": false,
+            "capture_hash_present": false,
+            "capture_timestamp_present": false,
+            "canonicalized": true,
+            "stable_id_present": true,
+            "content_hash": "xyz789",
+            "canonical_url": "https://example.com/dead",
+            "notarized": false,
+            "repair_action": "none",
+            "repair_logged": false
+          }
+        ],
+        "notarization": {
+          "timestamp_source": "invalid_source"
+        }
+      },
+      "expect": {
+        "outcome": "LINK_INTEGRITY_UNSOUND",
+        "http": 200,
+        "failing_checks": ["archive_capture", "notarization", "repair_and_compliance"],
+        "notes": "Fails due to missing archive fields for citation, invalid timestamp source, and lack of repair for rotted link."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "site": "minimal_test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Manifest lacks required scan, link, and compliance fields."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "site": "malformed_test",
+        "scan": "not_an_object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input scan field expects an object, received string."
+      }
+    }
+  ]
+}

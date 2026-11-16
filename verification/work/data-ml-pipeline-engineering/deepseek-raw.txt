@@ -1,0 +1,116 @@
+# Independent recompute — data-ml-pipeline-engineering
+
+## Serialization rule (applied to every computed amount)
+
+Per SERVICE.md: round half up to 6dp via `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. All values below are exact integers or simple decimals, so rounding is a no-op; I show the arithmetic anyway.
+
+---
+
+## Case 1: `full-pass`
+
+### 1. Source entries (`sources_evaluated`)
+Datasets: `raw_logs` (name non-empty, rows=100 numeric) ✓; `user_data` (name non-empty, rows=50 numeric) ✓.
+- Complete entries = **2**. Artifact: `sources_evaluated: 2` → **MATCH**.
+
+### 2. Source rows total
+- Sum of per-dataset rows: 100 + 50 = **150**.
+- `floor(150 * 1000000 + 0.5)/1000000 = 150.000000`.
+- Declared `declared_total_rows` = 150.
+- Difference = declared − computed = 150 − 150 = **0** → `0.000000`.
+- Artifact: `computed_total_rows: "150.000000"`, `total_rows_difference: "0.000000"` → **MATCH**. Check `total_rows_matches_sum_of_source_rows` = pass (diff = 0) → **MATCH**.
+
+### 3. Split rows total
+- train 80 + eval 40 + test 30 = **150**.
+- `150.000000`. Declared `splits.declared_total_rows` = 150.
+- Difference = 150 − 150 = **0** → `0.000000`.
+- Artifact: `computed_split_total_rows: "150.000000"`, `split_total_difference: "0.000000"` → **MATCH**. Check = pass → **MATCH**.
+
+### 4. Latency vs caller budget
+- estimate 100.0, budget 200.0. Headroom = budget − estimate = 200 − 100 = **100** → `100.000000`.
+- 100 ≤ 200 → pass.
+- Artifact: `latency_headroom_ms: "100.000000"`, check pass → **MATCH**.
+
+### 5. Cost vs caller budget
+- estimate 50.0, budget 100.0. Headroom = 100 − 50 = **50** → `50.000000`.
+- 50 ≤ 100 → pass.
+- Artifact: `monthly_cost_headroom: "50.000000"`, check pass → **MATCH**.
+
+### 6. computed_status
+All five computed checks complete and within limits → `within_stated_limits_on_declared_evidence`. Artifact matches → **MATCH**.
+
+### 7. Verdict / summary
+All boolean fields true (and the two "must be false" fields — `silent_coercion_present`, `pii_in_training_data_without_lawful_basis` — are false), all 5 computed checks pass → 46 pass, 0 fail, 0 missing → `DATA_ML_PIPELINE_READY`. Artifact: `46 pass, 0 fail, 0 missing of 46 checks`, verdict READY → **MATCH**.
+
+---
+
+## Case 2: `violations`
+
+### 1. Source entries
+Same datasets, both complete → **2**. Artifact `sources_evaluated: 2` → **MATCH**. Check `source_entries_complete` = pass → **MATCH**.
+
+### 2. Source rows total
+- Sum = 100 + 50 = **150** → `150.000000`.
+- Declared = **999**.
+- Difference = 999 − 150 = **849** → `849.000000`.
+- Artifact: `computed_total_rows: "150.000000"`, `total_rows_difference: "849.000000"` → **MATCH**. Check `total_rows_matches_sum_of_source_rows` = fail (diff ≠ 0) → **MATCH** (planted 999 should fail).
+
+### 3. Split rows total
+- train 80 + eval 40 + test 30 = **150** → `150.000000`.
+- Declared = **100**.
+- Difference = 100 − 150 = **−50** → `-50.000000`.
+- Artifact: `computed_split_total_rows: "150.000000"`, `split_total_difference: "-50.000000"` → **MATCH**. Check = fail → **MATCH** (planted 100 should fail).
+
+### 4. Latency vs caller budget
+- estimate 500.0, budget 200.0. Headroom = 200 − 500 = **−300** → `-300.000000`.
+- −300 ≤ 0 → fail.
+- Artifact: `latency_headroom_ms: "-300.000000"`, check fail → **MATCH** (planted 500 > 200 should fail).
+
+### 5. Cost vs caller budget
+- estimate 500.0, budget 100.0. Headroom = 100 − 500 = **−400** → `-400.000000`.
+- −400 ≤ 0 → fail.
+- Artifact: `monthly_cost_headroom: "-400.000000"`, check fail → **MATCH** (planted 500 > 100 should fail).
+
+### 6. computed_status
+At least one computed check outside limits → `outside_stated_limits_on_declared_evidence`. Artifact matches → **MATCH**.
+
+### 7. Planted-wrong-value check audit
+The case plants exactly these wrong values:
+- `sources.declared_total_rows = 999` (should be 150) → fails `total_rows_matches_sum_of_source_rows` ✓
+- `splits.declared_total_rows = 100` (should be 150) → fails `split_total_matches_sum_of_split_rows` ✓
+- `serving.estimated_latency_ms = 500` (> budget 200) → fails `latency_within_caller_declared_budget` ✓
+- `serving.estimated_monthly_cost = 500` (> budget 100) → fails `cost_within_caller_declared_budget` ✓
+- `sources.silent_coercion_present = true` (must be false) → fails `no_silent_coercion` ✓
+- `privacy.pii_in_training_data_without_lawful_basis = true` (must be false) → fails `no_pii_in_training_data_without_lawful_basis` ✓
+
+The artifact's 6 failing checks are exactly: `total_rows_matches_sum_of_source_rows`, `no_silent_coercion`, `split_total_matches_sum_of_split_rows`, `no_pii_in_training_data_without_lawful_basis`, `latency_within_caller_declared_budget`, `cost_within_caller_declared_budget`. That is **exactly** the set the planted wrong values should fail — no extra, no missing. → **MATCH**.
+
+### 8. Verdict / summary
+6 fails → `DATA_ML_PIPELINE_NOT_READY`; 46 − 6 = 40 pass, 0 missing. Artifact: `40 pass, 6 fail, 0 missing of 46 checks`, verdict NOT_READY → **MATCH**. Section statuses: contracts_and_ingestion fail (2 fails), ml_hygiene_and_splits fail (2 fails), lifecycle_and_serving fail (2 fails), others pass → **MATCH**.
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case | Recomputed | Artifact | Result |
+|---|---|---|---|---|
+| sources_evaluated | full-pass | 2 | 2 | MATCH |
+| computed_total_rows | full-pass | 150.000000 | 150.000000 | MATCH |
+| total_rows_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| computed_split_total_rows | full-pass | 150.000000 | 150.000000 | MATCH |
+| split_total_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| latency_headroom_ms | full-pass | 100.000000 | 100.000000 | MATCH |
+| monthly_cost_headroom | full-pass | 50.000000 | 50.000000 | MATCH |
+| computed_status | full-pass | within | within | MATCH |
+| sources_evaluated | violations | 2 | 2 | MATCH |
+| computed_total_rows | violations | 150.000000 | 150.000000 | MATCH |
+| total_rows_difference | violations | 849.000000 | 849.000000 | MATCH |
+| computed_split_total_rows | violations | 150.000000 | 150.000000 | MATCH |
+| split_total_difference | violations | -50.000000 | -50.000000 | MATCH |
+| latency_headroom_ms | violations | -300.000000 | -300.000000 | MATCH |
+| monthly_cost_headroom | violations | -400.000000 | -400.000000 | MATCH |
+| computed_status | violations | outside | outside | MATCH |
+| failing-check set | violations | 6 named | 6 named | MATCH |
+
+Every computed quantity and every check status agrees with the recorded artifacts, and the violations case's failing checks are exactly the ones the planted wrong values should fail.
+
+AGREEMENT: full

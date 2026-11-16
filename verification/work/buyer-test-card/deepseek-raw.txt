@@ -1,0 +1,100 @@
+# Independent recompute — buyer-test-card
+
+## Computed quantities defined by SERVICE.md
+
+Three checks are computed, plus derived outputs: `timebox_overrun_days`, `computed_status`, `verdict`, `sections`, `summary`.
+
+### Case 1: `full-pass`
+
+Inputs: `limit_days = 10`, `elapsed_days = 5`, `decision = "adopt"`, `disposition = "disposable"`.
+
+**Timebox enforcement check** (`timebox_within_declared_limit`):
+- limit positive? 10 > 0 → yes
+- elapsed not negative? 5 ≥ 0 → yes
+- elapsed ≤ limit? 5 ≤ 10 → yes
+- → **pass**
+
+**Decision vocabulary:** `"adopt"` ∈ {adopt, adapt, abandon} → **pass**
+
+**Disposition vocabulary:** `"disposable"` ∈ {disposable, slated_for_hardening} → **pass**
+
+**Overrun:** elapsed − limit = 5 − 10 = **−5**.
+Serialization rule: `floor(v*1000000 + 0.5)/1000000`, then 6dp.
+- v = −5 → v*1000000 = −5000000 → +0.5 = −4999999.5 → floor = −5000000 → /1000000 = −5.0 → format `"-5.000000"`.
+
+**computed_status:** all three computed checks completed and pass → `within_stated_limits_on_declared_evidence`.
+
+**Verdict:** all 22 checks pass → `CARD_COMPLETE`.
+
+**Summary:** 22 pass, 0 fail, 0 missing of 22.
+
+| Quantity | Artifact | Recompute | Status |
+|---|---|---|---|
+| timebox_within_declared_limit | pass | pass | MATCH |
+| decision_is_a_stated_option | pass | pass | MATCH |
+| disposition_is_a_stated_option | pass | pass | MATCH |
+| timebox_overrun_days | "-5.000000" | "-5.000000" | MATCH |
+| computed_status | within_stated_limits_on_declared_evidence | same | MATCH |
+| verdict | CARD_COMPLETE | CARD_COMPLETE | MATCH |
+| summary | 22 pass, 0 fail, 0 missing | 22/0/0 | MATCH |
+
+All six sections pass (each section's checks all pass) → MATCH.
+
+### Case 2: `violations`
+
+Inputs: `limit_days = 5`, `elapsed_days = 10`, `decision = "maybe"`, `disposition = "production-ready"`, `slid_into_production = true`, `claimed_as_production_evidence = true`.
+
+**Timebox enforcement:**
+- limit positive? 5 > 0 → yes
+- elapsed not negative? 10 ≥ 0 → yes
+- elapsed ≤ limit? 10 ≤ 5 → **no** → **fail**
+
+**Decision vocabulary:** `"maybe"` ∉ {adopt, adapt, abandon} → **fail**
+
+**Disposition vocabulary:** `"production-ready"` ∉ {disposable, slated_for_hardening} → **fail**
+
+**Overrun:** 10 − 5 = **5**.
+- v = 5 → 5*1000000 = 5000000 → +0.5 = 5000000.5 → floor = 5000000 → /1000000 = 5.0 → `"5.000000"`.
+
+**computed_status:** a computed check fails → `outside_stated_limits_on_declared_evidence`.
+
+**Verdict:** any check fails → `CARD_NOT_COMPLETE`.
+
+**Planted wrong values → expected failing checks:**
+- `limit_days=5, elapsed_days=10` → `timebox_within_declared_limit` fails (1)
+- `decision="maybe"` → `decision_is_a_stated_option` fails (2)
+- `disposition="production-ready"` → `disposition_is_a_stated_option` fails (3)
+- `slid_into_production=true` → `no_silent_poc_to_production` fails (4)
+- `claimed_as_production_evidence=true` → `poc_result_not_claimed_as_production_evidence` fails (5)
+
+Expected: exactly 5 fails, in sections timebox_and_scope (1), disposition_and_production_boundary (3), decision_and_findings (1). All other 17 checks pass.
+
+**Artifact's failing checks:** `timebox_within_declared_limit`, `disposition_is_a_stated_option`, `no_silent_poc_to_production`, `poc_result_not_claimed_as_production_evidence`, `decision_is_a_stated_option` — exactly those 5. **MATCH.**
+
+**Sections:** hypothesis pass, criteria_upfront pass, timebox_and_scope fail, disposition_and_production_boundary fail, evidence pass, decision_and_findings fail → MATCH.
+
+**Summary:** 17 pass, 5 fail, 0 missing of 22 → MATCH.
+
+| Quantity | Artifact | Recompute | Status |
+|---|---|---|---|
+| timebox_within_declared_limit | fail | fail | MATCH |
+| decision_is_a_stated_option | fail | fail | MATCH |
+| disposition_is_a_stated_option | fail | fail | MATCH |
+| no_silent_poc_to_production | fail | fail | MATCH |
+| poc_result_not_claimed_as_production_evidence | fail | fail | MATCH |
+| timebox_overrun_days | "5.000000" | "5.000000" | MATCH |
+| computed_status | outside_stated_limits_on_declared_evidence | same | MATCH |
+| verdict | CARD_NOT_COMPLETE | CARD_NOT_COMPLETE | MATCH |
+| summary | 17 pass, 5 fail, 0 missing | 17/5/0 | MATCH |
+
+## Non-computed checks (spot-verified)
+
+The remaining 17 checks per case are direct boolean reads of declared fields (with the two production-boundary red lines inverted: pass when `false`). I verified each declared value maps to the artifact status:
+- Case 1: all declared booleans `true`, both boundary flags `false` → all pass. MATCH.
+- Case 2: all declared booleans `true` except the two boundary flags `true` → those two fail; everything else passes. MATCH.
+
+## Conclusion
+
+Every computed quantity, derived status, verdict, section rollup, and summary count in both recorded artifacts reproduces exactly from the inputs under the stated arithmetic and the `floor(v*1000000+0.5)/1000000` six-decimal serialization rule. The violations case fails exactly the five checks its planted wrong values should fail.
+
+AGREEMENT: full

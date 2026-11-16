@@ -1,0 +1,55 @@
+# Independent recompute — brand-mention-monitoring-triage-digest
+
+## Computed quantities defined by SERVICE.md
+
+Three computed checks plus derived outputs: `triage_dimensions_missing`, `triage_routes_missing`, `actions_without_archived_evidence`, `computed_status`, and the verdict/summary counts.
+
+### Case 1: `full-pass`
+
+**Triage-dimension coverage.** Stated set = {severity, reach, authenticity}. Declared `triage.dimensions` = [severity, reach, authenticity]. Missing = stated − declared = {} → empty list. Check passes (all three present). Artifact: `triage_dimensions_missing: []`, check `all_stated_triage_dimensions_used: pass`. **MATCH.**
+
+**Triage-route coverage.** Stated set = {ignore, monitor, reply, escalate, legal}. Declared = [ignore, monitor, reply, escalate, legal]. Missing = {} → empty. Check passes. Artifact: `triage_routes_missing: []`, check pass. **MATCH.**
+
+**Evidence for every action.** total=10, actions=5, archived=5.
+- Coherence: none negative (10,5,5 ≥ 0 ✓); actions ≤ total (5 ≤ 10 ✓).
+- Equality: archived == actions → 5 == 5 ✓.
+- `actions_without_archived_evidence` = actions − archived = 5 − 5 = **0**.
+Check passes. Artifact: `actions_without_archived_evidence: 0`, check pass. **MATCH.**
+
+**computed_status.** All three computed checks completed and pass → `within_stated_limits_on_declared_evidence`. Artifact matches. **MATCH.**
+
+**Verdict / summary.** 37 checks, all pass, 0 fail, 0 missing → `TRIAGE_DIGEST_READY`. Summary "37 pass, 0 fail, 0 missing of 37". Artifact matches. **MATCH.**
+
+### Case 2: `violations`
+
+Input declares only: `triage.dimensions=[severity, reach]`, `triage.routes=[ignore]`, `counts={10,5,2}`, `conduct.astroturfing...=true`. Everything else absent.
+
+**Triage-dimension coverage.** Stated {severity, reach, authenticity} − declared {severity, reach} = **{authenticity}**. List present and non-empty but incomplete → **fail**. Artifact: `triage_dimensions_missing: ["authenticity"]`, check fail. **MATCH.**
+
+**Triage-route coverage.** Stated {ignore, monitor, reply, escalate, legal} − declared {ignore} = **{monitor, reply, escalate, legal}**. Incomplete → **fail**. Artifact: `triage_routes_missing: ["monitor","reply","escalate","legal"]`, check fail. **MATCH.**
+
+**Evidence for every action.** total=10, actions=5, archived=2.
+- Coherence: none negative ✓; actions ≤ total (5 ≤ 10) ✓.
+- Equality: archived == actions → 2 == 5 ✗ → **fail**.
+- `actions_without_archived_evidence` = 5 − 2 = **3**.
+Artifact: `actions_without_archived_evidence: 3`, check fail. **MATCH.**
+
+**computed_status.** All three computed checks completed (all inputs readable); at least one fails → `outside_stated_limits_on_declared_evidence`. Artifact matches. **MATCH.**
+
+**Planted-wrong-value confirmation.** The planted wrong values are: incomplete dimensions (missing authenticity), incomplete routes (missing 4), archived 2 ≠ actions 5, and astroturfing=true. The checks that **fail** in the artifact are exactly:
+1. `all_stated_triage_dimensions_used` (dimensions incomplete) ✓
+2. `all_stated_triage_routes_defined` (routes incomplete) ✓
+3. `evidence_archived_for_every_action` (2 ≠ 5) ✓
+4. `no_astroturfing_or_fake_engagement` (conduct=true) ✓
+
+All other 33 checks are `missing` (their fields absent), none `pass`. So fail set = {4 checks} exactly matching the four planted wrong values; no spurious fails, no planted wrong value left un-failed. **MATCH.**
+
+**Verdict / summary.** 0 pass, 4 fail, 33 missing of 37 → `TRIAGE_DIGEST_NOT_READY`. Summary "0 pass, 4 fail, 33 missing of 37". Artifact matches. **MATCH.**
+
+## Section rollups (spot-check)
+- Case 1: every section all-pass → all `pass`. ✓
+- Case 2: `triage_rubric` has 2 fails → `fail`; `alert_hygiene_and_evidence` has 1 fail → `fail`; `red_lines` has 1 fail → `fail`; `inventory_and_coverage`, `response_policy`, `digest_reporting` all-missing → `insufficient_evidence`. Artifact matches. ✓
+
+All computed quantities and headline values recompute to the artifact's values in both cases.
+
+AGREEMENT: full

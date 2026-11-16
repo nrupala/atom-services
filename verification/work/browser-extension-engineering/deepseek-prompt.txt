@@ -1,0 +1,863 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: browser-extension-engineering
+
+=== contract.yaml ===
+service_name: browser-extension-engineering
+display_name: Browser extension engineering
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:browser-extension-engineering
+binding:
+  skill: browser-extension-engineering
+  skill_path: workspace/mymilo-build/skills/browser-extension-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: browser_extension_engineering
+  prefix: atm_1_browser_extension_engineering_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Reader extension builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Browser extension engineering — `browser-extension-engineering`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build browser extensions carefully — MV3 architecture, least-privilege permissions, messaging, store review.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Reader extension builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the browser-extension-engineering manifest
+
+The caller submits one JSON manifest: one extension design/build —
+a single extension as its caller declares it — worked through the
+bound skill's method. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`EXTENSION_DESIGN_DEFICIENT`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `extension_name` (string; carried into the verdict output, not itself checked) | — |
+| `mv3.service_worker_background` | mv3_architecture |
+| `mv3.persistent_background_page_used` (must be `false` to pass — skill method step 1) | mv3_architecture |
+| `mv3.alarms_used_instead_of_timers` | mv3_architecture |
+| `mv3.declarative_apis_used_where_possible` | mv3_architecture |
+| `mv3.remote_code_executed` (must be `false` to pass — skill method step 1) | mv3_architecture |
+| `mv3.all_code_bundled` | mv3_architecture |
+| `permissions.only_needed_requested` | least_privilege_permissions |
+| `permissions.host_patterns_narrow` | least_privilege_permissions |
+| `permissions.optional_permissions_for_power_features` | least_privilege_permissions |
+| `permissions.permission_list_reviewed_as_security_audit` | least_privilege_permissions |
+| `permissions.overbroad_permissions_present` (must be `false` to pass — skill red line) | least_privilege_permissions |
+| `permissions.requested` (list of strings; computed, see below) | least_privilege_permissions |
+| `permissions.justified` (list of strings; computed, see below) | least_privilege_permissions |
+| `architecture.content_scripts_isolated_from_page_context` | architecture_and_messaging |
+| `architecture.message_passing_well_defined` | architecture_and_messaging |
+| `architecture.messages_validated_on_both_ends` | architecture_and_messaging |
+| `architecture.storage_scoped_sync_vs_local` | architecture_and_messaging |
+| `architecture.secrets_stored_in_extension_storage` (must be `false` to pass — skill method step 3) | architecture_and_messaging |
+| `ux.popup_or_options_pages_provided` | ux_honesty |
+| `ux.logged_out_and_unavailable_states_provided` | ux_honesty |
+| `ux.keyboard_shortcuts_provided` | ux_honesty |
+| `ux.drive_by_dom_changes_without_user_intent` (must be `false` to pass — skill method step 4) | ux_honesty |
+| `privacy.page_data_processed_locally_by_default` | privacy |
+| `privacy.telemetry_requires_explicit_consent` | privacy |
+| `privacy.telemetry_clearly_disclosed` | privacy |
+| `privacy.privacy_disclosure_matches_behavior_tested` | privacy |
+| `privacy.browsing_data_exfiltrated` (must be `false` to pass — skill method step 5) | privacy |
+| `privacy.hidden_data_collection_present` (must be `false` to pass — skill red line) | privacy |
+| `distribution.store_listing_screenshots_provided` | distribution_and_cross_browser |
+| `distribution.store_privacy_form_accurate` | distribution_and_cross_browser |
+| `distribution.staged_rollout_planned` | distribution_and_cross_browser |
+| `distribution.version_discipline_followed` | distribution_and_cross_browser |
+| `distribution.firefox_mv3_differences_addressed` | distribution_and_cross_browser |
+| `distribution.target_browsers` (list of strings; computed, see below) | distribution_and_cross_browser |
+| `distribution.tested_browsers` (list of strings; computed, see below) | distribution_and_cross_browser |
+| `distribution.difference_documented_browsers` (list of strings; computed, see below) | distribution_and_cross_browser |
+| `security.csp_discipline_followed` | security |
+| `security.injected_ui_sanitized` | security |
+| `security.auto_update_via_store_only` | security |
+| `security.eval_or_remote_scripts_used` (must be `false` to pass — skill red line) | security |
+
+Two checks are computed from the declared lists, using only what
+the skill itself states plus the set logic of the declared
+values — no outside threshold and no permission or browser
+vocabulary is imported:
+
+- **Permission justification coverage:** the skill's quality
+  gate is "Each permission justified in writing." When the
+  manifest declares the requested permissions and the
+  permissions justified in writing, every requested permission
+  passes only when it appears in the justified list. The output
+  reports `permissions_without_justification` (the requested
+  entries with no written justification, in declared order; null
+  when either list is not declared). Justifications for
+  permissions that were not requested do not count against the
+  design, and an empty requested list passes vacuously — an
+  extension may request no permissions at all.
+- **Cross-browser coverage:** the skill's quality gate is
+  "Works across target browsers (or differences documented)."
+  When the manifest declares target browsers, tested browsers,
+  and browsers whose differences are documented, every target
+  browser passes only when it appears in the tested list or the
+  difference-documented list, and at least one target browser
+  must be declared (an empty target list is present and fails).
+  The output reports `browsers_not_covered` (the target entries
+  in neither list, in declared order; null when any of the three
+  lists is not declared).
+
+List entries are validated as strings only, never enum-checked —
+coverage is a verdict check, not a type error. The skill names
+no specific permission, host pattern, or browser as passing or
+failing, so none is imposed: whether a particular permission is
+overbroad or a particular host pattern is broad stays a declared
+judgment of the caller, checked here only as the declared
+red-line / narrowness fields above.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when either
+of the two computed checks cannot be completed).
+
+The verdict is one of `EXTENSION_DESIGN_SOUND` (all 37 checks
+pass), `EXTENSION_DESIGN_DEFICIENT` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: mv3_architecture,
+least_privilege_permissions, architecture_and_messaging,
+ux_honesty, privacy, distribution_and_cross_browser, security.
+
+## Honest scoping
+
+This atom audits a **declared** extension design/build manifest —
+it does not write extension code, inspect a real extension
+package or manifest file, run the extension in a browser, or
+verify that a declared value is true. A design is sound *on the
+caller's declared evidence* even if a declaration is mistaken.
+It is a completeness and consistency audit, **not a code review
+or a store review**: it never decides whether a permission is
+actually needed, whether a host pattern is actually narrow,
+whether the messaging validation is actually correct, or whether
+a store will accept the extension — only that the declared
+design contains what the skill's method, quality gates, and red
+lines demand, and that its declared permission and browser lists
+agree with themselves.
+
+Named exclusions: no permission vocabulary (the skill states no
+list of overbroad permissions, so none is imposed — overbreadth
+is a declared field, not a computed one); no host-pattern breadth
+test (the skill states no pattern, such as a match-all pattern,
+as broad, so breadth is declared, not parsed); no browser
+vocabulary (the skill names Firefox only for its MV3
+differences, which are a declared field; target/tested/documented
+coverage is pure set logic over the caller's own strings); no
+version-number rule (the skill requires "version discipline"
+but states no versioning scheme, so no semver or numbering check
+is imposed); no numeric threshold of any kind (the skill states
+none); no live verification of any declared fact, and no store
+submission or store-review outcome prediction.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "extension_name": "Test Extension",
+      "mv3": {
+        "service_worker_background": true,
+        "persistent_background_page_used": false,
+        "alarms_used_instead_of_timers": true,
+        "declarative_apis_used_where_possible": true,
+        "remote_code_executed": false,
+        "all_code_bundled": true
+      },
+      "permissions": {
+        "only_needed_requested": true,
+        "host_patterns_narrow": true,
+        "optional_permissions_for_power_features": true,
+        "permission_list_reviewed_as_security_audit": true,
+        "overbroad_permissions_present": false,
+        "requested": [
+          "storage",
+          "tabs"
+        ],
+        "justified": [
+          "storage",
+          "tabs"
+        ]
+      },
+      "architecture": {
+        "content_scripts_isolated_from_page_context": true,
+        "message_passing_well_defined": true,
+        "messages_validated_on_both_ends": true,
+        "storage_scoped_sync_vs_local": true,
+        "secrets_stored_in_extension_storage": false
+      },
+      "ux": {
+        "popup_or_options_pages_provided": true,
+        "logged_out_and_unavailable_states_provided": true,
+        "keyboard_shortcuts_provided": true,
+        "drive_by_dom_changes_without_user_intent": false
+      },
+      "privacy": {
+        "page_data_processed_locally_by_default": true,
+        "telemetry_requires_explicit_consent": true,
+        "telemetry_clearly_disclosed": true,
+        "privacy_disclosure_matches_behavior_tested": true,
+        "browsing_data_exfiltrated": false,
+        "hidden_data_collection_present": false
+      },
+      "distribution": {
+        "store_listing_screenshots_provided": true,
+        "store_privacy_form_accurate": true,
+        "staged_rollout_planned": true,
+        "version_discipline_followed": true,
+        "firefox_mv3_differences_addressed": true,
+        "target_browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "tested_browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "difference_documented_browsers": []
+      },
+      "security": {
+        "csp_discipline_followed": true,
+        "injected_ui_sanitized": true,
+        "auto_update_via_store_only": true,
+        "eval_or_remote_scripts_used": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "browser-extension-engineering",
+      "atom_version": "0.1.0",
+      "extension_name": "Test Extension",
+      "verdict": "EXTENSION_DESIGN_SOUND",
+      "sections": {
+        "mv3_architecture": "pass",
+        "least_privilege_permissions": "pass",
+        "architecture_and_messaging": "pass",
+        "ux_honesty": "pass",
+        "privacy": "pass",
+        "distribution_and_cross_browser": "pass",
+        "security": "pass"
+      },
+      "checks": [
+        {
+          "section": "mv3_architecture",
+          "check": "service_worker_background",
+          "status": "pass",
+          "evidence": "method step 1: the background is a service worker"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "no_persistent_background_page",
+          "status": "pass",
+          "evidence": "method step 1: no persistent background page is used"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "alarms_used_instead_of_timers",
+          "status": "pass",
+          "evidence": "method step 1: alarms are used instead of timers"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "declarative_apis_used_where_possible",
+          "status": "pass",
+          "evidence": "method step 1: declarative APIs are used where possible"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "no_remote_code_execution",
+          "status": "pass",
+          "evidence": "method step 1: no remote code execution \u2014 everything is bundled"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "all_code_bundled",
+          "status": "pass",
+          "evidence": "method step 1: all code is bundled with the extension"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "only_needed_permissions_requested",
+          "status": "pass",
+          "evidence": "method step 2: only needed permissions are requested"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "host_patterns_narrow",
+          "status": "pass",
+          "evidence": "method step 2 / quality gate: host patterns are narrow / minimal"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "optional_permissions_for_power_features",
+          "status": "pass",
+          "evidence": "method step 2: power features use optional permissions"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "permission_list_reviewed_as_security_audit",
+          "status": "pass",
+          "evidence": "method step 2: the permission list is reviewed like a security audit"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "no_overbroad_permissions",
+          "status": "pass",
+          "evidence": "red line: no overbroad permissions"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "all_requested_permissions_justified_in_writing",
+          "status": "pass",
+          "evidence": "quality gate: each permission is justified in writing \u2014 every declared requested permission appears in the declared justified-in-writing list"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "content_scripts_isolated_from_page_context",
+          "status": "pass",
+          "evidence": "method step 3: content scripts are isolated from page context"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "message_passing_well_defined",
+          "status": "pass",
+          "evidence": "method step 3: message passing is well-defined"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "messages_validated_on_both_ends",
+          "status": "pass",
+          "evidence": "method step 3 / quality gate: messages are validated on both ends"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "storage_scoped",
+          "status": "pass",
+          "evidence": "method step 3: storage is scoped \u2014 storage.sync vs local chosen deliberately"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "no_secrets_in_extension_storage",
+          "status": "pass",
+          "evidence": "method step 3: no secrets are kept in extension storage"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "popup_or_options_pages_provided",
+          "status": "pass",
+          "evidence": "method step 4: popup / options pages are provided"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "logged_out_and_unavailable_states_provided",
+          "status": "pass",
+          "evidence": "method step 4: states for logged-out / unavailable are provided"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "keyboard_shortcuts_provided",
+          "status": "pass",
+          "evidence": "method step 4: keyboard shortcuts are provided"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "no_drive_by_dom_changes_without_user_intent",
+          "status": "pass",
+          "evidence": "method step 4: no drive-by DOM changes without user intent"
+        },
+        {
+          "section": "privacy",
+          "check": "page_data_processed_locally_by_default",
+          "status": "pass",
+          "evidence": "method step 5: page data is processed locally by default"
+        },
+        {
+          "section": "privacy",
+          "check": "telemetry_requires_explicit_consent",
+          "status": "pass",
+          "evidence": "method step 5: any telemetry requires explicit consent"
+        },
+        {
+          "section": "privacy",
+          "check": "telemetry_clearly_disclosed",
+          "status": "pass",
+          "evidence": "method step 5: any telemetry is clearly disclosed"
+        },
+        {
+          "section": "privacy",
+          "check": "privacy_disclosure_matches_actual_behavior_tested",
+          "status": "pass",
+          "evidence": "quality gate: the privacy disclosure matches actual behavior, tested"
+        },
+        {
+          "section": "privacy",
+          "check": "browsing_data_never_exfiltrated",
+          "status": "pass",
+          "evidence": "method step 5: browsing data is never exfiltrated"
+        },
+        {
+          "section": "privacy",
+          "check": "no_hidden_data_collection",
+          "status": "pass",
+          "evidence": "red line: no hidden data collection"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "store_listing_screenshots_provided",
+          "status": "pass",
+          "evidence": "method step 6: the store listing includes screenshots"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "store_privacy_form_accurate",
+          "status": "pass",
+          "evidence": "method step 6: the store privacy form is accurate"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "staged_rollout_planned",
+          "status": "pass",
+          "evidence": "method step 6: distribution uses a staged rollout"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "version_discipline_followed",
+          "status": "pass",
+          "evidence": "method step 6: version discipline is followed"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "firefox_mv3_differences_addressed",
+          "status": "pass",
+          "evidence": "method step 6: Firefox MV3 differences are addressed (browser.* shim)"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "all_target_browsers_tested_or_differences_documented",
+          "status": "pass",
+          "evidence": "quality gate: the extension works across target browsers, or differences are documented \u2014 every declared target browser appears in the declared tested list or the declared difference-documented list, and at least one target browser is declared"
+        },
+        {
+          "section": "security",
+          "check": "csp_discipline_followed",
+          "status": "pass",
+          "evidence": "method step 7: CSP discipline is followed"
+        },
+        {
+          "section": "security",
+          "check": "injected_ui_sanitized",
+          "status": "pass",
+          "evidence": "method step 7: any injected UI is sanitized"
+        },
+        {
+          "section": "security",
+          "check": "auto_update_via_store_only",
+          "status": "pass",
+          "evidence": "method step 7: auto-update is via the store only"
+        },
+        {
+          "section": "security",
+          "check": "no_eval_or_remote_scripts",
+          "status": "pass",
+          "evidence": "red line: no eval / remote scripts"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "permissions_without_justification": [],
+      "browsers_not_covered": [],
+      "summary": "37 pass, 0 fail, 0 missing of 37 checks across seven sections.",
+      "stamp": "BROWSER EXTENSION ENGINEERING\nextension: Test Extension\nVERDICT: EXTENSION_DESIGN_SOUND\n  mv3_architecture                 pass\n  least_privilege_permissions      pass\n  architecture_and_messaging       pass\n  ux_honesty                       pass\n  privacy                          pass\n  distribution_and_cross_browser   pass\n  security                         pass\n37 pass, 0 fail, 0 missing of 37 checks across seven sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "extension_name": "Bad Extension",
+      "mv3": {
+        "service_worker_background": true,
+        "persistent_background_page_used": true,
+        "alarms_used_instead_of_timers": true,
+        "declarative_apis_used_where_possible": true,
+        "remote_code_executed": true,
+        "all_code_bundled": true
+      },
+      "permissions": {
+        "only_needed_requested": true,
+        "host_patterns_narrow": true,
+        "optional_permissions_for_power_features": true,
+        "permission_list_reviewed_as_security_audit": true,
+        "overbroad_permissions_present": true,
+        "requested": [
+          "tabs"
+        ],
+        "justified": []
+      },
+      "architecture": {
+        "content_scripts_isolated_from_page_context": true,
+        "message_passing_well_defined": true,
+        "messages_validated_on_both_ends": true,
+        "storage_scoped_sync_vs_local": true,
+        "secrets_stored_in_extension_storage": true
+      },
+      "ux": {
+        "popup_or_options_pages_provided": true,
+        "logged_out_and_unavailable_states_provided": true,
+        "keyboard_shortcuts_provided": true,
+        "drive_by_dom_changes_without_user_intent": true
+      },
+      "privacy": {
+        "page_data_processed_locally_by_default": true,
+        "telemetry_requires_explicit_consent": true,
+        "telemetry_clearly_disclosed": true,
+        "privacy_disclosure_matches_behavior_tested": true,
+        "browsing_data_exfiltrated": true,
+        "hidden_data_collection_present": true
+      },
+      "distribution": {
+        "store_listing_screenshots_provided": true,
+        "store_privacy_form_accurate": true,
+        "staged_rollout_planned": true,
+        "version_discipline_followed": true,
+        "firefox_mv3_differences_addressed": true,
+        "target_browsers": [
+          "chrome"
+        ],
+        "tested_browsers": [],
+        "difference_documented_browsers": []
+      },
+      "security": {
+        "csp_discipline_followed": true,
+        "injected_ui_sanitized": true,
+        "auto_update_via_store_only": true,
+        "eval_or_remote_scripts_used": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "browser-extension-engineering",
+      "atom_version": "0.1.0",
+      "extension_name": "Bad Extension",
+      "verdict": "EXTENSION_DESIGN_DEFICIENT",
+      "sections": {
+        "mv3_architecture": "fail",
+        "least_privilege_permissions": "fail",
+        "architecture_and_messaging": "fail",
+        "ux_honesty": "fail",
+        "privacy": "fail",
+        "distribution_and_cross_browser": "fail",
+        "security": "fail"
+      },
+      "checks": [
+        {
+          "section": "mv3_architecture",
+          "check": "service_worker_background",
+          "status": "pass",
+          "evidence": "method step 1: the background is a service worker"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "no_persistent_background_page",
+          "status": "fail",
+          "evidence": "method step 1: no persistent background page is used"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "alarms_used_instead_of_timers",
+          "status": "pass",
+          "evidence": "method step 1: alarms are used instead of timers"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "declarative_apis_used_where_possible",
+          "status": "pass",
+          "evidence": "method step 1: declarative APIs are used where possible"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "no_remote_code_execution",
+          "status": "fail",
+          "evidence": "method step 1: no remote code execution \u2014 everything is bundled"
+        },
+        {
+          "section": "mv3_architecture",
+          "check": "all_code_bundled",
+          "status": "pass",
+          "evidence": "method step 1: all code is bundled with the extension"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "only_needed_permissions_requested",
+          "status": "pass",
+          "evidence": "method step 2: only needed permissions are requested"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "host_patterns_narrow",
+          "status": "pass",
+          "evidence": "method step 2 / quality gate: host patterns are narrow / minimal"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "optional_permissions_for_power_features",
+          "status": "pass",
+          "evidence": "method step 2: power features use optional permissions"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "permission_list_reviewed_as_security_audit",
+          "status": "pass",
+          "evidence": "method step 2: the permission list is reviewed like a security audit"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "no_overbroad_permissions",
+          "status": "fail",
+          "evidence": "red line: no overbroad permissions"
+        },
+        {
+          "section": "least_privilege_permissions",
+          "check": "all_requested_permissions_justified_in_writing",
+          "status": "fail",
+          "evidence": "quality gate: each permission is justified in writing \u2014 every declared requested permission appears in the declared justified-in-writing list"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "content_scripts_isolated_from_page_context",
+          "status": "pass",
+          "evidence": "method step 3: content scripts are isolated from page context"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "message_passing_well_defined",
+          "status": "pass",
+          "evidence": "method step 3: message passing is well-defined"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "messages_validated_on_both_ends",
+          "status": "pass",
+          "evidence": "method step 3 / quality gate: messages are validated on both ends"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "storage_scoped",
+          "status": "pass",
+          "evidence": "method step 3: storage is scoped \u2014 storage.sync vs local chosen deliberately"
+        },
+        {
+          "section": "architecture_and_messaging",
+          "check": "no_secrets_in_extension_storage",
+          "status": "fail",
+          "evidence": "method step 3: no secrets are kept in extension storage"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "popup_or_options_pages_provided",
+          "status": "pass",
+          "evidence": "method step 4: popup / options pages are provided"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "logged_out_and_unavailable_states_provided",
+          "status": "pass",
+          "evidence": "method step 4: states for logged-out / unavailable are provided"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "keyboard_shortcuts_provided",
+          "status": "pass",
+          "evidence": "method step 4: keyboard shortcuts are provided"
+        },
+        {
+          "section": "ux_honesty",
+          "check": "no_drive_by_dom_changes_without_user_intent",
+          "status": "fail",
+          "evidence": "method step 4: no drive-by DOM changes without user intent"
+        },
+        {
+          "section": "privacy",
+          "check": "page_data_processed_locally_by_default",
+          "status": "pass",
+          "evidence": "method step 5: page data is processed locally by default"
+        },
+        {
+          "section": "privacy",
+          "check": "telemetry_requires_explicit_consent",
+          "status": "pass",
+          "evidence": "method step 5: any telemetry requires explicit consent"
+        },
+        {
+          "section": "privacy",
+          "check": "telemetry_clearly_disclosed",
+          "status": "pass",
+          "evidence": "method step 5: any telemetry is clearly disclosed"
+        },
+        {
+          "section": "privacy",
+          "check": "privacy_disclosure_matches_actual_behavior_tested",
+          "status": "pass",
+          "evidence": "quality gate: the privacy disclosure matches actual behavior, tested"
+        },
+        {
+          "section": "privacy",
+          "check": "browsing_data_never_exfiltrated",
+          "status": "fail",
+          "evidence": "method step 5: browsing data is never exfiltrated"
+        },
+        {
+          "section": "privacy",
+          "check": "no_hidden_data_collection",
+          "status": "fail",
+          "evidence": "red line: no hidden data collection"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "store_listing_screenshots_provided",
+          "status": "pass",
+          "evidence": "method step 6: the store listing includes screenshots"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "store_privacy_form_accurate",
+          "status": "pass",
+          "evidence": "method step 6: the store privacy form is accurate"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "staged_rollout_planned",
+          "status": "pass",
+          "evidence": "method step 6: distribution uses a staged rollout"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "version_discipline_followed",
+          "status": "pass",
+          "evidence": "method step 6: version discipline is followed"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "firefox_mv3_differences_addressed",
+          "status": "pass",
+          "evidence": "method step 6: Firefox MV3 differences are addressed (browser.* shim)"
+        },
+        {
+          "section": "distribution_and_cross_browser",
+          "check": "all_target_browsers_tested_or_differences_documented",
+          "status": "fail",
+          "evidence": "quality gate: the extension works across target browsers, or differences are documented \u2014 every declared target browser appears in the declared tested list or the declared difference-documented list, and at least one target browser is declared"
+        },
+        {
+          "section": "security",
+          "check": "csp_discipline_followed",
+          "status": "pass",
+          "evidence": "method step 7: CSP discipline is followed"
+        },
+        {
+          "section": "security",
+          "check": "injected_ui_sanitized",
+          "status": "pass",
+          "evidence": "method step 7: any injected UI is sanitized"
+        },
+        {
+          "section": "security",
+          "check": "auto_update_via_store_only",
+          "status": "pass",
+          "evidence": "method step 7: auto-update is via the store only"
+        },
+        {
+          "section": "security",
+          "check": "no_eval_or_remote_scripts",
+          "status": "fail",
+          "evidence": "red line: no eval / remote scripts"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "permissions_without_justification": [
+        "tabs"
+      ],
+      "browsers_not_covered": [
+        "chrome"
+      ],
+      "summary": "27 pass, 10 fail, 0 missing of 37 checks across seven sections.",
+      "stamp": "BROWSER EXTENSION ENGINEERING\nextension: Bad Extension\nVERDICT: EXTENSION_DESIGN_DEFICIENT\n  mv3_architecture                 fail\n  least_privilege_permissions      fail\n  architecture_and_messaging       fail\n  ux_honesty                       fail\n  privacy                          fail\n  distribution_and_cross_browser   fail\n  security                         fail\n27 pass, 10 fail, 0 missing of 37 checks across seven sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

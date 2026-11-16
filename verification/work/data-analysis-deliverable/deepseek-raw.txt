@@ -1,0 +1,114 @@
+# Independent recompute — `data-analysis-deliverable`
+
+## Serialization rule (applied throughout)
+
+Per SERVICE.md: round half up to 6dp via `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. Re-derivation checks compare the **fixed-6dp difference** to zero.
+
+---
+
+## Case 1: `full-pass`
+
+### Declared figures
+- `values = [10.0, 20.0]`
+- `stated_total = 30.0`
+- `stated_mean = 15.0`
+- `prior_window_value = 100.0`, `current_window_value = 110.0`
+- `stated_percent_change = 10.0`
+
+### 1. Stated total
+Sum = 10.0 + 20.0 = **30.0**
+- Serialize: floor(30.0 × 1e6 + 0.5)/1e6 = floor(30000000.5)/1e6 = 30000000/1e6 = 30.0 → `"30.000000"`
+- Compare: |30.0 − 30.0| at 6dp = 0 → **pass**
+- Artifact `recomputed_total` = `"30.000000"` → **MATCH**; check status `pass` → **MATCH**
+
+### 2. Stated mean
+Mean = (10.0 + 20.0)/2 = 30.0/2 = **15.0**
+- Serialize: floor(15.0 × 1e6 + 0.5)/1e6 = 15000000/1e6 = 15.0 → `"15.000000"`
+- Compare: |15.0 − 15.0| = 0 → **pass**
+- Artifact `recomputed_mean` = `"15.000000"` → **MATCH**; check `pass` → **MATCH**
+
+### 3. Stated percent change
+(current − prior)/prior × 100 = (110.0 − 100.0)/100.0 × 100 = 10.0/100.0 × 100 = 0.1 × 100 = **10.0**
+- Prior ≠ 0 ✓
+- Serialize: floor(10.0 × 1e6 + 0.5)/1e6 = 10000000/1e6 = 10.0 → `"10.000000"`
+- Compare: |10.0 − 10.0| = 0 → **pass**
+- Artifact `recomputed_percent_change` = `"10.000000"` → **MATCH**; check `pass` → **MATCH**
+
+### 4. Data sources declared
+`sources = ["db_logs", "crm_data"]` — present, non-empty, all strings → **pass**. Artifact `data_sources_declared` = `pass` → **MATCH**
+
+### 5. computed_status
+All three re-derivations completed and all agree → `within_stated_limits_on_declared_evidence`. Artifact = same → **MATCH**
+
+### 6. Verdict / summary
+All 40 checks pass (I verified the boolean fields: all required `true` fields are `true`; the three must-be-`false` fields — `cherry_picked_baselines_used`, `causal_claims_from_observational_data_alone`, `charts_oversell_findings` — are all `false`). → `DELIVERABLE_COMPLETE`, "40 pass, 0 fail, 0 missing of 40". Artifact matches → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Declared figures
+- `values = [10.0, 10.0]`
+- `stated_total = 50.0`
+- `stated_mean = 15.0`
+- `prior_window_value = 100.0`, `current_window_value = 110.0`
+- `stated_percent_change = 5.0`
+
+### 1. Stated total
+Sum = 10.0 + 10.0 = **20.0**
+- Serialize: floor(20.0 × 1e6 + 0.5)/1e6 = 20000000/1e6 = 20.0 → `"20.000000"`
+- Compare: |50.0 − 20.0| = 30.0 ≠ 0 → **fail**
+- Artifact `recomputed_total` = `"20.000000"` → **MATCH**; check `stated_total_matches_declared_values` = `fail` → **MATCH**
+
+### 2. Stated mean
+Mean = (10.0 + 10.0)/2 = 20.0/2 = **10.0**
+- Serialize: floor(10.0 × 1e6 + 0.5)/1e6 = 10000000/1e6 = 10.0 → `"10.000000"`
+- Compare: |15.0 − 10.0| = 5.0 ≠ 0 → **fail**
+- Artifact `recomputed_mean` = `"10.000000"` → **MATCH**; check `stated_mean_matches_declared_values` = `fail` → **MATCH**
+
+### 3. Stated percent change
+(110.0 − 100.0)/100.0 × 100 = **10.0**
+- Serialize: `"10.000000"`
+- Compare: |5.0 − 10.0| = 5.0 ≠ 0 → **fail**
+- Artifact `recomputed_percent_change` = `"10.000000"` → **MATCH**; check `stated_percent_change_matches_declared_windows` = `fail` → **MATCH**
+
+### 4. Data sources declared
+`["db_logs", "crm_data"]` — present, non-empty, strings → **pass**. Artifact `pass` → **MATCH**
+
+### 5. computed_status
+Re-derivations completed; at least one disagrees → `outside_stated_limits_on_declared_evidence`. Artifact = same → **MATCH**
+
+### 6. Planted-failure confirmation
+The planted wrong values are: `cherry_picked_baselines_used = true`, `causal_claims_from_observational_data_alone = true`, and the three mismatched figures (total 50 vs 20, mean 15 vs 10, pct 5 vs 10). The artifact's failing checks are exactly:
+1. `no_cherry_picked_baselines` (fail) ✓
+2. `stated_total_matches_declared_values` (fail) ✓
+3. `stated_mean_matches_declared_values` (fail) ✓
+4. `stated_percent_change_matches_declared_windows` (fail) ✓
+5. `no_causal_claims_from_observational_data_alone` (fail) ✓
+
+That is **5 fails**, and every other check is `pass`. The failing set is **exactly** the set the planted wrong values should fail — no extra, no missing. → **CONFIRMED**
+
+### 7. Verdict / summary
+Any fail → `DELIVERABLE_NOT_COMPLETE`; "35 pass, 5 fail, 0 missing of 40". Artifact matches → **MATCH**
+
+---
+
+## Summary of all computed quantities
+
+| Case | Quantity | My recompute | Artifact | Status |
+|---|---|---|---|---|
+| full-pass | recomputed_total | 30.000000 | 30.000000 | MATCH |
+| full-pass | recomputed_mean | 15.000000 | 15.000000 | MATCH |
+| full-pass | recomputed_percent_change | 10.000000 | 10.000000 | MATCH |
+| full-pass | computed_status | within_stated_limits | within_stated_limits | MATCH |
+| full-pass | verdict/summary | COMPLETE, 40/0/0 | COMPLETE, 40/0/0 | MATCH |
+| violations | recomputed_total | 20.000000 | 20.000000 | MATCH |
+| violations | recomputed_mean | 10.000000 | 10.000000 | MATCH |
+| violations | recomputed_percent_change | 10.000000 | 10.000000 | MATCH |
+| violations | computed_status | outside_stated_limits | outside_stated_limits | MATCH |
+| violations | failing-check set | 5 named checks | same 5 | MATCH |
+| violations | verdict/summary | NOT_COMPLETE, 35/5/0 | NOT_COMPLETE, 35/5/0 | MATCH |
+
+Every computed quantity and every headline value in both artifacts reproduces exactly from the recorded inputs under the stated rounding rule.
+
+AGREEMENT: full

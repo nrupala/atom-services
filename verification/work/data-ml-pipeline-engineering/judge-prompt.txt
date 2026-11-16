@@ -1,0 +1,1485 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: data-ml-pipeline-engineering
+
+=== contract.yaml ===
+service_name: data-ml-pipeline-engineering
+display_name: Data ml pipeline engineering
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:data-ml-pipelines
+binding:
+  skill: data-ml-pipelines
+  skill_path: workspace/mymilo-build/skills/data-ml-pipelines/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: data_ml_pipeline_engineering
+  prefix: atm_1_data_ml_pipeline_engineering_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: RA data pipeline builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Data ml pipeline engineering — `data-ml-pipeline-engineering`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Ship data and ML pipelines that hold — quality checks, reproducibility, lineage, drift monitoring.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **RA data pipeline builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the data-ml-pipeline-engineering manifest
+
+This atom does not design or build a data or ML pipeline, train
+a model, and exercises no ML judgment. The caller submits one
+JSON manifest declaring a data/ML pipeline design record — its
+declared source datasets with row counts and a declared total,
+its contracts and validation record, its idempotency and
+orchestration record, its quality gate record, its lineage and
+reproducibility record, its feature/label, split and leakage
+record, its lifecycle and serving record, and its monitoring
+record — and the atom validates that record deterministically.
+Every field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a field
+present but false / invalid = the check fails
+(`DATA_ML_PIPELINE_NOT_READY`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `sources.datasets` (list of dataset entries; absent / not a list / empty = both computed source checks missing) | contracts_and_ingestion |
+| `sources.datasets[].name` (string; must be non-empty for the entry to be complete) | contracts_and_ingestion |
+| `sources.datasets[].rows` (number; declared per-dataset rows, summed by the computed total check) | contracts_and_ingestion |
+| `sources.declared_total_rows` (number; computed, see below) | contracts_and_ingestion |
+| `sources.schemas_and_expectations_declared_for_all_inputs_and_outputs` | contracts_and_ingestion |
+| `sources.validation_on_arrival` | contracts_and_ingestion |
+| `sources.bad_data_refused_loudly` | contracts_and_ingestion |
+| `sources.silent_coercion_present` (must be `false` to pass — skill red line) | contracts_and_ingestion |
+| `pipeline.steps_rerunnable_idempotently` | idempotency_and_orchestration |
+| `pipeline.exactly_once_effects_at_sinks` | idempotency_and_orchestration |
+| `pipeline.backfill_tested_once` | idempotency_and_orchestration |
+| `pipeline.explicit_step_dependencies` | idempotency_and_orchestration |
+| `pipeline.schedules_documented` | idempotency_and_orchestration |
+| `pipeline.failures_alert_and_retry` | idempotency_and_orchestration |
+| `pipeline.unrecorded_manual_reruns_present` (must be `false` to pass — skill method step 3) | idempotency_and_orchestration |
+| `quality.row_count_checks_between_stages` | quality_gates |
+| `quality.freshness_checks_between_stages` | quality_gates |
+| `quality.null_uniqueness_distribution_checks_between_stages` | quality_gates |
+| `quality.bad_partitions_quarantined` | quality_gates |
+| `quality.pipeline_health_dashboard_present` | quality_gates |
+| `lineage.source_to_transform_to_sink_tracked` | lineage_and_reproducibility |
+| `lineage.code_versioned` | lineage_and_reproducibility |
+| `lineage.config_versioned` | lineage_and_reproducibility |
+| `lineage.data_snapshots_versioned` | lineage_and_reproducibility |
+| `lineage.same_inputs_produce_same_outputs_verified` | lineage_and_reproducibility |
+| `training.reproducible_with_seeds_and_pinned_env` | lineage_and_reproducibility |
+| `splits.train_rows` (number; computed, see below) | ml_hygiene_and_splits |
+| `splits.eval_rows` (number; computed, see below) | ml_hygiene_and_splits |
+| `splits.test_rows` (number; computed, see below) | ml_hygiene_and_splits |
+| `splits.declared_total_rows` (number; computed, see below) | ml_hygiene_and_splits |
+| `splits.leakage_checks_cover_time_target_and_cross_splits` | ml_hygiene_and_splits |
+| `splits.split_by_time_or_user_when_temporal` | ml_hygiene_and_splits |
+| `splits.class_balance_assessed` | ml_hygiene_and_splits |
+| `features.feature_definitions_declared` | ml_hygiene_and_splits |
+| `features.label_definition_declared` | ml_hygiene_and_splits |
+| `features.feature_store_only_when_justified` | ml_hygiene_and_splits |
+| `privacy.pii_in_training_data_without_lawful_basis` (must be `false` to pass — skill red line) | ml_hygiene_and_splits |
+| `lifecycle.eval_suites_versioned_with_model` | lifecycle_and_serving |
+| `lifecycle.model_registry_entry_exists` | lifecycle_and_serving |
+| `lifecycle.model_card_covers_data_metrics_and_limits` | lifecycle_and_serving |
+| `lifecycle.offline_eval_completed_before_prod` | lifecycle_and_serving |
+| `lifecycle.rollout_plan_present_before_prod` | lifecycle_and_serving |
+| `serving.deployment_pattern_declared` | lifecycle_and_serving |
+| `serving.estimated_latency_ms` (number; computed, see below) | lifecycle_and_serving |
+| `serving.latency_budget_ms` (number; the caller's own declared budget, computed, see below) | lifecycle_and_serving |
+| `serving.estimated_monthly_cost` (number; computed, see below) | lifecycle_and_serving |
+| `serving.monthly_cost_budget` (number; the caller's own declared budget, computed, see below) | lifecycle_and_serving |
+| `monitoring.input_drift_monitored` | monitoring_and_drift |
+| `monitoring.output_drift_monitored` | monitoring_and_drift |
+| `monitoring.performance_decay_monitored_vs_baselines` | monitoring_and_drift |
+| `monitoring.alert_thresholds_set` | monitoring_and_drift |
+| `monitoring.thresholds_tied_to_retraining_policy` | monitoring_and_drift |
+| `monitoring.retraining_is_a_pipeline` | monitoring_and_drift |
+
+Five checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Source entries:** every declared `sources.datasets` entry
+  must carry a non-empty `name` string and numeric `rows`. A
+  missing or empty list is missing evidence; an incomplete
+  entry makes the entries check missing, and makes the total
+  check missing when the entry carries no usable rows. The
+  output reports `sources_evaluated` (the count of complete
+  dataset entries).
+- **Source rows total:** the declared
+  `sources.declared_total_rows` passes only when it equals the
+  sum of the declared per-dataset `rows`. The output reports
+  `computed_total_rows` and `total_rows_difference` (declared
+  minus computed, null when either cannot be computed).
+- **Split rows total:** the declared `splits.declared_total_rows`
+  passes only when it equals `splits.train_rows` +
+  `splits.eval_rows` + `splits.test_rows`. The skill states no
+  split ratio, so **no proportion is imposed** — only the
+  declared total's arithmetic is re-derived. The output reports
+  `computed_split_total_rows` and `split_total_difference`
+  (declared minus computed, null when either cannot be
+  computed).
+- **Serving latency vs the caller's own budget:** the declared
+  `serving.estimated_latency_ms` passes only when it does not
+  exceed `serving.latency_budget_ms` — the budget the caller
+  itself declares. The skill requires a deployment pattern
+  "with latency/cost budgets" but states no latency number, so
+  **no latency limit is imposed**. The output reports
+  `latency_headroom_ms` (declared budget minus declared
+  estimate, null when either cannot be computed).
+- **Serving cost vs the caller's own budget:** the declared
+  `serving.estimated_monthly_cost` passes only when it does not
+  exceed `serving.monthly_cost_budget` — the budget the caller
+  itself declares, on the same basis as latency. The output
+  reports `monthly_cost_headroom` (declared budget minus
+  declared estimate, null when either cannot be computed).
+
+**Fixed serialization rule:** computed amounts are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five computed checks cannot be completed).
+
+The verdict is one of `DATA_ML_PIPELINE_READY` (all 46 checks
+pass), `DATA_ML_PIPELINE_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: contracts_and_ingestion,
+idempotency_and_orchestration, quality_gates,
+lineage_and_reproducibility, ml_hygiene_and_splits,
+lifecycle_and_serving, monitoring_and_drift.
+
+## Honest scoping
+
+This atom audits a **declared** data/ML pipeline design record
+— it does not design or build a pipeline, ingest or transform
+any data, train or evaluate a model, verify that a declared
+value is true, or judge whether the declared checks would catch
+real bad data. A record is ready *on the caller's declared
+evidence* even if its underlying pipeline is slow, its data is
+dirty, or its model is weak. It is a completeness and
+consistency audit, **not a pipeline or model review**: it never
+decides whether the schemas are correct (only that they are
+declared for every input and output), whether leakage is
+actually absent (only that leakage checks covering time, target
+and cross-split leakage are declared), whether the split is
+appropriate for the problem (only that its declared rows add
+up), whether a feature store is truly justified, whether a
+lawful basis for PII actually exists in law (only that PII
+without one is declared absent), or whether the declared drift
+thresholds are well chosen (only that thresholds are declared
+and tied to a retraining policy).
+
+**Thresholds declined — named explicitly.** The skill states
+no number for any of the following, so this atom imposes none
+and any future threshold must come from a skill refinement
+first (binding rule R1):
+
+- no train/eval/test split ratio or minimum split size (the
+  skill requires leakage checks and temporal splitting where
+  reality is temporal; it states no proportions);
+- no maximum serving latency or monthly cost (only the
+  caller-declared `latency_budget_ms` and `monthly_cost_budget`
+  are compared, and only the declared totals' arithmetic is
+  re-derived);
+- no drift, performance-decay or alert threshold value (the
+  skill requires thresholds tied to a retraining policy; it
+  states no values, and no retraining frequency);
+- no class-balance ratio or imbalance limit (the skill requires
+  class-balance awareness; it states no ratio);
+- no freshness window, null-rate, uniqueness or distribution
+  limit (the skill requires those checks between stages; it
+  states no values they must enforce);
+- no minimum dataset or row count, and no backfill cost limit
+  (the skill requires cheap backfills and a tested backfill; it
+  quantifies neither);
+- no mandated schema format, feature-store product, model
+  registry tool, or deployment pattern choice (the skill
+  requires a declared batch-vs-service pattern with budgets; it
+  does not prescribe which pattern, tool or format).
+
+Named exclusions: no production of pipeline code, schemas or
+model artifacts; no verification of any declared schema, check,
+split, lineage record or monitoring claim against a live
+pipeline, dataset or model registry; no judgment of model
+quality or metric values (what the eval suite measures is the
+caller's surface, not this one's); no live verification of any
+declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "data-ml-pipeline-engineering",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "computed_spot_checks": {
+          "computed_split_total_rows": "150.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "computed_total_rows": "150.000000",
+          "latency_headroom_ms": "100.000000",
+          "monthly_cost_headroom": "50.000000",
+          "sources_evaluated": 2,
+          "split_total_difference": "0.000000",
+          "total_rows_difference": "0.000000"
+        },
+        "failing_checks": [],
+        "http": 200,
+        "notes": "All 46 checks pass: sources 100+50=150 declared 150; splits 80+40+30=150 declared 150; latency 100 within budget 200 (headroom 100); cost 50 within budget 100 (headroom 50); all booleans true except the three must-be-false red lines false. [Tester corrections: designer nested training.reproducible_with_seeds_and_pinned_env under lineage, features.* under splits, and privacy.pii_in_training_data_without_lawful_basis under splits, which would have left 5 checks missing (INSUFFICIENT_EVIDENCE, not READY); moved to the documented top-level training/features/privacy objects. Designer also carried computed quantities only in prose; added structured computed_spot_checks.]",
+        "outcome": "DATA_ML_PIPELINE_READY"
+      },
+      "input": {
+        "entity": "test-pipeline-001",
+        "features": {
+          "feature_definitions_declared": true,
+          "feature_store_only_when_justified": true,
+          "label_definition_declared": true
+        },
+        "lifecycle": {
+          "eval_suites_versioned_with_model": true,
+          "model_card_covers_data_metrics_and_limits": true,
+          "model_registry_entry_exists": true,
+          "offline_eval_completed_before_prod": true,
+          "rollout_plan_present_before_prod": true
+        },
+        "lineage": {
+          "code_versioned": true,
+          "config_versioned": true,
+          "data_snapshots_versioned": true,
+          "same_inputs_produce_same_outputs_verified": true,
+          "source_to_transform_to_sink_tracked": true
+        },
+        "monitoring": {
+          "alert_thresholds_set": true,
+          "input_drift_monitored": true,
+          "output_drift_monitored": true,
+          "performance_decay_monitored_vs_baselines": true,
+          "retraining_is_a_pipeline": true,
+          "thresholds_tied_to_retraining_policy": true
+        },
+        "pipeline": {
+          "backfill_tested_once": true,
+          "exactly_once_effects_at_sinks": true,
+          "explicit_step_dependencies": true,
+          "failures_alert_and_retry": true,
+          "schedules_documented": true,
+          "steps_rerunnable_idempotently": true,
+          "unrecorded_manual_reruns_present": false
+        },
+        "privacy": {
+          "pii_in_training_data_without_lawful_basis": false
+        },
+        "quality": {
+          "bad_partitions_quarantined": true,
+          "freshness_checks_between_stages": true,
+          "null_uniqueness_distribution_checks_between_stages": true,
+          "pipeline_health_dashboard_present": true,
+          "row_count_checks_between_stages": true
+        },
+        "serving": {
+          "deployment_pattern_declared": true,
+          "estimated_latency_ms": 100.0,
+          "estimated_monthly_cost": 50.0,
+          "latency_budget_ms": 200.0,
+          "monthly_cost_budget": 100.0
+        },
+        "sources": {
+          "bad_data_refused_loudly": true,
+          "datasets": [
+            {
+              "name": "raw_logs",
+              "rows": 100
+            },
+            {
+              "name": "user_data",
+              "rows": 50
+            }
+          ],
+          "declared_total_rows": 150,
+          "schemas_and_expectations_declared_for_all_inputs_and_outputs": true,
+          "silent_coercion_present": false,
+          "validation_on_arrival": true
+        },
+        "splits": {
+          "class_balance_assessed": true,
+          "declared_total_rows": 150,
+          "eval_rows": 40,
+          "leakage_checks_cover_time_target_and_cross_splits": true,
+          "split_by_time_or_user_when_temporal": true,
+          "test_rows": 30,
+          "train_rows": 80
+        },
+        "training": {
+          "reproducible_with_seeds_and_pinned_env": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-ml-pipeline-engineering",
+        "atom_version": "0.1.0",
+        "entity": "test-pipeline-001",
+        "verdict": "DATA_ML_PIPELINE_READY",
+        "sections": {
+          "contracts_and_ingestion": "pass",
+          "idempotency_and_orchestration": "pass",
+          "quality_gates": "pass",
+          "lineage_and_reproducibility": "pass",
+          "ml_hygiene_and_splits": "pass",
+          "lifecycle_and_serving": "pass",
+          "monitoring_and_drift": "pass"
+        },
+        "checks": [
+          {
+            "section": "contracts_and_ingestion",
+            "check": "source_entries_complete",
+            "status": "pass",
+            "evidence": "every source dataset entry carries a non-empty name and numeric rows"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "total_rows_matches_sum_of_source_rows",
+            "status": "pass",
+            "evidence": "the declared total source rows equal the sum of the declared per-dataset rows"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "schemas_and_expectations_declared",
+            "status": "pass",
+            "evidence": "method step 1: schemas and expectations (types, ranges, nullability) are declared for every input and output"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "validation_on_arrival",
+            "status": "pass",
+            "evidence": "method step 1: data is validated on arrival at every edge"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "bad_data_refused_loudly",
+            "status": "pass",
+            "evidence": "method step 1: bad data is refused loudly, never accepted silently"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "no_silent_coercion",
+            "status": "pass",
+            "evidence": "red line: data is never coerced silently"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "steps_rerunnable_idempotently",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: pipeline steps are rerunnable idempotently"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "exactly_once_effects_at_sinks",
+            "status": "pass",
+            "evidence": "method step 2: sinks have exactly-once effects (upserts/keys)"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "backfill_tested_once",
+            "status": "pass",
+            "evidence": "quality gate: a backfill was tested once \u2014 backfills are supported and cheap to rerun"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "explicit_step_dependencies",
+            "status": "pass",
+            "evidence": "method step 3: step dependencies are explicit"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "schedules_documented",
+            "status": "pass",
+            "evidence": "method step 3: schedules are documented"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "failures_alert_and_retry",
+            "status": "pass",
+            "evidence": "method step 3: failures alert and retry safely"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "no_unrecorded_manual_reruns",
+            "status": "pass",
+            "evidence": "method step 3: there are no unrecorded 'just rerun it' habits"
+          },
+          {
+            "section": "quality_gates",
+            "check": "row_count_checks_between_stages",
+            "status": "pass",
+            "evidence": "method step 4: row count checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "freshness_checks_between_stages",
+            "status": "pass",
+            "evidence": "method step 4: freshness checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "null_uniqueness_distribution_checks_between_stages",
+            "status": "pass",
+            "evidence": "method step 4: null, uniqueness and distribution checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "bad_partitions_quarantined",
+            "status": "pass",
+            "evidence": "method step 4: bad partitions are quarantined, not passed downstream"
+          },
+          {
+            "section": "quality_gates",
+            "check": "pipeline_health_dashboard_present",
+            "status": "pass",
+            "evidence": "method step 4: a pipeline-health dashboard exists"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "source_to_transform_to_sink_lineage_tracked",
+            "status": "pass",
+            "evidence": "method step 5: lineage is tracked from source through transform to sink"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "code_versioned",
+            "status": "pass",
+            "evidence": "method step 5: code is versioned"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "config_versioned",
+            "status": "pass",
+            "evidence": "method step 5: config is versioned"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "data_snapshots_versioned",
+            "status": "pass",
+            "evidence": "method step 5: data snapshots are versioned where it matters"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "same_inputs_produce_same_outputs_verified",
+            "status": "pass",
+            "evidence": "method step 5: the same inputs produce the same outputs \u2014 verified, not assumed"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "training_reproducible_with_seeds_and_pinned_env",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: training is reproducible \u2014 seeds recorded and the environment pinned"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "split_total_matches_sum_of_split_rows",
+            "status": "pass",
+            "evidence": "method step 6: the declared total split rows equal the declared train rows plus eval rows plus test rows (the skill states no split ratio, so none is imposed here)"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "leakage_checks_cover_time_target_and_cross_splits",
+            "status": "pass",
+            "evidence": "method step 6: leakage checks cover time, target and cross-split leakage"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "split_by_time_or_user_when_temporal",
+            "status": "pass",
+            "evidence": "method step 6: data is split by time or user when reality is temporal"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "class_balance_assessed",
+            "status": "pass",
+            "evidence": "method step 6: class balance is assessed \u2014 awareness is declared, no ratio is imposed"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "feature_definitions_declared",
+            "status": "pass",
+            "evidence": "method step 6: feature definitions are declared"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "label_definition_declared",
+            "status": "pass",
+            "evidence": "method step 6: the label definition is declared"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "feature_store_only_when_justified",
+            "status": "pass",
+            "evidence": "method step 6: a feature store is used only when justified"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "no_pii_in_training_data_without_lawful_basis",
+            "status": "pass",
+            "evidence": "red line: no PII is in training data without a lawful basis"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "eval_suites_versioned_with_model",
+            "status": "pass",
+            "evidence": "method step 7: eval suites are versioned with the model"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "model_registry_entry_exists",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: a registry entry exists for the model"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "model_card_covers_data_metrics_and_limits",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: a model card exists covering data, metrics and limits"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "offline_eval_completed_before_prod",
+            "status": "pass",
+            "evidence": "red line: offline eval is completed before a model goes to prod"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "rollout_plan_present_before_prod",
+            "status": "pass",
+            "evidence": "red line: a rollout plan exists before a model goes to prod"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "deployment_pattern_declared",
+            "status": "pass",
+            "evidence": "method step 7: the deployment pattern (batch vs service) is declared"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "latency_within_caller_declared_budget",
+            "status": "pass",
+            "evidence": "method step 7: the declared estimated latency does not exceed the latency budget the caller itself declares (the skill states no latency number, so none is imposed here)"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "cost_within_caller_declared_budget",
+            "status": "pass",
+            "evidence": "method step 7: the declared estimated monthly cost does not exceed the monthly cost budget the caller itself declares (the skill states no cost number, so none is imposed here)"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "input_drift_monitored",
+            "status": "pass",
+            "evidence": "method step 8: input drift is monitored"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "output_drift_monitored",
+            "status": "pass",
+            "evidence": "method step 8: output drift is monitored"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "performance_decay_monitored_vs_baselines",
+            "status": "pass",
+            "evidence": "method step 8: performance decay is monitored against baselines"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "alert_thresholds_set",
+            "status": "pass",
+            "evidence": "quality gate: drift and performance monitoring is live with alert thresholds \u2014 the threshold values are the caller's, none is imposed here"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "thresholds_tied_to_retraining_policy",
+            "status": "pass",
+            "evidence": "method step 8: alert thresholds are tied to a retraining policy"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "retraining_is_a_pipeline",
+            "status": "pass",
+            "evidence": "method step 8: retraining is a pipeline, not a heroic weekend"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "sources_evaluated": 2,
+        "computed_total_rows": "150.000000",
+        "total_rows_difference": "0.000000",
+        "computed_split_total_rows": "150.000000",
+        "split_total_difference": "0.000000",
+        "latency_headroom_ms": "100.000000",
+        "monthly_cost_headroom": "50.000000",
+        "summary": "46 pass, 0 fail, 0 missing of 46 checks across seven sections.",
+        "stamp": "DATA/ML PIPELINE ENGINEERING\nentity: test-pipeline-001\nVERDICT: DATA_ML_PIPELINE_READY\n  contracts_and_ingestion      pass\n  idempotency_and_orchestration pass\n  quality_gates                pass\n  lineage_and_reproducibility  pass\n  ml_hygiene_and_splits        pass\n  lifecycle_and_serving        pass\n  monitoring_and_drift         pass\n46 pass, 0 fail, 0 missing of 46 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "computed_spot_checks": {
+          "computed_split_total_rows": "150.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "computed_total_rows": "150.000000",
+          "latency_headroom_ms": "-300.000000",
+          "monthly_cost_headroom": "-400.000000",
+          "sources_evaluated": 2,
+          "split_total_difference": "-50.000000",
+          "total_rows_difference": "849.000000"
+        },
+        "failing_checks": [
+          "total_rows_matches_sum_of_source_rows",
+          "no_silent_coercion",
+          "split_total_matches_sum_of_split_rows",
+          "latency_within_caller_declared_budget",
+          "cost_within_caller_declared_budget",
+          "no_pii_in_training_data_without_lawful_basis"
+        ],
+        "http": 200,
+        "notes": "Full manifest carrying exactly 6 planted violations: sources declared_total_rows 999 vs sum 150 (diff 849); silent_coercion_present=true (red line); splits declared_total_rows 100 vs sum 150 (diff -50); estimated latency 500 exceeds caller budget 200 (headroom -300); estimated cost 500 exceeds caller budget 100 (headroom -400); PII without lawful basis=true (red line). All other fields hold their passing full-pass values. [Tester corrections: designer listed field paths (sources.declared_total_rows etc.) as failing_checks instead of exact check names; corrected to the 6 exact check names. Designer supplied a sparse input whose absent sections would be missing rather than failing; rebuilt as a full manifest carrying exactly the intended violations. Designer omitted structured computed_spot_checks; added.]",
+        "outcome": "DATA_ML_PIPELINE_NOT_READY"
+      },
+      "input": {
+        "entity": "test-pipeline-001",
+        "features": {
+          "feature_definitions_declared": true,
+          "feature_store_only_when_justified": true,
+          "label_definition_declared": true
+        },
+        "lifecycle": {
+          "eval_suites_versioned_with_model": true,
+          "model_card_covers_data_metrics_and_limits": true,
+          "model_registry_entry_exists": true,
+          "offline_eval_completed_before_prod": true,
+          "rollout_plan_present_before_prod": true
+        },
+        "lineage": {
+          "code_versioned": true,
+          "config_versioned": true,
+          "data_snapshots_versioned": true,
+          "same_inputs_produce_same_outputs_verified": true,
+          "source_to_transform_to_sink_tracked": true
+        },
+        "monitoring": {
+          "alert_thresholds_set": true,
+          "input_drift_monitored": true,
+          "output_drift_monitored": true,
+          "performance_decay_monitored_vs_baselines": true,
+          "retraining_is_a_pipeline": true,
+          "thresholds_tied_to_retraining_policy": true
+        },
+        "pipeline": {
+          "backfill_tested_once": true,
+          "exactly_once_effects_at_sinks": true,
+          "explicit_step_dependencies": true,
+          "failures_alert_and_retry": true,
+          "schedules_documented": true,
+          "steps_rerunnable_idempotently": true,
+          "unrecorded_manual_reruns_present": false
+        },
+        "privacy": {
+          "pii_in_training_data_without_lawful_basis": true
+        },
+        "quality": {
+          "bad_partitions_quarantined": true,
+          "freshness_checks_between_stages": true,
+          "null_uniqueness_distribution_checks_between_stages": true,
+          "pipeline_health_dashboard_present": true,
+          "row_count_checks_between_stages": true
+        },
+        "serving": {
+          "deployment_pattern_declared": true,
+          "estimated_latency_ms": 500.0,
+          "estimated_monthly_cost": 500.0,
+          "latency_budget_ms": 200.0,
+          "monthly_cost_budget": 100.0
+        },
+        "sources": {
+          "bad_data_refused_loudly": true,
+          "datasets": [
+            {
+              "name": "raw_logs",
+              "rows": 100
+            },
+            {
+              "name": "user_data",
+              "rows": 50
+            }
+          ],
+          "declared_total_rows": 999,
+          "schemas_and_expectations_declared_for_all_inputs_and_outputs": true,
+          "silent_coercion_present": true,
+          "validation_on_arrival": true
+        },
+        "splits": {
+          "class_balance_assessed": true,
+          "declared_total_rows": 100,
+          "eval_rows": 40,
+          "leakage_checks_cover_time_target_and_cross_splits": true,
+          "split_by_time_or_user_when_temporal": true,
+          "test_rows": 30,
+          "train_rows": 80
+        },
+        "training": {
+          "reproducible_with_seeds_and_pinned_env": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-ml-pipeline-engineering",
+        "atom_version": "0.1.0",
+        "entity": "test-pipeline-001",
+        "verdict": "DATA_ML_PIPELINE_NOT_READY",
+        "sections": {
+          "contracts_and_ingestion": "fail",
+          "idempotency_and_orchestration": "pass",
+          "quality_gates": "pass",
+          "lineage_and_reproducibility": "pass",
+          "ml_hygiene_and_splits": "fail",
+          "lifecycle_and_serving": "fail",
+          "monitoring_and_drift": "pass"
+        },
+        "checks": [
+          {
+            "section": "contracts_and_ingestion",
+            "check": "source_entries_complete",
+            "status": "pass",
+            "evidence": "every source dataset entry carries a non-empty name and numeric rows"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "total_rows_matches_sum_of_source_rows",
+            "status": "fail",
+            "evidence": "the declared total source rows equal the sum of the declared per-dataset rows"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "schemas_and_expectations_declared",
+            "status": "pass",
+            "evidence": "method step 1: schemas and expectations (types, ranges, nullability) are declared for every input and output"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "validation_on_arrival",
+            "status": "pass",
+            "evidence": "method step 1: data is validated on arrival at every edge"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "bad_data_refused_loudly",
+            "status": "pass",
+            "evidence": "method step 1: bad data is refused loudly, never accepted silently"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "no_silent_coercion",
+            "status": "fail",
+            "evidence": "red line: data is never coerced silently"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "steps_rerunnable_idempotently",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: pipeline steps are rerunnable idempotently"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "exactly_once_effects_at_sinks",
+            "status": "pass",
+            "evidence": "method step 2: sinks have exactly-once effects (upserts/keys)"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "backfill_tested_once",
+            "status": "pass",
+            "evidence": "quality gate: a backfill was tested once \u2014 backfills are supported and cheap to rerun"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "explicit_step_dependencies",
+            "status": "pass",
+            "evidence": "method step 3: step dependencies are explicit"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "schedules_documented",
+            "status": "pass",
+            "evidence": "method step 3: schedules are documented"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "failures_alert_and_retry",
+            "status": "pass",
+            "evidence": "method step 3: failures alert and retry safely"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "no_unrecorded_manual_reruns",
+            "status": "pass",
+            "evidence": "method step 3: there are no unrecorded 'just rerun it' habits"
+          },
+          {
+            "section": "quality_gates",
+            "check": "row_count_checks_between_stages",
+            "status": "pass",
+            "evidence": "method step 4: row count checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "freshness_checks_between_stages",
+            "status": "pass",
+            "evidence": "method step 4: freshness checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "null_uniqueness_distribution_checks_between_stages",
+            "status": "pass",
+            "evidence": "method step 4: null, uniqueness and distribution checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "bad_partitions_quarantined",
+            "status": "pass",
+            "evidence": "method step 4: bad partitions are quarantined, not passed downstream"
+          },
+          {
+            "section": "quality_gates",
+            "check": "pipeline_health_dashboard_present",
+            "status": "pass",
+            "evidence": "method step 4: a pipeline-health dashboard exists"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "source_to_transform_to_sink_lineage_tracked",
+            "status": "pass",
+            "evidence": "method step 5: lineage is tracked from source through transform to sink"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "code_versioned",
+            "status": "pass",
+            "evidence": "method step 5: code is versioned"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "config_versioned",
+            "status": "pass",
+            "evidence": "method step 5: config is versioned"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "data_snapshots_versioned",
+            "status": "pass",
+            "evidence": "method step 5: data snapshots are versioned where it matters"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "same_inputs_produce_same_outputs_verified",
+            "status": "pass",
+            "evidence": "method step 5: the same inputs produce the same outputs \u2014 verified, not assumed"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "training_reproducible_with_seeds_and_pinned_env",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: training is reproducible \u2014 seeds recorded and the environment pinned"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "split_total_matches_sum_of_split_rows",
+            "status": "fail",
+            "evidence": "method step 6: the declared total split rows equal the declared train rows plus eval rows plus test rows (the skill states no split ratio, so none is imposed here)"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "leakage_checks_cover_time_target_and_cross_splits",
+            "status": "pass",
+            "evidence": "method step 6: leakage checks cover time, target and cross-split leakage"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "split_by_time_or_user_when_temporal",
+            "status": "pass",
+            "evidence": "method step 6: data is split by time or user when reality is temporal"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "class_balance_assessed",
+            "status": "pass",
+            "evidence": "method step 6: class balance is assessed \u2014 awareness is declared, no ratio is imposed"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "feature_definitions_declared",
+            "status": "pass",
+            "evidence": "method step 6: feature definitions are declared"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "label_definition_declared",
+            "status": "pass",
+            "evidence": "method step 6: the label definition is declared"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "feature_store_only_when_justified",
+            "status": "pass",
+            "evidence": "method step 6: a feature store is used only when justified"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "no_pii_in_training_data_without_lawful_basis",
+            "status": "fail",
+            "evidence": "red line: no PII is in training data without a lawful basis"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "eval_suites_versioned_with_model",
+            "status": "pass",
+            "evidence": "method step 7: eval suites are versioned with the model"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "model_registry_entry_exists",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: a registry entry exists for the model"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "model_card_covers_data_metrics_and_limits",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: a model card exists covering data, metrics and limits"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "offline_eval_completed_before_prod",
+            "status": "pass",
+            "evidence": "red line: offline eval is completed before a model goes to prod"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "rollout_plan_present_before_prod",
+            "status": "pass",
+            "evidence": "red line: a rollout plan exists before a model goes to prod"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "deployment_pattern_declared",
+            "status": "pass",
+            "evidence": "method step 7: the deployment pattern (batch vs service) is declared"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "latency_within_caller_declared_budget",
+            "status": "fail",
+            "evidence": "method step 7: the declared estimated latency does not exceed the latency budget the caller itself declares (the skill states no latency number, so none is imposed here)"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "cost_within_caller_declared_budget",
+            "status": "fail",
+            "evidence": "method step 7: the declared estimated monthly cost does not exceed the monthly cost budget the caller itself declares (the skill states no cost number, so none is imposed here)"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "input_drift_monitored",
+            "status": "pass",
+            "evidence": "method step 8: input drift is monitored"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "output_drift_monitored",
+            "status": "pass",
+            "evidence": "method step 8: output drift is monitored"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "performance_decay_monitored_vs_baselines",
+            "status": "pass",
+            "evidence": "method step 8: performance decay is monitored against baselines"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "alert_thresholds_set",
+            "status": "pass",
+            "evidence": "quality gate: drift and performance monitoring is live with alert thresholds \u2014 the threshold values are the caller's, none is imposed here"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "thresholds_tied_to_retraining_policy",
+            "status": "pass",
+            "evidence": "method step 8: alert thresholds are tied to a retraining policy"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "retraining_is_a_pipeline",
+            "status": "pass",
+            "evidence": "method step 8: retraining is a pipeline, not a heroic weekend"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "sources_evaluated": 2,
+        "computed_total_rows": "150.000000",
+        "total_rows_difference": "849.000000",
+        "computed_split_total_rows": "150.000000",
+        "split_total_difference": "-50.000000",
+        "latency_headroom_ms": "-300.000000",
+        "monthly_cost_headroom": "-400.000000",
+        "summary": "40 pass, 6 fail, 0 missing of 46 checks across seven sections.",
+        "stamp": "DATA/ML PIPELINE ENGINEERING\nentity: test-pipeline-001\nVERDICT: DATA_ML_PIPELINE_NOT_READY\n  contracts_and_ingestion      fail\n  idempotency_and_orchestration pass\n  quality_gates                pass\n  lineage_and_reproducibility  pass\n  ml_hygiene_and_splits        fail\n  lifecycle_and_serving        fail\n  monitoring_and_drift         pass\n40 pass, 6 fail, 0 missing of 46 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "failing_checks": [],
+        "http": 200,
+        "notes": "Missing almost all required fields for the seven sections.",
+        "outcome": "INSUFFICIENT_EVIDENCE"
+      },
+      "input": {
+        "entity": "minimal-test"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-ml-pipeline-engineering",
+        "atom_version": "0.1.0",
+        "entity": "minimal-test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "contracts_and_ingestion": "insufficient_evidence",
+          "idempotency_and_orchestration": "insufficient_evidence",
+          "quality_gates": "insufficient_evidence",
+          "lineage_and_reproducibility": "insufficient_evidence",
+          "ml_hygiene_and_splits": "insufficient_evidence",
+          "lifecycle_and_serving": "insufficient_evidence",
+          "monitoring_and_drift": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "contracts_and_ingestion",
+            "check": "source_entries_complete",
+            "status": "missing",
+            "evidence": "no source datasets declared"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "total_rows_matches_sum_of_source_rows",
+            "status": "missing",
+            "evidence": "no source datasets declared"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "schemas_and_expectations_declared",
+            "status": "missing",
+            "evidence": "method step 1: schemas and expectations (types, ranges, nullability) are declared for every input and output"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "validation_on_arrival",
+            "status": "missing",
+            "evidence": "method step 1: data is validated on arrival at every edge"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "bad_data_refused_loudly",
+            "status": "missing",
+            "evidence": "method step 1: bad data is refused loudly, never accepted silently"
+          },
+          {
+            "section": "contracts_and_ingestion",
+            "check": "no_silent_coercion",
+            "status": "missing",
+            "evidence": "red line: data is never coerced silently"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "steps_rerunnable_idempotently",
+            "status": "missing",
+            "evidence": "method step 2 / quality gate: pipeline steps are rerunnable idempotently"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "exactly_once_effects_at_sinks",
+            "status": "missing",
+            "evidence": "method step 2: sinks have exactly-once effects (upserts/keys)"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "backfill_tested_once",
+            "status": "missing",
+            "evidence": "quality gate: a backfill was tested once \u2014 backfills are supported and cheap to rerun"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "explicit_step_dependencies",
+            "status": "missing",
+            "evidence": "method step 3: step dependencies are explicit"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "schedules_documented",
+            "status": "missing",
+            "evidence": "method step 3: schedules are documented"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "failures_alert_and_retry",
+            "status": "missing",
+            "evidence": "method step 3: failures alert and retry safely"
+          },
+          {
+            "section": "idempotency_and_orchestration",
+            "check": "no_unrecorded_manual_reruns",
+            "status": "missing",
+            "evidence": "method step 3: there are no unrecorded 'just rerun it' habits"
+          },
+          {
+            "section": "quality_gates",
+            "check": "row_count_checks_between_stages",
+            "status": "missing",
+            "evidence": "method step 4: row count checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "freshness_checks_between_stages",
+            "status": "missing",
+            "evidence": "method step 4: freshness checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "null_uniqueness_distribution_checks_between_stages",
+            "status": "missing",
+            "evidence": "method step 4: null, uniqueness and distribution checks run between stages"
+          },
+          {
+            "section": "quality_gates",
+            "check": "bad_partitions_quarantined",
+            "status": "missing",
+            "evidence": "method step 4: bad partitions are quarantined, not passed downstream"
+          },
+          {
+            "section": "quality_gates",
+            "check": "pipeline_health_dashboard_present",
+            "status": "missing",
+            "evidence": "method step 4: a pipeline-health dashboard exists"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "source_to_transform_to_sink_lineage_tracked",
+            "status": "missing",
+            "evidence": "method step 5: lineage is tracked from source through transform to sink"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "code_versioned",
+            "status": "missing",
+            "evidence": "method step 5: code is versioned"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "config_versioned",
+            "status": "missing",
+            "evidence": "method step 5: config is versioned"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "data_snapshots_versioned",
+            "status": "missing",
+            "evidence": "method step 5: data snapshots are versioned where it matters"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "same_inputs_produce_same_outputs_verified",
+            "status": "missing",
+            "evidence": "method step 5: the same inputs produce the same outputs \u2014 verified, not assumed"
+          },
+          {
+            "section": "lineage_and_reproducibility",
+            "check": "training_reproducible_with_seeds_and_pinned_env",
+            "status": "missing",
+            "evidence": "method step 7 / quality gate: training is reproducible \u2014 seeds recorded and the environment pinned"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "split_total_matches_sum_of_split_rows",
+            "status": "missing",
+            "evidence": "method step 6: the declared total split rows equal the declared train rows plus eval rows plus test rows (the skill states no split ratio, so none is imposed here)"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "leakage_checks_cover_time_target_and_cross_splits",
+            "status": "missing",
+            "evidence": "method step 6: leakage checks cover time, target and cross-split leakage"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "split_by_time_or_user_when_temporal",
+            "status": "missing",
+            "evidence": "method step 6: data is split by time or user when reality is temporal"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "class_balance_assessed",
+            "status": "missing",
+            "evidence": "method step 6: class balance is assessed \u2014 awareness is declared, no ratio is imposed"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "feature_definitions_declared",
+            "status": "missing",
+            "evidence": "method step 6: feature definitions are declared"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "label_definition_declared",
+            "status": "missing",
+            "evidence": "method step 6: the label definition is declared"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "feature_store_only_when_justified",
+            "status": "missing",
+            "evidence": "method step 6: a feature store is used only when justified"
+          },
+          {
+            "section": "ml_hygiene_and_splits",
+            "check": "no_pii_in_training_data_without_lawful_basis",
+            "status": "missing",
+            "evidence": "red line: no PII is in training data without a lawful basis"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "eval_suites_versioned_with_model",
+            "status": "missing",
+            "evidence": "method step 7: eval suites are versioned with the model"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "model_registry_entry_exists",
+            "status": "missing",
+            "evidence": "method step 7 / quality gate: a registry entry exists for the model"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "model_card_covers_data_metrics_and_limits",
+            "status": "missing",
+            "evidence": "method step 7 / quality gate: a model card exists covering data, metrics and limits"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "offline_eval_completed_before_prod",
+            "status": "missing",
+            "evidence": "red line: offline eval is completed before a model goes to prod"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "rollout_plan_present_before_prod",
+            "status": "missing",
+            "evidence": "red line: a rollout plan exists before a model goes to prod"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "deployment_pattern_declared",
+            "status": "missing",
+            "evidence": "method step 7: the deployment pattern (batch vs service) is declared"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "latency_within_caller_declared_budget",
+            "status": "missing",
+            "evidence": "method step 7: the declared estimated latency does not exceed the latency budget the caller itself declares (the skill states no latency number, so none is imposed here)"
+          },
+          {
+            "section": "lifecycle_and_serving",
+            "check": "cost_within_caller_declared_budget",
+            "status": "missing",
+            "evidence": "method step 7: the declared estimated monthly cost does not exceed the monthly cost budget the caller itself declares (the skill states no cost number, so none is imposed here)"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "input_drift_monitored",
+            "status": "missing",
+            "evidence": "method step 8: input drift is monitored"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "output_drift_monitored",
+            "status": "missing",
+            "evidence": "method step 8: output drift is monitored"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "performance_decay_monitored_vs_baselines",
+            "status": "missing",
+            "evidence": "method step 8: performance decay is monitored against baselines"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "alert_thresholds_set",
+            "status": "missing",
+            "evidence": "quality gate: drift and performance monitoring is live with alert thresholds \u2014 the threshold values are the caller's, none is imposed here"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "thresholds_tied_to_retraining_policy",
+            "status": "missing",
+            "evidence": "method step 8: alert thresholds are tied to a retraining policy"
+          },
+          {
+            "section": "monitoring_and_drift",
+            "check": "retraining_is_a_pipeline",
+            "status": "missing",
+            "evidence": "method step 8: retraining is a pipeline, not a heroic weekend"
+          }
+        ],
+        "computed_status": null,
+        "sources_evaluated": 0,
+        "computed_total_rows": null,
+        "total_rows_difference": null,
+        "computed_split_total_rows": null,
+        "split_total_difference": null,
+        "latency_headroom_ms": null,
+        "monthly_cost_headroom": null,
+        "summary": "0 pass, 0 fail, 46 missing of 46 checks across seven sections.",
+        "stamp": "DATA/ML PIPELINE ENGINEERING\nentity: minimal-test\nVERDICT: INSUFFICIENT_EVIDENCE\n  contracts_and_ingestion      insufficient_evidence\n  idempotency_and_orchestration insufficient_evidence\n  quality_gates                insufficient_evidence\n  lineage_and_reproducibility  insufficient_evidence\n  ml_hygiene_and_splits        insufficient_evidence\n  lifecycle_and_serving        insufficient_evidence\n  monitoring_and_drift         insufficient_evidence\n0 pass, 0 fail, 46 missing of 46 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "failing_checks": [],
+        "http": 422,
+        "notes": "Exactly one type violation: sources.declared_total_rows expects a number, received a string. [Tester correction: designer carried two type violations (sources.datasets as a string and sources.declared_total_rows as a string); reduced to exactly one documented typed field.]",
+        "outcome": null
+      },
+      "input": {
+        "sources": {
+          "declared_total_rows": "one-hundred"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "sources.declared_total_rows",
+        "detail": "sources.declared_total_rows must be a number"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

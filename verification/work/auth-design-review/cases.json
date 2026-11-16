@@ -1,0 +1,163 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "system": "secure-auth-service",
+        "human_auth": {
+          "passkeys_preferred": true,
+          "mfa_enforced_for_admin": true,
+          "mfa_enforced_for_sensitive_ops": true,
+          "passwords_used": false,
+          "shared_accounts_present": false
+        },
+        "sessions": {
+          "secure_httponly_samesite_cookies": true,
+          "rotate_on_login_and_privilege_change": true,
+          "expiry_defined": true,
+          "server_side_revocation_works": true
+        },
+        "oauth": {
+          "oauth_used": false
+        },
+        "service_tokens": {
+          "short_lived": true,
+          "scoped": true,
+          "audience_bound": true,
+          "jit_over_long_lived_keys": true,
+          "rotation_revocation_tested": true,
+          "lifetimes_and_scopes_documented": true,
+          "long_lived_unrevocable_credentials_present": false
+        },
+        "authorization": {
+          "server_side_checks_per_endpoint": true,
+          "rbac_coarse": true,
+          "abac_fine": true,
+          "deny_by_default": true,
+          "client_side_only_authorization": false,
+          "hand_rolled_crypto_or_protocols": false
+        },
+        "lifecycle": {
+          "provisioning_reviewed": true,
+          "deprovisioning_checklist_exists": true,
+          "deprovisioning_exercised": true,
+          "access_reviews_scheduled_for_admin": true
+        },
+        "anti_abuse": {
+          "login_rate_limited": true,
+          "token_endpoints_rate_limited": true,
+          "lockout_balanced_no_user_dos": true,
+          "anomaly_alerting": true
+        },
+        "audit": {
+          "authn_events_logged": true,
+          "authz_denials_logged": true,
+          "permission_changes_logged": true,
+          "logs_include_actor_and_context": true
+        }
+      },
+      "expect": {
+        "outcome": "AUTH_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean flags set to pass the skill quality gates and red lines."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "system": "insecure-auth-service",
+        "human_auth": {
+          "passkeys_preferred": true,
+          "mfa_enforced_for_admin": true,
+          "mfa_enforced_for_sensitive_ops": true,
+          "passwords_used": false,
+          "shared_accounts_present": true
+        },
+        "sessions": {
+          "secure_httponly_samesite_cookies": true,
+          "rotate_on_login_and_privilege_change": true,
+          "expiry_defined": true,
+          "server_side_revocation_works": true
+        },
+        "oauth": {
+          "oauth_used": false
+        },
+        "service_tokens": {
+          "short_lived": true,
+          "scoped": true,
+          "audience_bound": true,
+          "jit_over_long_lived_keys": true,
+          "rotation_revocation_tested": true,
+          "lifetimes_and_scopes_documented": true,
+          "long_lived_unrevocable_credentials_present": true
+        },
+        "authorization": {
+          "server_side_checks_per_endpoint": true,
+          "rbac_coarse": true,
+          "abac_fine": true,
+          "deny_by_default": true,
+          "client_side_only_authorization": true,
+          "hand_rolled_crypto_or_protocols": false
+        },
+        "lifecycle": {
+          "provisioning_reviewed": true,
+          "deprovisioning_checklist_exists": true,
+          "deprovisioning_exercised": true,
+          "access_reviews_scheduled_for_admin": true
+        },
+        "anti_abuse": {
+          "login_rate_limited": true,
+          "token_endpoints_rate_limited": true,
+          "lockout_balanced_no_user_dos": true,
+          "anomaly_alerting": true
+        },
+        "audit": {
+          "authn_events_logged": true,
+          "authz_denials_logged": true,
+          "permission_changes_logged": true,
+          "logs_include_actor_and_context": true
+        }
+      },
+      "expect": {
+        "outcome": "AUTH_DESIGN_DEFICIENT",
+        "http": 200,
+        "failing_checks": [
+          "human_auth.shared_accounts_present",
+          "service_tokens.long_lived_unrevocable_credentials_present",
+          "authorization.client_side_only_authorization"
+        ],
+        "notes": "Violates three specific skill red lines."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "system": "minimal-test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing almost all required fields, resulting in insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "system": "malformed-test",
+        "human_auth": "should-be-an-object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: human_auth expected to be an object, provided a string."
+      }
+    }
+  ]
+}

@@ -1,0 +1,858 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: correctness-verification-certificate
+
+=== contract.yaml ===
+service_name: correctness-verification-certificate
+display_name: Correctness verification certificate
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:correctness-verification
+binding:
+  skill: correctness-verification
+  skill_path: workspace/mymilo-build/skills/correctness-verification/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/correctness_verification_certificate.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_correctness_verification_certificate.py — 21 tests, all passing 2026-11-15
+endpoints:
+- API
+- agent
+keys:
+  namespace: correctness_verification_certificate
+  prefix: atm_1_correctness_verification_certificate_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product correctness claim checks
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Correctness verification certificate — `correctness-verification-certificate`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Verify and certify software correctness - specs, model checking, deductive proofs, certificates, honest scope.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product correctness claim checks**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the correctness-verification evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_CERTIFIED`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `component` (string; carried into the verdict output, not itself checked) | — |
+| `register.exists` | claims_register |
+| `register.property_named` | claims_register |
+| `register.scope_named` | claims_register |
+| `register.evidence_level_assigned` | claims_register |
+| `register.expiry_set` | claims_register |
+| `ladder.cheapest_sufficient_level_selected` | evidence_ladder |
+| `ladder.claim_exceeds_evidence_level` (must be `false` to pass) | evidence_ladder |
+| `ladder.tests_presented_as_proof` (must be `false` to pass) | evidence_ladder |
+| `specs.invariants_written` | specs_before_tools |
+| `specs.pre_post_conditions_written` | specs_before_tools |
+| `specs.liveness_properties_written` | specs_before_tools |
+| `specs.written_before_tools_run` | specs_before_tools |
+| `artifacts.machine_checkable_per_claim` | evidence_artifacts |
+| `artifacts.proof_scripts_or_solver_logs_retained` | evidence_artifacts |
+| `artifacts.counterexample_suppressed` (must be `false` to pass) | evidence_artifacts |
+| `artifacts.reproduction_recipe_present` | evidence_artifacts |
+| `scope.exclusions_written` | scope_honesty |
+| `scope.claims_versioned` | scope_honesty |
+| `scope.reverification_triggers_defined` | scope_honesty |
+| `scope.verified_at_current_version` | scope_honesty |
+| `ci.verification_in_pipeline` | ci_integration |
+| `ci.broken_proof_fails_build` | ci_integration |
+| `review.independent_review_done` | adversarial_and_certification |
+| `review.counterexample_found` (gates the disclosure check below) | adversarial_and_certification |
+| `review.counterexample_disclosed` (required when a counterexample was found; otherwise the check passes as not applicable) | adversarial_and_certification |
+| `certificate.signed_attestation_binds_claim_artifact_commit` | adversarial_and_certification |
+| `certificate.independently_reproducible` | adversarial_and_certification |
+
+The verdict is one of `CERTIFIED` (all 26 checks pass),
+`NOT_CERTIFIED` (any check fails — one failure breaks the claim), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: claims_register, evidence_ladder,
+specs_before_tools, evidence_artifacts, scope_honesty,
+ci_integration, adversarial_and_certification.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "correctness-verification-certificate",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "CERTIFIED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 26 boolean checks are satisfied. Computed spot checks: 26/26 checks passed."
+      },
+      "input": {
+        "component": "auth-service-v1",
+        "register": {
+          "exists": true,
+          "property_named": true,
+          "scope_named": true,
+          "evidence_level_assigned": true,
+          "expiry_set": true
+        },
+        "ladder": {
+          "cheapest_sufficient_level_selected": true,
+          "claim_exceeds_evidence_level": false,
+          "tests_presented_as_proof": false
+        },
+        "specs": {
+          "invariants_written": true,
+          "pre_post_conditions_written": true,
+          "liveness_properties_written": true,
+          "written_before_tools_run": true
+        },
+        "artifacts": {
+          "machine_checkable_per_claim": true,
+          "proof_scripts_or_solver_logs_retained": true,
+          "counterexample_suppressed": false,
+          "reproduction_recipe_present": true
+        },
+        "scope": {
+          "exclusions_written": true,
+          "claims_versioned": true,
+          "reverification_triggers_defined": true,
+          "verified_at_current_version": true
+        },
+        "ci": {
+          "verification_in_pipeline": true,
+          "broken_proof_fails_build": true
+        },
+        "review": {
+          "independent_review_done": true,
+          "counterexample_found": false,
+          "counterexample_disclosed": true
+        },
+        "certificate": {
+          "signed_attestation_binds_claim_artifact_commit": true,
+          "independently_reproducible": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "correctness-verification-certificate",
+        "atom_version": "0.1.0",
+        "component": "auth-service-v1",
+        "verdict": "CERTIFIED",
+        "sections": {
+          "claims_register": "pass",
+          "evidence_ladder": "pass",
+          "specs_before_tools": "pass",
+          "evidence_artifacts": "pass",
+          "scope_honesty": "pass",
+          "ci_integration": "pass",
+          "adversarial_and_certification": "pass"
+        },
+        "checks": [
+          {
+            "section": "claims_register",
+            "check": "register_exists",
+            "status": "pass",
+            "evidence": "claims register first: one row per claim \u2014 no register, no claim"
+          },
+          {
+            "section": "claims_register",
+            "check": "property_named_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim names the property \u2014 what exactly is claimed correct"
+          },
+          {
+            "section": "claims_register",
+            "check": "scope_named_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim names its scope \u2014 which version / configuration the claim covers"
+          },
+          {
+            "section": "claims_register",
+            "check": "evidence_level_assigned_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim carries its evidence level from the ladder"
+          },
+          {
+            "section": "claims_register",
+            "check": "expiry_set_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim carries an expiry \u2014 stale certificates are void"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "cheapest_sufficient_level_selected",
+            "status": "pass",
+            "evidence": "the evidence ladder \u2014 L1 static analysis, L2 property-based testing and fuzzing, L3 model checking, L4 deductive verification, L5 proof assistants \u2014 cheapest that suffices is selected"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "no_claim_exceeds_its_evidence_level",
+            "status": "pass",
+            "evidence": "no claim exceeds its evidence level (tests are not proof)"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "tests_not_presented_as_proof",
+            "status": "pass",
+            "evidence": "tests are not presented as proof \u2014 never say proven, bug-free, or certified without property, scope, and evidence"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "invariants_written",
+            "status": "pass",
+            "evidence": "invariants are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "pre_post_conditions_written",
+            "status": "pass",
+            "evidence": "pre- and post-conditions are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "liveness_properties_written",
+            "status": "pass",
+            "evidence": "liveness properties are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "specs_written_before_tools_run",
+            "status": "pass",
+            "evidence": "specs come before tools: written before running anything"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "machine_checkable_artifact_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim has a machine-checkable artifact behind it"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "proof_scripts_or_solver_logs_retained",
+            "status": "pass",
+            "evidence": "evidence artifacts are retained: counterexamples, proof scripts, solver logs, CI records"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "counterexample_not_suppressed",
+            "status": "pass",
+            "evidence": "never suppress a counterexample"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "reproduction_recipe_present",
+            "status": "pass",
+            "evidence": "no certificate without a reproduction recipe"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "exclusions_written",
+            "status": "pass",
+            "evidence": "what is outside scope is listed \u2014 dependencies, hardware, misconfiguration, side channels"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "claims_versioned",
+            "status": "pass",
+            "evidence": "every claim is versioned"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "reverification_triggers_defined",
+            "status": "pass",
+            "evidence": "re-verification triggers are defined \u2014 re-verify on change"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "verified_at_current_version",
+            "status": "pass",
+            "evidence": "never certify an artifact that has not been verified at its current version"
+          },
+          {
+            "section": "ci_integration",
+            "check": "verification_runs_in_pipeline",
+            "status": "pass",
+            "evidence": "verification runs in the pipeline"
+          },
+          {
+            "section": "ci_integration",
+            "check": "broken_proof_fails_build",
+            "status": "pass",
+            "evidence": "a broken proof fails the build like a broken test"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "independent_adversarial_review_done",
+            "status": "pass",
+            "evidence": "an independent adversarial pass tries to falsify the claim \u2014 only unfalsified claims are certified"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "counterexample_disclosed_when_found",
+            "status": "pass",
+            "evidence": "no counterexample found in adversarial review"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "signed_attestation_binds_claim_artifact_and_commit",
+            "status": "pass",
+            "evidence": "a signed attestation binds claim to artifact to source commit (hash and signature)"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "certificate_independently_reproducible",
+            "status": "pass",
+            "evidence": "certificates are signed, versioned, and independently reproducible"
+          }
+        ],
+        "summary": "26 pass, 0 fail, 0 missing of 26 checks across seven sections.",
+        "stamp": "CORRECTNESS VERIFICATION CERTIFICATE\ncomponent: auth-service-v1\nVERDICT: CERTIFIED\n  claims_register                  pass\n  evidence_ladder                  pass\n  specs_before_tools               pass\n  evidence_artifacts               pass\n  scope_honesty                    pass\n  ci_integration                   pass\n  adversarial_and_certification    pass\n26 pass, 0 fail, 0 missing of 26 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_CERTIFIED",
+        "http": 200,
+        "failing_checks": [
+          "ladder.claim_exceeds_evidence_level",
+          "ladder.tests_presented_as_proof",
+          "artifacts.counterexample_suppressed"
+        ],
+        "notes": "Violates negative constraints: claim_exceeds_evidence_level, tests_presented_as_proof, and counterexample_suppressed are true."
+      },
+      "input": {
+        "component": "broken-logic-module",
+        "register": {
+          "exists": true,
+          "property_named": true,
+          "scope_named": true,
+          "evidence_level_assigned": true,
+          "expiry_set": true
+        },
+        "ladder": {
+          "cheapest_sufficient_level_selected": true,
+          "claim_exceeds_evidence_level": true,
+          "tests_presented_as_proof": true
+        },
+        "specs": {
+          "invariants_written": true,
+          "pre_post_conditions_written": true,
+          "liveness_properties_written": true,
+          "written_before_tools_run": true
+        },
+        "artifacts": {
+          "machine_checkable_per_claim": true,
+          "proof_scripts_or_solver_logs_retained": true,
+          "counterexample_suppressed": true,
+          "reproduction_recipe_present": true
+        },
+        "scope": {
+          "exclusions_written": true,
+          "claims_versioned": true,
+          "reverification_triggers_defined": true,
+          "verified_at_current_version": true
+        },
+        "ci": {
+          "verification_in_pipeline": true,
+          "broken_proof_fails_build": true
+        },
+        "review": {
+          "independent_review_done": true,
+          "counterexample_found": false,
+          "counterexample_disclosed": true
+        },
+        "certificate": {
+          "signed_attestation_binds_claim_artifact_commit": true,
+          "independently_reproducible": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "correctness-verification-certificate",
+        "atom_version": "0.1.0",
+        "component": "broken-logic-module",
+        "verdict": "NOT_CERTIFIED",
+        "sections": {
+          "claims_register": "pass",
+          "evidence_ladder": "fail",
+          "specs_before_tools": "pass",
+          "evidence_artifacts": "fail",
+          "scope_honesty": "pass",
+          "ci_integration": "pass",
+          "adversarial_and_certification": "pass"
+        },
+        "checks": [
+          {
+            "section": "claims_register",
+            "check": "register_exists",
+            "status": "pass",
+            "evidence": "claims register first: one row per claim \u2014 no register, no claim"
+          },
+          {
+            "section": "claims_register",
+            "check": "property_named_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim names the property \u2014 what exactly is claimed correct"
+          },
+          {
+            "section": "claims_register",
+            "check": "scope_named_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim names its scope \u2014 which version / configuration the claim covers"
+          },
+          {
+            "section": "claims_register",
+            "check": "evidence_level_assigned_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim carries its evidence level from the ladder"
+          },
+          {
+            "section": "claims_register",
+            "check": "expiry_set_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim carries an expiry \u2014 stale certificates are void"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "cheapest_sufficient_level_selected",
+            "status": "pass",
+            "evidence": "the evidence ladder \u2014 L1 static analysis, L2 property-based testing and fuzzing, L3 model checking, L4 deductive verification, L5 proof assistants \u2014 cheapest that suffices is selected"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "no_claim_exceeds_its_evidence_level",
+            "status": "fail",
+            "evidence": "no claim exceeds its evidence level (tests are not proof)"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "tests_not_presented_as_proof",
+            "status": "fail",
+            "evidence": "tests are not presented as proof \u2014 never say proven, bug-free, or certified without property, scope, and evidence"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "invariants_written",
+            "status": "pass",
+            "evidence": "invariants are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "pre_post_conditions_written",
+            "status": "pass",
+            "evidence": "pre- and post-conditions are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "liveness_properties_written",
+            "status": "pass",
+            "evidence": "liveness properties are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "specs_written_before_tools_run",
+            "status": "pass",
+            "evidence": "specs come before tools: written before running anything"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "machine_checkable_artifact_for_each_claim",
+            "status": "pass",
+            "evidence": "each claim has a machine-checkable artifact behind it"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "proof_scripts_or_solver_logs_retained",
+            "status": "pass",
+            "evidence": "evidence artifacts are retained: counterexamples, proof scripts, solver logs, CI records"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "counterexample_not_suppressed",
+            "status": "fail",
+            "evidence": "never suppress a counterexample"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "reproduction_recipe_present",
+            "status": "pass",
+            "evidence": "no certificate without a reproduction recipe"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "exclusions_written",
+            "status": "pass",
+            "evidence": "what is outside scope is listed \u2014 dependencies, hardware, misconfiguration, side channels"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "claims_versioned",
+            "status": "pass",
+            "evidence": "every claim is versioned"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "reverification_triggers_defined",
+            "status": "pass",
+            "evidence": "re-verification triggers are defined \u2014 re-verify on change"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "verified_at_current_version",
+            "status": "pass",
+            "evidence": "never certify an artifact that has not been verified at its current version"
+          },
+          {
+            "section": "ci_integration",
+            "check": "verification_runs_in_pipeline",
+            "status": "pass",
+            "evidence": "verification runs in the pipeline"
+          },
+          {
+            "section": "ci_integration",
+            "check": "broken_proof_fails_build",
+            "status": "pass",
+            "evidence": "a broken proof fails the build like a broken test"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "independent_adversarial_review_done",
+            "status": "pass",
+            "evidence": "an independent adversarial pass tries to falsify the claim \u2014 only unfalsified claims are certified"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "counterexample_disclosed_when_found",
+            "status": "pass",
+            "evidence": "no counterexample found in adversarial review"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "signed_attestation_binds_claim_artifact_and_commit",
+            "status": "pass",
+            "evidence": "a signed attestation binds claim to artifact to source commit (hash and signature)"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "certificate_independently_reproducible",
+            "status": "pass",
+            "evidence": "certificates are signed, versioned, and independently reproducible"
+          }
+        ],
+        "summary": "23 pass, 3 fail, 0 missing of 26 checks across seven sections.",
+        "stamp": "CORRECTNESS VERIFICATION CERTIFICATE\ncomponent: broken-logic-module\nVERDICT: NOT_CERTIFIED\n  claims_register                  pass\n  evidence_ladder                  fail\n  specs_before_tools               pass\n  evidence_artifacts               fail\n  scope_honesty                    pass\n  ci_integration                   pass\n  adversarial_and_certification    pass\n23 pass, 3 fail, 0 missing of 26 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of fields; no explicit failures, but fails to reach CERTIFIED status."
+      },
+      "input": {
+        "component": "minimal-test",
+        "register": {
+          "exists": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "correctness-verification-certificate",
+        "atom_version": "0.1.0",
+        "component": "minimal-test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "claims_register": "insufficient_evidence",
+          "evidence_ladder": "insufficient_evidence",
+          "specs_before_tools": "insufficient_evidence",
+          "evidence_artifacts": "insufficient_evidence",
+          "scope_honesty": "insufficient_evidence",
+          "ci_integration": "insufficient_evidence",
+          "adversarial_and_certification": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "claims_register",
+            "check": "register_exists",
+            "status": "pass",
+            "evidence": "claims register first: one row per claim \u2014 no register, no claim"
+          },
+          {
+            "section": "claims_register",
+            "check": "property_named_for_each_claim",
+            "status": "missing",
+            "evidence": "each claim names the property \u2014 what exactly is claimed correct"
+          },
+          {
+            "section": "claims_register",
+            "check": "scope_named_for_each_claim",
+            "status": "missing",
+            "evidence": "each claim names its scope \u2014 which version / configuration the claim covers"
+          },
+          {
+            "section": "claims_register",
+            "check": "evidence_level_assigned_for_each_claim",
+            "status": "missing",
+            "evidence": "each claim carries its evidence level from the ladder"
+          },
+          {
+            "section": "claims_register",
+            "check": "expiry_set_for_each_claim",
+            "status": "missing",
+            "evidence": "each claim carries an expiry \u2014 stale certificates are void"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "cheapest_sufficient_level_selected",
+            "status": "missing",
+            "evidence": "the evidence ladder \u2014 L1 static analysis, L2 property-based testing and fuzzing, L3 model checking, L4 deductive verification, L5 proof assistants \u2014 cheapest that suffices is selected"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "no_claim_exceeds_its_evidence_level",
+            "status": "missing",
+            "evidence": "no claim exceeds its evidence level (tests are not proof)"
+          },
+          {
+            "section": "evidence_ladder",
+            "check": "tests_not_presented_as_proof",
+            "status": "missing",
+            "evidence": "tests are not presented as proof \u2014 never say proven, bug-free, or certified without property, scope, and evidence"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "invariants_written",
+            "status": "missing",
+            "evidence": "invariants are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "pre_post_conditions_written",
+            "status": "missing",
+            "evidence": "pre- and post-conditions are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "liveness_properties_written",
+            "status": "missing",
+            "evidence": "liveness properties are written in the checker's language"
+          },
+          {
+            "section": "specs_before_tools",
+            "check": "specs_written_before_tools_run",
+            "status": "missing",
+            "evidence": "specs come before tools: written before running anything"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "machine_checkable_artifact_for_each_claim",
+            "status": "missing",
+            "evidence": "each claim has a machine-checkable artifact behind it"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "proof_scripts_or_solver_logs_retained",
+            "status": "missing",
+            "evidence": "evidence artifacts are retained: counterexamples, proof scripts, solver logs, CI records"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "counterexample_not_suppressed",
+            "status": "missing",
+            "evidence": "never suppress a counterexample"
+          },
+          {
+            "section": "evidence_artifacts",
+            "check": "reproduction_recipe_present",
+            "status": "missing",
+            "evidence": "no certificate without a reproduction recipe"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "exclusions_written",
+            "status": "missing",
+            "evidence": "what is outside scope is listed \u2014 dependencies, hardware, misconfiguration, side channels"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "claims_versioned",
+            "status": "missing",
+            "evidence": "every claim is versioned"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "reverification_triggers_defined",
+            "status": "missing",
+            "evidence": "re-verification triggers are defined \u2014 re-verify on change"
+          },
+          {
+            "section": "scope_honesty",
+            "check": "verified_at_current_version",
+            "status": "missing",
+            "evidence": "never certify an artifact that has not been verified at its current version"
+          },
+          {
+            "section": "ci_integration",
+            "check": "verification_runs_in_pipeline",
+            "status": "missing",
+            "evidence": "verification runs in the pipeline"
+          },
+          {
+            "section": "ci_integration",
+            "check": "broken_proof_fails_build",
+            "status": "missing",
+            "evidence": "a broken proof fails the build like a broken test"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "independent_adversarial_review_done",
+            "status": "missing",
+            "evidence": "an independent adversarial pass tries to falsify the claim \u2014 only unfalsified claims are certified"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "counterexample_disclosed_when_found",
+            "status": "missing",
+            "evidence": "no counterexample found in adversarial review"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "signed_attestation_binds_claim_artifact_and_commit",
+            "status": "missing",
+            "evidence": "a signed attestation binds claim to artifact to source commit (hash and signature)"
+          },
+          {
+            "section": "adversarial_and_certification",
+            "check": "certificate_independently_reproducible",
+            "status": "missing",
+            "evidence": "certificates are signed, versioned, and independently reproducible"
+          }
+        ],
+        "summary": "1 pass, 0 fail, 25 missing of 26 checks across seven sections.",
+        "stamp": "CORRECTNESS VERIFICATION CERTIFICATE\ncomponent: minimal-test\nVERDICT: INSUFFICIENT_EVIDENCE\n  claims_register                  insufficient_evidence\n  evidence_ladder                  insufficient_evidence\n  specs_before_tools               insufficient_evidence\n  evidence_artifacts               insufficient_evidence\n  scope_honesty                    insufficient_evidence\n  ci_integration                   insufficient_evidence\n  adversarial_and_certification    insufficient_evidence\n1 pass, 0 fail, 25 missing of 26 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: component expects string, register expects object."
+      },
+      "input": {
+        "component": 12345,
+        "register": "not-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "component",
+        "detail": "component must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

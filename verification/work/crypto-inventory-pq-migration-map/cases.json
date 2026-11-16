@@ -1,0 +1,81 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "system": "production-cluster-01",
+        "inventory": [
+          {
+            "id": "item-1",
+            "surface": "tls",
+            "algorithm": "RSA",
+            "purpose": "key_exchange",
+            "shelf_life_years": 10,
+            "owner": "team-alpha"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "complete",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: counts.total=1, counts.migration_needed=1, migration_map[0].priority_rank=1, migration_map[0].classification='quantum_vulnerable'"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "system": "test-system",
+        "inventory": [
+          {
+            "id": "item-2",
+            "surface": "pki",
+            "algorithm": "RSA",
+            "purpose": "signature"
+          },
+          "invalid-entry-string"
+        ]
+      },
+      "expect": {
+        "outcome": "partial",
+        "http": 200,
+        "failing_checks": [
+          "counts.invalid_entries",
+          "counts.missing_shelf_life",
+          "counts.missing_owner"
+        ],
+        "notes": "The string entry triggers invalid_entries count; the object entry lacks shelf_life and owner."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "system": "empty-test",
+        "inventory": []
+      },
+      "expect": {
+        "outcome": "insufficient_evidence",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Empty inventory list results in insufficient_evidence status."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "system": 12345,
+        "inventory": "not-a-list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: system must be string, inventory must be list."
+      }
+    }
+  ]
+}

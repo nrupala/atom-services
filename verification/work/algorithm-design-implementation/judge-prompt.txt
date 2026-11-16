@@ -1,0 +1,1029 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: algorithm-design-implementation
+
+=== contract.yaml ===
+service_name: algorithm-design-implementation
+display_name: Algorithm design implementation
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:algorithmic-implementer
+binding:
+  skill: algorithmic-implementer
+  skill_path: workspace/mymilo-build/skills/algorithmic-implementer/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/algorithm_design_implementation.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_algorithm_design_implementation.py — 42 tests, all passing 2026-11-15
+keys:
+  namespace: algorithm_design_implementation
+  prefix: atm_1_algorithm_design_implementation_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Performance-critical code builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Algorithm design implementation — `algorithm-design-implementation`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Algorithmic implementation discipline — pick the right data structure and algorithm before writing code, reason about cost up front, implement it correctly first and fast second.
+
+A caller submits a declared design record for one algorithm problem and receives one deterministic verdict back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Performance-critical code builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the algorithm design manifest
+
+The caller submits one JSON manifest: a declared design record for
+one algorithm problem. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`DESIGN_UNSOUND`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `problem` (string; carried into the verdict output, not itself checked) | — |
+| `decomposition.inputs_stated` | decomposition |
+| `decomposition.outputs_stated` | decomposition |
+| `decomposition.constraints_stated` | decomposition |
+| `decomposition.invariant_stated` | decomposition |
+| `decomposition.pseudocode_sketched` | decomposition |
+| `decomposition.input_scale_stated` | decomposition |
+| `decomposition.max_input_size` (number; read by the computed scale check below) | complexity_reasoning |
+| `complexity.time_big_o_stated` | complexity_reasoning |
+| `complexity.space_big_o_stated` | complexity_reasoning |
+| `complexity.dominant_term_identified` | complexity_reasoning |
+| `complexity.bottleneck_identified` | complexity_reasoning |
+| `complexity.tradeoffs_named` | complexity_reasoning |
+| `complexity.time_complexity` (string; read by the computed scale check below) | complexity_reasoning |
+| `design.key_operation_identified` | data_structure_choice |
+| `design.key_operation` (string; read by the computed mapping check below) | data_structure_choice |
+| `design.chosen_structure` (string; read by the computed mapping check below) | data_structure_choice |
+| `design.structure_forces_quadratic` (must be `false` to pass — skill anti-pattern) | data_structure_choice |
+| `design.pattern` (string; read by the computed toolbox check and the three conditional checks below) | pattern_application |
+| `design.greedy_safety_proven` (required when the declared pattern is `greedy`; otherwise the check passes as not applicable) | pattern_application |
+| `design.dp_state_defined` (required when the declared pattern is `dynamic_programming`) | pattern_application |
+| `design.dp_transition_defined` (required when the declared pattern is `dynamic_programming`) | pattern_application |
+| `design.dp_base_case_defined` (required when the declared pattern is `dynamic_programming`) | pattern_application |
+| `design.graph_traversal_variant_named` (required when the declared pattern is `graph_traversal`; otherwise the check passes as not applicable) | pattern_application |
+| `correctness.invariant_reasoned` | correctness_and_edges |
+| `correctness.termination_reasoned` | correctness_and_edges |
+| `correctness.edge_cases.empty` | correctness_and_edges |
+| `correctness.edge_cases.single_element` | correctness_and_edges |
+| `correctness.edge_cases.duplicates` | correctness_and_edges |
+| `correctness.edge_cases.boundaries` | correctness_and_edges |
+| `correctness.edge_cases.integer_overflow` | correctness_and_edges |
+| `correctness.edges_and_properties_tested` | correctness_and_edges |
+| `verification.correctness_critical` (gates the method check below) | verification_and_optimization |
+| `verification.method` (string; required when correctness is declared critical; otherwise the check passes as not applicable) | verification_and_optimization |
+| `optimization.correctness_established_first` | verification_and_optimization |
+| `optimization.profiled_before_optimizing` | verification_and_optimization |
+| `optimization.optimized_before_measuring` (must be `false` to pass — skill anti-pattern) | verification_and_optimization |
+
+Three checks are computed from the declared values against
+vocabularies the skill itself states — no outside criterion is
+imported:
+
+- **Structure mapping:** the skill's table pairs each key operation
+  with the structure that makes it cheap — `lookup` → `hash_map`,
+  `top_k_or_priority` → `heap`, `ordered_range` → `bst_or_btree`,
+  `prefix` → `trie`, `connectivity` → `union_find`,
+  `sliding_window` → `deque`, `range_queries` → `prefix_sums`. The
+  declared pair passes only when it matches the table exactly; any
+  other declared operation or structure fails, because the skill
+  names no mapping for it.
+- **Pattern toolbox:** the declared pattern passes only when it is
+  one of the skill's nine — `two_pointers`, `sliding_window`,
+  `binary_search`, `binary_search_on_answer`, `divide_and_conquer`,
+  `greedy`, `dynamic_programming`, `graph_traversal`, `hashing`.
+- **Fatal scale:** the skill states O(n^2) is "fine at n=100,
+  fatal at n=10^7". The check therefore fails only for the fatal
+  combination the skill names — declared `time_complexity` exactly
+  `"O(n^2)"` at a declared `max_input_size` at or above 10,000,000
+  — and passes whenever that combination is not declared. An
+  absent size or an absent complexity string is missing
+  evidence, not a failure; a present value of the wrong type is
+  rejected as invalid input. Comparisons use the unrounded declared
+  values, so 9,999,999.5 passes and 10,000,000 fails. No other
+  complexity class is judged against scale: the skill states no
+  other scale anchor, so none is invented.
+
+The output also reports the computed `design_status`
+(`sound_on_declared_evidence` / `not_sound_on_declared_evidence` /
+null when any of the three computed checks cannot be completed)
+over the mapping, toolbox and scale checks, and `scale_status`
+(`no_fatal_scale_combination_declared` /
+`fatal_scale_combination_declared` / null) for the scale check
+alone.
+
+The verdict is one of `DESIGN_SOUND` (all 31 checks pass),
+`DESIGN_UNSOUND` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+decomposition, complexity_reasoning, data_structure_choice,
+pattern_application, correctness_and_edges,
+verification_and_optimization.
+
+## Honest scoping
+
+This atom audits a **declared** design record — it does not write
+code, read code, run code, execute tests, profile anything, or
+verify that a declared fact is true. A design is sound *on the
+caller's declared evidence*: a record that declares a heap for a
+top-k operation and a proven-safe greedy passes those checks even
+if the implementation does something else.
+
+Named exclusions: no judgment of whether the chosen algorithm is
+the *best* one for the problem beyond the skill's stated mapping
+and toolbox (the skill names no ranking among valid patterns, so
+none is invented); no Big-O correctness verification — the atom
+checks that time/space Big-O, the dominant term, the bottleneck
+and the trade-offs are *stated*, and judges scale only at the one
+anchor the skill states; no complexity classes beyond the exact
+declared string `"O(n^2)"` are treated as quadratic; key operations
+and patterns outside the skill's stated table and toolbox cannot
+pass, because the skill names no mapping or pattern for them;
+verification methods are checked only for membership in the
+skill's three stated options, not for quality of the proof,
+property suite, or certificate.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python oracle
+and TypeScript port built and parity-proven locally; no endpoint is
+live. Release happens one by one, by the owner's GO, per the approved
+queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "algorithm-design-implementation",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present, valid mapping (top_k_or_priority -> heap), valid pattern (greedy), scale is safe (1000 < 10^7). Computed spot checks: max_input_size=1000, structure_forces_quadratic=false, optimized_before_measuring=false. [Tester correction: method corrected from 'formal_proof' to 'invariant_proof' \u2014 one of the three skill methods (invariant_proof / property_based_testing / formal_or_cryptographic_certificate); 'formal_proof' is not in the vocabulary and would fail.]"
+      },
+      "input": {
+        "problem": "Find top K elements",
+        "decomposition": {
+          "inputs_stated": true,
+          "outputs_stated": true,
+          "constraints_stated": true,
+          "invariant_stated": true,
+          "pseudocode_sketched": true,
+          "input_scale_stated": true,
+          "max_input_size": 1000
+        },
+        "complexity": {
+          "time_big_o_stated": true,
+          "space_big_o_stated": true,
+          "dominant_term_identified": true,
+          "bottleneck_identified": true,
+          "tradeoffs_named": true,
+          "time_complexity": "O(n log k)"
+        },
+        "design": {
+          "key_operation_identified": true,
+          "key_operation": "top_k_or_priority",
+          "chosen_structure": "heap",
+          "structure_forces_quadratic": false,
+          "pattern": "greedy",
+          "greedy_safety_proven": true
+        },
+        "correctness": {
+          "invariant_reasoned": true,
+          "termination_reasoned": true,
+          "edge_cases": {
+            "empty": true,
+            "single_element": true,
+            "duplicates": true,
+            "boundaries": true,
+            "integer_overflow": true
+          },
+          "edges_and_properties_tested": true
+        },
+        "verification": {
+          "correctness_critical": true,
+          "method": "invariant_proof"
+        },
+        "optimization": {
+          "correctness_established_first": true,
+          "profiled_before_optimizing": true,
+          "optimized_before_measuring": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "algorithm-design-implementation",
+        "atom_version": "0.1.0",
+        "problem": "Find top K elements",
+        "verdict": "DESIGN_SOUND",
+        "sections": {
+          "decomposition": "pass",
+          "complexity_reasoning": "pass",
+          "data_structure_choice": "pass",
+          "pattern_application": "pass",
+          "correctness_and_edges": "pass",
+          "verification_and_optimization": "pass"
+        },
+        "checks": [
+          {
+            "section": "decomposition",
+            "check": "inputs_stated",
+            "status": "pass",
+            "evidence": "decompose first: the inputs are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "outputs_stated",
+            "status": "pass",
+            "evidence": "decompose first: the outputs are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "constraints_stated",
+            "status": "pass",
+            "evidence": "decompose first: the constraints are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "invariant_stated",
+            "status": "pass",
+            "evidence": "decompose first: the invariant is stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "pseudocode_sketched_before_coding",
+            "status": "pass",
+            "evidence": "sketch pseudocode before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "input_scale_stated",
+            "status": "pass",
+            "evidence": "know the input scale \u2014 O(n^2) is fine at n=100, fatal at n=10^7"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "time_big_o_stated",
+            "status": "pass",
+            "evidence": "reason Big-O for time up front, so you don't design an O(n^2) corner you can't escape"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "space_big_o_stated",
+            "status": "pass",
+            "evidence": "reason Big-O for space up front"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "dominant_term_identified",
+            "status": "pass",
+            "evidence": "identify the dominant term of the cost"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "bottleneck_identified",
+            "status": "pass",
+            "evidence": "identify the real bottleneck"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "tradeoffs_named",
+            "status": "pass",
+            "evidence": "name the trade-offs: time vs space, exact vs approximate, latency vs throughput, simplicity vs speed"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "quadratic_at_fatal_scale_absent",
+            "status": "pass",
+            "evidence": "know the input scale: O(n^2) is fine at n=100, fatal at n=10^7 \u2014 a quadratic design at or above that scale is the fatal combination"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "key_operation_identified",
+            "status": "pass",
+            "evidence": "pick the structure that makes the key operation cheap \u2014 the key operation is identified"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "structure_matches_skill_mapping",
+            "status": "pass",
+            "evidence": "the skill's mapping: hash map -> O(1) lookup; heap -> top-k / priority; BST/B-tree -> ordered range; trie -> prefix; union-find -> connectivity; deque -> sliding window; prefix sums -> range queries"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "structure_does_not_force_quadratic",
+            "status": "pass",
+            "evidence": "anti-pattern: the wrong data structure forcing O(n^2)"
+          },
+          {
+            "section": "pattern_application",
+            "check": "pattern_in_skill_toolbox",
+            "status": "pass",
+            "evidence": "pattern toolbox: two pointers, sliding window, binary search (including on the answer), divide & conquer, greedy, dynamic programming, graph traversal, hashing"
+          },
+          {
+            "section": "pattern_application",
+            "check": "greedy_safety_proven_when_greedy",
+            "status": "pass",
+            "evidence": "greedy is used only when proven safe"
+          },
+          {
+            "section": "pattern_application",
+            "check": "dp_definition_complete_when_dp",
+            "status": "pass",
+            "evidence": "the declared pattern is not dynamic programming \u2014 no DP state / transition / base case is required"
+          },
+          {
+            "section": "pattern_application",
+            "check": "graph_traversal_variant_named_when_graph",
+            "status": "pass",
+            "evidence": "the declared pattern is not graph traversal \u2014 no traversal variant is required"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "invariant_defined_and_reasoned",
+            "status": "pass",
+            "evidence": "correctness: define invariants and reason about them"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "termination_reasoned",
+            "status": "pass",
+            "evidence": "correctness: reason about termination"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_empty_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: empty"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_single_element_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: single element"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_duplicates_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: duplicates"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_boundaries_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: boundaries"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_integer_overflow_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: integer overflow"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edges_and_properties_tested",
+            "status": "pass",
+            "evidence": "test the edges and properties, not just the happy path \u2014 no edge-case tests is an anti-pattern"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "verification_method_declared_when_critical",
+            "status": "pass",
+            "evidence": "where correctness is critical: prove the invariant, use property-based testing (hypothesis / proptest), or attach a formal / cryptographic certificate of correctness"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "correctness_established_before_optimization",
+            "status": "pass",
+            "evidence": "correct first, fast second \u2014 clever code over correct code is an anti-pattern"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "profiled_before_optimizing",
+            "status": "pass",
+            "evidence": "optimize last, measured: get it correct, profile, then optimize the proven bottleneck"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "not_optimized_before_measuring",
+            "status": "pass",
+            "evidence": "anti-pattern: optimizing before measuring \u2014 never optimize before measuring"
+          }
+        ],
+        "design_status": "sound_on_declared_evidence",
+        "scale_status": "no_fatal_scale_combination_declared",
+        "summary": "31 pass, 0 fail, 0 missing of 31 checks across six sections.",
+        "stamp": "ALGORITHM DESIGN IMPLEMENTATION\nproblem: Find top K elements\nVERDICT: DESIGN_SOUND\n  decomposition                    pass\n  complexity_reasoning             pass\n  data_structure_choice            pass\n  pattern_application              pass\n  correctness_and_edges            pass\n  verification_and_optimization    pass\n31 pass, 0 fail, 0 missing of 31 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DESIGN_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "structure_matches_skill_mapping",
+          "structure_does_not_force_quadratic",
+          "pattern_in_skill_toolbox",
+          "quadratic_at_fatal_scale_absent",
+          "not_optimized_before_measuring"
+        ],
+        "notes": "Violates mapping (lookup -> bst_or_btree), forces_quadratic is true, pattern is not in toolbox, scale is fatal (10^7 at O(n^2)), and anti-pattern optimized_before_measuring is true."
+      },
+      "input": {
+        "problem": "Quadratic search",
+        "decomposition": {
+          "inputs_stated": true,
+          "outputs_stated": true,
+          "constraints_stated": true,
+          "invariant_stated": true,
+          "pseudocode_sketched": true,
+          "input_scale_stated": true,
+          "max_input_size": 10000000
+        },
+        "complexity": {
+          "time_big_o_stated": true,
+          "space_big_o_stated": true,
+          "dominant_term_identified": true,
+          "bottleneck_identified": true,
+          "tradeoffs_named": true,
+          "time_complexity": "O(n^2)"
+        },
+        "design": {
+          "key_operation_identified": true,
+          "key_operation": "lookup",
+          "chosen_structure": "bst_or_btree",
+          "structure_forces_quadratic": true,
+          "pattern": "invalid_pattern"
+        },
+        "correctness": {
+          "invariant_reasoned": true,
+          "termination_reasoned": true,
+          "edge_cases": {
+            "empty": true,
+            "single_element": true,
+            "duplicates": true,
+            "boundaries": true,
+            "integer_overflow": true
+          },
+          "edges_and_properties_tested": true
+        },
+        "verification": {
+          "correctness_critical": false
+        },
+        "optimization": {
+          "correctness_established_first": true,
+          "profiled_before_optimizing": true,
+          "optimized_before_measuring": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "algorithm-design-implementation",
+        "atom_version": "0.1.0",
+        "problem": "Quadratic search",
+        "verdict": "DESIGN_UNSOUND",
+        "sections": {
+          "decomposition": "pass",
+          "complexity_reasoning": "fail",
+          "data_structure_choice": "fail",
+          "pattern_application": "fail",
+          "correctness_and_edges": "pass",
+          "verification_and_optimization": "fail"
+        },
+        "checks": [
+          {
+            "section": "decomposition",
+            "check": "inputs_stated",
+            "status": "pass",
+            "evidence": "decompose first: the inputs are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "outputs_stated",
+            "status": "pass",
+            "evidence": "decompose first: the outputs are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "constraints_stated",
+            "status": "pass",
+            "evidence": "decompose first: the constraints are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "invariant_stated",
+            "status": "pass",
+            "evidence": "decompose first: the invariant is stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "pseudocode_sketched_before_coding",
+            "status": "pass",
+            "evidence": "sketch pseudocode before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "input_scale_stated",
+            "status": "pass",
+            "evidence": "know the input scale \u2014 O(n^2) is fine at n=100, fatal at n=10^7"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "time_big_o_stated",
+            "status": "pass",
+            "evidence": "reason Big-O for time up front, so you don't design an O(n^2) corner you can't escape"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "space_big_o_stated",
+            "status": "pass",
+            "evidence": "reason Big-O for space up front"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "dominant_term_identified",
+            "status": "pass",
+            "evidence": "identify the dominant term of the cost"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "bottleneck_identified",
+            "status": "pass",
+            "evidence": "identify the real bottleneck"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "tradeoffs_named",
+            "status": "pass",
+            "evidence": "name the trade-offs: time vs space, exact vs approximate, latency vs throughput, simplicity vs speed"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "quadratic_at_fatal_scale_absent",
+            "status": "fail",
+            "evidence": "know the input scale: O(n^2) is fine at n=100, fatal at n=10^7 \u2014 a quadratic design at or above that scale is the fatal combination"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "key_operation_identified",
+            "status": "pass",
+            "evidence": "pick the structure that makes the key operation cheap \u2014 the key operation is identified"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "structure_matches_skill_mapping",
+            "status": "fail",
+            "evidence": "the skill's mapping: hash map -> O(1) lookup; heap -> top-k / priority; BST/B-tree -> ordered range; trie -> prefix; union-find -> connectivity; deque -> sliding window; prefix sums -> range queries"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "structure_does_not_force_quadratic",
+            "status": "fail",
+            "evidence": "anti-pattern: the wrong data structure forcing O(n^2)"
+          },
+          {
+            "section": "pattern_application",
+            "check": "pattern_in_skill_toolbox",
+            "status": "fail",
+            "evidence": "pattern toolbox: two pointers, sliding window, binary search (including on the answer), divide & conquer, greedy, dynamic programming, graph traversal, hashing"
+          },
+          {
+            "section": "pattern_application",
+            "check": "greedy_safety_proven_when_greedy",
+            "status": "pass",
+            "evidence": "the declared pattern is not greedy \u2014 no greedy safety proof is required"
+          },
+          {
+            "section": "pattern_application",
+            "check": "dp_definition_complete_when_dp",
+            "status": "pass",
+            "evidence": "the declared pattern is not dynamic programming \u2014 no DP state / transition / base case is required"
+          },
+          {
+            "section": "pattern_application",
+            "check": "graph_traversal_variant_named_when_graph",
+            "status": "pass",
+            "evidence": "the declared pattern is not graph traversal \u2014 no traversal variant is required"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "invariant_defined_and_reasoned",
+            "status": "pass",
+            "evidence": "correctness: define invariants and reason about them"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "termination_reasoned",
+            "status": "pass",
+            "evidence": "correctness: reason about termination"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_empty_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: empty"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_single_element_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: single element"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_duplicates_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: duplicates"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_boundaries_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: boundaries"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_integer_overflow_handled",
+            "status": "pass",
+            "evidence": "hit the edge cases: integer overflow"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edges_and_properties_tested",
+            "status": "pass",
+            "evidence": "test the edges and properties, not just the happy path \u2014 no edge-case tests is an anti-pattern"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "verification_method_declared_when_critical",
+            "status": "pass",
+            "evidence": "correctness is not declared critical \u2014 no verification method is required"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "correctness_established_before_optimization",
+            "status": "pass",
+            "evidence": "correct first, fast second \u2014 clever code over correct code is an anti-pattern"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "profiled_before_optimizing",
+            "status": "pass",
+            "evidence": "optimize last, measured: get it correct, profile, then optimize the proven bottleneck"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "not_optimized_before_measuring",
+            "status": "fail",
+            "evidence": "anti-pattern: optimizing before measuring \u2014 never optimize before measuring"
+          }
+        ],
+        "design_status": "not_sound_on_declared_evidence",
+        "scale_status": "fatal_scale_combination_declared",
+        "summary": "26 pass, 5 fail, 0 missing of 31 checks across six sections.",
+        "stamp": "ALGORITHM DESIGN IMPLEMENTATION\nproblem: Quadratic search\nVERDICT: DESIGN_UNSOUND\n  decomposition                    pass\n  complexity_reasoning             fail\n  data_structure_choice            fail\n  pattern_application              fail\n  correctness_and_edges            pass\n  verification_and_optimization    fail\n26 pass, 5 fail, 0 missing of 31 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields missing; atom cannot complete checks."
+      },
+      "input": {
+        "problem": "Minimal design",
+        "decomposition": {
+          "inputs_stated": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "algorithm-design-implementation",
+        "atom_version": "0.1.0",
+        "problem": "Minimal design",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "decomposition": "insufficient_evidence",
+          "complexity_reasoning": "insufficient_evidence",
+          "data_structure_choice": "insufficient_evidence",
+          "pattern_application": "insufficient_evidence",
+          "correctness_and_edges": "insufficient_evidence",
+          "verification_and_optimization": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "decomposition",
+            "check": "inputs_stated",
+            "status": "pass",
+            "evidence": "decompose first: the inputs are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "outputs_stated",
+            "status": "missing",
+            "evidence": "decompose first: the outputs are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "constraints_stated",
+            "status": "missing",
+            "evidence": "decompose first: the constraints are stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "invariant_stated",
+            "status": "missing",
+            "evidence": "decompose first: the invariant is stated before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "pseudocode_sketched_before_coding",
+            "status": "missing",
+            "evidence": "sketch pseudocode before coding"
+          },
+          {
+            "section": "decomposition",
+            "check": "input_scale_stated",
+            "status": "missing",
+            "evidence": "know the input scale \u2014 O(n^2) is fine at n=100, fatal at n=10^7"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "time_big_o_stated",
+            "status": "missing",
+            "evidence": "reason Big-O for time up front, so you don't design an O(n^2) corner you can't escape"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "space_big_o_stated",
+            "status": "missing",
+            "evidence": "reason Big-O for space up front"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "dominant_term_identified",
+            "status": "missing",
+            "evidence": "identify the dominant term of the cost"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "bottleneck_identified",
+            "status": "missing",
+            "evidence": "identify the real bottleneck"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "tradeoffs_named",
+            "status": "missing",
+            "evidence": "name the trade-offs: time vs space, exact vs approximate, latency vs throughput, simplicity vs speed"
+          },
+          {
+            "section": "complexity_reasoning",
+            "check": "quadratic_at_fatal_scale_absent",
+            "status": "missing",
+            "evidence": "know the input scale: O(n^2) is fine at n=100, fatal at n=10^7 \u2014 a quadratic design at or above that scale is the fatal combination"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "key_operation_identified",
+            "status": "missing",
+            "evidence": "pick the structure that makes the key operation cheap \u2014 the key operation is identified"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "structure_matches_skill_mapping",
+            "status": "missing",
+            "evidence": "the skill's mapping: hash map -> O(1) lookup; heap -> top-k / priority; BST/B-tree -> ordered range; trie -> prefix; union-find -> connectivity; deque -> sliding window; prefix sums -> range queries"
+          },
+          {
+            "section": "data_structure_choice",
+            "check": "structure_does_not_force_quadratic",
+            "status": "missing",
+            "evidence": "anti-pattern: the wrong data structure forcing O(n^2)"
+          },
+          {
+            "section": "pattern_application",
+            "check": "pattern_in_skill_toolbox",
+            "status": "missing",
+            "evidence": "pattern toolbox: two pointers, sliding window, binary search (including on the answer), divide & conquer, greedy, dynamic programming, graph traversal, hashing"
+          },
+          {
+            "section": "pattern_application",
+            "check": "greedy_safety_proven_when_greedy",
+            "status": "missing",
+            "evidence": "the declared pattern is not greedy \u2014 no greedy safety proof is required"
+          },
+          {
+            "section": "pattern_application",
+            "check": "dp_definition_complete_when_dp",
+            "status": "missing",
+            "evidence": "the declared pattern is not dynamic programming \u2014 no DP state / transition / base case is required"
+          },
+          {
+            "section": "pattern_application",
+            "check": "graph_traversal_variant_named_when_graph",
+            "status": "missing",
+            "evidence": "the declared pattern is not graph traversal \u2014 no traversal variant is required"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "invariant_defined_and_reasoned",
+            "status": "missing",
+            "evidence": "correctness: define invariants and reason about them"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "termination_reasoned",
+            "status": "missing",
+            "evidence": "correctness: reason about termination"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_empty_handled",
+            "status": "missing",
+            "evidence": "hit the edge cases: empty"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_single_element_handled",
+            "status": "missing",
+            "evidence": "hit the edge cases: single element"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_duplicates_handled",
+            "status": "missing",
+            "evidence": "hit the edge cases: duplicates"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_boundaries_handled",
+            "status": "missing",
+            "evidence": "hit the edge cases: boundaries"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edge_case_integer_overflow_handled",
+            "status": "missing",
+            "evidence": "hit the edge cases: integer overflow"
+          },
+          {
+            "section": "correctness_and_edges",
+            "check": "edges_and_properties_tested",
+            "status": "missing",
+            "evidence": "test the edges and properties, not just the happy path \u2014 no edge-case tests is an anti-pattern"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "verification_method_declared_when_critical",
+            "status": "missing",
+            "evidence": "correctness is not declared critical \u2014 no verification method is required"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "correctness_established_before_optimization",
+            "status": "missing",
+            "evidence": "correct first, fast second \u2014 clever code over correct code is an anti-pattern"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "profiled_before_optimizing",
+            "status": "missing",
+            "evidence": "optimize last, measured: get it correct, profile, then optimize the proven bottleneck"
+          },
+          {
+            "section": "verification_and_optimization",
+            "check": "not_optimized_before_measuring",
+            "status": "missing",
+            "evidence": "anti-pattern: optimizing before measuring \u2014 never optimize before measuring"
+          }
+        ],
+        "design_status": null,
+        "scale_status": null,
+        "summary": "1 pass, 0 fail, 30 missing of 31 checks across six sections.",
+        "stamp": "ALGORITHM DESIGN IMPLEMENTATION\nproblem: Minimal design\nVERDICT: INSUFFICIENT_EVIDENCE\n  decomposition                    insufficient_evidence\n  complexity_reasoning             insufficient_evidence\n  data_structure_choice            insufficient_evidence\n  pattern_application              insufficient_evidence\n  correctness_and_edges            insufficient_evidence\n  verification_and_optimization    insufficient_evidence\n1 pass, 0 fail, 30 missing of 31 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: decomposition expects an object, received a string."
+      },
+      "input": {
+        "problem": "Malformed input",
+        "decomposition": "not_an_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "decomposition",
+        "detail": "decomposition must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

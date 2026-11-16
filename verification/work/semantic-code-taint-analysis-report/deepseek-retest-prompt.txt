@@ -1,0 +1,312 @@
+You are an INDEPENDENT second tester for a deterministic API atom. The evidence below records real HTTP calls to the live gateway.
+
+Your job: INDEPENDENTLY RECOMPUTE the atom's computed quantities BY HAND from each case's INPUT (per the formulas/rules in SERVICE.md), and verify the artifact's numbers and verdict/status against your recomputation. Do not trust the artifact's own summary. Also check: malformed input should return HTTP 422 (never a verdict); determinism and MCP/REST parity flags are given per case.
+
+ATOM: semantic-code-taint-analysis-report
+
+
+RETEST WAVE (2026-11-15, fix-stream deploy 7f9cae9fdd60417eb72062905a066554, gateway v1.1.0): this is a re-run of the same recorded battery after a fix for F1 (malformed type-violating input previously returned HTTP 200 instead of HTTP 422 invalid_input). Judge the NEW evidence below fresh.
+
+=== SERVICE.md (computed rules) ===
+# Semantic code taint analysis report — `semantic-code-taint-analysis-report`
+
+**Deliverable type:** REPORT. This atom sells the report it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Understand code meaning — ASTs, call/flow graphs, structural search, taint basics, refactor safety.
+
+A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this report on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Codetopo-style codebase impact reviews**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the declared code graph manifest
+
+The caller submits one JSON manifest: a **declared** code graph, as
+exported by their own analyser. This atom computes over the submitted
+graph only; it never parses, fetches, or executes code.
+
+| Field | Meaning |
+|---|---|
+| `graph.nodes[]` | `{id (string), role, kind (string)}` — `role` is one of `source` (untrusted input), `sink` (sensitive operation; `kind` names it, e.g. `exec`, `sql`, `html`), `sanitizer` (cleans data flowing through it), or `transform` (any other step; the default for a missing/invalid role). Duplicate ids keep the first entry; entries without a string id are dropped. |
+| `graph.edges[]` | `{from, to, kind}` — directed data-flow edges. Edges naming unknown nodes and exact duplicates are dropped; edges are canonically sorted. |
+
+For every (source, sink) pair, in sorted order, the atom finds the
+shortest directed path. A pair is **tainted** when a path exists that
+passes through no sanitizer (the shortest sanitizer-free path is the
+finding, reported with its hops — the skill's "source → sink with
+paths" gate, and its rule that untrusted input reaching exec/SQL/HTML
+is a finding); **sanitized** when every path passes through at least
+one sanitizer (shortest path + sanitizers on it are reported); and
+**unreachable** when no path exists. Severity is a fixed table on the
+sink kind (lower-cased): `exec` → `critical`, `sql` → `high`,
+`html` → `high`, any other kind → `medium`, reported on tainted
+findings only.
+
+The verdict is one of `TAINTED` (at least one tainted pair), `CLEAN`
+(at least one source and one sink declared, no tainted pair), or
+`INSUFFICIENT_EVIDENCE` (no source declared, or no sink declared —
+including an empty graph — so taint cannot be ruled in or out).
+
+**Serialization rule:** all computed quantities are integers (counts
+and path lengths) or strings; no floats are produced, and all lists
+are canonically sorted, so the Python oracle and the TypeScript port
+serialize the report byte-identically.
+
+**Honest scoping / named exclusions:** only the declared graph is
+analysed — code is never parsed or fetched, and no AST, call graph,
+or source text is read. Dynamic dispatch, reflection, implicit flows,
+and any flow the caller's exporter did not declare as an edge are out
+of scope and cannot be found. A sanitizer is trusted exactly as
+declared: the atom does not judge whether a declared sanitizer is
+correct or sufficient for a given sink. No severity judgment beyond
+the fixed sink-kind table, no scoring, and no remediation advice is
+produced.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Codetopo-adjacent; separable as analysis report
+
+
+=== cases.json (inputs + expectations) ===
+{
+ "cases": [
+  {
+   "id": "full-pass",
+   "kind": "full-pass",
+   "input": {
+    "graph": {
+     "nodes": [
+      {
+       "id": "n1",
+       "role": "source",
+       "kind": "input"
+      },
+      {
+       "id": "n2",
+       "role": "sink",
+       "kind": "exec"
+      }
+     ],
+     "edges": [
+      {
+       "from": "n1",
+       "to": "n2",
+       "kind": "flow"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "TAINTED",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "Valid tainted path from source to exec sink. computed_spot_checks: path_length=1, severity=critical, verdict=TAINTED"
+   }
+  },
+  {
+   "id": "violations",
+   "kind": "violations",
+   "input": {
+    "graph": {
+     "nodes": [
+      {
+       "id": "n1",
+       "role": "source",
+       "kind": "input"
+      },
+      {
+       "id": "n2",
+       "role": "sink",
+       "kind": "exec"
+      }
+     ],
+     "edges": [
+      {
+       "from": "n1",
+       "to": "n3",
+       "kind": "flow"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "outcome": "CLEAN",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "CORRECTED by tester: SERVICE.md states edges naming unknown nodes are dropped, a pair with no path is 'unreachable', and CLEAN = at least one source and one sink declared with no tainted pair; INSUFFICIENT_EVIDENCE is only for no source or no sink declared. Original Gemini expectation of INSUFFICIENT_EVIDENCE contradicted the contract."
+   }
+  },
+  {
+   "id": "sparse",
+   "kind": "sparse",
+   "input": {
+    "graph": {
+     "nodes": [
+      {
+       "id": "n1",
+       "role": "source",
+       "kind": "input"
+      }
+     ],
+     "edges": []
+    }
+   },
+   "expect": {
+    "outcome": "INSUFFICIENT_EVIDENCE",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "Missing sink node prevents taint analysis, resulting in INSUFFICIENT_EVIDENCE."
+   }
+  },
+  {
+   "id": "malformed",
+   "kind": "malformed",
+   "input": {
+    "graph": {
+     "nodes": "not_a_list",
+     "edges": 123
+    }
+   },
+   "expect": {
+    "outcome": null,
+    "http": 422,
+    "failing_checks": [],
+    "notes": "Type violation: nodes must be a list and edges must be a list."
+   }
+  }
+ ]
+}
+
+=== NEW EVIDENCE ARTIFACTS (real HTTP calls, retest) ===
+{
+  "full-pass": {
+    "http_status": 200,
+    "artifact": {
+      "service": "semantic-code-taint-analysis-report",
+      "atom_version": "0.1.0",
+      "verdict": "TAINTED",
+      "counts": {
+        "nodes": 2,
+        "edges": 1,
+        "sources": 1,
+        "sinks": 1,
+        "sanitizers": 0,
+        "pairs_evaluated": 1,
+        "tainted": 1,
+        "sanitized": 0,
+        "unreachable": 0
+      },
+      "findings": [
+        {
+          "source": "n1",
+          "sink": "n2",
+          "sink_kind": "exec",
+          "severity": "critical",
+          "path": [
+            "n1",
+            "n2"
+          ],
+          "hops": [
+            {
+              "from": "n1",
+              "to": "n2",
+              "kind": "flow"
+            }
+          ],
+          "length": 1
+        }
+      ],
+      "sanitized_flows": [],
+      "missing_evidence": [],
+      "summary": "1 tainted source->sink path(s) found across 1 pair(s): untrusted input reaches a sink without a sanitizer.",
+      "stamp": "SEMANTIC CODE TAINT ANALYSIS REPORT\nVERDICT: TAINTED\n1 tainted source->sink path(s) found across 1 pair(s): untrusted input reaches a sink without a sanitizer."
+    },
+    "determinism_byte_identical": true,
+    "parity_structured_equal": true
+  },
+  "violations": {
+    "http_status": 200,
+    "artifact": {
+      "service": "semantic-code-taint-analysis-report",
+      "atom_version": "0.1.0",
+      "verdict": "CLEAN",
+      "counts": {
+        "nodes": 2,
+        "edges": 0,
+        "sources": 1,
+        "sinks": 1,
+        "sanitizers": 0,
+        "pairs_evaluated": 1,
+        "tainted": 0,
+        "sanitized": 0,
+        "unreachable": 1
+      },
+      "findings": [],
+      "sanitized_flows": [],
+      "missing_evidence": [],
+      "summary": "No tainted source->sink path across 1 pair(s): 0 sanitized, 1 unreachable.",
+      "stamp": "SEMANTIC CODE TAINT ANALYSIS REPORT\nVERDICT: CLEAN\nNo tainted source->sink path across 1 pair(s): 0 sanitized, 1 unreachable."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "sparse": {
+    "http_status": 200,
+    "artifact": {
+      "service": "semantic-code-taint-analysis-report",
+      "atom_version": "0.1.0",
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "counts": {
+        "nodes": 1,
+        "edges": 0,
+        "sources": 1,
+        "sinks": 0,
+        "sanitizers": 0,
+        "pairs_evaluated": 0,
+        "tainted": 0,
+        "sanitized": 0,
+        "unreachable": 0
+      },
+      "findings": [],
+      "sanitized_flows": [],
+      "missing_evidence": [
+        "sinks"
+      ],
+      "summary": "Insufficient evidence: no declared sinks in the graph (1 nodes, 0 edges); taint cannot be ruled in or out.",
+      "stamp": "SEMANTIC CODE TAINT ANALYSIS REPORT\nVERDICT: INSUFFICIENT_EVIDENCE\nInsufficient evidence: no declared sinks in the graph (1 nodes, 0 edges); taint cannot be ruled in or out."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "malformed": {
+    "http_status": 422,
+    "artifact": {
+      "ok": false,
+      "error": "invalid_input",
+      "field": "graph",
+      "detail": "graph.nodes must be a list"
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  }
+}
+
+Independently recompute the headline computed quantities for the full-pass and violations cases BY HAND from the inputs above (show arithmetic in your detail fields), compare with the artifacts, check malformed returns HTTP 422 with error invalid_input and never a verdict, and state a verdict.
+
+Answer with JSON only, exactly this shape:
+{"verdict": "PASS"|"FAIL", "findings": [{"case":"<id>","expected":"...","actual":"...","detail":"..."}], "computed_checks": [{"quantity":"...","expected":"<your hand-computed value>","actual":"<artifact value>","match":true}], "notes":"..."}

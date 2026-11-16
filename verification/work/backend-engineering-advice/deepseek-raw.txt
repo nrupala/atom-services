@@ -1,0 +1,115 @@
+# Independent recompute — backend-engineering-advice
+
+I recompute from the SERVICE.md rules only, then compare to the recorded artifacts.
+
+## Rule set I apply (from SERVICE.md)
+
+- **32 checks** across 7 sections: contract_first (6), boundary_validation (3), idempotency (4), error_taxonomy (5), jobs_and_queues (4), data_safety (5), observability (5). Sum: 6+3+4+5+4+5+5 = **32**. ✓
+- **Taxonomy coverage**: passes iff `categories_covered` contains all of {validation, not_found, conflict, retryable, fatal}. Missing list → missing evidence; empty list → fail. `taxonomy_categories_missing` = stated categories not present (null if no list).
+- **Idempotency keys**: count 0 → pass (N/A); count > 0 → requires `keys_on_mutating_operations: true` (undeclared → missing); absent count → missing.
+- **Migrations reversible-or-backed-up**: `has_migrations` true → pass if reversible OR backed_up true; fail if both false; missing if neither declared. `has_migrations` false → this check and reviewed-before-live pass (N/A).
+- **computed_status**: null if either primary computed check (taxonomy coverage, reversible-or-backed-up) cannot be completed; else `within_stated_limits...` if both pass, `outside_stated_limits...` otherwise.
+- **Verdict**: PRODUCTION_READY if all 32 pass; NOT_PRODUCTION_READY if any fail; INSUFFICIENT_EVIDENCE if none fail but some missing.
+- **Section status**: pass / fail / insufficient_evidence (missing present, no fail).
+
+---
+
+## Case 1: `full-pass`
+
+### Computed checks
+
+**Taxonomy coverage.** Declared list = [validation, not_found, conflict, retryable, fatal]. Stated set = {validation, not_found, conflict, retryable, fatal}. Missing = stated − declared = ∅. → **pass**, `taxonomy_categories_missing = []`.
+- Artifact: pass, `[]` → **MATCH**.
+
+**Idempotency keys.** `mutating_operation_count = 1` (> 0) → requires `keys_on_mutating_operations`. Declared `true` → **pass**. `mutating_operation_count` reported = 1.
+- Artifact: pass, count 1 → **MATCH**.
+
+**Migrations reversible-or-backed-up.** `has_migrations = true`; `migrations_reversible = true`, `migrations_backed_up = false`. OR = true OR false = **true → pass**.
+- Artifact: pass → **MATCH**.
+
+**computed_status.** Both primary computed checks completed and pass → `within_stated_limits_on_declared_evidence`.
+- Artifact: same → **MATCH**.
+
+### All 32 checks (hand tally)
+- contract_first: defined_before_code T, inputs T, outputs T, errors T, versioned T, kept_in_repo T → 6 pass.
+- boundary_validation: at_boundaries T, rejects_early T, clients_trusted F (must be false → pass) → 3 pass.
+- idempotency: keys pass (above), double_sends F→pass, double_charges F→pass, behavior_verified T→pass → 4 pass.
+- error_taxonomy: structured T, consistent T, coverage pass, paths_tested T, silent_catch_all F→pass → 5 pass.
+- jobs_and_queues: has_async_jobs T → all four required: backoff T, dead_letter T, work_can_be_lost F→pass, status_observable T → 4 pass.
+- data_safety: reversible-or-backed-up pass, reviewed T→pass, constraints T→pass, plaintext_secrets F→pass, direct_to_prod F→pass → 5 pass.
+- observability: structured T, metrics T, trace T, secrets_in_logs F→pass, pii_in_logs F→pass → 5 pass.
+
+Total: 6+3+4+5+4+5+5 = **32 pass, 0 fail, 0 missing**. All pass → verdict **PRODUCTION_READY**.
+- Artifact: "32 pass, 0 fail, 0 missing of 32", verdict PRODUCTION_READY, all sections pass → **MATCH**.
+
+---
+
+## Case 2: `violations`
+
+### Computed checks
+
+**Taxonomy coverage.** Declared = [validation]. Stated − declared = {not_found, conflict, retryable, fatal}. Non-empty → **fail**. `taxonomy_categories_missing = ["not_found","conflict","retryable","fatal"]`.
+- Artifact: fail, exactly that list → **MATCH**.
+
+**Idempotency keys.** `mutating_operation_count = 0` → **pass (N/A)**. Count reported = 0.
+- Artifact: pass, count 0 → **MATCH**.
+
+**Migrations reversible-or-backed-up.** `has_migrations = false` → **pass (N/A)**; reviewed-before-live also **pass (N/A)**.
+- Artifact: both pass → **MATCH**.
+
+**computed_status.** Both primary computed checks completed (taxonomy fail, migrations pass) → not null; not both pass → `outside_stated_limits_on_declared_evidence`.
+- Artifact: same → **MATCH**.
+
+### All 32 checks (hand tally)
+- contract_first: all six declared true → 6 pass.
+- boundary_validation: at_boundaries T→pass, rejects_early T→pass, clients_trusted **T** (must be false) → **fail**. → 2 pass, 1 fail.
+- idempotency: keys pass (count 0); double_sends undeclared→missing; double_charges undeclared→missing; behavior_verified undeclared→missing. → 1 pass, 3 missing.
+- error_taxonomy: structured T→pass, consistent T→pass, coverage **fail**, paths_tested T→pass, silent_catch_all **T** (must be false)→**fail**. → 3 pass, 2 fail.
+- jobs_and_queues: has_async_jobs F → all four N/A pass. → 4 pass.
+- data_safety: reversible-or-backed-up pass (N/A), reviewed pass (N/A), constraints undeclared→missing, plaintext_secrets undeclared→missing, direct_to_prod undeclared→missing. → 2 pass, 3 missing.
+- observability: structured T, metrics T, trace T → 3 pass; secrets_in_logs **T**→**fail**; pii_in_logs **T**→**fail**. → 3 pass, 2 fail.
+
+Totals: pass = 6+2+1+3+4+2+3 = **21**; fail = 0+1+0+2+0+0+2 = **5**; missing = 0+0+3+0+0+3+0 = **6**. Sum 21+5+6 = **32**. ✓
+- Artifact: "21 pass, 5 fail, 6 missing of 32" → **MATCH**.
+
+**Verdict.** Any fail present → **NOT_PRODUCTION_READY**.
+- Artifact: NOT_PRODUCTION_READY → **MATCH**.
+
+**Section statuses.** contract_first pass; boundary_validation fail; idempotency (1 pass, 3 missing, 0 fail) → insufficient_evidence; error_taxonomy fail; jobs_and_queues pass; data_safety (2 pass, 3 missing, 0 fail) → insufficient_evidence; observability fail.
+- Artifact: pass / fail / insufficient_evidence / fail / pass / insufficient_evidence / fail → **MATCH**.
+
+### Planted-wrong-value confirmation
+The planted wrong values and the checks they should fail:
+- `validation.clients_trusted = true` → `clients_not_trusted` fail ✓ (only boundary_validation fail).
+- `errors.categories_covered = ["validation"]` → `taxonomy_covers_all_stated_categories` fail ✓.
+- `errors.silent_catch_all_present = true` → `no_silent_catch_all` fail ✓.
+- `observability.secrets_in_logs = true` → `no_secrets_in_logs` fail ✓.
+- `observability.pii_in_logs = true` → `no_pii_in_logs` fail ✓.
+
+That is exactly 5 fails, matching the artifact's 5 fail checks and their identities. The undeclared fields (idempotency double_sends/double_charges/behavior_verified, data constraints/plaintext_secrets/direct_to_prod) correctly produce the 6 missing checks. No extra or missing fails.
+
+---
+
+## Summary of comparisons
+
+| Quantity | Recomputed | Artifact | Result |
+|---|---|---|---|
+| full-pass total checks | 32 | 32 | MATCH |
+| full-pass pass/fail/missing | 32/0/0 | 32/0/0 | MATCH |
+| full-pass taxonomy missing | [] | [] | MATCH |
+| full-pass idempotency keys | pass (count 1) | pass | MATCH |
+| full-pass migrations | pass (T∨F) | pass | MATCH |
+| full-pass computed_status | within | within | MATCH |
+| full-pass verdict | PRODUCTION_READY | PRODUCTION_READY | MATCH |
+| violations pass/fail/missing | 21/5/6 | 21/5/6 | MATCH |
+| violations taxonomy missing | [not_found, conflict, retryable, fatal] | same | MATCH |
+| violations idempotency keys | pass (count 0) | pass | MATCH |
+| violations migrations | pass (N/A) | pass | MATCH |
+| violations computed_status | outside | outside | MATCH |
+| violations verdict | NOT_PRODUCTION_READY | NOT_PRODUCTION_READY | MATCH |
+| violations section statuses | pass/fail/insuff/fail/pass/insuff/fail | same | MATCH |
+| violations fail identities | 5 planted | 5 planted | MATCH |
+
+Every computed quantity and headline value agrees with the recorded artifacts.
+
+AGREEMENT: full

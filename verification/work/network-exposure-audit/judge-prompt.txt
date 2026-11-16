@@ -1,0 +1,881 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: network-exposure-audit
+
+=== contract.yaml ===
+service_name: network-exposure-audit
+display_name: Network exposure audit
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:network-security
+binding:
+  skill: network-security
+  skill_path: workspace/mymilo-build/skills/network-security/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/network_exposure_audit.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_network_exposure_audit.py — 22 tests, all passing 2026-11-15
+keys:
+  namespace: network_exposure_audit
+  prefix: atm_1_network_exposure_audit_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product release network exposure audit
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Network exposure audit — `network-exposure-audit`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Secure network paths and exposure — segmentation, TLS everywhere, DNS/email auth, WAF/tunnels, egress control.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Security & privacy who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product release network exposure audit**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Input manifest
+
+The caller submits ONE JSON object. Every field below is read by at least one check; an absent field is `missing` evidence (never a fail), a present-but-invalid field is a fail. Verdicts: `SOUND` (all pass) / `UNSOUND` (any fail) / `INSUFFICIENT_EVIDENCE` (no fail, some missing). Sections: `inventory`, `segmentation`, `tls`, `dns_email`, `edge_access`, `egress_evidence` — 27 checks in total.
+
+| Field | Type | Read by |
+|---|---|---|
+| `system` | string | echoed in the output as the audited subject |
+| `environment` | string | echoed in the output (e.g. `production`) |
+| `inventory.current` | boolean | `exposure_inventory_current` |
+| `endpoints` | array of endpoint objects (schema below) | all endpoint-level checks: `every_public_endpoint_owned`, `no_unlisted_public_endpoints`, `no_plaintext_protocol_endpoints`, `encrypted_endpoints_have_valid_certs`, `no_admin_or_db_endpoint_public`, `no_unauthenticated_tunnels` |
+| `segmentation.zones_separated` | boolean | `trust_zones_separated` |
+| `segmentation.admin_plane_separate` | boolean | `admin_plane_separate_from_public_path` |
+| `segmentation.default_deny` | boolean | `default_deny_posture` |
+| `segmentation.loopback_by_default` | boolean | `loopback_by_default` |
+| `tls.cert_expiry_monitored` | boolean | `cert_expiry_monitored` |
+| `tls.hsts_on_web` | boolean | `hsts_on_web` |
+| `tls.min_version` | string | `modern_tls_min_version` — must be `1.2` or `1.3` |
+| `dns.registrar_lock` | boolean | `registrar_lock_enabled` |
+| `dns.registrar_2fa` | boolean | `registrar_2fa_enabled` |
+| `dns.dnssec_enabled` | boolean | `dnssec_enabled` |
+| `domains` | array of domain objects (schema below) | `every_sending_domain_has_spf_dkim_dmarc` |
+| `email.dmarc_reports_monitored` | boolean | `dmarc_reports_monitored` |
+| `edge.waf_or_cdn_in_front_of_web` | boolean | `waf_or_cdn_in_front_of_web` |
+| `edge.rate_limits_enabled` | boolean | `edge_rate_limits_enabled` |
+| `access.admin_authenticated_path_only` | boolean | `admin_access_authenticated_path_only` |
+| `access.no_default_credentials` | boolean | `no_default_credentials` |
+| `egress.outbound_allowlist` | boolean | `egress_outbound_allowlist` |
+| `egress.unexpected_egress_logged` | boolean | `unexpected_egress_logged` |
+| `evidence.events_logged_denied_and_accepted` | boolean | `network_events_logged_denied_and_accepted` |
+| `evidence.reviewed_on_change_and_incident` | boolean | `evidence_reviewed_on_change_and_incident` |
+
+### Endpoint object schema (`endpoints[]`)
+
+| Field | Type | Meaning / use |
+|---|---|---|
+| `id` | string | endpoint name used in evidence strings (fallback: `endpoint[<index>]`) |
+| `host` | string | host the endpoint is served on (declared context; not itself checked) |
+| `port` | integer | port; sensitive ports (1433, 2375, 2376, 3306, 3389, 5432, 6379, 9200, 27017) trigger the admin/DB red line when the endpoint is public |
+| `protocol` | string | `http`/`ftp`/`telnet`/`plaintext` fail on any path; encrypted protocols (`https`, `wss`, `tls`, `ssl`, `smtps`, `imaps`, `pop3s`, `ldaps`) require `tls_cert_valid` |
+| `public` | boolean | `true` = reachable from the internet; ownership, listing, and admin/DB checks apply to public endpoints |
+| `listed` | boolean | must be `true` for every public endpoint (on the exposure inventory) |
+| `owner` | string | required (non-empty) on every public endpoint |
+| `service` | string | service tag; sensitive tags (database/db/mysql/postgres/postgresql/mssql/mongodb/redis/elasticsearch/admin/control-plane variants) trigger the admin/DB red line when public |
+| `zone` | string | trust zone; `admin` and `data` zones trigger the admin/DB red line when public |
+| `via` | string | exposure path; tunnel values (`tunnel`, `cloudflared`, `ssh-tunnel`, `ssh_tunnel`, `ngrok`, `tailscale-funnel`, `tailscale_funnel`) require `auth_required` |
+| `tls_cert_valid` | boolean | must be `true` on every encrypted-protocol endpoint |
+| `auth_required` | boolean | must be `true` on every tunnel-exposed endpoint |
+
+### Domain object schema (`domains[]`)
+
+| Field | Type | Meaning / use |
+|---|---|---|
+| `name` | string | domain name used in evidence strings (fallback: `domain[<index>]`) |
+| `sending` | boolean | if `true`, `spf`, `dkim`, and `dmarc` must all be `true` |
+| `spf` | boolean | SPF record present |
+| `dkim` | boolean | DKIM signing present |
+| `dmarc` | boolean | DMARC policy present |
+
+## Status
+
+Tier A · status: **built-locally** — deterministic core built and verified locally (Python oracle + byte-identical TypeScript port); no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "network-exposure-audit",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and compliant with security policy."
+      },
+      "input": {
+        "system": "production-core",
+        "environment": "production",
+        "inventory": {
+          "current": true
+        },
+        "endpoints": [
+          {
+            "id": "web-gateway",
+            "host": "api.example.com",
+            "port": 443,
+            "protocol": "https",
+            "public": true,
+            "listed": true,
+            "owner": "platform-team",
+            "service": "web-api",
+            "zone": "public",
+            "via": "direct",
+            "tls_cert_valid": true,
+            "auth_required": true
+          }
+        ],
+        "segmentation": {
+          "zones_separated": true,
+          "admin_plane_separate": true,
+          "default_deny": true,
+          "loopback_by_default": true
+        },
+        "tls": {
+          "cert_expiry_monitored": true,
+          "hsts_on_web": true,
+          "min_version": "1.3"
+        },
+        "dns": {
+          "registrar_lock": true,
+          "registrar_2fa": true,
+          "dnssec_enabled": true
+        },
+        "domains": [
+          {
+            "name": "example.com",
+            "sending": true,
+            "spf": true,
+            "dkim": true,
+            "dmarc": true
+          }
+        ],
+        "email": {
+          "dmarc_reports_monitored": true
+        },
+        "edge": {
+          "waf_or_cdn_in_front_of_web": true,
+          "rate_limits_enabled": true
+        },
+        "access": {
+          "admin_authenticated_path_only": true,
+          "no_default_credentials": true
+        },
+        "egress": {
+          "outbound_allowlist": true,
+          "unexpected_egress_logged": true
+        },
+        "evidence": {
+          "events_logged_denied_and_accepted": true,
+          "reviewed_on_change_and_incident": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "network-exposure-audit",
+        "atom_version": "0.1.0",
+        "system": "production-core",
+        "environment": "production",
+        "verdict": "SOUND",
+        "sections": {
+          "inventory": "pass",
+          "segmentation": "pass",
+          "tls": "pass",
+          "dns_email": "pass",
+          "edge_access": "pass",
+          "egress_evidence": "pass"
+        },
+        "checks": [
+          {
+            "section": "inventory",
+            "check": "exposure_inventory_current",
+            "status": "pass",
+            "evidence": "skill method 1: exposure inventory maintained \u2014 the list of public endpoints and what serves each"
+          },
+          {
+            "section": "inventory",
+            "check": "every_public_endpoint_owned",
+            "status": "pass",
+            "evidence": "every public endpoint has an owner (quality gate: every public entry has an owner)"
+          },
+          {
+            "section": "inventory",
+            "check": "no_unlisted_public_endpoints",
+            "status": "pass",
+            "evidence": "no public endpoint absent from the exposure inventory (if it's not on the list, it's not allowed public)"
+          },
+          {
+            "section": "segmentation",
+            "check": "trust_zones_separated",
+            "status": "pass",
+            "evidence": "skill method 3: segmentation \u2014 services separated into trust zones (public edge / app / data / admin)"
+          },
+          {
+            "section": "segmentation",
+            "check": "admin_plane_separate_from_public_path",
+            "status": "pass",
+            "evidence": "skill method 3: admin planes never share the public path"
+          },
+          {
+            "section": "segmentation",
+            "check": "default_deny_posture",
+            "status": "pass",
+            "evidence": "skill method 2: default-deny posture \u2014 everything closed unless a list entry justifies exposure"
+          },
+          {
+            "section": "segmentation",
+            "check": "loopback_by_default",
+            "status": "pass",
+            "evidence": "skill method 2: everything listens on loopback unless a list entry justifies exposure"
+          },
+          {
+            "section": "tls",
+            "check": "no_plaintext_protocol_endpoints",
+            "status": "pass",
+            "evidence": "no plaintext protocol paths (quality gate: no plaintext protocol paths)"
+          },
+          {
+            "section": "tls",
+            "check": "encrypted_endpoints_have_valid_certs",
+            "status": "pass",
+            "evidence": "every encrypted endpoint has a valid cert"
+          },
+          {
+            "section": "tls",
+            "check": "cert_expiry_monitored",
+            "status": "pass",
+            "evidence": "skill method 4: valid certs \u2014 auto-renew + monitor expiry (quality gate: cert expiry monitored)"
+          },
+          {
+            "section": "tls",
+            "check": "hsts_on_web",
+            "status": "pass",
+            "evidence": "skill method 4: HSTS on web"
+          },
+          {
+            "section": "tls",
+            "check": "modern_tls_min_version",
+            "status": "pass",
+            "evidence": "min_version='1.3' (skill method 4: modern TLS config only \u2014 TLS 1.2 or 1.3)"
+          },
+          {
+            "section": "dns_email",
+            "check": "registrar_lock_enabled",
+            "status": "pass",
+            "evidence": "skill method 5: registrar lock + 2FA"
+          },
+          {
+            "section": "dns_email",
+            "check": "registrar_2fa_enabled",
+            "status": "pass",
+            "evidence": "skill method 5: registrar lock + 2FA"
+          },
+          {
+            "section": "dns_email",
+            "check": "dnssec_enabled",
+            "status": "pass",
+            "evidence": "skill method 5: DNSSEC where possible"
+          },
+          {
+            "section": "dns_email",
+            "check": "every_sending_domain_has_spf_dkim_dmarc",
+            "status": "pass",
+            "evidence": "SPF, DKIM and DMARC present on every sending domain (quality gate: SPF/DKIM/DMARC present on sending domains)"
+          },
+          {
+            "section": "dns_email",
+            "check": "dmarc_reports_monitored",
+            "status": "pass",
+            "evidence": "skill method 5: monitor DMARC reports"
+          },
+          {
+            "section": "edge_access",
+            "check": "waf_or_cdn_in_front_of_web",
+            "status": "pass",
+            "evidence": "skill method 6: CDN/WAF in front of web; don't roll your own edge"
+          },
+          {
+            "section": "edge_access",
+            "check": "edge_rate_limits_enabled",
+            "status": "pass",
+            "evidence": "skill method 6: edge rate limits and bot rules"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_admin_or_db_endpoint_public",
+            "status": "pass",
+            "evidence": "no admin/DB panel exposed to the internet"
+          },
+          {
+            "section": "edge_access",
+            "check": "admin_access_authenticated_path_only",
+            "status": "pass",
+            "evidence": "quality gate: admin access only via authenticated path (tunnel/VPN/SSO), never open ports"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_unauthenticated_tunnels",
+            "status": "pass",
+            "evidence": "no unauthenticated tunnels"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_default_credentials",
+            "status": "pass",
+            "evidence": "skill red line: no default credentials anywhere"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "egress_outbound_allowlist",
+            "status": "pass",
+            "evidence": "skill method 7: egress control \u2014 outbound allowlists for servers that don't need the internet"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "unexpected_egress_logged",
+            "status": "pass",
+            "evidence": "skill method 7: log unexpected egress"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "network_events_logged_denied_and_accepted",
+            "status": "pass",
+            "evidence": "skill method 8: network events logged (denied + accepted)"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "evidence_reviewed_on_change_and_incident",
+            "status": "pass",
+            "evidence": "skill method 8: evidence reviewed on change and on incident"
+          }
+        ],
+        "summary": "27 pass, 0 fail, 0 missing of 27 checks across six sections.",
+        "stamp": "NETWORK EXPOSURE AUDIT\nsystem: production-core  environment: production\nVERDICT: SOUND\n  inventory            pass\n  segmentation         pass\n  tls                  pass\n  dns_email            pass\n  edge_access          pass\n  egress_evidence      pass\n27 pass, 0 fail, 0 missing of 27 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_plaintext_protocol_endpoints",
+          "no_admin_or_db_endpoint_public",
+          "encrypted_endpoints_have_valid_certs"
+        ],
+        "notes": "Public database endpoint using plaintext protocol and invalid certs."
+      },
+      "input": {
+        "endpoints": [
+          {
+            "id": "db-exposed",
+            "host": "db.example.com",
+            "port": 3306,
+            "protocol": "http",
+            "public": true,
+            "listed": true,
+            "owner": "dev",
+            "service": "mysql",
+            "zone": "data",
+            "via": "direct",
+            "tls_cert_valid": false,
+            "auth_required": false
+          }
+        ]
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "network-exposure-audit",
+        "atom_version": "0.1.0",
+        "system": null,
+        "environment": null,
+        "verdict": "UNSOUND",
+        "sections": {
+          "inventory": "insufficient_evidence",
+          "segmentation": "insufficient_evidence",
+          "tls": "fail",
+          "dns_email": "insufficient_evidence",
+          "edge_access": "fail",
+          "egress_evidence": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "inventory",
+            "check": "exposure_inventory_current",
+            "status": "missing",
+            "evidence": "skill method 1: exposure inventory maintained \u2014 the list of public endpoints and what serves each"
+          },
+          {
+            "section": "inventory",
+            "check": "every_public_endpoint_owned",
+            "status": "pass",
+            "evidence": "every public endpoint has an owner (quality gate: every public entry has an owner)"
+          },
+          {
+            "section": "inventory",
+            "check": "no_unlisted_public_endpoints",
+            "status": "pass",
+            "evidence": "no public endpoint absent from the exposure inventory (if it's not on the list, it's not allowed public)"
+          },
+          {
+            "section": "segmentation",
+            "check": "trust_zones_separated",
+            "status": "missing",
+            "evidence": "skill method 3: segmentation \u2014 services separated into trust zones (public edge / app / data / admin)"
+          },
+          {
+            "section": "segmentation",
+            "check": "admin_plane_separate_from_public_path",
+            "status": "missing",
+            "evidence": "skill method 3: admin planes never share the public path"
+          },
+          {
+            "section": "segmentation",
+            "check": "default_deny_posture",
+            "status": "missing",
+            "evidence": "skill method 2: default-deny posture \u2014 everything closed unless a list entry justifies exposure"
+          },
+          {
+            "section": "segmentation",
+            "check": "loopback_by_default",
+            "status": "missing",
+            "evidence": "skill method 2: everything listens on loopback unless a list entry justifies exposure"
+          },
+          {
+            "section": "tls",
+            "check": "no_plaintext_protocol_endpoints",
+            "status": "fail",
+            "evidence": "plaintext protocol endpoints (skill method 4: no plaintext protocols (HTTP/FTP/telnet) on any path): db-exposed"
+          },
+          {
+            "section": "tls",
+            "check": "encrypted_endpoints_have_valid_certs",
+            "status": "pass",
+            "evidence": "every encrypted endpoint has a valid cert"
+          },
+          {
+            "section": "tls",
+            "check": "cert_expiry_monitored",
+            "status": "missing",
+            "evidence": "skill method 4: valid certs \u2014 auto-renew + monitor expiry (quality gate: cert expiry monitored)"
+          },
+          {
+            "section": "tls",
+            "check": "hsts_on_web",
+            "status": "missing",
+            "evidence": "skill method 4: HSTS on web"
+          },
+          {
+            "section": "tls",
+            "check": "modern_tls_min_version",
+            "status": "missing",
+            "evidence": "min_version=None (skill method 4: modern TLS config only \u2014 TLS 1.2 or 1.3)"
+          },
+          {
+            "section": "dns_email",
+            "check": "registrar_lock_enabled",
+            "status": "missing",
+            "evidence": "skill method 5: registrar lock + 2FA"
+          },
+          {
+            "section": "dns_email",
+            "check": "registrar_2fa_enabled",
+            "status": "missing",
+            "evidence": "skill method 5: registrar lock + 2FA"
+          },
+          {
+            "section": "dns_email",
+            "check": "dnssec_enabled",
+            "status": "missing",
+            "evidence": "skill method 5: DNSSEC where possible"
+          },
+          {
+            "section": "dns_email",
+            "check": "every_sending_domain_has_spf_dkim_dmarc",
+            "status": "missing",
+            "evidence": "domains not provided"
+          },
+          {
+            "section": "dns_email",
+            "check": "dmarc_reports_monitored",
+            "status": "missing",
+            "evidence": "skill method 5: monitor DMARC reports"
+          },
+          {
+            "section": "edge_access",
+            "check": "waf_or_cdn_in_front_of_web",
+            "status": "missing",
+            "evidence": "skill method 6: CDN/WAF in front of web; don't roll your own edge"
+          },
+          {
+            "section": "edge_access",
+            "check": "edge_rate_limits_enabled",
+            "status": "missing",
+            "evidence": "skill method 6: edge rate limits and bot rules"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_admin_or_db_endpoint_public",
+            "status": "fail",
+            "evidence": "publicly exposed admin/DB endpoints (skill red line: no admin/DB panels exposed to the internet): db-exposed"
+          },
+          {
+            "section": "edge_access",
+            "check": "admin_access_authenticated_path_only",
+            "status": "missing",
+            "evidence": "quality gate: admin access only via authenticated path (tunnel/VPN/SSO), never open ports"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_unauthenticated_tunnels",
+            "status": "pass",
+            "evidence": "no unauthenticated tunnels"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_default_credentials",
+            "status": "missing",
+            "evidence": "skill red line: no default credentials anywhere"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "egress_outbound_allowlist",
+            "status": "missing",
+            "evidence": "skill method 7: egress control \u2014 outbound allowlists for servers that don't need the internet"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "unexpected_egress_logged",
+            "status": "missing",
+            "evidence": "skill method 7: log unexpected egress"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "network_events_logged_denied_and_accepted",
+            "status": "missing",
+            "evidence": "skill method 8: network events logged (denied + accepted)"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "evidence_reviewed_on_change_and_incident",
+            "status": "missing",
+            "evidence": "skill method 8: evidence reviewed on change and on incident"
+          }
+        ],
+        "summary": "4 pass, 2 fail, 21 missing of 27 checks across six sections.",
+        "stamp": "NETWORK EXPOSURE AUDIT\nsystem: None  environment: None\nVERDICT: UNSOUND\n  inventory            insufficient_evidence\n  segmentation         insufficient_evidence\n  tls                  fail\n  dns_email            insufficient_evidence\n  edge_access          fail\n  egress_evidence      insufficient_evidence\n4 pass, 2 fail, 21 missing of 27 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only system name provided; no security posture data available."
+      },
+      "input": {
+        "system": "minimal-test"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "network-exposure-audit",
+        "atom_version": "0.1.0",
+        "system": "minimal-test",
+        "environment": null,
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "inventory": "insufficient_evidence",
+          "segmentation": "insufficient_evidence",
+          "tls": "insufficient_evidence",
+          "dns_email": "insufficient_evidence",
+          "edge_access": "insufficient_evidence",
+          "egress_evidence": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "inventory",
+            "check": "exposure_inventory_current",
+            "status": "missing",
+            "evidence": "skill method 1: exposure inventory maintained \u2014 the list of public endpoints and what serves each"
+          },
+          {
+            "section": "inventory",
+            "check": "every_public_endpoint_owned",
+            "status": "missing",
+            "evidence": "endpoints not provided"
+          },
+          {
+            "section": "inventory",
+            "check": "no_unlisted_public_endpoints",
+            "status": "missing",
+            "evidence": "endpoints not provided"
+          },
+          {
+            "section": "segmentation",
+            "check": "trust_zones_separated",
+            "status": "missing",
+            "evidence": "skill method 3: segmentation \u2014 services separated into trust zones (public edge / app / data / admin)"
+          },
+          {
+            "section": "segmentation",
+            "check": "admin_plane_separate_from_public_path",
+            "status": "missing",
+            "evidence": "skill method 3: admin planes never share the public path"
+          },
+          {
+            "section": "segmentation",
+            "check": "default_deny_posture",
+            "status": "missing",
+            "evidence": "skill method 2: default-deny posture \u2014 everything closed unless a list entry justifies exposure"
+          },
+          {
+            "section": "segmentation",
+            "check": "loopback_by_default",
+            "status": "missing",
+            "evidence": "skill method 2: everything listens on loopback unless a list entry justifies exposure"
+          },
+          {
+            "section": "tls",
+            "check": "no_plaintext_protocol_endpoints",
+            "status": "missing",
+            "evidence": "endpoints not provided"
+          },
+          {
+            "section": "tls",
+            "check": "encrypted_endpoints_have_valid_certs",
+            "status": "missing",
+            "evidence": "endpoints not provided"
+          },
+          {
+            "section": "tls",
+            "check": "cert_expiry_monitored",
+            "status": "missing",
+            "evidence": "skill method 4: valid certs \u2014 auto-renew + monitor expiry (quality gate: cert expiry monitored)"
+          },
+          {
+            "section": "tls",
+            "check": "hsts_on_web",
+            "status": "missing",
+            "evidence": "skill method 4: HSTS on web"
+          },
+          {
+            "section": "tls",
+            "check": "modern_tls_min_version",
+            "status": "missing",
+            "evidence": "min_version=None (skill method 4: modern TLS config only \u2014 TLS 1.2 or 1.3)"
+          },
+          {
+            "section": "dns_email",
+            "check": "registrar_lock_enabled",
+            "status": "missing",
+            "evidence": "skill method 5: registrar lock + 2FA"
+          },
+          {
+            "section": "dns_email",
+            "check": "registrar_2fa_enabled",
+            "status": "missing",
+            "evidence": "skill method 5: registrar lock + 2FA"
+          },
+          {
+            "section": "dns_email",
+            "check": "dnssec_enabled",
+            "status": "missing",
+            "evidence": "skill method 5: DNSSEC where possible"
+          },
+          {
+            "section": "dns_email",
+            "check": "every_sending_domain_has_spf_dkim_dmarc",
+            "status": "missing",
+            "evidence": "domains not provided"
+          },
+          {
+            "section": "dns_email",
+            "check": "dmarc_reports_monitored",
+            "status": "missing",
+            "evidence": "skill method 5: monitor DMARC reports"
+          },
+          {
+            "section": "edge_access",
+            "check": "waf_or_cdn_in_front_of_web",
+            "status": "missing",
+            "evidence": "skill method 6: CDN/WAF in front of web; don't roll your own edge"
+          },
+          {
+            "section": "edge_access",
+            "check": "edge_rate_limits_enabled",
+            "status": "missing",
+            "evidence": "skill method 6: edge rate limits and bot rules"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_admin_or_db_endpoint_public",
+            "status": "missing",
+            "evidence": "endpoints not provided"
+          },
+          {
+            "section": "edge_access",
+            "check": "admin_access_authenticated_path_only",
+            "status": "missing",
+            "evidence": "quality gate: admin access only via authenticated path (tunnel/VPN/SSO), never open ports"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_unauthenticated_tunnels",
+            "status": "missing",
+            "evidence": "endpoints not provided"
+          },
+          {
+            "section": "edge_access",
+            "check": "no_default_credentials",
+            "status": "missing",
+            "evidence": "skill red line: no default credentials anywhere"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "egress_outbound_allowlist",
+            "status": "missing",
+            "evidence": "skill method 7: egress control \u2014 outbound allowlists for servers that don't need the internet"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "unexpected_egress_logged",
+            "status": "missing",
+            "evidence": "skill method 7: log unexpected egress"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "network_events_logged_denied_and_accepted",
+            "status": "missing",
+            "evidence": "skill method 8: network events logged (denied + accepted)"
+          },
+          {
+            "section": "egress_evidence",
+            "check": "evidence_reviewed_on_change_and_incident",
+            "status": "missing",
+            "evidence": "skill method 8: evidence reviewed on change and on incident"
+          }
+        ],
+        "summary": "0 pass, 0 fail, 27 missing of 27 checks across six sections.",
+        "stamp": "NETWORK EXPOSURE AUDIT\nsystem: minimal-test  environment: None\nVERDICT: INSUFFICIENT_EVIDENCE\n  inventory            insufficient_evidence\n  segmentation         insufficient_evidence\n  tls                  insufficient_evidence\n  dns_email            insufficient_evidence\n  edge_access          insufficient_evidence\n  egress_evidence      insufficient_evidence\n0 pass, 0 fail, 27 missing of 27 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: inventory.current expects boolean, received string."
+      },
+      "input": {
+        "inventory": {
+          "current": "not-a-boolean"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "inventory.current",
+        "detail": "inventory.current must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

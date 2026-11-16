@@ -1,0 +1,1186 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: auth-design-review
+
+=== contract.yaml ===
+service_name: auth-design-review
+display_name: Auth design review
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:authentication-authorization
+binding:
+  skill: authentication-authorization
+  skill_path: workspace/mymilo-build/skills/authentication-authorization/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- API
+- agent
+keys:
+  namespace: auth_design_review
+  prefix: atm_1_auth_design_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product login and permissions builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Auth design review — `auth-design-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Do auth properly — passkeys/MFA, sound sessions and tokens, least-privilege authorization, lifecycle.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Security & privacy who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product login and permissions builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the auth-design manifest
+
+The caller submits one JSON manifest: a declared auth design
+record for one system. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false = the check
+fails (`AUTH_DESIGN_DEFICIENT`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `system` (string; carried into the verdict output, not itself checked) | — |
+| `human_auth.passkeys_preferred` | human_authentication |
+| `human_auth.mfa_enforced_for_admin` | human_authentication |
+| `human_auth.mfa_enforced_for_sensitive_ops` | human_authentication |
+| `human_auth.passwords_used` (gates the two password checks below) | human_authentication |
+| `human_auth.passwords_hashed_strong` (required when passwords are used; otherwise the check passes as not applicable) | human_authentication |
+| `human_auth.passwords_long_not_complex` (required when passwords are used; otherwise not applicable) | human_authentication |
+| `human_auth.shared_accounts_present` (must be `false` to pass — skill quality gate) | human_authentication |
+| `sessions.secure_httponly_samesite_cookies` | sessions |
+| `sessions.rotate_on_login_and_privilege_change` | sessions |
+| `sessions.expiry_defined` | sessions |
+| `sessions.server_side_revocation_works` | sessions |
+| `oauth.oauth_used` (gates the five OAuth checks below) | oauth_and_oidc |
+| `oauth.authorization_code_pkce` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `oauth.exact_redirect_allowlists` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `oauth.iss_aud_exp_validated` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `oauth.implicit_flow_used` (must be `false` when OAuth is used — skill method; otherwise not applicable) | oauth_and_oidc |
+| `oauth.refresh_tokens_rotated` (required when OAuth is used; otherwise not applicable) | oauth_and_oidc |
+| `service_tokens.short_lived` | service_tokens |
+| `service_tokens.scoped` | service_tokens |
+| `service_tokens.audience_bound` | service_tokens |
+| `service_tokens.jit_over_long_lived_keys` | service_tokens |
+| `service_tokens.rotation_revocation_tested` | service_tokens |
+| `service_tokens.lifetimes_and_scopes_documented` | service_tokens |
+| `service_tokens.long_lived_unrevocable_credentials_present` (must be `false` to pass — skill red line) | service_tokens |
+| `authorization.server_side_checks_per_endpoint` | authorization |
+| `authorization.rbac_coarse` | authorization |
+| `authorization.abac_fine` | authorization |
+| `authorization.deny_by_default` | authorization |
+| `authorization.client_side_only_authorization` (must be `false` to pass — skill red line) | authorization |
+| `authorization.hand_rolled_crypto_or_protocols` (must be `false` to pass — skill red line) | authorization |
+| `lifecycle.provisioning_reviewed` | lifecycle |
+| `lifecycle.deprovisioning_checklist_exists` | lifecycle |
+| `lifecycle.deprovisioning_exercised` | lifecycle |
+| `lifecycle.access_reviews_scheduled_for_admin` | lifecycle |
+| `anti_abuse.login_rate_limited` | anti_abuse_and_audit |
+| `anti_abuse.token_endpoints_rate_limited` | anti_abuse_and_audit |
+| `anti_abuse.lockout_balanced_no_user_dos` | anti_abuse_and_audit |
+| `anti_abuse.anomaly_alerting` | anti_abuse_and_audit |
+| `audit.authn_events_logged` | anti_abuse_and_audit |
+| `audit.authz_denials_logged` | anti_abuse_and_audit |
+| `audit.permission_changes_logged` | anti_abuse_and_audit |
+| `audit.logs_include_actor_and_context` | anti_abuse_and_audit |
+
+Two check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Password checks:** the skill's step 1 binds its password rules
+  to "passwords (when unavoidable)". `passwords_hashed_strong` and
+  `passwords_long_not_complex` are therefore required only when
+  `human_auth.passwords_used` is declared `true`; when no
+  passwords are declared, each passes as not applicable.
+- **OAuth/OIDC checks:** the skill's step 3 binds its five rules
+  to OAuth2/OIDC integrations. They are required only when
+  `oauth.oauth_used` is declared `true`; when OAuth is not
+  declared in use, each passes as not applicable.
+
+The skill states no numeric threshold — no token lifetime, session
+expiry, or rate limit in numbers — so no numeric check is
+invented; lifetimes, expiries and limits are checked only for
+being defined/documented, exactly as the skill's quality gates
+state them.
+
+The verdict is one of `AUTH_DESIGN_SOUND` (all 40 checks pass),
+`AUTH_DESIGN_DEFICIENT` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: human_authentication, sessions,
+oauth_and_oidc, service_tokens, authorization, lifecycle,
+anti_abuse_and_audit.
+
+## Honest scoping
+
+This atom audits a **declared** auth design record — it does not
+probe the live system, attempt a login, inspect code or
+configuration, or verify that a declared control actually works.
+A design is sound *on the caller's declared evidence*: a manifest
+that declares passkeys, rotating sessions, and tested revocation
+passes those checks even if the implementation does none of it.
+It is a completeness audit of the record the skill requires,
+**not a penetration test or a security certification**: it never
+judges whether the chosen factors are strong enough for the
+system's actual risk, whether the hashing cost is tuned, or
+whether the allowlists are correct — only that the record
+contains what the skill's method, quality gates, and red lines
+demand.
+
+Named exclusions: no numeric thresholds (token lifetimes, session
+expiries, lockout counts, rate limits — the skill states none, so
+none is invented); no check of which hashing algorithm is
+actually deployed beyond the declared Argon2id/bcrypt-class
+attestation; no verification that revocation, rotation, or the
+deprovisioning exercise actually happened; no live verification
+of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Could become audit tier A
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "auth-design-review",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "AUTH_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean flags set to pass the skill quality gates and red lines."
+      },
+      "input": {
+        "system": "secure-auth-service",
+        "human_auth": {
+          "passkeys_preferred": true,
+          "mfa_enforced_for_admin": true,
+          "mfa_enforced_for_sensitive_ops": true,
+          "passwords_used": false,
+          "shared_accounts_present": false
+        },
+        "sessions": {
+          "secure_httponly_samesite_cookies": true,
+          "rotate_on_login_and_privilege_change": true,
+          "expiry_defined": true,
+          "server_side_revocation_works": true
+        },
+        "oauth": {
+          "oauth_used": false
+        },
+        "service_tokens": {
+          "short_lived": true,
+          "scoped": true,
+          "audience_bound": true,
+          "jit_over_long_lived_keys": true,
+          "rotation_revocation_tested": true,
+          "lifetimes_and_scopes_documented": true,
+          "long_lived_unrevocable_credentials_present": false
+        },
+        "authorization": {
+          "server_side_checks_per_endpoint": true,
+          "rbac_coarse": true,
+          "abac_fine": true,
+          "deny_by_default": true,
+          "client_side_only_authorization": false,
+          "hand_rolled_crypto_or_protocols": false
+        },
+        "lifecycle": {
+          "provisioning_reviewed": true,
+          "deprovisioning_checklist_exists": true,
+          "deprovisioning_exercised": true,
+          "access_reviews_scheduled_for_admin": true
+        },
+        "anti_abuse": {
+          "login_rate_limited": true,
+          "token_endpoints_rate_limited": true,
+          "lockout_balanced_no_user_dos": true,
+          "anomaly_alerting": true
+        },
+        "audit": {
+          "authn_events_logged": true,
+          "authz_denials_logged": true,
+          "permission_changes_logged": true,
+          "logs_include_actor_and_context": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "auth-design-review",
+        "atom_version": "0.1.0",
+        "system": "secure-auth-service",
+        "verdict": "AUTH_DESIGN_SOUND",
+        "sections": {
+          "human_authentication": "pass",
+          "sessions": "pass",
+          "oauth_and_oidc": "pass",
+          "service_tokens": "pass",
+          "authorization": "pass",
+          "lifecycle": "pass",
+          "anti_abuse_and_audit": "pass"
+        },
+        "checks": [
+          {
+            "section": "human_authentication",
+            "check": "passkeys_preferred",
+            "status": "pass",
+            "evidence": "method 1: passkeys / WebAuthn are the preferred human authenticator \u2014 strong first"
+          },
+          {
+            "section": "human_authentication",
+            "check": "mfa_enforced_for_admin",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: MFA or passkey is enforced for admin surfaces"
+          },
+          {
+            "section": "human_authentication",
+            "check": "mfa_enforced_for_sensitive_ops",
+            "status": "pass",
+            "evidence": "method 1: MFA is enforced for sensitive operations"
+          },
+          {
+            "section": "human_authentication",
+            "check": "passwords_hashed_strong_when_used",
+            "status": "pass",
+            "evidence": "no passwords declared in use"
+          },
+          {
+            "section": "human_authentication",
+            "check": "passwords_long_not_complex_when_used",
+            "status": "pass",
+            "evidence": "no passwords declared in use"
+          },
+          {
+            "section": "human_authentication",
+            "check": "no_shared_accounts",
+            "status": "pass",
+            "evidence": "quality gate: no shared accounts"
+          },
+          {
+            "section": "sessions",
+            "check": "secure_httponly_samesite_cookies",
+            "status": "pass",
+            "evidence": "method 2: session cookies are Secure, HttpOnly and SameSite"
+          },
+          {
+            "section": "sessions",
+            "check": "sessions_rotate_on_privilege_change",
+            "status": "pass",
+            "evidence": "method 2: sessions rotate on login and on privilege change"
+          },
+          {
+            "section": "sessions",
+            "check": "session_expiry_defined",
+            "status": "pass",
+            "evidence": "method 2: sessions expire sensibly \u2014 an expiry is defined"
+          },
+          {
+            "section": "sessions",
+            "check": "server_side_revocation_works",
+            "status": "pass",
+            "evidence": "method 2: the server-side revocation list works"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "authorization_code_with_pkce",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "exact_redirect_allowlists",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "iss_aud_exp_validated",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "implicit_flow_not_used",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "refresh_tokens_rotated",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_short_lived",
+            "status": "pass",
+            "evidence": "method 4: service tokens are short-lived"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_scoped",
+            "status": "pass",
+            "evidence": "method 4: service tokens are scoped"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_audience_bound",
+            "status": "pass",
+            "evidence": "method 4: service tokens are audience-bound"
+          },
+          {
+            "section": "service_tokens",
+            "check": "jit_issuance_over_long_lived_keys",
+            "status": "pass",
+            "evidence": "method 4: just-in-time issuance is preferred over long-lived keys"
+          },
+          {
+            "section": "service_tokens",
+            "check": "rotation_revocation_tested",
+            "status": "pass",
+            "evidence": "method 4 / quality gate: rotate and revoke paths are tested \u2014 revocation tested"
+          },
+          {
+            "section": "service_tokens",
+            "check": "lifetimes_and_scopes_documented",
+            "status": "pass",
+            "evidence": "quality gate: token lifetimes and scopes are documented"
+          },
+          {
+            "section": "service_tokens",
+            "check": "no_long_lived_unrevocable_credentials",
+            "status": "pass",
+            "evidence": "red line: no long-lived unrevocable credentials"
+          },
+          {
+            "section": "authorization",
+            "check": "server_side_checks_per_endpoint",
+            "status": "pass",
+            "evidence": "method 5 / quality gate: authorization is server-side, always \u2014 every endpoint performs a server-side permission check"
+          },
+          {
+            "section": "authorization",
+            "check": "rbac_for_coarse",
+            "status": "pass",
+            "evidence": "method 5: RBAC roles cover coarse-grained authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "abac_for_fine",
+            "status": "pass",
+            "evidence": "method 5: ABAC / policies (OPA-style) cover fine-grained authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "deny_by_default",
+            "status": "pass",
+            "evidence": "method 5: deny by default \u2014 never trust the UI"
+          },
+          {
+            "section": "authorization",
+            "check": "no_client_side_only_authorization",
+            "status": "pass",
+            "evidence": "red line: no client-side-only authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "no_hand_rolled_crypto_or_protocols",
+            "status": "pass",
+            "evidence": "red line: no hand-rolled crypto or auth protocols"
+          },
+          {
+            "section": "lifecycle",
+            "check": "provisioning_reviewed",
+            "status": "pass",
+            "evidence": "method 6: provisioning is reviewed"
+          },
+          {
+            "section": "lifecycle",
+            "check": "deprovisioning_checklist_exists",
+            "status": "pass",
+            "evidence": "method 6 / quality gate: deprovisioning is a checklist \u2014 tokens revoked, keys rotated \u2014 and the runbook exists"
+          },
+          {
+            "section": "lifecycle",
+            "check": "deprovisioning_exercised",
+            "status": "pass",
+            "evidence": "quality gate: the deprovisioning runbook was exercised once"
+          },
+          {
+            "section": "lifecycle",
+            "check": "access_reviews_scheduled_for_admin",
+            "status": "pass",
+            "evidence": "method 6: access reviews run on schedule for admin surfaces"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "login_endpoints_rate_limited",
+            "status": "pass",
+            "evidence": "method 7: login endpoints are rate-limited"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "token_endpoints_rate_limited",
+            "status": "pass",
+            "evidence": "method 7: token endpoints are rate-limited"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "lockout_balanced_no_user_dos",
+            "status": "pass",
+            "evidence": "method 7: lockout policies are balanced \u2014 no user-lockout denial of service"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "anomaly_alerting",
+            "status": "pass",
+            "evidence": "method 7: anomalies alert \u2014 new geography, spikes"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "authn_events_logged",
+            "status": "pass",
+            "evidence": "method 8: authentication events \u2014 success and failure \u2014 are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "authz_denials_logged",
+            "status": "pass",
+            "evidence": "method 8: authorization denials are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "permission_changes_logged",
+            "status": "pass",
+            "evidence": "method 8: permission changes are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "logs_include_actor_and_context",
+            "status": "pass",
+            "evidence": "method 8: auth logs carry actor and context"
+          }
+        ],
+        "summary": "40 pass, 0 fail, 0 missing of 40 checks across seven sections.",
+        "stamp": "AUTH DESIGN REVIEW\nsystem: secure-auth-service\nVERDICT: AUTH_DESIGN_SOUND\n  human_authentication         pass\n  sessions                     pass\n  oauth_and_oidc               pass\n  service_tokens               pass\n  authorization                pass\n  lifecycle                    pass\n  anti_abuse_and_audit         pass\n40 pass, 0 fail, 0 missing of 40 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "AUTH_DESIGN_DEFICIENT",
+        "http": 200,
+        "failing_checks": [
+          "human_auth.shared_accounts_present",
+          "service_tokens.long_lived_unrevocable_credentials_present",
+          "authorization.client_side_only_authorization"
+        ],
+        "notes": "Violates three specific skill red lines."
+      },
+      "input": {
+        "system": "insecure-auth-service",
+        "human_auth": {
+          "passkeys_preferred": true,
+          "mfa_enforced_for_admin": true,
+          "mfa_enforced_for_sensitive_ops": true,
+          "passwords_used": false,
+          "shared_accounts_present": true
+        },
+        "sessions": {
+          "secure_httponly_samesite_cookies": true,
+          "rotate_on_login_and_privilege_change": true,
+          "expiry_defined": true,
+          "server_side_revocation_works": true
+        },
+        "oauth": {
+          "oauth_used": false
+        },
+        "service_tokens": {
+          "short_lived": true,
+          "scoped": true,
+          "audience_bound": true,
+          "jit_over_long_lived_keys": true,
+          "rotation_revocation_tested": true,
+          "lifetimes_and_scopes_documented": true,
+          "long_lived_unrevocable_credentials_present": true
+        },
+        "authorization": {
+          "server_side_checks_per_endpoint": true,
+          "rbac_coarse": true,
+          "abac_fine": true,
+          "deny_by_default": true,
+          "client_side_only_authorization": true,
+          "hand_rolled_crypto_or_protocols": false
+        },
+        "lifecycle": {
+          "provisioning_reviewed": true,
+          "deprovisioning_checklist_exists": true,
+          "deprovisioning_exercised": true,
+          "access_reviews_scheduled_for_admin": true
+        },
+        "anti_abuse": {
+          "login_rate_limited": true,
+          "token_endpoints_rate_limited": true,
+          "lockout_balanced_no_user_dos": true,
+          "anomaly_alerting": true
+        },
+        "audit": {
+          "authn_events_logged": true,
+          "authz_denials_logged": true,
+          "permission_changes_logged": true,
+          "logs_include_actor_and_context": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "auth-design-review",
+        "atom_version": "0.1.0",
+        "system": "insecure-auth-service",
+        "verdict": "AUTH_DESIGN_DEFICIENT",
+        "sections": {
+          "human_authentication": "fail",
+          "sessions": "pass",
+          "oauth_and_oidc": "pass",
+          "service_tokens": "fail",
+          "authorization": "fail",
+          "lifecycle": "pass",
+          "anti_abuse_and_audit": "pass"
+        },
+        "checks": [
+          {
+            "section": "human_authentication",
+            "check": "passkeys_preferred",
+            "status": "pass",
+            "evidence": "method 1: passkeys / WebAuthn are the preferred human authenticator \u2014 strong first"
+          },
+          {
+            "section": "human_authentication",
+            "check": "mfa_enforced_for_admin",
+            "status": "pass",
+            "evidence": "method 1 / quality gate: MFA or passkey is enforced for admin surfaces"
+          },
+          {
+            "section": "human_authentication",
+            "check": "mfa_enforced_for_sensitive_ops",
+            "status": "pass",
+            "evidence": "method 1: MFA is enforced for sensitive operations"
+          },
+          {
+            "section": "human_authentication",
+            "check": "passwords_hashed_strong_when_used",
+            "status": "pass",
+            "evidence": "no passwords declared in use"
+          },
+          {
+            "section": "human_authentication",
+            "check": "passwords_long_not_complex_when_used",
+            "status": "pass",
+            "evidence": "no passwords declared in use"
+          },
+          {
+            "section": "human_authentication",
+            "check": "no_shared_accounts",
+            "status": "fail",
+            "evidence": "quality gate: no shared accounts"
+          },
+          {
+            "section": "sessions",
+            "check": "secure_httponly_samesite_cookies",
+            "status": "pass",
+            "evidence": "method 2: session cookies are Secure, HttpOnly and SameSite"
+          },
+          {
+            "section": "sessions",
+            "check": "sessions_rotate_on_privilege_change",
+            "status": "pass",
+            "evidence": "method 2: sessions rotate on login and on privilege change"
+          },
+          {
+            "section": "sessions",
+            "check": "session_expiry_defined",
+            "status": "pass",
+            "evidence": "method 2: sessions expire sensibly \u2014 an expiry is defined"
+          },
+          {
+            "section": "sessions",
+            "check": "server_side_revocation_works",
+            "status": "pass",
+            "evidence": "method 2: the server-side revocation list works"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "authorization_code_with_pkce",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "exact_redirect_allowlists",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "iss_aud_exp_validated",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "implicit_flow_not_used",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "refresh_tokens_rotated",
+            "status": "pass",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_short_lived",
+            "status": "pass",
+            "evidence": "method 4: service tokens are short-lived"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_scoped",
+            "status": "pass",
+            "evidence": "method 4: service tokens are scoped"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_audience_bound",
+            "status": "pass",
+            "evidence": "method 4: service tokens are audience-bound"
+          },
+          {
+            "section": "service_tokens",
+            "check": "jit_issuance_over_long_lived_keys",
+            "status": "pass",
+            "evidence": "method 4: just-in-time issuance is preferred over long-lived keys"
+          },
+          {
+            "section": "service_tokens",
+            "check": "rotation_revocation_tested",
+            "status": "pass",
+            "evidence": "method 4 / quality gate: rotate and revoke paths are tested \u2014 revocation tested"
+          },
+          {
+            "section": "service_tokens",
+            "check": "lifetimes_and_scopes_documented",
+            "status": "pass",
+            "evidence": "quality gate: token lifetimes and scopes are documented"
+          },
+          {
+            "section": "service_tokens",
+            "check": "no_long_lived_unrevocable_credentials",
+            "status": "fail",
+            "evidence": "red line: no long-lived unrevocable credentials"
+          },
+          {
+            "section": "authorization",
+            "check": "server_side_checks_per_endpoint",
+            "status": "pass",
+            "evidence": "method 5 / quality gate: authorization is server-side, always \u2014 every endpoint performs a server-side permission check"
+          },
+          {
+            "section": "authorization",
+            "check": "rbac_for_coarse",
+            "status": "pass",
+            "evidence": "method 5: RBAC roles cover coarse-grained authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "abac_for_fine",
+            "status": "pass",
+            "evidence": "method 5: ABAC / policies (OPA-style) cover fine-grained authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "deny_by_default",
+            "status": "pass",
+            "evidence": "method 5: deny by default \u2014 never trust the UI"
+          },
+          {
+            "section": "authorization",
+            "check": "no_client_side_only_authorization",
+            "status": "fail",
+            "evidence": "red line: no client-side-only authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "no_hand_rolled_crypto_or_protocols",
+            "status": "pass",
+            "evidence": "red line: no hand-rolled crypto or auth protocols"
+          },
+          {
+            "section": "lifecycle",
+            "check": "provisioning_reviewed",
+            "status": "pass",
+            "evidence": "method 6: provisioning is reviewed"
+          },
+          {
+            "section": "lifecycle",
+            "check": "deprovisioning_checklist_exists",
+            "status": "pass",
+            "evidence": "method 6 / quality gate: deprovisioning is a checklist \u2014 tokens revoked, keys rotated \u2014 and the runbook exists"
+          },
+          {
+            "section": "lifecycle",
+            "check": "deprovisioning_exercised",
+            "status": "pass",
+            "evidence": "quality gate: the deprovisioning runbook was exercised once"
+          },
+          {
+            "section": "lifecycle",
+            "check": "access_reviews_scheduled_for_admin",
+            "status": "pass",
+            "evidence": "method 6: access reviews run on schedule for admin surfaces"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "login_endpoints_rate_limited",
+            "status": "pass",
+            "evidence": "method 7: login endpoints are rate-limited"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "token_endpoints_rate_limited",
+            "status": "pass",
+            "evidence": "method 7: token endpoints are rate-limited"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "lockout_balanced_no_user_dos",
+            "status": "pass",
+            "evidence": "method 7: lockout policies are balanced \u2014 no user-lockout denial of service"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "anomaly_alerting",
+            "status": "pass",
+            "evidence": "method 7: anomalies alert \u2014 new geography, spikes"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "authn_events_logged",
+            "status": "pass",
+            "evidence": "method 8: authentication events \u2014 success and failure \u2014 are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "authz_denials_logged",
+            "status": "pass",
+            "evidence": "method 8: authorization denials are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "permission_changes_logged",
+            "status": "pass",
+            "evidence": "method 8: permission changes are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "logs_include_actor_and_context",
+            "status": "pass",
+            "evidence": "method 8: auth logs carry actor and context"
+          }
+        ],
+        "summary": "37 pass, 3 fail, 0 missing of 40 checks across seven sections.",
+        "stamp": "AUTH DESIGN REVIEW\nsystem: insecure-auth-service\nVERDICT: AUTH_DESIGN_DEFICIENT\n  human_authentication         fail\n  sessions                     pass\n  oauth_and_oidc               pass\n  service_tokens               fail\n  authorization                fail\n  lifecycle                    pass\n  anti_abuse_and_audit         pass\n37 pass, 3 fail, 0 missing of 40 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing almost all required fields, resulting in insufficient evidence."
+      },
+      "input": {
+        "system": "minimal-test"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "auth-design-review",
+        "atom_version": "0.1.0",
+        "system": "minimal-test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "human_authentication": "insufficient_evidence",
+          "sessions": "insufficient_evidence",
+          "oauth_and_oidc": "insufficient_evidence",
+          "service_tokens": "insufficient_evidence",
+          "authorization": "insufficient_evidence",
+          "lifecycle": "insufficient_evidence",
+          "anti_abuse_and_audit": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "human_authentication",
+            "check": "passkeys_preferred",
+            "status": "missing",
+            "evidence": "method 1: passkeys / WebAuthn are the preferred human authenticator \u2014 strong first"
+          },
+          {
+            "section": "human_authentication",
+            "check": "mfa_enforced_for_admin",
+            "status": "missing",
+            "evidence": "method 1 / quality gate: MFA or passkey is enforced for admin surfaces"
+          },
+          {
+            "section": "human_authentication",
+            "check": "mfa_enforced_for_sensitive_ops",
+            "status": "missing",
+            "evidence": "method 1: MFA is enforced for sensitive operations"
+          },
+          {
+            "section": "human_authentication",
+            "check": "passwords_hashed_strong_when_used",
+            "status": "missing",
+            "evidence": "no passwords declared in use"
+          },
+          {
+            "section": "human_authentication",
+            "check": "passwords_long_not_complex_when_used",
+            "status": "missing",
+            "evidence": "no passwords declared in use"
+          },
+          {
+            "section": "human_authentication",
+            "check": "no_shared_accounts",
+            "status": "missing",
+            "evidence": "quality gate: no shared accounts"
+          },
+          {
+            "section": "sessions",
+            "check": "secure_httponly_samesite_cookies",
+            "status": "missing",
+            "evidence": "method 2: session cookies are Secure, HttpOnly and SameSite"
+          },
+          {
+            "section": "sessions",
+            "check": "sessions_rotate_on_privilege_change",
+            "status": "missing",
+            "evidence": "method 2: sessions rotate on login and on privilege change"
+          },
+          {
+            "section": "sessions",
+            "check": "session_expiry_defined",
+            "status": "missing",
+            "evidence": "method 2: sessions expire sensibly \u2014 an expiry is defined"
+          },
+          {
+            "section": "sessions",
+            "check": "server_side_revocation_works",
+            "status": "missing",
+            "evidence": "method 2: the server-side revocation list works"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "authorization_code_with_pkce",
+            "status": "missing",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "exact_redirect_allowlists",
+            "status": "missing",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "iss_aud_exp_validated",
+            "status": "missing",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "implicit_flow_not_used",
+            "status": "missing",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "oauth_and_oidc",
+            "check": "refresh_tokens_rotated",
+            "status": "missing",
+            "evidence": "no OAuth/OIDC declared in use"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_short_lived",
+            "status": "missing",
+            "evidence": "method 4: service tokens are short-lived"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_scoped",
+            "status": "missing",
+            "evidence": "method 4: service tokens are scoped"
+          },
+          {
+            "section": "service_tokens",
+            "check": "tokens_audience_bound",
+            "status": "missing",
+            "evidence": "method 4: service tokens are audience-bound"
+          },
+          {
+            "section": "service_tokens",
+            "check": "jit_issuance_over_long_lived_keys",
+            "status": "missing",
+            "evidence": "method 4: just-in-time issuance is preferred over long-lived keys"
+          },
+          {
+            "section": "service_tokens",
+            "check": "rotation_revocation_tested",
+            "status": "missing",
+            "evidence": "method 4 / quality gate: rotate and revoke paths are tested \u2014 revocation tested"
+          },
+          {
+            "section": "service_tokens",
+            "check": "lifetimes_and_scopes_documented",
+            "status": "missing",
+            "evidence": "quality gate: token lifetimes and scopes are documented"
+          },
+          {
+            "section": "service_tokens",
+            "check": "no_long_lived_unrevocable_credentials",
+            "status": "missing",
+            "evidence": "red line: no long-lived unrevocable credentials"
+          },
+          {
+            "section": "authorization",
+            "check": "server_side_checks_per_endpoint",
+            "status": "missing",
+            "evidence": "method 5 / quality gate: authorization is server-side, always \u2014 every endpoint performs a server-side permission check"
+          },
+          {
+            "section": "authorization",
+            "check": "rbac_for_coarse",
+            "status": "missing",
+            "evidence": "method 5: RBAC roles cover coarse-grained authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "abac_for_fine",
+            "status": "missing",
+            "evidence": "method 5: ABAC / policies (OPA-style) cover fine-grained authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "deny_by_default",
+            "status": "missing",
+            "evidence": "method 5: deny by default \u2014 never trust the UI"
+          },
+          {
+            "section": "authorization",
+            "check": "no_client_side_only_authorization",
+            "status": "missing",
+            "evidence": "red line: no client-side-only authorization"
+          },
+          {
+            "section": "authorization",
+            "check": "no_hand_rolled_crypto_or_protocols",
+            "status": "missing",
+            "evidence": "red line: no hand-rolled crypto or auth protocols"
+          },
+          {
+            "section": "lifecycle",
+            "check": "provisioning_reviewed",
+            "status": "missing",
+            "evidence": "method 6: provisioning is reviewed"
+          },
+          {
+            "section": "lifecycle",
+            "check": "deprovisioning_checklist_exists",
+            "status": "missing",
+            "evidence": "method 6 / quality gate: deprovisioning is a checklist \u2014 tokens revoked, keys rotated \u2014 and the runbook exists"
+          },
+          {
+            "section": "lifecycle",
+            "check": "deprovisioning_exercised",
+            "status": "missing",
+            "evidence": "quality gate: the deprovisioning runbook was exercised once"
+          },
+          {
+            "section": "lifecycle",
+            "check": "access_reviews_scheduled_for_admin",
+            "status": "missing",
+            "evidence": "method 6: access reviews run on schedule for admin surfaces"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "login_endpoints_rate_limited",
+            "status": "missing",
+            "evidence": "method 7: login endpoints are rate-limited"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "token_endpoints_rate_limited",
+            "status": "missing",
+            "evidence": "method 7: token endpoints are rate-limited"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "lockout_balanced_no_user_dos",
+            "status": "missing",
+            "evidence": "method 7: lockout policies are balanced \u2014 no user-lockout denial of service"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "anomaly_alerting",
+            "status": "missing",
+            "evidence": "method 7: anomalies alert \u2014 new geography, spikes"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "authn_events_logged",
+            "status": "missing",
+            "evidence": "method 8: authentication events \u2014 success and failure \u2014 are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "authz_denials_logged",
+            "status": "missing",
+            "evidence": "method 8: authorization denials are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "permission_changes_logged",
+            "status": "missing",
+            "evidence": "method 8: permission changes are logged"
+          },
+          {
+            "section": "anti_abuse_and_audit",
+            "check": "logs_include_actor_and_context",
+            "status": "missing",
+            "evidence": "method 8: auth logs carry actor and context"
+          }
+        ],
+        "summary": "0 pass, 0 fail, 40 missing of 40 checks across seven sections.",
+        "stamp": "AUTH DESIGN REVIEW\nsystem: minimal-test\nVERDICT: INSUFFICIENT_EVIDENCE\n  human_authentication         insufficient_evidence\n  sessions                     insufficient_evidence\n  oauth_and_oidc               insufficient_evidence\n  service_tokens               insufficient_evidence\n  authorization                insufficient_evidence\n  lifecycle                    insufficient_evidence\n  anti_abuse_and_audit         insufficient_evidence\n0 pass, 0 fail, 40 missing of 40 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: human_auth expected to be an object, provided a string."
+      },
+      "input": {
+        "system": "malformed-test",
+        "human_auth": "should-be-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "human_auth",
+        "detail": "human_auth must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

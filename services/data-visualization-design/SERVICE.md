@@ -1,0 +1,275 @@
+# Data visualization design — `data-visualization-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Say it with charts — right chart for the job, honest axes, accessible color, annotation that explains.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Report chart production**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the data-visualization-design manifest
+
+This atom does not render a chart, draw a graph, read any
+actual data, or exercise any aesthetic judgment of its own. The
+caller submits one JSON manifest declaring a visualization
+design record — its audience and question, its declared chart
+rows (question type, chart type, axis labels and units, axis
+start, and sorting / dual-axis / truncation / 3D / red-green /
+category-count declarations), its honesty record, and its
+perception, colour, annotation, accessibility, dashboard and
+reproducibility declarations — and the atom validates that
+record deterministically. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid
+= the check fails (`DATA_VISUALIZATION_DESIGN_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `brief.audience` (string; must be non-empty to pass — the declared audience) | question_and_chart_choice |
+| `brief.question` (string; must be non-empty to pass — the declared question the charts answer) | question_and_chart_choice |
+| `charts` (list of chart entries; absent / not a list / empty = all ten computed chart checks missing) | question_and_chart_choice, honesty_and_axes, perception_and_chart_junk, color, annotation_and_labels |
+| `charts[].name` (string; must be non-empty for the entry to be complete) | question_and_chart_choice |
+| `charts[].question_type` (string; must be non-empty for the entry to be complete, and one of the stated question types to pass the mapping check — see below) | question_and_chart_choice |
+| `charts[].chart_type` (string; must be non-empty for the entry to be complete, and the type the skill maps the question type to, to pass the mapping check — see below) | question_and_chart_choice |
+| `charts[].x_axis_label` (string; must be non-empty for the entry to be complete) | annotation_and_labels |
+| `charts[].y_axis_label` (string; must be non-empty for the entry to be complete) | annotation_and_labels |
+| `charts[].y_axis_unit` (string; must be non-empty for the entry to be complete) | annotation_and_labels |
+| `charts[].y_axis_start` (number; computed, see below) | honesty_and_axes |
+| `charts[].categories_count` (number; computed, see below) | color |
+| `charts[].bars_sorted` (boolean; must be present for the entry to be complete; computed, see below) | question_and_chart_choice |
+| `charts[].dual_axis` (boolean; must be present for the entry to be complete; computed, see below) | honesty_and_axes |
+| `charts[].axis_truncated` (boolean; must be present for the entry to be complete; computed, see below) | honesty_and_axes |
+| `charts[].truncated_flagged_loudly` (boolean; must be present for the entry to be complete; computed, see below) | honesty_and_axes |
+| `charts[].uses_3d` (boolean; must be present for the entry to be complete; computed, see below) | perception_and_chart_junk |
+| `charts[].red_green_only` (boolean; must be present for the entry to be complete; computed, see below) | color |
+| `honesty.consistent_scales_when_comparing_panels` | honesty_and_axes |
+| `honesty.data_source_labeled` | honesty_and_axes |
+| `honesty.data_date_labeled` | honesty_and_axes |
+| `honesty.misleading_axes_or_scales_present` (must be `false` to pass — skill red line) | honesty_and_axes |
+| `perception.primary_encoding_uses_position_or_length` | perception_and_chart_junk |
+| `perception.most_important_element_top_left_or_largest` | perception_and_chart_junk |
+| `perception.gridlines_faint` | perception_and_chart_junk |
+| `perception.chart_junk_minimized` | perception_and_chart_junk |
+| `perception.chart_junk_used_as_branding` (must be `false` to pass — skill red line) | perception_and_chart_junk |
+| `color.palette_colorblind_safe` | color |
+| `color.sequential_palette_for_magnitude` | color |
+| `color.diverging_palette_around_real_midpoint` | color |
+| `annotation.title_states_finding_not_topic` | annotation_and_labels |
+| `annotation.events_and_thresholds_marked` | annotation_and_labels |
+| `annotation.outliers_called_out_directly` | annotation_and_labels |
+| `annotation.key_values_annotated` | annotation_and_labels |
+| `accessibility.legible_sizes` | accessibility |
+| `accessibility.alt_text_or_table_fallback_present` | accessibility |
+| `accessibility.values_readable_without_hover` | accessibility |
+| `accessibility.contrast_sufficient_for_print_and_screen` | accessibility |
+| `dashboard.one_screen_one_story` | dashboards_and_reproducibility |
+| `dashboard.metric_definitions_and_owners_declared` | dashboards_and_reproducibility |
+| `dashboard.refresh_cadence_visible` | dashboards_and_reproducibility |
+| `dashboard.stale_panels_retired` | dashboards_and_reproducibility |
+| `reproducibility.tool_version_and_data_snapshot_recorded` | dashboards_and_reproducibility |
+| `reproducibility.data_reproducible` | dashboards_and_reproducibility |
+
+Ten checks are computed from the declared chart rows, using
+only what the skill itself states plus the arithmetic of the
+declared numbers — no outside threshold is imported:
+
+- **Chart entries:** the entries check passes only when every
+  declared chart entry is complete — non-empty `name`,
+  `question_type`, `chart_type`, `x_axis_label`, `y_axis_label`
+  and `y_axis_unit` strings, numeric `y_axis_start` and
+  `categories_count`, and present `bars_sorted`, `dual_axis`,
+  `axis_truncated`, `truncated_flagged_loudly`, `uses_3d` and
+  `red_green_only` booleans. A missing or empty list is missing
+  evidence; an incomplete entry makes all ten computed chart
+  checks missing (the rows cannot be evaluated). The output
+  reports `charts_evaluated` (the count of complete entries).
+- **Chart type for the question:** the skill's method step 1
+  maps question → chart — comparison → sorted bars; trend →
+  line (time on x); distribution → histogram/box; relationship
+  → scatter; composition → stacked bars (sparingly);
+  part-to-whole over time → small multiples, not pie-animations.
+  The mapping check therefore passes only when every complete
+  entry's declared `chart_type` is the type stated for its
+  declared `question_type` (`bar`, `line`, `histogram` /
+  `box_plot`, `scatter`, `stacked_bar`, `small_multiples`).
+  Entries are validated as strings only, never enum-checked at
+  type level — mapping membership is a verdict check, not a
+  type error. The output reports the names of rows that do not
+  match as `charts_not_matching_question` (null when the rows
+  cannot be evaluated). A separate computed check requires
+  every declared comparison row to declare `bars_sorted` (the
+  skill's "sorted bars"); with no comparison row declared it
+  passes vacuously.
+- **Zero baseline for bars:** the skill's method step 2 and
+  quality gate require the y-axis at zero for bars. The check
+  therefore passes only when every complete bar / stacked-bar
+  row's declared `y_axis_start` is zero. A declared bar chart
+  whose axis does not start at zero is a named failing check.
+  Non-bar rows are not held to zero by this check (their
+  truncation is governed by the flagging check below); with no
+  bar row declared the check passes vacuously.
+- **No dual axes:** method step 2 forbids dual axes implying
+  causation; the check passes only when every complete row
+  declares `dual_axis` false.
+- **Truncated axes flagged loudly:** method step 2 requires a
+  truncated axis to be flagged loudly; the check passes only
+  when every complete row that declares `axis_truncated` true
+  also declares `truncated_flagged_loudly` true.
+- **No 3D / no red-green alone:** method step 3 says no 3D and
+  method step 4 / the quality gate say never red/green alone;
+  the checks pass only when every complete row declares
+  `uses_3d` false and `red_green_only` false respectively.
+- **Category count:** method step 4 states "≤7 categories" —
+  the one numeric limit the skill states. The check passes
+  only when the largest declared `categories_count` across
+  complete rows is at most 7. The output reports
+  `computed_max_categories` and
+  `max_categories_difference_from_limit` (largest count minus
+  7, null when either cannot be computed).
+- **Axis labels and units:** every complete entry carries a
+  non-empty x-axis label, y-axis label and y-axis unit, so
+  this check passes exactly when the entries are complete and
+  is missing when they cannot be evaluated.
+
+**Fixed serialization rule:** computed amounts are reported
+as strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; the bar-zero comparison compares the fixed-6dp
+difference to zero. That fixed serialization is what makes
+the Python and TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the ten computed checks cannot be completed).
+
+The verdict is one of `DATA_VISUALIZATION_DESIGN_SOUND` (all
+38 checks pass), `DATA_VISUALIZATION_DESIGN_NOT_SOUND` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections:
+question_and_chart_choice, honesty_and_axes,
+perception_and_chart_junk, color, annotation_and_labels,
+accessibility, dashboards_and_reproducibility.
+
+## Checks by section
+
+- **question_and_chart_choice** (5): audience declared;
+  question declared; chart entries complete (computed); chart
+  types match the declared questions (computed); comparison
+  charts sorted (computed).
+- **honesty_and_axes** (7): bar charts' y-axis starts at zero
+  (computed); no dual axes in declared charts (computed);
+  truncated axes flagged loudly (computed); consistent scales
+  when comparing panels; data source labeled; data date
+  labeled; misleading axes or scales not present (red line).
+- **perception_and_chart_junk** (6): primary encoding uses
+  position or length; most important element top-left or
+  largest; gridlines faint; no 3D in declared charts
+  (computed); chart-junk minimized; chart-junk not used as
+  branding (red line).
+- **color** (5): palette colorblind-safe; sequential palette
+  for magnitude; diverging palette around a real midpoint; red
+  / green not used alone in declared charts (computed);
+  category counts within the stated limit of 7 (computed).
+- **annotation_and_labels** (5): title states the finding, not
+  the topic; events and thresholds marked; outliers called out
+  directly; key values annotated; axis labels and units
+  complete (computed).
+- **accessibility** (4): legible sizes; alt text or table
+  fallback present; values readable without hover; contrast
+  sufficient for print and screen.
+- **dashboards_and_reproducibility** (6): dashboard one screen
+  = one story; metric definitions and owners declared; refresh
+  cadence visible; stale panels retired; tool version and data
+  snapshot recorded; chart data reproducible (red line).
+
+## Honest scoping
+
+This atom audits a **declared** visualization design record —
+it does not render a chart, read the underlying data, inspect
+a rendered image, or verify that a declared chart exists or
+that a declared value is true. It exercises no judgment of
+its own: the record declares its own audience, question,
+chart rows, encodings, axes, palettes and labels, and this
+core checks only their internal consistency and the
+completeness of the skill's method on the declared evidence.
+A design is sound *on the caller's declared evidence* even if
+its charts are ugly or its data is weak. It is a completeness
+and consistency audit, **not a visualization review**: it
+never decides whether a chart is clear, beautiful or
+persuasive, whether a palette actually is colorblind-safe in
+rendering, whether a title really states a finding, or
+whether the declared values match any real chart.
+
+Named exclusions: no rendering or generation of any chart; no
+reading or analysis of any dataset; no verification of any
+declared chart, axis, palette or annotation against a real
+artifact; no clarity, aesthetics or persuasiveness judgment
+of any visualization.
+
+## Thresholds declined
+
+The skill states no number for these, so none is imposed —
+naming them here instead of inventing one:
+
+- **No category limit beyond the stated one** — the skill
+  states ≤7 categories, and only that limit is enforced; no
+  tighter or looser count is invented.
+- **No minimum chart count** — the skill requires the chart
+  type to match the question, but states no number of charts;
+  only entry completeness and the stated mapping are checked.
+- **No axis-start tolerance** — bar axes must start at exactly
+  the declared zero (compared at the fixed 6dp serialization);
+  no "close enough" epsilon is invented, and no maximum
+  truncation amount is imposed on non-bar axes — only the
+  declared flagging is checked.
+- **No font-size, contrast-ratio or gridline-opacity number**
+  — the skill requires legible sizes, sufficient contrast and
+  faint gridlines, but states no point size, ratio (e.g. a
+  WCAG ratio) or opacity; those qualities are the caller's
+  declarations, never re-measured here.
+- **No freshness or refresh-cadence interval** — the skill
+  requires the refresh cadence to be visible and stale panels
+  retired, but states no interval in hours or days; cadence
+  values are never parsed or aged.
+- **No annotation or label length** — the skill requires a
+  finding title, labels and units, but states no word or
+  character limit for them; only non-emptiness of the declared
+  row labels/units is checked.
+- **No dashboard panel count or screen-size limit** — the
+  skill requires one screen = one story, but states no panel
+  count; only the declaration is checked.
+
+Parts of the skill that could not be reduced to deterministic
+checks over a declared record, and are therefore carried only
+as caller declarations (or not at all): whether a palette is
+in fact colorblind-safe when rendered, whether a title in
+fact states a finding rather than a topic, whether an
+encoding in fact reads as position/length-dominant, and
+whether a dashboard in fact tells one story. The atom checks
+that these are *declared*, never that they are *true in the
+rendering* — judging them would require rendering and
+aesthetic judgment, which this atom does not do.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.

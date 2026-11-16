@@ -1,0 +1,131 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "entity": "Test Corp",
+        "flows": {
+          "recurring_inflows_mapped": true,
+          "recurring_outflows_mapped": true,
+          "seasonal_patterns_mapped": true,
+          "one_offs_mapped": true,
+          "lag_assumptions_documented": true
+        },
+        "forecast": {
+          "opening_balance": 1000.0,
+          "weeks": [
+            {"label": "W1", "inflows": 500.0, "outflows": 200.0, "closing_balance": 1300.0}
+          ],
+          "rolling_maintained_weekly": true,
+          "monthly_annual_planning_present": true
+        },
+        "reserves": {
+          "target_set": true,
+          "monthly_fixed_costs": 100.0,
+          "target_months": 2.0,
+          "declared_target_amount": 200.0,
+          "held_separately": true,
+          "breach_requires_explicit_decision": true,
+          "put_at_risk": false
+        },
+        "working_capital": {
+          "ar_aging_reviewed_on_cadence": true,
+          "chase_ladder_applied": true,
+          "ap_calendar_maintained": true,
+          "inventory_only_where_it_pays": true
+        },
+        "levers": {
+          "inflow_acceleration_applied": true,
+          "outflows_phased": true,
+          "vendors_used_as_silent_financing": false
+        },
+        "runway": {
+          "cash_on_hand": 1000.0,
+          "burn": 100.0,
+          "declared_runway_months": 10.0,
+          "alert_thresholds_at_6_and_3_months_set": true
+        },
+        "stress": {
+          "cases_run": ["revenue_minus_20_percent", "collections_plus_30_days_late", "surprise_capex"],
+          "answers_recorded": true,
+          "responses_predecided": true
+        },
+        "reporting": {
+          "weekly_position_and_forecast_reported": true,
+          "monthly_summary_drivers_annotated": true
+        },
+        "commitments": {
+          "committed_against_unlanded_receivables": false
+        }
+      },
+      "expect": {
+        "outcome": "CASH_FLOW_FORECAST_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All arithmetic matches: 1000+500-200=1300; 100*2=200; 1000/100=10. computed_spot_checks: final_balance=1300.000000, reserve_target=200.000000, runway=10.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "forecast": {
+          "opening_balance": 1000.0,
+          "weeks": [{"label": "W1", "inflows": 500.0, "outflows": 200.0, "closing_balance": 9999.0}]
+        },
+        "reserves": {
+          "monthly_fixed_costs": 100.0,
+          "target_months": 2.0,
+          "declared_target_amount": 500.0,
+          "put_at_risk": false
+        },
+        "runway": {
+          "cash_on_hand": 1000.0,
+          "burn": 100.0,
+          "declared_runway_months": 5.0
+        },
+        "stress": {
+          "cases_run": ["revenue_minus_20_percent"]
+        },
+        "commitments": {
+          "committed_against_unlanded_receivables": true
+        }
+      },
+      "expect": {
+        "outcome": "CASH_FLOW_FORECAST_NOT_READY",
+        "http": 200,
+        "failing_checks": ["thirteen_week_forecast", "reserves_and_runway", "stress_tests", "reporting_and_commitments"],
+        "notes": "Fails due to incorrect closing balance, incorrect reserve target, incorrect runway calculation, incomplete stress cases, and prohibited commitment flag."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "entity": "Minimal Corp"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required boolean flags and forecast data structures."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "forecast": {
+          "opening_balance": "one thousand"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: opening_balance expects a number, received a string."
+      }
+    }
+  ]
+}

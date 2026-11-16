@@ -1,0 +1,67 @@
+# Independent Recompute — atom applied-ml-validation
+
+## 1. baseline_improvement (by hand)
+
+Direction is `higher_is_better` in both cases, so improvement = model_score − baseline_score.
+
+**full-pass:**
+- 0.6 − 0.5 = 0.1
+- Round half up: floor(0.1·10000 + 0.5)/10000 = floor(1000.5)/10000 = 1000/10000 = **0.1000**
+- Beat check: 0.6 > 0.5 → strictly beaten → `beaten_on_declared_evidence`
+- Artifact: "0.1000", beaten_on_declared_evidence → **MATCH**
+
+**violations:**
+- 0.7 − 0.8 = −0.1
+- Round half up: floor(−0.1·10000 + 0.5)/10000 = floor(−1000 + 0.5)/10000 = floor(−999.5)/10000 = −1000/10000 = **−0.1000**
+- Beat check: 0.7 > 0.8 false; project_stopped=false → not beaten → `not_beaten_on_declared_evidence`
+- Artifact: "-0.1000", not_beaten_on_declared_evidence → **MATCH**
+
+## 2. selected_rung_index
+
+Ladder: majority_heuristic=0, linear=1, boosted_trees=2, deep=3.
+
+- **full-pass:** selected=linear → index **1**. Artifact: 1 → **MATCH**
+- **violations:** selected=deep → index **3**. Artifact: 3 → **MATCH**
+
+## 3. Splits and ladder pass/fail
+
+**Splits rule:** temporal data requires "time"/"time_and_group"; grouped requires "group"/"time_and_group".
+
+- **full-pass:** temporal=true, grouped=true, split=time_and_group → satisfies both → **PASS**
+- **violations:** temporal=true, grouped=false, split=random → temporal requires time vocabulary, "random" fails → **FAIL** (matches artifact listing `splits_by_time_and_group_where_applicable` as failing)
+
+**Ladder rule:** rungs_evaluated must be exactly the ordered prefix up to selected rung.
+
+- **full-pass:** selected=linear (1), rungs=[majority_heuristic, linear] = prefix indices 0,1 → **PASS**
+- **violations:** selected=deep (3), rungs=[deep] ≠ prefix [majority_heuristic, linear, boosted_trees, deep] → **FAIL** (matches artifact `ladder_climbed_in_order` failing)
+
+## 4. Verdicts
+
+**full-pass:** All evidence true, red-lines false. Baseline beaten, splits pass, ladder pass. All 35 checks pass → **VALIDATED**. Artifact: VALIDATED, "35 pass, 0 fail, 0 missing" → **MATCH**
+
+**violations:** Enumerate failures:
+1. baseline 0.7 ≤ 0.8, not stopped → `baseline_meaningfully_beaten_or_project_stopped` FAIL
+2. training_without_rights_or_consent=true → FAIL
+3. split=random, temporal → `splits_by_time_and_group_where_applicable` FAIL
+4. ladder rungs=[deep] not prefix → `ladder_climbed_in_order` FAIL
+5. imbalanced_or_high_stakes + accuracy_only_reporting → `no_accuracy_only_reporting_where_it_matters` FAIL
+6. cherry_picked=true → `no_cherry_picked_examples` FAIL
+7. claims_exceed=true → `no_claims_beyond_measured_capability` FAIL
+
+= **7 failures** → **NOT_VALIDATED**, "28 pass, 7 fail, 0 missing". Artifact lists exactly these 7 failing checks and same summary → **MATCH**
+
+**sparse:** Only model + decision_named present. Nothing fails (no contradictory evidence), but 34 evidence fields missing → **INSUFFICIENT_EVIDENCE**. baseline_improvement null (no baseline), selected_rung_index null (no rung) → Artifact: "1 pass, 0 fail, 34 missing", nulls → **MATCH**
+
+**malformed:** model is a number, framing is a string → input schema violation → **HTTP 422 invalid_input, field "model"**. Artifact: exactly that → **MATCH**
+
+## 5. Overall verdict
+
+**PASS.** Every recomputed quantity matches the artifact:
+- baseline_improvement: 0.1000 / −0.1000 ✓
+- baseline_status: beaten / not_beaten ✓
+- selected_rung_index: 1 / 3 ✓
+- splits: pass / fail ✓
+- ladder: pass / fail ✓
+- verdicts: VALIDATED / NOT_VALIDATED (7 named failures) / INSUFFICIENT_EVIDENCE / 422 ✓
+
+No mismatches found.

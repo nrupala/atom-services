@@ -1,0 +1,1020 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: budget-design-review
+
+=== contract.yaml ===
+service_name: budget-design-review
+display_name: Budget design review
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:budgeting
+binding:
+  skill: budgeting
+  skill_path: workspace/mymilo-build/skills/budgeting/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+- human
+keys:
+  namespace: budget_design_review
+  prefix: atm_1_budget_design_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Business budget planning work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Budget design review — `budget-design-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Run budgets that hold — cycles, owners, zero-based vs incremental, variance reviews, rolling forecasts.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Business budget planning work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the budget-design manifest
+
+The caller submits one JSON manifest: one declared budget design —
+its scope, lines, drivers, totals, revenue link, contingency,
+approval baseline, monitoring and close. Every field below is read
+by the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`BUDGET_DESIGN_NOT_SOUND`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `budget` (string; carried into the verdict output, not itself checked) | — |
+| `scope.budget_type` (string; computed, see below) | scope |
+| `scope.entity_named` | scope |
+| `scope.currency_stated` | scope |
+| `scope.governs_stated` | scope |
+| `scope.exclusions_stated` | scope |
+| `lines` (list of line objects; absent = line-derived checks missing, empty list = `lines_present` fails) | structure_and_owners, drivers_and_totals |
+| `lines[].name` (string; carried for readability, not itself checked) | — |
+| `lines[].owner` (string; computed, see below) | structure_and_owners |
+| `lines[].approach` (string; computed, see below) | structure_and_owners |
+| `lines[].driver_documented` | drivers_and_totals |
+| `lines[].driver_quantity` (number; computed, see below) | drivers_and_totals |
+| `lines[].driver_unit_cost` (number; computed, see below) | drivers_and_totals |
+| `lines[].amount` (number; computed, see below) | drivers_and_totals |
+| `totals.declared_total` (number; computed, see below) | drivers_and_totals, revenue_and_contingency |
+| `totals.expected_income` (number; computed, see below) | revenue_and_contingency |
+| `revenue.linked_to_forecast` | revenue_and_contingency |
+| `contingency.explicit_line_present` | revenue_and_contingency |
+| `contingency.sized_to_identified_risks` | revenue_and_contingency |
+| `contingency.hidden_padding_present` (must be `false` to pass — skill red line) | revenue_and_contingency |
+| `approval.baseline_approved_and_locked` | approval_and_baseline |
+| `approval.approval_thresholds_documented` | approval_and_baseline |
+| `approval.revisions_reapproved` | approval_and_baseline |
+| `monitoring.monthly_variance_process_running` | monitoring_and_close |
+| `monitoring.variance_thresholds_trigger_explanations` | monitoring_and_close |
+| `monitoring.variance_actions_tracked` | monitoring_and_close |
+| `monitoring.rolling_forecast_cadence_set` | monitoring_and_close |
+| `monitoring.rolling_horizon_months` (number; computed, see below) | monitoring_and_close |
+| `close.annual_true_up_done` | monitoring_and_close |
+| `close.carry_over_rules_decided` | monitoring_and_close |
+| `close.lessons_carried_to_next_cycle` | monitoring_and_close |
+| `close.silent_reallocations_made` (must be `false` to pass — skill red line) | monitoring_and_close |
+| `close.actuals_edited_without_annotation` (must be `false` to pass — skill red line) | monitoring_and_close |
+
+Seven checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Budget kind:** the skill's method step 1 scopes a budget as
+  "operating vs capital vs personal". A declared
+  `scope.budget_type` therefore passes only when it is one of
+  those three stated kinds (`operating`, `capital`, `personal`);
+  any other string is present and fails, an absent type is
+  missing evidence. The value is validated as a string only,
+  never enum-checked at the type layer — membership is a verdict
+  check, not a type error.
+- **Line ownership:** the skill's method step 2 and quality gate
+  demand that every line has a named owner ("lines without
+  owners become orphaned spending"). The check passes only when
+  every declared line carries a non-empty `owner` string; a line
+  whose owner key is absent makes the check missing evidence, an
+  empty owner string fails. The output reports the offending
+  positions as `ownerless_line_indexes` (null when no lines list
+  is declared) and the count as `lines_evaluated`.
+- **Line approaches:** the skill's method step 3 names exactly
+  two approaches — zero-based for new/volatile areas, incremental
+  for stable ones — and requires stating which is used. Every
+  line's declared `approach` therefore passes only as
+  `zero_based` or `incremental`; an absent approach key is
+  missing evidence, any other string fails.
+- **Driver products:** the skill's method step 4 builds lines
+  from drivers — "headcount × rate, units × cost, usage ×
+  price". A line's declared `amount` therefore passes only when
+  it equals its declared `driver_quantity` × `driver_unit_cost`;
+  if any of the three numbers is absent on any line, the check
+  is missing evidence.
+- **Total re-derivation:** the declared `totals.declared_total`
+  passes only when it equals the sum of the declared line
+  amounts. The output reports `computed_total` (the re-derived
+  sum, null when it cannot be computed) and `total_difference`
+  (declared minus computed, null likewise).
+- **Balance against income:** the skill's method step 5 states
+  "budgets balance against expected income, not hope". The
+  declared total therefore passes only when it does not exceed
+  the declared `totals.expected_income`; an absent figure is
+  missing evidence.
+- **Rolling horizon:** the skill's method step 8 states a
+  "rolling 12-month forecast". A declared
+  `monitoring.rolling_horizon_months` therefore passes only at
+  exactly 12; an absent horizon is missing evidence.
+
+**Fixed serialization rule:** computed money totals are reported
+as strings with exactly two decimal places, produced in both
+implementations by the same rule — round half up to 2dp,
+`floor(v * 100 + 0.5) / 100`, then format with exactly two
+decimals. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five scalar computed checks — budget kind, driver products,
+total re-derivation, balance, rolling horizon — cannot be
+completed).
+
+The verdict is one of `BUDGET_DESIGN_SOUND` (all 29 checks pass),
+`BUDGET_DESIGN_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: scope, structure_and_owners,
+drivers_and_totals, revenue_and_contingency,
+approval_and_baseline, monitoring_and_close.
+
+## Honest scoping
+
+This atom reviews a **declared** budget design — it does not
+author a budget, choose amounts, source expected income, or
+verify that a declared value is true. The register's named doubt
+for this atom — finance advice adjacency — is answered by this
+scoping: the review is a completeness and consistency audit of
+the design's own declarations, **not financial advice and not a
+judgment review**: it never decides whether the amounts are
+wise, whether an owner actually agreed to own a line, whether a
+driver is the right driver, or whether the expected income will
+arrive — only that the design contains what the skill's method,
+quality gates, and red lines demand, and that its declared
+arithmetic agrees with itself.
+
+Named exclusions, each because the skill states no number to
+check against: no numeric variance threshold (the skill requires
+variance thresholds to trigger written explanations + actions,
+but states no threshold value, so only the trigger's existence
+is checked — the values stay the caller's); no contingency size
+or percentage (the skill requires contingency explicit and sized
+to identified risks, but states no size, so only explicitness
+and the risk-sizing declaration are checked); no approval
+threshold amounts (documented existence only); no check that a
+line picked the *right* approach for its volatility (the skill
+assigns zero-based to new/volatile and incremental to stable
+areas, but volatility is not declared in a form arithmetic can
+test, so only that a stated, skill-named approach is present is
+checked); no live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Finance advice adjacency
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "budget-design-review",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "BUDGET_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: line amount 500 (100*5), total 500, balance 500 <= 1000, horizon 12. [Tester correction: structured computed_spot_checks list added \u2014 Gemini only embedded the spot checks in notes.]",
+        "computed_spot_checks": [
+          "line_amounts_match_driver_products: amount 500 = driver_quantity 100 * driver_unit_cost 5",
+          "computed_total = \"500.00\" (sum of line amounts 500, 2dp serialization)",
+          "total_difference = \"0.00\" (declared_total 500 - computed_total 500)",
+          "budget_balances_against_expected_income: declared_total 500 <= expected_income 1000",
+          "rolling_forecast_covers_twelve_months: rolling_horizon_months 12 = 12",
+          "computed_status = within_stated_limits_on_declared_evidence",
+          "lines_evaluated = 1",
+          "ownerless_line_indexes = []"
+        ]
+      },
+      "input": {
+        "budget": "Q1 Marketing Plan",
+        "scope": {
+          "budget_type": "operating",
+          "entity_named": true,
+          "currency_stated": true,
+          "governs_stated": true,
+          "exclusions_stated": true
+        },
+        "lines": [
+          {
+            "name": "Ads",
+            "owner": "Marketing Lead",
+            "approach": "zero_based",
+            "driver_documented": true,
+            "driver_quantity": 100,
+            "driver_unit_cost": 5,
+            "amount": 500
+          }
+        ],
+        "totals": {
+          "declared_total": 500,
+          "expected_income": 1000
+        },
+        "revenue": {
+          "linked_to_forecast": true
+        },
+        "contingency": {
+          "explicit_line_present": true,
+          "sized_to_identified_risks": true,
+          "hidden_padding_present": false
+        },
+        "approval": {
+          "baseline_approved_and_locked": true,
+          "approval_thresholds_documented": true,
+          "revisions_reapproved": true
+        },
+        "monitoring": {
+          "monthly_variance_process_running": true,
+          "variance_thresholds_trigger_explanations": true,
+          "variance_actions_tracked": true,
+          "rolling_forecast_cadence_set": true,
+          "rolling_horizon_months": 12
+        },
+        "close": {
+          "annual_true_up_done": true,
+          "carry_over_rules_decided": true,
+          "lessons_carried_to_next_cycle": true,
+          "silent_reallocations_made": false,
+          "actuals_edited_without_annotation": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "budget-design-review",
+        "atom_version": "0.1.0",
+        "budget": "Q1 Marketing Plan",
+        "verdict": "BUDGET_DESIGN_SOUND",
+        "sections": {
+          "scope": "pass",
+          "structure_and_owners": "pass",
+          "drivers_and_totals": "pass",
+          "revenue_and_contingency": "pass",
+          "approval_and_baseline": "pass",
+          "monitoring_and_close": "pass"
+        },
+        "checks": [
+          {
+            "section": "scope",
+            "check": "budget_type_is_stated_kind",
+            "status": "pass",
+            "evidence": "method step 1: the budget type is one of the kinds the skill names \u2014 operating, capital, or personal"
+          },
+          {
+            "section": "scope",
+            "check": "entity_named",
+            "status": "pass",
+            "evidence": "method step 1: the entity the budget belongs to is named"
+          },
+          {
+            "section": "scope",
+            "check": "currency_stated",
+            "status": "pass",
+            "evidence": "method step 1: the budget currency is stated"
+          },
+          {
+            "section": "scope",
+            "check": "governs_stated",
+            "status": "pass",
+            "evidence": "method step 1: what the budget governs is stated"
+          },
+          {
+            "section": "scope",
+            "check": "exclusions_stated",
+            "status": "pass",
+            "evidence": "method step 1: what the budget does not govern is stated"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "lines_present",
+            "status": "pass",
+            "evidence": "method step 2: the budget declares at least one line"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "every_line_has_named_owner",
+            "status": "pass",
+            "evidence": "quality gate: every line has an owner \u2014 lines without owners become orphaned spending"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "every_line_approach_is_stated_kind",
+            "status": "pass",
+            "evidence": "method step 3: every line states its approach, and each approach is one the skill names \u2014 zero-based for new/volatile areas, incremental for stable ones"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "drivers_documented_for_every_line",
+            "status": "pass",
+            "evidence": "quality gate: drivers are documented for every line \u2014 built from drivers, not flat percentages"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "line_amounts_match_driver_products",
+            "status": "pass",
+            "evidence": "method step 4: every line amount equals its declared driver quantity times its declared driver unit cost (headcount x rate, units x cost, usage x price)"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "declared_total_matches_line_sum",
+            "status": "pass",
+            "evidence": "the declared total equals the sum of the declared line amounts \u2014 the total is re-derived, not trusted"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "revenue_linked_to_forecast",
+            "status": "pass",
+            "evidence": "method step 5: the revenue side is linked to forecasting \u2014 expected income, not hope"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "budget_balances_against_expected_income",
+            "status": "pass",
+            "evidence": "method step 5: the declared total does not exceed the declared expected income \u2014 the budget balances against expected income"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "contingency_explicit_line_present",
+            "status": "pass",
+            "evidence": "quality gate: contingency is explicit \u2014 a visible line, not buried in other lines"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "contingency_sized_to_identified_risks",
+            "status": "pass",
+            "evidence": "method step 6: the contingency line is sized to identified risks"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "no_hidden_padding",
+            "status": "pass",
+            "evidence": "red line: no hidden padding"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "baseline_approved_and_locked",
+            "status": "pass",
+            "evidence": "method step 7: the baseline is approved and locked"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "approval_thresholds_documented",
+            "status": "pass",
+            "evidence": "quality gate: approval thresholds are set and documented \u2014 who may approve money decisions, and up to what was decided (the threshold values themselves are the caller's, not checked)"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "revisions_reapproved_not_drifted",
+            "status": "pass",
+            "evidence": "method step 7: revisions are re-approved, not drifted into the baseline"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "monthly_variance_process_running",
+            "status": "pass",
+            "evidence": "quality gate: a monthly variance process is running \u2014 budget vs actual vs latest forecast, on a calendar, not a crisis"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "variance_thresholds_trigger_written_explanations",
+            "status": "pass",
+            "evidence": "method step 8: variance thresholds trigger written explanations (the threshold values are the caller's \u2014 the skill states none, so none is checked)"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "variance_actions_tracked",
+            "status": "pass",
+            "evidence": "quality gate: variance reviews produce actions, and the actions are tracked"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "rolling_forecast_cadence_set",
+            "status": "pass",
+            "evidence": "quality gate: a rolling forecast cadence is set where volatility demands it"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "rolling_forecast_covers_twelve_months",
+            "status": "pass",
+            "evidence": "method step 8: the rolling forecast covers the twelve months the skill states"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "annual_true_up_done",
+            "status": "pass",
+            "evidence": "method step 9: an annual true-up closes the cycle"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "carry_over_rules_decided",
+            "status": "pass",
+            "evidence": "method step 9: carry-over rules are decided, not improvised at year end"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "lessons_carried_to_next_cycle",
+            "status": "pass",
+            "evidence": "method step 9: lessons from this cycle are carried to the next cycle"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "no_silent_reallocations",
+            "status": "pass",
+            "evidence": "red line: no silent reallocations"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "no_unannotated_actual_edits",
+            "status": "pass",
+            "evidence": "red line: actuals are never edited \u2014 corrections are annotated with date and reason"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "lines_evaluated": 1,
+        "ownerless_line_indexes": [],
+        "computed_total": "500.00",
+        "total_difference": "0.00",
+        "summary": "29 pass, 0 fail, 0 missing of 29 checks across six sections.",
+        "stamp": "BUDGET DESIGN REVIEW\nbudget: Q1 Marketing Plan\nVERDICT: BUDGET_DESIGN_SOUND\n  scope                    pass\n  structure_and_owners     pass\n  drivers_and_totals       pass\n  revenue_and_contingency  pass\n  approval_and_baseline    pass\n  monitoring_and_close     pass\n29 pass, 0 fail, 0 missing of 29 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "BUDGET_DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "budget_type_is_stated_kind",
+          "every_line_has_named_owner",
+          "line_amounts_match_driver_products",
+          "budget_balances_against_expected_income",
+          "no_hidden_padding"
+        ],
+        "notes": "Fails due to invalid budget type, empty owner, arithmetic mismatch (50 != 10*10), balance violation (50 > 10), and forbidden padding. [Tester correction: failing_checks rewritten from section.field strings (scope.budget_type, structure_and_owners.owner, drivers_and_totals.driver_products, revenue_and_contingency.balance_against_income, revenue_and_contingency.hidden_padding_present) to the exact check names.]"
+      },
+      "input": {
+        "scope": {
+          "budget_type": "invalid_type"
+        },
+        "lines": [
+          {
+            "name": "Bad Line",
+            "owner": "",
+            "approach": "incremental",
+            "driver_documented": true,
+            "driver_quantity": 10,
+            "driver_unit_cost": 10,
+            "amount": 50
+          }
+        ],
+        "totals": {
+          "declared_total": 50,
+          "expected_income": 10
+        },
+        "contingency": {
+          "hidden_padding_present": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "budget-design-review",
+        "atom_version": "0.1.0",
+        "budget": null,
+        "verdict": "BUDGET_DESIGN_NOT_SOUND",
+        "sections": {
+          "scope": "fail",
+          "structure_and_owners": "fail",
+          "drivers_and_totals": "fail",
+          "revenue_and_contingency": "fail",
+          "approval_and_baseline": "insufficient_evidence",
+          "monitoring_and_close": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "scope",
+            "check": "budget_type_is_stated_kind",
+            "status": "fail",
+            "evidence": "method step 1: the budget type is one of the kinds the skill names \u2014 operating, capital, or personal"
+          },
+          {
+            "section": "scope",
+            "check": "entity_named",
+            "status": "missing",
+            "evidence": "method step 1: the entity the budget belongs to is named"
+          },
+          {
+            "section": "scope",
+            "check": "currency_stated",
+            "status": "missing",
+            "evidence": "method step 1: the budget currency is stated"
+          },
+          {
+            "section": "scope",
+            "check": "governs_stated",
+            "status": "missing",
+            "evidence": "method step 1: what the budget governs is stated"
+          },
+          {
+            "section": "scope",
+            "check": "exclusions_stated",
+            "status": "missing",
+            "evidence": "method step 1: what the budget does not govern is stated"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "lines_present",
+            "status": "pass",
+            "evidence": "method step 2: the budget declares at least one line"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "every_line_has_named_owner",
+            "status": "fail",
+            "evidence": "quality gate: every line has an owner \u2014 lines without owners become orphaned spending"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "every_line_approach_is_stated_kind",
+            "status": "pass",
+            "evidence": "method step 3: every line states its approach, and each approach is one the skill names \u2014 zero-based for new/volatile areas, incremental for stable ones"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "drivers_documented_for_every_line",
+            "status": "pass",
+            "evidence": "quality gate: drivers are documented for every line \u2014 built from drivers, not flat percentages"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "line_amounts_match_driver_products",
+            "status": "fail",
+            "evidence": "method step 4: every line amount equals its declared driver quantity times its declared driver unit cost (headcount x rate, units x cost, usage x price)"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "declared_total_matches_line_sum",
+            "status": "pass",
+            "evidence": "the declared total equals the sum of the declared line amounts \u2014 the total is re-derived, not trusted"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "revenue_linked_to_forecast",
+            "status": "missing",
+            "evidence": "method step 5: the revenue side is linked to forecasting \u2014 expected income, not hope"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "budget_balances_against_expected_income",
+            "status": "fail",
+            "evidence": "method step 5: the declared total does not exceed the declared expected income \u2014 the budget balances against expected income"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "contingency_explicit_line_present",
+            "status": "missing",
+            "evidence": "quality gate: contingency is explicit \u2014 a visible line, not buried in other lines"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "contingency_sized_to_identified_risks",
+            "status": "missing",
+            "evidence": "method step 6: the contingency line is sized to identified risks"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "no_hidden_padding",
+            "status": "fail",
+            "evidence": "red line: no hidden padding"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "baseline_approved_and_locked",
+            "status": "missing",
+            "evidence": "method step 7: the baseline is approved and locked"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "approval_thresholds_documented",
+            "status": "missing",
+            "evidence": "quality gate: approval thresholds are set and documented \u2014 who may approve money decisions, and up to what was decided (the threshold values themselves are the caller's, not checked)"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "revisions_reapproved_not_drifted",
+            "status": "missing",
+            "evidence": "method step 7: revisions are re-approved, not drifted into the baseline"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "monthly_variance_process_running",
+            "status": "missing",
+            "evidence": "quality gate: a monthly variance process is running \u2014 budget vs actual vs latest forecast, on a calendar, not a crisis"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "variance_thresholds_trigger_written_explanations",
+            "status": "missing",
+            "evidence": "method step 8: variance thresholds trigger written explanations (the threshold values are the caller's \u2014 the skill states none, so none is checked)"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "variance_actions_tracked",
+            "status": "missing",
+            "evidence": "quality gate: variance reviews produce actions, and the actions are tracked"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "rolling_forecast_cadence_set",
+            "status": "missing",
+            "evidence": "quality gate: a rolling forecast cadence is set where volatility demands it"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "rolling_forecast_covers_twelve_months",
+            "status": "missing",
+            "evidence": "method step 8: the rolling forecast covers the twelve months the skill states"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "annual_true_up_done",
+            "status": "missing",
+            "evidence": "method step 9: an annual true-up closes the cycle"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "carry_over_rules_decided",
+            "status": "missing",
+            "evidence": "method step 9: carry-over rules are decided, not improvised at year end"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "lessons_carried_to_next_cycle",
+            "status": "missing",
+            "evidence": "method step 9: lessons from this cycle are carried to the next cycle"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "no_silent_reallocations",
+            "status": "missing",
+            "evidence": "red line: no silent reallocations"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "no_unannotated_actual_edits",
+            "status": "missing",
+            "evidence": "red line: actuals are never edited \u2014 corrections are annotated with date and reason"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "lines_evaluated": 1,
+        "ownerless_line_indexes": [
+          0
+        ],
+        "computed_total": "50.00",
+        "total_difference": "0.00",
+        "summary": "4 pass, 5 fail, 20 missing of 29 checks across six sections.",
+        "stamp": "BUDGET DESIGN REVIEW\nbudget: None\nVERDICT: BUDGET_DESIGN_NOT_SOUND\n  scope                    fail\n  structure_and_owners     fail\n  drivers_and_totals       fail\n  revenue_and_contingency  fail\n  approval_and_baseline    insufficient_evidence\n  monitoring_and_close     insufficient_evidence\n4 pass, 5 fail, 20 missing of 29 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required fields for checks; returns insufficient evidence."
+      },
+      "input": {
+        "budget": "Minimal"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "budget-design-review",
+        "atom_version": "0.1.0",
+        "budget": "Minimal",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "scope": "insufficient_evidence",
+          "structure_and_owners": "insufficient_evidence",
+          "drivers_and_totals": "insufficient_evidence",
+          "revenue_and_contingency": "insufficient_evidence",
+          "approval_and_baseline": "insufficient_evidence",
+          "monitoring_and_close": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "scope",
+            "check": "budget_type_is_stated_kind",
+            "status": "missing",
+            "evidence": "method step 1: the budget type is one of the kinds the skill names \u2014 operating, capital, or personal"
+          },
+          {
+            "section": "scope",
+            "check": "entity_named",
+            "status": "missing",
+            "evidence": "method step 1: the entity the budget belongs to is named"
+          },
+          {
+            "section": "scope",
+            "check": "currency_stated",
+            "status": "missing",
+            "evidence": "method step 1: the budget currency is stated"
+          },
+          {
+            "section": "scope",
+            "check": "governs_stated",
+            "status": "missing",
+            "evidence": "method step 1: what the budget governs is stated"
+          },
+          {
+            "section": "scope",
+            "check": "exclusions_stated",
+            "status": "missing",
+            "evidence": "method step 1: what the budget does not govern is stated"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "lines_present",
+            "status": "missing",
+            "evidence": "method step 2: the budget declares at least one line"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "every_line_has_named_owner",
+            "status": "missing",
+            "evidence": "quality gate: every line has an owner \u2014 lines without owners become orphaned spending"
+          },
+          {
+            "section": "structure_and_owners",
+            "check": "every_line_approach_is_stated_kind",
+            "status": "missing",
+            "evidence": "method step 3: every line states its approach, and each approach is one the skill names \u2014 zero-based for new/volatile areas, incremental for stable ones"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "drivers_documented_for_every_line",
+            "status": "missing",
+            "evidence": "quality gate: drivers are documented for every line \u2014 built from drivers, not flat percentages"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "line_amounts_match_driver_products",
+            "status": "missing",
+            "evidence": "method step 4: every line amount equals its declared driver quantity times its declared driver unit cost (headcount x rate, units x cost, usage x price)"
+          },
+          {
+            "section": "drivers_and_totals",
+            "check": "declared_total_matches_line_sum",
+            "status": "missing",
+            "evidence": "the declared total equals the sum of the declared line amounts \u2014 the total is re-derived, not trusted"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "revenue_linked_to_forecast",
+            "status": "missing",
+            "evidence": "method step 5: the revenue side is linked to forecasting \u2014 expected income, not hope"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "budget_balances_against_expected_income",
+            "status": "missing",
+            "evidence": "method step 5: the declared total does not exceed the declared expected income \u2014 the budget balances against expected income"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "contingency_explicit_line_present",
+            "status": "missing",
+            "evidence": "quality gate: contingency is explicit \u2014 a visible line, not buried in other lines"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "contingency_sized_to_identified_risks",
+            "status": "missing",
+            "evidence": "method step 6: the contingency line is sized to identified risks"
+          },
+          {
+            "section": "revenue_and_contingency",
+            "check": "no_hidden_padding",
+            "status": "missing",
+            "evidence": "red line: no hidden padding"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "baseline_approved_and_locked",
+            "status": "missing",
+            "evidence": "method step 7: the baseline is approved and locked"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "approval_thresholds_documented",
+            "status": "missing",
+            "evidence": "quality gate: approval thresholds are set and documented \u2014 who may approve money decisions, and up to what was decided (the threshold values themselves are the caller's, not checked)"
+          },
+          {
+            "section": "approval_and_baseline",
+            "check": "revisions_reapproved_not_drifted",
+            "status": "missing",
+            "evidence": "method step 7: revisions are re-approved, not drifted into the baseline"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "monthly_variance_process_running",
+            "status": "missing",
+            "evidence": "quality gate: a monthly variance process is running \u2014 budget vs actual vs latest forecast, on a calendar, not a crisis"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "variance_thresholds_trigger_written_explanations",
+            "status": "missing",
+            "evidence": "method step 8: variance thresholds trigger written explanations (the threshold values are the caller's \u2014 the skill states none, so none is checked)"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "variance_actions_tracked",
+            "status": "missing",
+            "evidence": "quality gate: variance reviews produce actions, and the actions are tracked"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "rolling_forecast_cadence_set",
+            "status": "missing",
+            "evidence": "quality gate: a rolling forecast cadence is set where volatility demands it"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "rolling_forecast_covers_twelve_months",
+            "status": "missing",
+            "evidence": "method step 8: the rolling forecast covers the twelve months the skill states"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "annual_true_up_done",
+            "status": "missing",
+            "evidence": "method step 9: an annual true-up closes the cycle"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "carry_over_rules_decided",
+            "status": "missing",
+            "evidence": "method step 9: carry-over rules are decided, not improvised at year end"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "lessons_carried_to_next_cycle",
+            "status": "missing",
+            "evidence": "method step 9: lessons from this cycle are carried to the next cycle"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "no_silent_reallocations",
+            "status": "missing",
+            "evidence": "red line: no silent reallocations"
+          },
+          {
+            "section": "monitoring_and_close",
+            "check": "no_unannotated_actual_edits",
+            "status": "missing",
+            "evidence": "red line: actuals are never edited \u2014 corrections are annotated with date and reason"
+          }
+        ],
+        "computed_status": null,
+        "lines_evaluated": null,
+        "ownerless_line_indexes": null,
+        "computed_total": null,
+        "total_difference": null,
+        "summary": "0 pass, 0 fail, 29 missing of 29 checks across six sections.",
+        "stamp": "BUDGET DESIGN REVIEW\nbudget: Minimal\nVERDICT: INSUFFICIENT_EVIDENCE\n  scope                    insufficient_evidence\n  structure_and_owners     insufficient_evidence\n  drivers_and_totals       insufficient_evidence\n  revenue_and_contingency  insufficient_evidence\n  approval_and_baseline    insufficient_evidence\n  monitoring_and_close     insufficient_evidence\n0 pass, 0 fail, 29 missing of 29 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input schema violation; returns 422."
+      },
+      "input": {
+        "scope": "not_an_object",
+        "lines": "should_be_a_list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "scope",
+        "detail": "scope must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

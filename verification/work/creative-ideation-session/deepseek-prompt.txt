@@ -1,0 +1,701 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: creative-ideation-session
+
+=== contract.yaml ===
+service_name: creative-ideation-session
+display_name: Creative ideation session
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:creative-ideation
+binding:
+  skill: creative-ideation
+  skill_path: workspace/mymilo-build/skills/creative-ideation/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: creative_ideation_session
+  prefix: atm_1_creative_ideation_session_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: tokens
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Content and product ideation
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Creative ideation session — `creative-ideation-session`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Creativity as a practice, not a lightning strike — showing up prepared, drawing from the well, and developing raw ideas into usable ones.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Mind & personal growth who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Content and product ideation**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the creative-ideation-session manifest
+
+The caller submits one JSON manifest: one ideation-session record —
+a single session worked through the bound skill's practice. Every
+field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a field
+present but false / invalid = the check fails
+(`SESSION_NOT_COMPLETE`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `session_title` (string; carried into the verdict output, not itself checked) | — |
+| `brief.written` | brief_and_preparation |
+| `brief.goal_or_question_stated` | brief_and_preparation |
+| `brief.constraints_declared` | brief_and_preparation |
+| `preparation.scheduled_in_advance` | brief_and_preparation |
+| `preparation.prepared_with_inputs_ready` | brief_and_preparation |
+| `capture.capture_system_used` | capture_and_generation |
+| `capture.all_ideas_captured` | capture_and_generation |
+| `capture.no_judging_at_capture` | capture_and_generation |
+| `generation.editing_separated_from_generating` | capture_and_generation |
+| `generation.small_reps_or_low_start_bar_used` | capture_and_generation |
+| `divergence.diverged_before_converging` | divergence_and_methods |
+| `divergence.methods_used` (list of strings; computed, see below; also carried into the verdict output, with its count) | divergence_and_methods |
+| `divergence.constraints_used_as_prompt` | divergence_and_methods |
+| `idea_pool.target_idea_count` (number; computed, see below) | idea_pool_and_volume |
+| `idea_pool.total_ideas_captured` (number; computed, see below) | idea_pool_and_volume |
+| `idea_pool.dedup_performed` | idea_pool_and_volume |
+| `idea_pool.duplicates_removed` (number; computed, see below) | idea_pool_and_volume |
+| `idea_pool.unique_ideas_after_dedup` (number; computed, see below) | idea_pool_and_volume |
+| `idea_pool.ideas_clustered_or_grouped` | idea_pool_and_volume |
+| `selection.criteria_written_before_scoring` | selection_and_convergence |
+| `selection.criteria_applied_to_all_unique_ideas` | selection_and_convergence |
+| `selection.scoring_only_after_divergence_complete` | selection_and_convergence |
+| `shortlist.shortlist_count` (number; computed, see below) | selection_and_convergence |
+| `shortlist.rationale_written` | shortlist_and_ship |
+| `shortlist.rationale_references_criteria` | shortlist_and_ship |
+| `outcome.shared_for_feedback` | shortlist_and_ship |
+
+Four checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic / set logic of
+the declared values — no outside threshold is imported:
+
+- **Volume against the declared target:** the skill says "Volume
+  precedes quality — generate many ideas, then select" but states
+  **no number** for how many ideas is "many", so none is imposed.
+  When the record declares a target idea count and a captured
+  count, the check passes only when the target is positive, the
+  captured count is not negative, and the captured count meets or
+  exceeds the caller-declared target. If either number is absent,
+  the check is missing evidence. The output reports
+  `target_idea_count`, `total_ideas_captured` (the declared
+  numbers, null when absent) and `volume_gap_ideas` (captured
+  minus target, null when it cannot be computed).
+- **Dedup arithmetic:** the record declares a captured total,
+  duplicates removed, and unique ideas after dedup. The check
+  passes only when all three are present, none is negative, the
+  duplicates removed do not exceed the captured total, and the
+  declared unique count equals captured minus duplicates. The
+  output reports `duplicates_removed`, `unique_ideas_after_dedup`
+  and `dedup_discrepancy_ideas` (declared unique minus the
+  dedup-implied unique, null when it cannot be computed).
+- **Shortlist within the unique pool:** the record declares a
+  shortlist count and a unique-after-dedup count. The check
+  passes only when the shortlist holds at least one idea and does
+  not exceed the declared unique pool. The skill states no
+  shortlist size or pool ratio, so none is imposed. The output
+  reports `shortlist_count` (null when absent).
+- **Divergence-method vocabulary:** the skill's diverge step
+  names the techniques exactly — "brainstorm, SCAMPER, analogies,
+  combine distant domains, ask 'what if'". A declared
+  `methods_used` list therefore passes only when it is non-empty
+  and every entry is one of those five stated entries
+  (`brainstorm`, `scamper`, `analogies`,
+  `combining_distant_domains`, `what_if`); any other entry is
+  present and fails, and an absent list is missing evidence. The
+  list is validated as a list of strings only, never
+  membership-checked as a type — membership is a verdict check,
+  not a type error. The skill requires no particular method, so
+  no method is mandatory beyond using at least one stated one.
+  The output reports `methods_used` and `methods_used_count`
+  (null when absent).
+
+**Fixed serialization rule:** the computed differences are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the four computed checks cannot be completed).
+
+The verdict is one of `SESSION_COMPLETE` (all 24 checks pass),
+`SESSION_NOT_COMPLETE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: brief_and_preparation,
+capture_and_generation, divergence_and_methods,
+idea_pool_and_volume, selection_and_convergence,
+shortlist_and_ship.
+
+## Honest scoping
+
+This atom audits a **declared** ideation-session record — it does
+not run the session, generate ideas, facilitate anything, or
+verify that a declared value is true. It is a completeness and
+consistency audit, **not an idea review**: it never generates an
+idea, never decides whether any idea is good, original, or worth
+pursuing, whether the brief or constraints were the right ones,
+whether the methods were used well, whether the selection
+criteria are the right criteria, or whether the shortlist picks
+the best ideas — only that the record contains what the skill's
+practice demands, and that its declared volume, dedup, and
+shortlist arithmetic and its method vocabulary agree with the
+skill's stated options. A session is complete *on the caller's
+declared evidence* even if the underlying session was poorly run
+and its ideas are weak.
+
+Named exclusions — thresholds the skill does not state, so none
+is invented: no minimum idea count (the skill's "many" states no
+number — only the caller-declared target against the declared
+captured count is checked); no minimum number of divergence
+methods and no mandatory method beyond using at least one stated
+one; no session duration or creative-block length (the skill
+says protect a regular block, states no length); no shortlist
+size cap or shortlist-to-pool ratio (only at least one and not
+more than the unique pool); no number of selection criteria, no
+scoring scale, pass mark, or score threshold; no dedup or
+duplication percentage; no deadline for sharing the output. Also
+excluded: any grading of idea quality or originality, any
+judgment of whether a method was applied skilfully, and any live
+verification of a declared fact. The skill's remaining material
+— fuelling ongoing work for the owner, the reading/idea-capture
+gap it pairs with, and building in public as a personal practice
+— is owner context, not a session-record property, and does not
+reduce to deterministic checks; it is not checked. The register's
+named doubt for this atom — "Thinking-style; pack only" — is not
+resolved here: this atom is built standalone from the bound skill
+as scaffolded.
+
+## Pricing
+
+Pricing unit: **tokens**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "session_title": "Q3 Product Strategy",
+      "brief": {
+        "written": true,
+        "goal_or_question_stated": true,
+        "constraints_declared": true
+      },
+      "preparation": {
+        "scheduled_in_advance": true,
+        "prepared_with_inputs_ready": true
+      },
+      "capture": {
+        "capture_system_used": true,
+        "all_ideas_captured": true,
+        "no_judging_at_capture": true
+      },
+      "generation": {
+        "editing_separated_from_generating": true,
+        "small_reps_or_low_start_bar_used": true
+      },
+      "divergence": {
+        "diverged_before_converging": true,
+        "methods_used": [
+          "brainstorm",
+          "scamper"
+        ],
+        "constraints_used_as_prompt": true
+      },
+      "idea_pool": {
+        "target_idea_count": 10,
+        "total_ideas_captured": 12,
+        "dedup_performed": true,
+        "duplicates_removed": 2,
+        "unique_ideas_after_dedup": 10,
+        "ideas_clustered_or_grouped": true
+      },
+      "selection": {
+        "criteria_written_before_scoring": true,
+        "criteria_applied_to_all_unique_ideas": true,
+        "scoring_only_after_divergence_complete": true
+      },
+      "shortlist": {
+        "shortlist_count": 3,
+        "rationale_written": true,
+        "rationale_references_criteria": true
+      },
+      "outcome": {
+        "shared_for_feedback": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "creative-ideation-session",
+      "atom_version": "0.1.0",
+      "session_title": "Q3 Product Strategy",
+      "methods_used": [
+        "brainstorm",
+        "scamper"
+      ],
+      "verdict": "SESSION_COMPLETE",
+      "sections": {
+        "brief_and_preparation": "pass",
+        "capture_and_generation": "pass",
+        "divergence_and_methods": "pass",
+        "idea_pool_and_volume": "pass",
+        "selection_and_convergence": "pass",
+        "shortlist_and_ship": "pass"
+      },
+      "checks": [
+        {
+          "section": "brief_and_preparation",
+          "check": "brief_written",
+          "status": "pass",
+          "evidence": "the session record carries a written brief"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "brief_goal_or_question_stated",
+          "status": "pass",
+          "evidence": "the brief states the goal or question the session works on"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "constraints_declared",
+          "status": "pass",
+          "evidence": "the brief declares the session's constraints \u2014 a tight box forces invention"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "session_scheduled_in_advance",
+          "status": "pass",
+          "evidence": "habits over moods: the session is created on a schedule, not when inspired"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "prepared_with_inputs_ready",
+          "status": "pass",
+          "evidence": "the session shows up prepared \u2014 inputs ready to draw from the well"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "capture_system_used",
+          "status": "pass",
+          "evidence": "capture everything: an idea-capture system is used \u2014 raw ideas are perishable"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "all_ideas_captured",
+          "status": "pass",
+          "evidence": "capture everything: all raw ideas from the session are captured"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "no_judging_at_capture",
+          "status": "pass",
+          "evidence": "never judge at the moment of capture"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "editing_separated_from_generating",
+          "status": "pass",
+          "evidence": "separate drafting from editing \u2014 editing never happens while generating"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "small_reps_or_low_start_bar_used",
+          "status": "pass",
+          "evidence": "beat the resistance: the bar to start is lowered or the work is done in small reps"
+        },
+        {
+          "section": "divergence_and_methods",
+          "check": "diverged_before_converging",
+          "status": "pass",
+          "evidence": "diverge, then converge: the session diverges widely before any convergence"
+        },
+        {
+          "section": "divergence_and_methods",
+          "check": "methods_used_are_stated_methods",
+          "status": "pass",
+          "evidence": "diverge step: every method used is one the skill names \u2014 brainstorm, scamper, analogies, combining_distant_domains, or what_if \u2014 and at least one method is used; the skill requires no particular method and no minimum count beyond that"
+        },
+        {
+          "section": "divergence_and_methods",
+          "check": "constraints_used_as_prompt",
+          "status": "pass",
+          "evidence": "constraints help: the declared constraints are used as a prompt for invention"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "volume_meets_declared_target",
+          "status": "pass",
+          "evidence": "volume precedes quality: the captured idea count meets the caller-declared target, the target is positive, and the captured count is not negative \u2014 the skill states no number for 'many', so only the declared numbers are compared"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "dedup_performed",
+          "status": "pass",
+          "evidence": "the idea pool is deduplicated before selection"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "dedup_arithmetic_consistent",
+          "status": "pass",
+          "evidence": "the declared unique-after-dedup count equals the declared captured total minus the declared duplicates removed, with no negative counts and no more duplicates removed than ideas captured"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "ideas_clustered_or_grouped",
+          "status": "pass",
+          "evidence": "the deduplicated idea pool is clustered or grouped before selection"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "selection_criteria_written_before_scoring",
+          "status": "pass",
+          "evidence": "the selection criteria are written before any idea is scored"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "criteria_applied_to_all_unique_ideas",
+          "status": "pass",
+          "evidence": "the declared criteria are applied to all unique ideas, not only to favourites"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "scoring_only_after_divergence_complete",
+          "status": "pass",
+          "evidence": "diverge, then converge: scoring starts only after divergence is complete"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "shortlist_within_unique_pool",
+          "status": "pass",
+          "evidence": "the declared shortlist holds at least one idea and does not exceed the declared unique-after-dedup pool"
+        },
+        {
+          "section": "shortlist_and_ship",
+          "check": "shortlist_rationale_written",
+          "status": "pass",
+          "evidence": "a written rationale for the shortlist is recorded"
+        },
+        {
+          "section": "shortlist_and_ship",
+          "check": "shortlist_rationale_references_criteria",
+          "status": "pass",
+          "evidence": "the shortlist rationale references the selection criteria declared before scoring"
+        },
+        {
+          "section": "shortlist_and_ship",
+          "check": "shared_for_feedback",
+          "status": "pass",
+          "evidence": "ship: the session's output is finished and shared \u2014 real feedback only arrives after shipping; perfectionism that prevents shipping is refused"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "target_idea_count": 10,
+      "total_ideas_captured": 12,
+      "volume_gap_ideas": "2.000000",
+      "duplicates_removed": 2,
+      "unique_ideas_after_dedup": 10,
+      "dedup_discrepancy_ideas": "0.000000",
+      "shortlist_count": 3,
+      "methods_used_count": 2,
+      "summary": "24 pass, 0 fail, 0 missing of 24 checks across six sections.",
+      "stamp": "CREATIVE IDEATION SESSION\nsession: Q3 Product Strategy\nVERDICT: SESSION_COMPLETE\n  brief_and_preparation                pass\n  capture_and_generation               pass\n  divergence_and_methods               pass\n  idea_pool_and_volume                 pass\n  selection_and_convergence            pass\n  shortlist_and_ship                   pass\n24 pass, 0 fail, 0 missing of 24 checks across six sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "session_title": "Bad Math Session",
+      "brief": {
+        "written": true,
+        "goal_or_question_stated": true,
+        "constraints_declared": true
+      },
+      "preparation": {
+        "scheduled_in_advance": true,
+        "prepared_with_inputs_ready": true
+      },
+      "capture": {
+        "capture_system_used": true,
+        "all_ideas_captured": true,
+        "no_judging_at_capture": true
+      },
+      "generation": {
+        "editing_separated_from_generating": true,
+        "small_reps_or_low_start_bar_used": true
+      },
+      "divergence": {
+        "diverged_before_converging": true,
+        "methods_used": [
+          "invalid_method"
+        ],
+        "constraints_used_as_prompt": true
+      },
+      "idea_pool": {
+        "target_idea_count": 10,
+        "total_ideas_captured": 5,
+        "dedup_performed": true,
+        "duplicates_removed": 0,
+        "unique_ideas_after_dedup": 5,
+        "ideas_clustered_or_grouped": true
+      },
+      "selection": {
+        "criteria_written_before_scoring": true,
+        "criteria_applied_to_all_unique_ideas": true,
+        "scoring_only_after_divergence_complete": true
+      },
+      "shortlist": {
+        "shortlist_count": 10,
+        "rationale_written": true,
+        "rationale_references_criteria": true
+      },
+      "outcome": {
+        "shared_for_feedback": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "creative-ideation-session",
+      "atom_version": "0.1.0",
+      "session_title": "Bad Math Session",
+      "methods_used": [
+        "invalid_method"
+      ],
+      "verdict": "SESSION_NOT_COMPLETE",
+      "sections": {
+        "brief_and_preparation": "pass",
+        "capture_and_generation": "pass",
+        "divergence_and_methods": "fail",
+        "idea_pool_and_volume": "fail",
+        "selection_and_convergence": "fail",
+        "shortlist_and_ship": "pass"
+      },
+      "checks": [
+        {
+          "section": "brief_and_preparation",
+          "check": "brief_written",
+          "status": "pass",
+          "evidence": "the session record carries a written brief"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "brief_goal_or_question_stated",
+          "status": "pass",
+          "evidence": "the brief states the goal or question the session works on"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "constraints_declared",
+          "status": "pass",
+          "evidence": "the brief declares the session's constraints \u2014 a tight box forces invention"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "session_scheduled_in_advance",
+          "status": "pass",
+          "evidence": "habits over moods: the session is created on a schedule, not when inspired"
+        },
+        {
+          "section": "brief_and_preparation",
+          "check": "prepared_with_inputs_ready",
+          "status": "pass",
+          "evidence": "the session shows up prepared \u2014 inputs ready to draw from the well"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "capture_system_used",
+          "status": "pass",
+          "evidence": "capture everything: an idea-capture system is used \u2014 raw ideas are perishable"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "all_ideas_captured",
+          "status": "pass",
+          "evidence": "capture everything: all raw ideas from the session are captured"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "no_judging_at_capture",
+          "status": "pass",
+          "evidence": "never judge at the moment of capture"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "editing_separated_from_generating",
+          "status": "pass",
+          "evidence": "separate drafting from editing \u2014 editing never happens while generating"
+        },
+        {
+          "section": "capture_and_generation",
+          "check": "small_reps_or_low_start_bar_used",
+          "status": "pass",
+          "evidence": "beat the resistance: the bar to start is lowered or the work is done in small reps"
+        },
+        {
+          "section": "divergence_and_methods",
+          "check": "diverged_before_converging",
+          "status": "pass",
+          "evidence": "diverge, then converge: the session diverges widely before any convergence"
+        },
+        {
+          "section": "divergence_and_methods",
+          "check": "methods_used_are_stated_methods",
+          "status": "fail",
+          "evidence": "diverge step: every method used is one the skill names \u2014 brainstorm, scamper, analogies, combining_distant_domains, or what_if \u2014 and at least one method is used; the skill requires no particular method and no minimum count beyond that"
+        },
+        {
+          "section": "divergence_and_methods",
+          "check": "constraints_used_as_prompt",
+          "status": "pass",
+          "evidence": "constraints help: the declared constraints are used as a prompt for invention"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "volume_meets_declared_target",
+          "status": "fail",
+          "evidence": "volume precedes quality: the captured idea count meets the caller-declared target, the target is positive, and the captured count is not negative \u2014 the skill states no number for 'many', so only the declared numbers are compared"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "dedup_performed",
+          "status": "pass",
+          "evidence": "the idea pool is deduplicated before selection"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "dedup_arithmetic_consistent",
+          "status": "pass",
+          "evidence": "the declared unique-after-dedup count equals the declared captured total minus the declared duplicates removed, with no negative counts and no more duplicates removed than ideas captured"
+        },
+        {
+          "section": "idea_pool_and_volume",
+          "check": "ideas_clustered_or_grouped",
+          "status": "pass",
+          "evidence": "the deduplicated idea pool is clustered or grouped before selection"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "selection_criteria_written_before_scoring",
+          "status": "pass",
+          "evidence": "the selection criteria are written before any idea is scored"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "criteria_applied_to_all_unique_ideas",
+          "status": "pass",
+          "evidence": "the declared criteria are applied to all unique ideas, not only to favourites"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "scoring_only_after_divergence_complete",
+          "status": "pass",
+          "evidence": "diverge, then converge: scoring starts only after divergence is complete"
+        },
+        {
+          "section": "selection_and_convergence",
+          "check": "shortlist_within_unique_pool",
+          "status": "fail",
+          "evidence": "the declared shortlist holds at least one idea and does not exceed the declared unique-after-dedup pool"
+        },
+        {
+          "section": "shortlist_and_ship",
+          "check": "shortlist_rationale_written",
+          "status": "pass",
+          "evidence": "a written rationale for the shortlist is recorded"
+        },
+        {
+          "section": "shortlist_and_ship",
+          "check": "shortlist_rationale_references_criteria",
+          "status": "pass",
+          "evidence": "the shortlist rationale references the selection criteria declared before scoring"
+        },
+        {
+          "section": "shortlist_and_ship",
+          "check": "shared_for_feedback",
+          "status": "pass",
+          "evidence": "ship: the session's output is finished and shared \u2014 real feedback only arrives after shipping; perfectionism that prevents shipping is refused"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "target_idea_count": 10,
+      "total_ideas_captured": 5,
+      "volume_gap_ideas": "-5.000000",
+      "duplicates_removed": 0,
+      "unique_ideas_after_dedup": 5,
+      "dedup_discrepancy_ideas": "0.000000",
+      "shortlist_count": 10,
+      "methods_used_count": 1,
+      "summary": "21 pass, 3 fail, 0 missing of 24 checks across six sections.",
+      "stamp": "CREATIVE IDEATION SESSION\nsession: Bad Math Session\nVERDICT: SESSION_NOT_COMPLETE\n  brief_and_preparation                pass\n  capture_and_generation               pass\n  divergence_and_methods               fail\n  idea_pool_and_volume                 fail\n  selection_and_convergence            fail\n  shortlist_and_ship                   pass\n21 pass, 3 fail, 0 missing of 24 checks across six sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

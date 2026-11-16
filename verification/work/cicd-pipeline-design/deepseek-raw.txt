@@ -1,0 +1,95 @@
+# Independent recompute — `cicd-pipeline-design`
+
+I recompute the five computed quantities plus the headline verdict/summary values from the recorded inputs, using the SERVICE.md rule: round half up to 6dp via `floor(v*1000000 + 0.5)/1000000`, then format with exactly six decimals.
+
+---
+
+## Case 1: `full-pass`
+
+### Stage entries
+Stages: lint(1.0), typecheck(2.0), test(5.0), build(3.0), package_sign(1.0), publish(1.0). All six carry non-empty name + numeric minutes → **6 complete entries**.
+- Artifact `stages_evaluated` = 6 → **MATCH**
+
+### Stage sequence
+Stated sequence: lint → typecheck → test → build → package_sign → publish. Declared names equal it exactly, in order. → pass, `stated_stages_not_declared` = [].
+- Artifact `stated_stages_not_declared` = [] → **MATCH**
+
+### Stage minutes total
+Sum = 1.0 + 2.0 + 5.0 + 3.0 + 1.0 + 1.0 = **13.0**
+- `computed_total_minutes`: floor(13.0·1e6 + 0.5)/1e6 = 13.000000 → artifact "13.000000" → **MATCH**
+- `total_minutes_difference` = declared − computed = 13.0 − 13.0 = 0.0 → "0.000000" → artifact "0.000000" → **MATCH** (difference == 0 → check passes)
+
+### Monthly minutes
+estimated_minutes_per_run × runs_per_month = 13.0 × 100 = **1300.0**
+- `computed_monthly_minutes` = "1300.000000" → artifact "1300.000000" → **MATCH**
+- `monthly_minutes_difference` = declared 1300.0 − 1300.0 = 0.0 → "0.000000" → artifact "0.000000" → **MATCH** (passes)
+
+### Monthly minutes vs caller budget
+budget_headroom = monthly_minutes_budget − re-derived monthly = 2000.0 − 1300.0 = **700.0**
+- `budget_headroom_minutes` = "700.000000" → artifact "700.000000" → **MATCH**
+- 1300 ≤ 2000 → within budget → check passes.
+
+### computed_status
+All five computed checks complete and within limits → `within_stated_limits_on_declared_evidence`.
+- Artifact = `within_stated_limits_on_declared_evidence` → **MATCH**
+
+### Verdict / summary
+All 36 boolean checks: every "must be true" field is true, every "must be false" field is false. → 36 pass, 0 fail, 0 missing → `CICD_PIPELINE_READY`.
+- Artifact verdict `CICD_PIPELINE_READY`, summary "36 pass, 0 fail, 0 missing of 36 checks" → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Stage entries
+Same six complete entries → `stages_evaluated` = 6 → artifact 6 → **MATCH**
+
+### Stage sequence
+Names unchanged, still equal stated sequence → pass, `stated_stages_not_declared` = [] → artifact [] → **MATCH**
+
+### Stage minutes total
+Sum of per-stage minutes = 1+2+5+3+1+1 = **13.0** (unchanged; only `declared_total_minutes` was planted to 5.0)
+- `computed_total_minutes` = "13.000000" → artifact "13.000000" → **MATCH**
+- `total_minutes_difference` = declared 5.0 − computed 13.0 = **−8.0** → "−8.000000" → artifact "-8.000000" → **MATCH** (≠ 0 → check fails)
+
+### Monthly minutes
+estimated_minutes_per_run × runs_per_month = 10.0 × 10 = **100.0**
+- `computed_monthly_minutes` = "100.000000" → artifact "100.000000" → **MATCH**
+- `monthly_minutes_difference` = declared 50.0 − 100.0 = **−50.0** → "−50.000000" → artifact "-50.000000" → **MATCH** (≠ 0 → check fails)
+
+### Monthly minutes vs caller budget
+budget_headroom = monthly_minutes_budget − re-derived monthly = 20.0 − 100.0 = **−80.0**
+- `budget_headroom_minutes` = "−80.000000" → artifact "-80.000000" → **MATCH**
+- −80 < 0 → re-derived monthly (100) exceeds declared budget (20) → check fails.
+
+### computed_status
+At least one computed check is outside limits → `outside_stated_limits_on_declared_evidence`.
+- Artifact = `outside_stated_limits_on_declared_evidence` → **MATCH**
+
+### Verdict / summary
+Planted wrong values and the checks they should fail:
+
+| Planted field | Value | Check that must fail | Artifact status |
+|---|---|---|---|
+| `pipeline.declared_total_minutes` | 5.0 (≠13) | total_minutes_matches_sum_of_stage_minutes | fail ✓ |
+| `determinism.unpinned_third_party_actions_present` | true | no_unpinned_third_party_actions | fail ✓ |
+| `caching.secrets_cached` | true | secrets_not_cached | fail ✓ |
+| `secrets.in_artifacts` | true | secrets_never_in_artifacts | fail ✓ |
+| `secrets.appeared_in_logs_or_artifacts` | true | no_secret_appeared_in_logs_or_artifacts | fail ✓ |
+| `budget.declared_monthly_minutes` | 50.0 (≠100) | monthly_minutes_matches_per_run_times_runs | fail ✓ |
+| `budget.monthly_minutes_budget` | 20.0 (<100) | monthly_minutes_within_declared_budget | fail ✓ |
+| `budget.duplicates_primary_gate` | true | pipeline_does_not_duplicate_primary_gate | fail ✓ |
+| `deploys.direct_to_prod_from_laptop` | true | never_direct_to_prod_from_laptop | fail ✓ |
+| `gates.disabled_to_unblock_merge` | true | gates_not_disabled_to_unblock_merge | fail ✓ |
+
+That is exactly **10 failing checks**, matching the artifact's 10 `fail` statuses. All other fields are at their passing values, so no other check should fail — and none does. Section rollups: stages_and_fail_fast fail (1), determinism_and_pinning fail (1), caching_and_secrets fail (3), budget_awareness fail (3), provenance_and_signing pass (0), deploys_and_gates fail (2) → artifact section statuses all **MATCH**.
+
+Summary: 36 − 10 = 26 pass, 10 fail, 0 missing → artifact "26 pass, 10 fail, 0 missing of 36 checks" → **MATCH**. Verdict `CICD_PIPELINE_NOT_READY` → **MATCH**.
+
+---
+
+## Conclusion
+
+Every computed quantity in both cases recomputes to the artifact's value under the stated 6dp round-half-up serialization. The violations case's 10 failures are exactly the checks the 10 planted wrong values should trigger, with no spurious failures.
+
+AGREEMENT: full

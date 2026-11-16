@@ -1,0 +1,132 @@
+# Independent recompute — code-review-service
+
+## Serialization rule (applied throughout)
+Per SERVICE.md: round half up to 6dp via `floor(v*1000000 + 0.5)/1000000`, then format with exactly six decimals. All values below are integers or simple integer differences, so the rule is trivially exact (no rounding ambiguity).
+
+---
+
+## Case 1: `full-pass` (PR-123)
+
+### Computed quantities
+
+**1. `computed_changed_lines`** — declared `pr.changed_lines = 300`.
+- Serialize: floor(300·1000000 + 0.5)/1000000 = 300.000000
+- Artifact: `"300.000000"` → **MATCH**
+
+**2. `changed_lines_over_stated_aim`** — declared minus 400 = 300 − 400 = −100.
+- Serialize: −100.000000
+- Artifact: `"-100.000000"` → **MATCH**
+
+**3. `checklist_items_not_covered`** — stated set {correctness, security, tests, readability, docs}; declared covered = [correctness, security, tests, readability, docs]. Omitted = ∅.
+- Artifact: `[]` → **MATCH**
+
+**4. `labeled_comment_difference`** — labeled − total = 2 − 2 = 0.
+- Serialize: 0.000000
+- Artifact: `"0.000000"` → **MATCH**
+
+**5. `answered_comment_difference`** — answered − total = 2 − 2 = 0.
+- Serialize: 0.000000
+- Artifact: `"0.000000"` → **MATCH**
+
+**6. `computed_reviewer_count`** — declared `gates.reviewer_count = 1`.
+- Serialize: 1.000000
+- Artifact: `"1.000000"` → **MATCH**
+
+**7. `computed_unresolved_comments`** — declared `gates.unresolved_comments = 0`.
+- Serialize: 0.000000
+- Artifact: `"0.000000"` → **MATCH**
+
+**8. `computed_status`** — all eight computed checks complete and within limits → `within_stated_limits_on_declared_evidence`.
+- Artifact: `"within_stated_limits_on_declared_evidence"` → **MATCH**
+
+### The eight computed checks (recomputed by hand)
+1. **PR size:** 300 ≤ 400 → pass. Artifact: pass → MATCH
+2. **Checklist coverage:** all five present → pass. Artifact: pass → MATCH
+3. **Feedback labels:** 2 = 2 → pass. Artifact: pass → MATCH
+4. **Responses:** 2 = 2 → pass. Artifact: pass → MATCH
+5. **Reviewers:** change_nontrivial=true, reviewer_count=1 ≥ 1 → pass. Artifact: pass → MATCH
+6. **Unresolved at approval:** 0 = 0 → pass. Artifact: pass → MATCH
+7. **Docs for behavior change:** behavior_changing=true, docs_updated=true → pass. Artifact: pass → MATCH
+8. **Hotfix post-review:** emergency_hotfix=false → not held → pass. Artifact: pass → MATCH
+
+### Verdict
+All 29 checks pass (6 sections × checks; count: 6+5+4+3+6+5 = 29). Verdict = `CODE_REVIEW_READY`. Summary "29 pass, 0 fail, 0 missing of 29" → **MATCH**. Artifact verdict `CODE_REVIEW_READY` → **MATCH**.
+
+---
+
+## Case 2: `violations` (PR-124)
+
+### Computed quantities
+
+**1. `computed_changed_lines`** — declared 500 → 500.000000. Artifact `"500.000000"` → **MATCH**
+
+**2. `changed_lines_over_stated_aim`** — 500 − 400 = 100 → 100.000000. Artifact `"100.000000"` → **MATCH**
+
+**3. `checklist_items_not_covered`** — stated {correctness, security, tests, readability, docs}; declared covered = [correctness]. Omitted = [security, tests, readability, docs] (in stated order). Artifact: `["security","tests","readability","docs"]` → **MATCH**
+
+**4. `labeled_comment_difference`** — 3 − 5 = −2 → −2.000000. Artifact `"-2.000000"` → **MATCH**
+
+**5. `answered_comment_difference`** — 2 − 5 = −3 → −3.000000. Artifact `"-3.000000"` → **MATCH**
+
+**6. `computed_reviewer_count`** — declared 0 → 0.000000. Artifact `"0.000000"` → **MATCH**
+
+**7. `computed_unresolved_comments`** — declared 2 → 2.000000. Artifact `"2.000000"` → **MATCH**
+
+**8. `computed_status`** — at least one computed check outside limits → `outside_stated_limits_on_declared_evidence`. Artifact → **MATCH**
+
+### The eight computed checks (recomputed by hand)
+1. **PR size:** 500 > 400 → **fail**. Artifact: fail → MATCH
+2. **Checklist coverage:** missing 4 of 5 → **fail**. Artifact: fail → MATCH
+3. **Feedback labels:** 3 ≠ 5 → **fail**. Artifact: fail → MATCH
+4. **Responses:** 2 ≠ 5 → **fail**. Artifact: fail → MATCH
+5. **Reviewers:** nontrivial=true, count=0 < 1 → **fail**. Artifact: fail → MATCH
+6. **Unresolved at approval:** 2 ≠ 0 → **fail**. Artifact: fail → MATCH
+7. **Docs for behavior change:** behavior_changing=true, docs_updated=true → pass. Artifact: pass → MATCH
+8. **Hotfix post-review:** emergency_hotfix=false → not held → pass. Artifact: pass → MATCH
+
+### Non-computed (declared) checks that fail
+- `no_force_push_over_review_without_telling`: declared true (must be false) → **fail**. Artifact: fail → MATCH
+- `no_self_merged_unreviewed_work`: declared true (must be false) → **fail**. Artifact: fail → MATCH
+
+### Confirm the failing set is exactly what the planted wrong values should fail
+Planted wrong values in PR-124: changed_lines=500, covered_items=[correctness], labeled=3 vs total=5, answered=2 vs total=5, reviewer_count=0, unresolved=2, force_push=true, self_merged=true. Each maps to exactly one failing check:
+- 500 → pr_size fail ✓
+- [correctness] → checklist coverage fail ✓
+- 3≠5 → feedback labels fail ✓
+- 2≠5 → responses fail ✓
+- 0 reviewers (nontrivial) → reviewer gate fail ✓
+- 2 unresolved → unresolved gate fail ✓
+- force_push=true → red-line fail ✓
+- self_merged=true → self-merge fail ✓
+
+That is **8 failing checks**, all in the artifact's fail list, and no other check fails. The two "conditional" gates (docs, hotfix) correctly pass because their trigger conditions are satisfied/not-triggered. **Fail set matches exactly.**
+
+### Verdict
+29 total checks; 8 fail, 21 pass, 0 missing. Verdict = `CODE_REVIEW_NOT_READY`. Summary "21 pass, 8 fail, 0 missing of 29" → **MATCH**. Artifact verdict → **MATCH**. All six sections marked fail (each section contains ≥1 failing check) → **MATCH**.
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case | Recompute | Artifact | Result |
+|---|---|---|---|---|
+| computed_changed_lines | full-pass | 300.000000 | 300.000000 | MATCH |
+| changed_lines_over_stated_aim | full-pass | −100.000000 | −100.000000 | MATCH |
+| checklist_items_not_covered | full-pass | [] | [] | MATCH |
+| labeled_comment_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| answered_comment_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| computed_reviewer_count | full-pass | 1.000000 | 1.000000 | MATCH |
+| computed_unresolved_comments | full-pass | 0.000000 | 0.000000 | MATCH |
+| computed_status | full-pass | within… | within… | MATCH |
+| computed_changed_lines | violations | 500.000000 | 500.000000 | MATCH |
+| changed_lines_over_stated_aim | violations | 100.000000 | 100.000000 | MATCH |
+| checklist_items_not_covered | violations | [security,tests,readability,docs] | same | MATCH |
+| labeled_comment_difference | violations | −2.000000 | −2.000000 | MATCH |
+| answered_comment_difference | violations | −3.000000 | −3.000000 | MATCH |
+| computed_reviewer_count | violations | 0.000000 | 0.000000 | MATCH |
+| computed_unresolved_comments | violations | 2.000000 | 2.000000 | MATCH |
+| computed_status | violations | outside… | outside… | MATCH |
+
+Every computed quantity and every check status agrees with the recorded artifacts, and the violations case's failing set is exactly the eight checks the planted wrong values should fail.
+
+AGREEMENT: full

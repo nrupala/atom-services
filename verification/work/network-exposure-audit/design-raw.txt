@@ -1,0 +1,137 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "system": "production-core",
+        "environment": "production",
+        "inventory": { "current": true },
+        "endpoints": [
+          {
+            "id": "web-gateway",
+            "host": "api.example.com",
+            "port": 443,
+            "protocol": "https",
+            "public": true,
+            "listed": true,
+            "owner": "platform-team",
+            "service": "web-api",
+            "zone": "public",
+            "via": "direct",
+            "tls_cert_valid": true,
+            "auth_required": true
+          }
+        ],
+        "segmentation": {
+          "zones_separated": true,
+          "admin_plane_separate": true,
+          "default_deny": true,
+          "loopback_by_default": true
+        },
+        "tls": {
+          "cert_expiry_monitored": true,
+          "hsts_on_web": true,
+          "min_version": "1.3"
+        },
+        "dns": {
+          "registrar_lock": true,
+          "registrar_2fa": true,
+          "dnssec_enabled": true
+        },
+        "domains": [
+          {
+            "name": "example.com",
+            "sending": true,
+            "spf": true,
+            "dkim": true,
+            "dmarc": true
+          }
+        ],
+        "email": { "dmarc_reports_monitored": true },
+        "edge": {
+          "waf_or_cdn_in_front_of_web": true,
+          "rate_limits_enabled": true
+        },
+        "access": {
+          "admin_authenticated_path_only": true,
+          "no_default_credentials": true
+        },
+        "egress": {
+          "outbound_allowlist": true,
+          "unexpected_egress_logged": true
+        },
+        "evidence": {
+          "events_logged_denied_and_accepted": true,
+          "reviewed_on_change_and_incident": true
+        }
+      },
+      "expect": {
+        "outcome": "SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and compliant with security policy."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "endpoints": [
+          {
+            "id": "db-exposed",
+            "host": "db.example.com",
+            "port": 3306,
+            "protocol": "http",
+            "public": true,
+            "listed": true,
+            "owner": "dev",
+            "service": "mysql",
+            "zone": "data",
+            "via": "direct",
+            "tls_cert_valid": false,
+            "auth_required": false
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_plaintext_protocol_endpoints",
+          "no_admin_or_db_endpoint_public",
+          "encrypted_endpoints_have_valid_certs"
+        ],
+        "notes": "Public database endpoint using plaintext protocol and invalid certs."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "system": "minimal-test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only system name provided; no security posture data available."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "inventory": {
+          "current": "not-a-boolean"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: inventory.current expects boolean, received string."
+      }
+    }
+  ]
+}

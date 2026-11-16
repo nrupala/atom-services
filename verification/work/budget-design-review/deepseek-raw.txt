@@ -1,0 +1,117 @@
+# Independent recompute — budget-design-review
+
+## Serialization rule (applied throughout)
+Money totals: round half up to 2dp via `floor(v*100 + 0.5)/100`, then format with exactly two decimals.
+
+---
+
+## CASE 1: `full-pass`
+
+### Inputs
+- 1 line: qty=100, unit_cost=5, amount=500
+- declared_total=500, expected_income=1000
+- budget_type="operating", rolling_horizon_months=12
+
+### Computed checks
+
+**1. Budget kind** — `"operating"` ∈ {operating, capital, personal} → **pass**. Artifact: pass. **MATCH**
+
+**2. Line ownership** — line[0].owner="Marketing Lead" (non-empty) → all owned → **pass**. ownerless_line_indexes = [] (no offending positions). lines_evaluated = 1.
+- Artifact: pass, `ownerless_line_indexes: []`, `lines_evaluated: 1`. **MATCH**
+
+**3. Line approaches** — line[0].approach="incremental" ∈ {zero_based, incremental} → **pass**. Artifact: pass. **MATCH**
+
+**4. Driver products** — line[0]: 100 × 5 = **500**; declared amount = 500 → equal → **pass**. Artifact: pass. **MATCH**
+
+**5. Total re-derivation** — sum of line amounts = 500.
+- computed_total = floor(500×100 + 0.5)/100 = floor(50000.5)/100 = 50000/100 = 500 → **"500.00"**
+- total_difference = declared − computed = 500 − 500 = 0 → **"0.00"**
+- Artifact: `computed_total: "500.00"`, `total_difference: "0.00"`. **MATCH**
+
+**6. Balance against income** — declared_total 500 ≤ expected_income 1000 → **pass**. Artifact: pass. **MATCH**
+
+**7. Rolling horizon** — 12 == 12 → **pass**. Artifact: pass. **MATCH**
+
+### computed_status
+All five scalar computed checks (budget kind, driver products, total re-derivation, balance, rolling horizon) completed and all within limits → **within_stated_limits_on_declared_evidence**. Artifact: same. **MATCH**
+
+### Verdict / summary
+All 29 checks pass → **BUDGET_DESIGN_SOUND**. Summary "29 pass, 0 fail, 0 missing of 29". Artifact: same. **MATCH**
+
+---
+
+## CASE 2: `violations`
+
+### Inputs
+- scope.budget_type="invalid_type"; other scope fields absent
+- 1 line: owner="", approach="incremental", driver_documented=true, qty=10, unit_cost=10, amount=50
+- declared_total=50, expected_income=10
+- contingency.hidden_padding_present=true; revenue/approval/monitoring/close absent
+
+### Computed checks
+
+**1. Budget kind** — "invalid_type" ∉ {operating, capital, personal} → present but wrong → **fail**. Artifact: fail. **MATCH**
+
+**2. Line ownership** — line[0].owner="" (empty) → fails. Offending index = [0]; lines_evaluated = 1.
+- Artifact: fail, `ownerless_line_indexes: [0]`, `lines_evaluated: 1`. **MATCH**
+
+**3. Line approaches** — "incremental" ∈ set → **pass**. Artifact: pass. **MATCH**
+
+**4. Driver products** — 10 × 10 = **100**; declared amount = 50 → 50 ≠ 100 → **fail**. Artifact: fail. **MATCH**
+
+**5. Total re-derivation** — sum of line amounts = 50.
+- computed_total = floor(50×100 + 0.5)/100 = floor(5000.5)/100 = 5000/100 = 50 → **"50.00"**
+- total_difference = 50 − 50 = 0 → **"0.00"**
+- declared_total matches line sum → **pass**
+- Artifact: pass, `computed_total: "50.00"`, `total_difference: "0.00"`. **MATCH**
+
+**6. Balance against income** — declared_total 50 > expected_income 10 → **fail**. Artifact: fail. **MATCH**
+
+**7. Rolling horizon** — monitoring absent → horizon absent → **missing**. Artifact: missing. **MATCH**
+
+### computed_status
+All five scalar computed checks completed (budget kind fail, driver products fail, total re-derivation pass, balance fail, rolling horizon — wait: rolling horizon is one of the five scalars and it is *missing*).
+
+Per SERVICE.md: computed_status is null when **any** of the five scalar computed checks (budget kind, driver products, total re-derivation, balance, rolling horizon) **cannot be completed**. Here rolling_horizon_months is absent → that scalar check cannot be completed → computed_status should be **null**.
+
+- Artifact: `computed_status: "outside_stated_limits_on_declared_evidence"`. **MISMATCH** — my recompute gives `null`.
+
+### Verdict / summary
+- Fails: budget_type, owner, driver products, balance, hidden_padding = **5 fails**
+- Passes: lines_present, approach, drivers_documented, total_matches_sum = **4 passes**
+- Missing: 29 − 5 − 4 = **20 missing**
+- Nothing... fails exist → verdict **BUDGET_DESIGN_NOT_SOUND**. Summary "4 pass, 5 fail, 20 missing of 29". Artifact: same. **MATCH**
+
+### Section rollups
+- scope: 1 fail + 4 missing → fail ✓
+- structure_and_owners: 1 fail → fail ✓
+- drivers_and_totals: 1 fail → fail ✓
+- revenue_and_contingency: 1 fail (balance) + 1 fail (hidden_padding) + 3 missing → fail ✓
+- approval_and_baseline: all missing → insufficient_evidence ✓
+- monitoring_and_close: all missing → insufficient_evidence ✓
+All **MATCH**.
+
+### Planted-wrong-value confirmation
+The planted wrong values are: `budget_type="invalid_type"`, `owner=""`, `amount=50` vs 10×10=100, `expected_income=10` < total 50, `hidden_padding_present=true`. The failing checks are exactly: budget_type_is_stated_kind, every_line_has_named_owner, line_amounts_match_driver_products, budget_balances_against_expected_income, no_hidden_padding — **exactly the five checks the planted values should fail**. Confirmed.
+
+---
+
+## Summary of findings
+
+| Quantity | My recompute | Artifact | Status |
+|---|---|---|---|
+| Case1 computed_total | "500.00" | "500.00" | MATCH |
+| Case1 total_difference | "0.00" | "0.00" | MATCH |
+| Case1 computed_status | within_stated_limits… | within_stated_limits… | MATCH |
+| Case1 verdict/summary | SOUND / 29-0-0 | SOUND / 29-0-0 | MATCH |
+| Case2 computed_total | "50.00" | "50.00" | MATCH |
+| Case2 total_difference | "0.00" | "0.00" | MATCH |
+| Case2 ownerless_line_indexes | [0] | [0] | MATCH |
+| Case2 lines_evaluated | 1 | 1 | MATCH |
+| Case2 computed_status | **null** (rolling horizon missing) | outside_stated_limits… | **MISMATCH** |
+| Case2 verdict/summary | NOT_SOUND / 4-5-20 | NOT_SOUND / 4-5-20 | MATCH |
+| Case2 failing checks | exactly the 5 planted | exactly the 5 planted | MATCH |
+
+The single disagreement: in the `violations` case, `monitoring.rolling_horizon_months` is absent, so the rolling-horizon scalar check cannot be completed. Per SERVICE.md's rule ("null when any of the five scalar computed checks … cannot be completed"), `computed_status` should be `null`, but the artifact reports `outside_stated_limits_on_declared_evidence`.
+
+AGREEMENT: partial — Case 2 `computed_status`: my recompute = `null` (rolling_horizon_months absent, so a scalar computed check cannot be completed), artifact = `outside_stated_limits_on_declared_evidence`.

@@ -1,0 +1,160 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "lineup": "Main-Distribution-A",
+        "ratings": {
+          "fault_study_current": true,
+          "gaps_documented": true
+        },
+        "mcc": {
+          "section_bus_rating_verified": true,
+          "starter_types_recorded": true,
+          "segregation_and_barriers_verified": true,
+          "heat_load_assessed": true,
+          "planned_spare_capacity_recorded": true,
+          "labeling_matches_lineup_drawing": true
+        },
+        "switchgear": {
+          "breaker_relay_schemes_verified": true,
+          "ct_ratios_and_wiring_checked": true,
+          "trip_tests_per_plan": true,
+          "interlock_function_tests_done": true,
+          "torque_checks_per_oem": true
+        },
+        "transformers": [
+          {
+            "id": "TX-01",
+            "nameplate_kva": 1000,
+            "load_kva": 800,
+            "top_oil_temp_c": 60,
+            "top_oil_limit_c": 80,
+            "winding_temp_c": 70,
+            "winding_limit_c": 90,
+            "paralleled": false,
+            "vector_group_match": true,
+            "ratio_match": true,
+            "impedance_match": true
+          }
+        ],
+        "transformer": {
+          "tap_positions_recorded": true,
+          "harmonic_rich_load": false
+        },
+        "condition": {
+          "oil_dga_screening_on_schedule": true,
+          "ir_scans_done": true,
+          "audible_corona_logged_vs_baseline": true
+        },
+        "coordination": {
+          "settings_labels_study_aligned": true,
+          "equipment_changed": false,
+          "test_records_complete_with_instruments_and_calibration": true,
+          "energized_work_outside_permit_system": false
+        },
+        "equipment": [
+          {
+            "id": "CB-01",
+            "interrupting_rating_ka": 50,
+            "available_fault_current_ka": 40,
+            "continuous_current_rating_a": 1200,
+            "load_current_a": 1000
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "RATING_CONDITION_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean flags set to pass; equipment and transformer values are within safe limits. computed_spot_checks: CB-01 margin 10kA, TX-01 load 80% of nameplate."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "ratings": {
+          "fault_study_current": true,
+          "gaps_documented": true
+        },
+        "mcc": {
+          "section_bus_rating_verified": true,
+          "starter_types_recorded": true,
+          "segregation_and_barriers_verified": true,
+          "heat_load_assessed": true,
+          "planned_spare_capacity_recorded": true,
+          "labeling_matches_lineup_drawing": true
+        },
+        "switchgear": {
+          "breaker_relay_schemes_verified": true,
+          "ct_ratios_and_wiring_checked": true,
+          "trip_tests_per_plan": true,
+          "interlock_function_tests_done": true,
+          "torque_checks_per_oem": true
+        },
+        "transformers": [],
+        "transformer": {
+          "tap_positions_recorded": true,
+          "harmonic_rich_load": false
+        },
+        "condition": {
+          "oil_dga_screening_on_schedule": true,
+          "ir_scans_done": true,
+          "audible_corona_logged_vs_baseline": true
+        },
+        "coordination": {
+          "settings_labels_study_aligned": true,
+          "equipment_changed": false,
+          "test_records_complete_with_instruments_and_calibration": true,
+          "energized_work_outside_permit_system": false
+        },
+        "equipment": [
+          {
+            "id": "CB-FAIL",
+            "interrupting_rating_ka": 10,
+            "available_fault_current_ka": 20,
+            "continuous_current_rating_a": 100,
+            "load_current_a": 150
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "RATING_CONDITION_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "ratings_vs_fault_study"
+        ],
+        "notes": "Interrupting rating (10kA) < fault current (20kA) and continuous rating (100A) < load (150A)."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "lineup": "Partial-Check-Only"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all mandatory boolean flags and equipment lists required for a full assessment."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "lineup": "Malformed-Input",
+        "ratings": "invalid_string_instead_of_object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "The 'ratings' field is expected to be an object, providing a string causes a type violation."
+      }
+    }
+  ]
+}

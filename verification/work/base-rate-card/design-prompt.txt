@@ -1,0 +1,252 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: base-rate-card
+
+=== contract.yaml ===
+service_name: base-rate-card
+display_name: Base-rate card
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- knowledge-atom:#7
+binding:
+  skill: critical-thinking
+  skill_path: workspace/mymilo-build/skills/critical-thinking/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: base_rate_card
+  prefix: atm_1_base_rate_card_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Decision support on product calls
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Base-rate card — `base-rate-card`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Think clearly under pressure — evidence hierarchy, base rates, steelmanning, fallacy checks, calibration.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Decision support on product calls**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the base-rate-card manifest
+
+The caller submits one JSON manifest: one judgment card — a single
+claim worked through the bound skill's method, with the base-rate
+step at its centre. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`CARD_NOT_COMPLETE`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `claim` (string; carried into the verdict output, not itself checked) | — |
+| `evidence.claim_restated_precisely` | claim_and_evidence |
+| `evidence.supporting_evidence_sought` | claim_and_evidence |
+| `evidence.refuting_evidence_sought` | claim_and_evidence |
+| `evidence.hierarchy_applied` | claim_and_evidence |
+| `evidence.conflicts_noted_with_reasons` | claim_and_evidence |
+| `base_rate.reference_class_defined` | base_rates |
+| `base_rate.considered_first` | base_rates |
+| `base_rate.reference_class_size` (number; computed, see below) | base_rates |
+| `base_rate.reference_class_successes` (number; computed, see below) | base_rates |
+| `base_rate.stated` (number; computed, see below) | base_rates |
+| `steelman.strongest_counterargument_built` | steelman |
+| `steelman.counterargument_engaged` | steelman |
+| `steelman.opposing_view_strawmanned` (must be `false` to pass — skill red line) | steelman |
+| `fallacies.spot_check_performed` | fallacy_spot_check |
+| `fallacies.checked` (list of strings; computed, see below) | fallacy_spot_check |
+| `calibration.confidence_stated` | calibration |
+| `calibration.confidence_value` (number; computed, see below) | calibration |
+| `calibration.outcomes_reviewed` | calibration |
+| `calibration.hit_rate_tracked_by_confidence_band` | calibration |
+| `judgment.second_order_effects_considered` | second_order_and_judgment |
+| `judgment.written` | second_order_and_judgment |
+| `judgment.includes_confidence` | second_order_and_judgment |
+| `judgment.includes_key_uncertainties` | second_order_and_judgment |
+| `judgment.conclusion_from_vibes_or_authority_alone` (must be `false` to pass — skill red line) | second_order_and_judgment |
+| `judgment.certainty_outruns_evidence` (must be `false` to pass — skill red line) | second_order_and_judgment |
+
+Three checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Base-rate consistency:** the skill's method step 3 is "Base
+  rates first: what usually happens in cases like this?" When the
+  card declares a reference-class size, a success count, and a
+  stated base rate, the stated rate passes only when it equals the
+  rate the counts imply (successes / size), the counts are
+  coherent (size positive, successes between zero and size
+  inclusive), and the stated rate is a probability (between zero
+  and one inclusive). If any of the three numbers is absent, the
+  check is missing evidence. The output reports `reference_rate`
+  (the implied rate, null when it cannot be computed) and
+  `base_rate_difference` (stated minus implied, null likewise).
+- **Fallacy coverage:** the skill's method step 5 names the
+  spot-check list — ad hominem, straw man, false dilemma, appeal
+  to authority/antiquity, survivorship stories, motivated
+  reasoning, cherry-picked windows. The declared
+  `fallacies.checked` list therefore passes only when it contains
+  all seven stated entries (`ad_hominem`, `straw_man`,
+  `false_dilemma`, `appeal_to_authority_or_antiquity`,
+  `survivorship`, `motivated_reasoning`,
+  `cherry_picked_windows`); unknown entries do not count toward
+  coverage. A missing list is missing evidence; an empty list is
+  present and fails. The output reports the omitted stated entries
+  as `fallacies_not_checked` (null when no list is declared).
+  Entries are validated as strings only, never enum-checked —
+  coverage is a verdict check, not a type error.
+- **Confidence bounds:** the skill's method step 6 states
+  confidence as a probability ("80% sure"). A declared
+  `calibration.confidence_value` therefore passes only between
+  zero and one inclusive; an absent value is missing evidence.
+
+**Fixed serialization rule:** computed rates are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values except the
+consistency check, which compares the fixed-6dp difference to
+zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three computed checks cannot be completed).
+
+The verdict is one of `CARD_COMPLETE` (all 23 checks pass),
+`CARD_NOT_COMPLETE` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+claim_and_evidence, base_rates, steelman, fallacy_spot_check,
+calibration, second_order_and_judgment.
+
+## Honest scoping
+
+This atom audits a **declared** judgment card — it does not source
+reference-class data, restate the claim, build the steelman, or
+verify that a declared value is true. The register's named doubt
+for this atom — reference-class data sourcing per domain — stays
+the caller's: the card declares its own reference class, counts,
+and stated rate, and this core checks only their internal
+consistency and the completeness of the skill's method on the
+declared evidence. A card is complete *on the caller's declared
+evidence* even if its conclusion is wrong. It is a completeness
+and consistency audit, **not a judgment review**: it never decides
+whether the claim is true, whether the reference class is the
+right one, whether the steelman is actually strong, or whether
+the stated confidence is warranted — only that the card contains
+what the skill's method, quality gates, and red lines demand, and
+that its declared base-rate arithmetic agrees with itself.
+
+Named exclusions: no sourcing or verification of any reference
+class or base rate (per-domain sourcing is unresolved in the
+register and is not invented here); no grading of evidence quality
+beyond the declared hierarchy step (the skill names the hierarchy
+tiers but states no scoring, so none is imposed); no fallacy
+vocabulary beyond the seven entries the skill itself names; no
+calibration score (the skill requires tracking hit rate by
+confidence band but states no formula or pass mark, so only the
+tracking declaration and the probability bounds of the stated
+confidence are checked); no live verification of any declared
+fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

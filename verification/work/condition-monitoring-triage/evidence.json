@@ -1,0 +1,384 @@
+{
+  "atom": "condition-monitoring-triage",
+  "tested_at_utc": "2026-11-15T23:56:07.774356+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "condition_monitoring_triage",
+  "mcp_tools": [
+    {
+      "name": "condition_monitoring_triage",
+      "title": "Condition monitoring triage",
+      "description": "Submit a condition-monitoring evidence manifest (baseline, monitoring/context/trending discipline, declared alert bands with readings, alarm triage record); get a deterministic TRIAGE_SOUND / TRIAGE_UNSOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed reading-vs-band classification and action-band triage checks, with per-check evidence.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The condition-monitoring evidence manifest (see the atom's SERVICE.md for the field table and reading/alarm schemas).",
+        "properties": {
+          "asset": {
+            "type": "string",
+            "description": "Asset being monitored (e.g. MTR-101)."
+          },
+          "baseline": {
+            "type": "object",
+            "description": "Baseline evidence (exists, known load, post-repair capture)."
+          },
+          "monitoring": {
+            "type": "object",
+            "description": "Technique/route/instrument discipline evidence."
+          },
+          "context": {
+            "type": "object",
+            "description": "Reading-context evidence (load, ambient, speed)."
+          },
+          "trending": {
+            "type": "object",
+            "description": "Trending evidence (deltas, rate of change, repair annotations)."
+          },
+          "bands": {
+            "type": "object",
+            "description": "Alert-band definition evidence."
+          },
+          "readings": {
+            "type": "array",
+            "description": "Declared readings: {parameter, value, watch_limit, warning_limit, action_limit}."
+          },
+          "alarms": {
+            "type": "array",
+            "description": "Alarm triage record: {id, disposition: noise|watch|act, reasoning_recorded, recheck_interval_set, work_request_raised}."
+          },
+          "escalation": {
+            "type": "object",
+            "description": "Escalation and red-line evidence."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "TRIAGE_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean requirements met; readings within watch limits; escalation flags correctly set to false."
+      },
+      "input": {
+        "asset": "Motor-001",
+        "baseline": {
+          "exists": true,
+          "captured_under_known_load": true,
+          "repair_since_baseline": true,
+          "post_repair_baseline_captured": true
+        },
+        "monitoring": {
+          "techniques_match_asset": true,
+          "fixed_route_points": true,
+          "same_instrument_class": true
+        },
+        "context": {
+          "load_recorded": true,
+          "ambient_recorded": true,
+          "speed_recorded": true
+        },
+        "trending": {
+          "deltas_vs_baseline_computed": true,
+          "rate_of_change_considered": true,
+          "repair_events_annotated": true
+        },
+        "bands": {
+          "defined_per_standard_or_oem": true
+        },
+        "readings": [
+          {
+            "parameter": "vibration",
+            "value": 2.5,
+            "watch_limit": 3.0,
+            "warning_limit": 5.0,
+            "action_limit": 8.0
+          }
+        ],
+        "alarms": [
+          {
+            "id": "A1",
+            "disposition": "noise",
+            "reasoning_recorded": true,
+            "recheck_interval_set": false,
+            "work_request_raised": false
+          }
+        ],
+        "escalation": {
+          "findings_sent_with_trend_pack": true,
+          "alarm_closed_without_triage_note": false,
+          "condemned_or_cleared_on_single_reading": false
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"condition-monitoring-triage\",\"atom_version\":\"0.1.0\",\"asset\":\"Motor-001\",\"verdict\":\"TRIAGE_SOUND\",\"sections\":{\"baseline\":\"pass\",\"technique_coverage\":\"pass\",\"context\":\"pass\",\"trending\":\"pass\",\"alert_bands_and_triage\":\"pass\",\"escalation\":\"pass\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"baseline_exists\",\"status\":\"pass\",\"evidence\":\"quality gate: baselines exist for critical assets\"},{\"section\":\"baseline\",\"check\":\"baseline_captured_under_known_load\",\"status\":\"pass\",\"evidence\":\"baseline as-installed, under known load\"},{\"section\":\"baseline\",\"check\":\"post_repair_baseline_captured\",\"status\":\"pass\",\"evidence\":\"quality gate: post-repair baselines captured (verify the fix actually fixed it)\"},{\"section\":\"technique_coverage\",\"check\":\"techniques_match_asset\",\"status\":\"pass\",\"evidence\":\"techniques by asset: vibration / thermography / ESA / DGA as the asset class requires\"},{\"section\":\"technique_coverage\",\"check\":\"fixed_routes_and_points\",\"status\":\"pass\",\"evidence\":\"fixed routes; same points, same method\"},{\"section\":\"technique_coverage\",\"check\":\"same_instrument_class\",\"status\":\"pass\",\"evidence\":\"same instrument class \u2014 comparability is the whole game\"},{\"section\":\"context\",\"check\":\"load_recorded_with_readings\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry load context\"},{\"section\":\"context\",\"check\":\"ambient_recorded\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry ambient context\"},{\"section\":\"context\",\"check\":\"speed_recorded\",\"status\":\"pass\",\"evidence\":\"log speed with every reading\"},{\"section\":\"trending\",\"check\":\"deltas_vs_baseline_computed\",\"status\":\"pass\",\"evidence\":\"deltas and rates-of-change beat absolute numbers\"},{\"section\":\"trending\",\"check\":\"rate_of_change_considered\",\"status\":\"pass\",\"evidence\":\"trend + context: rates-of-change considered\"},{\"section\":\"trending\",\"check\":\"repair_events_annotated\",\"status\":\"pass\",\"evidence\":\"annotate charts with repair events\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"bands_defined_per_standard_or_oem\",\"status\":\"pass\",\"evidence\":\"define watch/warning/action bands per site standard/OEM\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"readings_classified_against_bands\",\"status\":\"pass\",\"evidence\":\"every reading classified against its declared bands\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"action_band_readings_have_act_triage\",\"status\":\"pass\",\"evidence\":\"a reading at or beyond its action limit requires an act triage (work request)\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"alarms_fully_triaged\",\"status\":\"pass\",\"evidence\":\"every alarm triaged \u2014 noise / watch (recheck interval) / act (work request) \u2014 with reasoning recorded\"},{\"section\":\"escalation\",\"check\":\"suspicious_findings_escalated_with_trend_pack\",\"status\":\"pass\",\"evidence\":\"suspicious findings go to the responsible engineer with the full trend pack, not a single number\"},{\"section\":\"escalation\",\"check\":\"no_alarm_closed_without_triage_note\",\"status\":\"pass\",\"evidence\":\"skill red line: no alarm closes without a triage note\"},{\"section\":\"escalation\",\"check\":\"no_condemn_or_clear_on_single_reading\",\"status\":\"pass\",\"evidence\":\"skill red line: never condemn or clear equipment on one reading without context\"}],\"highest_band\":\"normal\",\"summary\":\"19 pass, 0 fail, 0 missing of 19 checks across six sections.\",\"stamp\":\"CONDITION-MONITORING TRIAGE\\nasset: Motor-001\\nVERDICT: TRIAGE_SOUND\\n  baseline               pass\\n  technique_coverage     pass\\n  context                pass\\n  trending               pass\\n  alert_bands_and_triage pass\\n  escalation             pass\\n19 pass, 0 fail, 0 missing of 19 checks across six sections.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"condition-monitoring-triage\",\"atom_version\":\"0.1.0\",\"asset\":\"Motor-001\",\"verdict\":\"TRIAGE_SOUND\",\"sections\":{\"baseline\":\"pass\",\"technique_coverage\":\"pass\",\"context\":\"pass\",\"trending\":\"pass\",\"alert_bands_and_triage\":\"pass\",\"escalation\":\"pass\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"baseline_exists\",\"status\":\"pass\",\"evidence\":\"quality gate: baselines exist for critical assets\"},{\"section\":\"baseline\",\"check\":\"baseline_captured_under_known_load\",\"status\":\"pass\",\"evidence\":\"baseline as-installed, under known load\"},{\"section\":\"baseline\",\"check\":\"post_repair_baseline_captured\",\"status\":\"pass\",\"evidence\":\"quality gate: post-repair baselines captured (verify the fix actually fixed it)\"},{\"section\":\"technique_coverage\",\"check\":\"techniques_match_asset\",\"status\":\"pass\",\"evidence\":\"techniques by asset: vibration / thermography / ESA / DGA as the asset class requires\"},{\"section\":\"technique_coverage\",\"check\":\"fixed_routes_and_points\",\"status\":\"pass\",\"evidence\":\"fixed routes; same points, same method\"},{\"section\":\"technique_coverage\",\"check\":\"same_instrument_class\",\"status\":\"pass\",\"evidence\":\"same instrument class \u2014 comparability is the whole game\"},{\"section\":\"context\",\"check\":\"load_recorded_with_readings\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry load context\"},{\"section\":\"context\",\"check\":\"ambient_recorded\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry ambient context\"},{\"section\":\"context\",\"check\":\"speed_recorded\",\"status\":\"pass\",\"evidence\":\"log speed with every reading\"},{\"section\":\"trending\",\"check\":\"deltas_vs_baseline_computed\",\"status\":\"pass\",\"evidence\":\"deltas and rates-of-change beat absolute numbers\"},{\"section\":\"trending\",\"check\":\"rate_of_change_considered\",\"status\":\"pass\",\"evidence\":\"trend + context: rates-of-change considered\"},{\"section\":\"trending\",\"check\":\"repair_events_annotated\",\"status\":\"pass\",\"evidence\":\"annotate charts with repair events\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"bands_defined_per_standard_or_oem\",\"status\":\"pass\",\"evidence\":\"define watch/warning/action bands per site standard/OEM\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"readings_classified_against_bands\",\"status\":\"pass\",\"evidence\":\"every reading classified against its declared bands\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"action_band_readings_have_act_triage\",\"status\":\"pass\",\"evidence\":\"a reading at or beyond its action limit requires an act triage (work request)\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"alarms_fully_triaged\",\"status\":\"pass\",\"evidence\":\"every alarm triaged \u2014 noise / watch (recheck interval) / act (work request) \u2014 with reasoning recorded\"},{\"section\":\"escalation\",\"check\":\"suspicious_findings_escalated_with_trend_pack\",\"status\":\"pass\",\"evidence\":\"suspicious findings go to the responsible engineer with the full trend pack, not a single number\"},{\"section\":\"escalation\",\"check\":\"no_alarm_closed_without_triage_note\",\"status\":\"pass\",\"evidence\":\"skill red line: no alarm closes without a triage note\"},{\"section\":\"escalation\",\"check\":\"no_condemn_or_clear_on_single_reading\",\"status\":\"pass\",\"evidence\":\"skill red line: never condemn or clear equipment on one reading without context\"}],\"highest_band\":\"normal\",\"summary\":\"19 pass, 0 fail, 0 missing of 19 checks across six sections.\",\"stamp\":\"CONDITION-MONITORING TRIAGE\\nasset: Motor-001\\nVERDICT: TRIAGE_SOUND\\n  baseline               pass\\n  technique_coverage     pass\\n  context                pass\\n  trending               pass\\n  alert_bands_and_triage pass\\n  escalation             pass\\n19 pass, 0 fail, 0 missing of 19 checks across six sections.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"condition-monitoring-triage\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"asset\\\": \\\"Motor-001\\\",\\n  \\\"verdict\\\": \\\"TRIAGE_SOUND\\\",\\n  \\\"sections\\\": {\\n    \\\"baseline\\\": \\\"pass\\\",\\n    \\\"technique_coverage\\\": \\\"pass\\\",\\n    \\\"context\\\": \\\"pass\\\",\\n    \\\"trending\\\": \\\"pass\\\",\\n    \\\"alert_bands_and_triage\\\": \\\"pass\\\",\\n    \\\"escalation\\\": \\\"pass\\\"\\n  },\\n  \\\"checks\\\": [\\n    {\\n      \\\"section\\\": \\\"baseline\\\",\\n      \\\"check\\\": \\\"baseline_exists\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: baselines exist for critical assets\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"baseline\\\",\\n      \\\"check\\\": \\\"baseline_captured_under_known_load\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"baseline as-installed, under known load\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"baseline\\\",\\n      \\\"check\\\": \\\"post_repair_baseline_captured\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: post-repair baselines captured (verify the fix actually fixed it)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"technique_coverage\\\",\\n      \\\"check\\\": \\\"techniques_match_asset\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"techniques by asset: vibration / thermography / ESA / DGA as the asset class requires\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"technique_coverage\\\",\\n      \\\"check\\\": \\\"fixed_routes_and_points\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"fixed routes; same points, same method\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"technique_coverage\\\",\\n      \\\"check\\\": \\\"same_instrument_class\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"same instrument class \u2014 comparability is the whole game\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"context\\\",\\n      \\\"check\\\": \\\"load_recorded_with_readings\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: readings carry load context\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"context\\\",\\n      \\\"check\\\": \\\"ambient_recorded\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: readings carry ambient context\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"context\\\",\\n      \\\"check\\\": \\\"speed_recorded\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"log speed with every reading\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trending\\\",\\n      \\\"check\\\": \\\"deltas_vs_baseline_computed\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"deltas and rates-of-change beat absolute numbers\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trending\\\",\\n      \\\"check\\\": \\\"rate_of_change_considered\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"trend + context: rates-of-change considered\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trending\\\",\\n      \\\"check\\\": \\\"repair_events_annotated\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"annotate charts with repair events\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"alert_bands_and_triage\\\",\\n      \\\"check\\\": \\\"bands_defined_per_standard_or_oem\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"define watch/warning/action bands per site standard/OEM\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"alert_bands_and_triage\\\",\\n      \\\"check\\\": \\\"readings_classified_against_bands\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"every reading classified against its declared bands\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"alert_bands_and_triage\\\",\\n      \\\"check\\\": \\\"action_band_readings_have_act_triage\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"a reading at or beyond its action limit requires an act triage (work request)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"alert_bands_and_triage\\\",\\n      \\\"check\\\": \\\"alarms_fully_triaged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"every alarm triaged \u2014 noise / watch (recheck interval) / act (work request) \u2014 with reasoning recorded\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"escalation\\\",\\n      \\\"check\\\": \\\"suspicious_findings_escalated_with_trend_pack\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"suspicious findings go to the responsible engineer with the full trend pack, not a single number\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"escalation\\\",\\n      \\\"check\\\": \\\"no_alarm_closed_without_triage_note\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill red line: no alarm closes without a triage note\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"escalation\\\",\\n      \\\"check\\\": \\\"no_condemn_or_clear_on_single_reading\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill red line: never condemn or clear equipment on one reading without context\\\"\\n    }\\n  ],\\n  \\\"highest_band\\\": \\\"normal\\\",\\n  \\\"summary\\\": \\\"19 pass, 0 fail, 0 missing of 19 checks across six sections.\\\",\\n  \\\"stamp\\\": \\\"CONDITION-MONITORING TRIAGE\\\\nasset: Motor-001\\\\nVERDICT: TRIAGE_SOUND\\\\n  baseline               pass\\\\n  technique_coverage     pass\\\\n  context                pass\\\\n  trending               pass\\\\n  alert_bands_and_triage pass\\\\n  escalation             pass\\\\n19 pass, 0 fail, 0 missing of 19 checks across six sections.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"condition-monitoring-triage\",\"atom_version\":\"0.1.0\",\"asset\":\"Motor-001\",\"verdict\":\"TRIAGE_SOUND\",\"sections\":{\"baseline\":\"pass\",\"technique_coverage\":\"pass\",\"context\":\"pass\",\"trending\":\"pass\",\"alert_bands_and_triage\":\"pass\",\"escalation\":\"pass\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"baseline_exists\",\"status\":\"pass\",\"evidence\":\"quality gate: baselines exist for critical assets\"},{\"section\":\"baseline\",\"check\":\"baseline_captured_under_known_load\",\"status\":\"pass\",\"evidence\":\"baseline as-installed, under known load\"},{\"section\":\"baseline\",\"check\":\"post_repair_baseline_captured\",\"status\":\"pass\",\"evidence\":\"quality gate: post-repair baselines captured (verify the fix actually fixed it)\"},{\"section\":\"technique_coverage\",\"check\":\"techniques_match_asset\",\"status\":\"pass\",\"evidence\":\"techniques by asset: vibration / thermography / ESA / DGA as the asset class requires\"},{\"section\":\"technique_coverage\",\"check\":\"fixed_routes_and_points\",\"status\":\"pass\",\"evidence\":\"fixed routes; same points, same method\"},{\"section\":\"technique_coverage\",\"check\":\"same_instrument_class\",\"status\":\"pass\",\"evidence\":\"same instrument class \u2014 comparability is the whole game\"},{\"section\":\"context\",\"check\":\"load_recorded_with_readings\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry load context\"},{\"section\":\"context\",\"check\":\"ambient_recorded\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry ambient context\"},{\"section\":\"context\",\"check\":\"speed_recorded\",\"status\":\"pass\",\"evidence\":\"log speed with every reading\"},{\"section\":\"trending\",\"check\":\"deltas_vs_baseline_computed\",\"status\":\"pass\",\"evidence\":\"deltas and rates-of-change beat absolute numbers\"},{\"section\":\"trending\",\"check\":\"rate_of_change_considered\",\"status\":\"pass\",\"evidence\":\"trend + context: rates-of-change considered\"},{\"section\":\"trending\",\"check\":\"repair_events_annotated\",\"status\":\"pass\",\"evidence\":\"annotate charts with repair events\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"bands_defined_per_standard_or_oem\",\"status\":\"pass\",\"evidence\":\"define watch/warning/action bands per site standard/OEM\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"readings_classified_against_bands\",\"status\":\"pass\",\"evidence\":\"every reading classified against its declared bands\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"action_band_readings_have_act_triage\",\"status\":\"pass\",\"evidence\":\"a reading at or beyond its action limit requires an act triage (work request)\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"alarms_fully_triaged\",\"status\":\"pass\",\"evidence\":\"every alarm triaged \u2014 noise / watch (recheck interval) / act (work request) \u2014 with reasoning recorded\"},{\"section\":\"escalation\",\"check\":\"suspicious_findings_escalated_with_trend_pack\",\"status\":\"pass\",\"evidence\":\"suspicious findings go to the responsible engineer with the full trend pack, not a single number\"},{\"section\":\"escalation\",\"check\":\"no_alarm_closed_without_triage_note\",\"status\":\"pass\",\"evidence\":\"skill red line: no alarm closes without a triage note\"},{\"section\":\"escalation\",\"check\":\"no_condemn_or_clear_on_single_reading\",\"status\":\"pass\",\"evidence\":\"skill red line: never condemn or clear equipment on one reading without context\"}],\"highest_band\":\"normal\",\"summary\":\"19 pass, 0 fail, 0 missing of 19 checks across six sections.\",\"stamp\":\"CONDITION-MONITORING TRIAGE\\nasset: Motor-001\\nVERDICT: TRIAGE_SOUND\\n  baseline               pass\\n  technique_coverage     pass\\n  context                pass\\n  trending               pass\\n  alert_bands_and_triage pass\\n  escalation             pass\\n19 pass, 0 fail, 0 missing of 19 checks across six sections.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "condition-monitoring-triage",
+        "atom_version": "0.1.0",
+        "asset": "Motor-001",
+        "verdict": "TRIAGE_SOUND",
+        "sections": {
+          "baseline": "pass",
+          "technique_coverage": "pass",
+          "context": "pass",
+          "trending": "pass",
+          "alert_bands_and_triage": "pass",
+          "escalation": "pass"
+        },
+        "checks": [
+          {
+            "section": "baseline",
+            "check": "baseline_exists",
+            "status": "pass",
+            "evidence": "quality gate: baselines exist for critical assets"
+          },
+          {
+            "section": "baseline",
+            "check": "baseline_captured_under_known_load",
+            "status": "pass",
+            "evidence": "baseline as-installed, under known load"
+          },
+          {
+            "section": "baseline",
+            "check": "post_repair_baseline_captured",
+            "status": "pass",
+            "evidence": "quality gate: post-repair baselines captured (verify the fix actually fixed it)"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "techniques_match_asset",
+            "status": "pass",
+            "evidence": "techniques by asset: vibration / thermography / ESA / DGA as the asset class requires"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "fixed_routes_and_points",
+            "status": "pass",
+            "evidence": "fixed routes; same points, same method"
+          },
+          {
+            "section": "technique_coverage",
+            "check": "same_instrument_class",
+            "status": "pass",
+            "evidence": "same instrument class \u2014 comparability is the whole game"
+          },
+          {
+            "section": "context",
+            "check": "load_recorded_with_readings",
+            "status": "pass",
+            "evidence": "quality gate: readings carry load context"
+          },
+          {
+            "section": "context",
+            "check": "ambient_recorded",
+            "status": "pass",
+            "evidence": "quality gate: readings carry ambient context"
+          },
+          {
+            "section": "context",
+            "check": "speed_recorded",
+            "status": "pass",
+            "evidence": "log speed with every reading"
+          },
+          {
+            "section": "trending",
+            "check": "deltas_vs_baseline_computed",
+            "status": "pass",
+            "evidence": "deltas and rates-of-change beat absolute numbers"
+          },
+          {
+            "section": "trending",
+            "check": "rate_of_change_considered",
+            "status": "pass",
+            "evidence": "trend + context: rates-of-change considered"
+          },
+          {
+            "section": "trending",
+            "check": "repair_events_annotated",
+            "status": "pass",
+            "evidence": "annotate charts with repair events"
+          },
+          {
+            "section": "alert_bands_and_triage",
+            "check": "bands_defined_per_standard_or_oem",
+            "status": "pass",
+            "evidence": "define watch/warning/action bands per site standard/OEM"
+          },
+          {
+            "section": "alert_bands_and_triage",
+            "check": "readings_classified_against_bands",
+            "status": "pass",
+            "evidence": "every reading classified against its declared bands"
+          },
+          {
+            "section": "alert_bands_and_triage",
+            "check": "action_band_readings_have_act_triage",
+            "status": "pass",
+            "evidence": "a reading at or beyond its action limit requires an act triage (work request)"
+          },
+          {
+            "section": "alert_bands_and_triage",
+            "check": "alarms_fully_triaged",
+            "status": "pass",
+            "evidence": "every alarm triaged \u2014 noise / watch (recheck interval) / act (work request) \u2014 with reasoning recorded"
+          },
+          {
+            "section": "escalation",
+            "check": "suspicious_findings_escalated_with_trend_pack",
+            "status": "pass",
+            "evidence": "suspicious findings go to the responsible engineer with the full trend pack, not a single number"
+          },
+          {
+            "section": "escalation",
+            "check": "no_alarm_closed_without_triage_note",
+            "status": "pass",
+            "evidence": "skill red line: no alarm closes without a triage note"
+          },
+          {
+            "section": "escalation",
+            "check": "no_condemn_or_clear_on_single_reading",
+            "status": "pass",
+            "evidence": "skill red line: never condemn or clear equipment on one reading without context"
+          }
+        ],
+        "highest_band": "normal",
+        "summary": "19 pass, 0 fail, 0 missing of 19 checks across six sections.",
+        "stamp": "CONDITION-MONITORING TRIAGE\nasset: Motor-001\nVERDICT: TRIAGE_SOUND\n  baseline               pass\n  technique_coverage     pass\n  context                pass\n  trending               pass\n  alert_bands_and_triage pass\n  escalation             pass\n19 pass, 0 fail, 0 missing of 19 checks across six sections."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "TRIAGE_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "baseline",
+          "escalation"
+        ],
+        "notes": "Fails baseline check (post_repair_baseline_captured is false when repair_since_baseline is true) and escalation check (alarm_closed_without_triage_note is true)."
+      },
+      "input": {
+        "asset": "Motor-001",
+        "baseline": {
+          "exists": true,
+          "captured_under_known_load": true,
+          "repair_since_baseline": true,
+          "post_repair_baseline_captured": false
+        },
+        "monitoring": {
+          "techniques_match_asset": true,
+          "fixed_route_points": true,
+          "same_instrument_class": true
+        },
+        "context": {
+          "load_recorded": true,
+          "ambient_recorded": true,
+          "speed_recorded": true
+        },
+        "trending": {
+          "deltas_vs_baseline_computed": true,
+          "rate_of_change_considered": true,
+          "repair_events_annotated": true
+        },
+        "bands": {
+          "defined_per_standard_or_oem": true
+        },
+        "readings": [],
+        "alarms": [],
+        "escalation": {
+          "findings_sent_with_trend_pack": true,
+          "alarm_closed_without_triage_note": true,
+          "condemned_or_cleared_on_single_reading": false
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"condition-monitoring-triage\",\"atom_version\":\"0.1.0\",\"asset\":\"Motor-001\",\"verdict\":\"TRIAGE_UNSOUND\",\"sections\":{\"baseline\":\"fail\",\"technique_coverage\":\"pass\",\"context\":\"pass\",\"trending\":\"pass\",\"alert_bands_and_triage\":\"insufficient_evidence\",\"escalation\":\"fail\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"baseline_exists\",\"status\":\"pass\",\"evidence\":\"quality gate: baselines exist for critical assets\"},{\"section\":\"baseline\",\"check\":\"baseline_captured_under_known_load\",\"status\":\"pass\",\"evidence\":\"baseline as-installed, under known load\"},{\"section\":\"baseline\",\"check\":\"post_repair_baseline_captured\",\"status\":\"fail\",\"evidence\":\"quality gate: post-repair baselines captured (verify the fix actually fixed it)\"},{\"section\":\"technique_coverage\",\"check\":\"techniques_match_asset\",\"status\":\"pass\",\"evidence\":\"techniques by asset: vibration / thermography / ESA / DGA as the asset class requires\"},{\"section\":\"technique_coverage\",\"check\":\"fixed_routes_and_points\",\"status\":\"pass\",\"evidence\":\"fixed routes; same points, same method\"},{\"section\":\"technique_coverage\",\"check\":\"same_instrument_class\",\"status\":\"pass\",\"evidence\":\"same instrument class \u2014 comparability is the whole game\"},{\"section\":\"context\",\"check\":\"load_recorded_with_readings\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry load context\"},{\"section\":\"context\",\"check\":\"ambient_recorded\",\"status\":\"pass\",\"evidence\":\"quality gate: readings carry ambient context\"},{\"section\":\"context\",\"check\":\"speed_recorded\",\"status\":\"pass\",\"evidence\":\"log speed with every reading\"},{\"section\":\"trending\",\"check\":\"deltas_vs_baseline_computed\",\"status\":\"pass\",\"evidence\":\"deltas and rates-of-change beat absolute numbers\"},{\"section\":\"trending\",\"check\":\"rate_of_change_considered\",\"status\":\"pass\",\"evidence\":\"trend + context: rates-of-change considered\"},{\"section\":\"trending\",\"check\":\"repair_events_annotated\",\"status\":\"pass\",\"evidence\":\"annotate charts with repair events\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"bands_defined_per_standard_or_oem\",\"status\":\"pass\",\"evidence\":\"define watch/warning/action bands per site standard/OEM\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"readings_classified_against_bands\",\"status\":\"missing\",\"evidence\":\"no readings declared\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"action_band_readings_have_act_triage\",\"status\":\"missing\",\"evidence\":\"no readings declared\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"alarms_fully_triaged\",\"status\":\"pass\",\"evidence\":\"every alarm triaged \u2014 noise / watch (recheck interval) / act (work request) \u2014 with reasoning recorded\"},{\"section\":\"escalation\",\"check\":\"suspicious_findings_escalated_with_trend_pack\",\"status\":\"pass\",\"evidence\":\"suspicious findings go to the responsible engineer with the full trend pack, not a single number\"},{\"section\":\"escalation\",\"check\":\"no_alarm_closed_without_triage_note\",\"status\":\"fail\",\"evidence\":\"skill red line: no alarm closes without a triage note\"},{\"section\":\"escalation\",\"check\":\"no_condemn_or_clear_on_single_reading\",\"status\":\"pass\",\"evidence\":\"skill red line: never condemn or clear equipment on one reading without context\"}],\"highest_band\":null,\"summary\":\"15 pass, 2 fail, 2 missing of 19 checks across six sections.\",\"stamp\":\"CONDITION-MONITORING TRIAGE\\nasset: Motor-001\\nVERDICT: TRIAGE_UNSOUND\\n  baseline               fail\\n  technique_coverage     pass\\n  context                pass\\n  trending               pass\\n  alert_bands_and_triage insufficient_evidence\\n  escalation             fail\\n15 pass, 2 fail, 2 missing of 19 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required boolean fields for the six sections; atom returns insufficient evidence."
+      },
+      "input": {
+        "asset": "Motor-001"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"condition-monitoring-triage\",\"atom_version\":\"0.1.0\",\"asset\":\"Motor-001\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"baseline\":\"insufficient_evidence\",\"technique_coverage\":\"insufficient_evidence\",\"context\":\"insufficient_evidence\",\"trending\":\"insufficient_evidence\",\"alert_bands_and_triage\":\"insufficient_evidence\",\"escalation\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"baseline_exists\",\"status\":\"missing\",\"evidence\":\"quality gate: baselines exist for critical assets\"},{\"section\":\"baseline\",\"check\":\"baseline_captured_under_known_load\",\"status\":\"missing\",\"evidence\":\"baseline as-installed, under known load\"},{\"section\":\"baseline\",\"check\":\"post_repair_baseline_captured\",\"status\":\"missing\",\"evidence\":\"no repair since baseline declared\"},{\"section\":\"technique_coverage\",\"check\":\"techniques_match_asset\",\"status\":\"missing\",\"evidence\":\"techniques by asset: vibration / thermography / ESA / DGA as the asset class requires\"},{\"section\":\"technique_coverage\",\"check\":\"fixed_routes_and_points\",\"status\":\"missing\",\"evidence\":\"fixed routes; same points, same method\"},{\"section\":\"technique_coverage\",\"check\":\"same_instrument_class\",\"status\":\"missing\",\"evidence\":\"same instrument class \u2014 comparability is the whole game\"},{\"section\":\"context\",\"check\":\"load_recorded_with_readings\",\"status\":\"missing\",\"evidence\":\"quality gate: readings carry load context\"},{\"section\":\"context\",\"check\":\"ambient_recorded\",\"status\":\"missing\",\"evidence\":\"quality gate: readings carry ambient context\"},{\"section\":\"context\",\"check\":\"speed_recorded\",\"status\":\"missing\",\"evidence\":\"log speed with every reading\"},{\"section\":\"trending\",\"check\":\"deltas_vs_baseline_computed\",\"status\":\"missing\",\"evidence\":\"deltas and rates-of-change beat absolute numbers\"},{\"section\":\"trending\",\"check\":\"rate_of_change_considered\",\"status\":\"missing\",\"evidence\":\"trend + context: rates-of-change considered\"},{\"section\":\"trending\",\"check\":\"repair_events_annotated\",\"status\":\"missing\",\"evidence\":\"annotate charts with repair events\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"bands_defined_per_standard_or_oem\",\"status\":\"missing\",\"evidence\":\"define watch/warning/action bands per site standard/OEM\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"readings_classified_against_bands\",\"status\":\"missing\",\"evidence\":\"no readings declared\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"action_band_readings_have_act_triage\",\"status\":\"missing\",\"evidence\":\"no readings declared\"},{\"section\":\"alert_bands_and_triage\",\"check\":\"alarms_fully_triaged\",\"status\":\"missing\",\"evidence\":\"no alarm triage record declared\"},{\"section\":\"escalation\",\"check\":\"suspicious_findings_escalated_with_trend_pack\",\"status\":\"missing\",\"evidence\":\"suspicious findings go to the responsible engineer with the full trend pack, not a single number\"},{\"section\":\"escalation\",\"check\":\"no_alarm_closed_without_triage_note\",\"status\":\"missing\",\"evidence\":\"skill red line: no alarm closes without a triage note\"},{\"section\":\"escalation\",\"check\":\"no_condemn_or_clear_on_single_reading\",\"status\":\"missing\",\"evidence\":\"skill red line: never condemn or clear equipment on one reading without context\"}],\"highest_band\":null,\"summary\":\"0 pass, 0 fail, 19 missing of 19 checks across six sections.\",\"stamp\":\"CONDITION-MONITORING TRIAGE\\nasset: Motor-001\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  baseline               insufficient_evidence\\n  technique_coverage     insufficient_evidence\\n  context                insufficient_evidence\\n  trending               insufficient_evidence\\n  alert_bands_and_triage insufficient_evidence\\n  escalation             insufficient_evidence\\n0 pass, 0 fail, 19 missing of 19 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: baseline expected to be an object, received a string."
+      },
+      "input": {
+        "asset": "Motor-001",
+        "baseline": "NOT_A_BOOLEAN_OBJECT"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"baseline\",\"detail\":\"baseline must be an object\"}"
+        }
+      ]
+    }
+  ]
+}

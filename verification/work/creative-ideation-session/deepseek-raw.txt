@@ -1,0 +1,123 @@
+# Independent recompute — creative-ideation-session
+
+## Computed quantities defined by SERVICE.md
+
+The four computed checks and their reported values, plus the headline `computed_status`, `verdict`, and `summary`. Serialization rule for differences: round half up to 6dp via `floor(v*1000000 + 0.5)/1000000`, then format with exactly six decimals.
+
+---
+
+## Case 1: `full-pass`
+
+Inputs: target=10, captured=12, duplicates_removed=2, unique_after_dedup=10, shortlist=3, methods=["brainstorm","scamper"].
+
+**1. Volume against declared target**
+- target positive? 10 > 0 → yes.
+- captured not negative? 12 ≥ 0 → yes.
+- captured ≥ target? 12 ≥ 10 → yes. → **pass**
+- `volume_gap_ideas` = captured − target = 12 − 10 = **2**.
+  - Serialize: floor(2·1000000 + 0.5)/1000000 = floor(2000000.5)/1000000 = 2000000/1000000 = 2 → `"2.000000"`.
+  - Artifact: `"2.000000"` → **MATCH**
+- `target_idea_count` = 10 → artifact 10 → **MATCH**
+- `total_ideas_captured` = 12 → artifact 12 → **MATCH**
+
+**2. Dedup arithmetic**
+- All three present, none negative (12, 2, 10 ≥ 0), duplicates (2) ≤ captured (12).
+- Implied unique = 12 − 2 = 10. Declared unique = 10. 10 = 10 → **pass**
+- `dedup_discrepancy_ideas` = declared unique − implied unique = 10 − 10 = **0**.
+  - Serialize: floor(0·1000000 + 0.5)/1000000 = floor(0.5)/1000000 = 0 → `"0.000000"`.
+  - Artifact: `"0.000000"` → **MATCH**
+- `duplicates_removed` = 2 → artifact 2 → **MATCH**
+- `unique_ideas_after_dedup` = 10 → artifact 10 → **MATCH**
+
+**3. Shortlist within unique pool**
+- shortlist ≥ 1? 3 ≥ 1 → yes. shortlist ≤ unique pool? 3 ≤ 10 → yes. → **pass**
+- `shortlist_count` = 3 → artifact 3 → **MATCH**
+
+**4. Divergence-method vocabulary**
+- List non-empty (2 entries). Allowed set = {brainstorm, scamper, analogies, combining_distant_domains, what_if}.
+- "brainstorm" ∈ set ✓; "scamper" ∈ set ✓. → **pass**
+- `methods_used_count` = 2 → artifact 2 → **MATCH**
+- `methods_used` = ["brainstorm","scamper"] → artifact same → **MATCH**
+
+**Headline values**
+- All four computed checks completed and pass → `computed_status` = `within_stated_limits_on_declared_evidence` → artifact same → **MATCH**
+- All 24 checks pass → `verdict` = `SESSION_COMPLETE` → artifact same → **MATCH**
+- Count: 24 pass, 0 fail, 0 missing → `summary` "24 pass, 0 fail, 0 missing of 24 checks across six sections." → artifact same → **MATCH**
+- All six sections pass → artifact all "pass" → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+Inputs: target=10, captured=5, duplicates_removed=0, unique_after_dedup=5, shortlist=10, methods=["invalid_method"].
+
+**1. Volume against declared target**
+- target 10 > 0 ✓; captured 5 ≥ 0 ✓; captured ≥ target? 5 ≥ 10 → **NO → fail**
+- `volume_gap_ideas` = 5 − 10 = **−5**.
+  - Serialize: floor(−5·1000000 + 0.5)/1000000 = floor(−4999999.5)/1000000 = −5000000/1000000 = −5 → `"-5.000000"`.
+  - Artifact: `"-5.000000"` → **MATCH**
+- `target_idea_count` = 10 → artifact 10 → **MATCH**
+- `total_ideas_captured` = 5 → artifact 5 → **MATCH**
+
+**2. Dedup arithmetic**
+- Present, none negative (5, 0, 5), duplicates (0) ≤ captured (5).
+- Implied unique = 5 − 0 = 5. Declared unique = 5. 5 = 5 → **pass**
+- `dedup_discrepancy_ideas` = 5 − 5 = **0** → `"0.000000"` → artifact `"0.000000"` → **MATCH**
+- `duplicates_removed` = 0 → artifact 0 → **MATCH**
+- `unique_ideas_after_dedup` = 5 → artifact 5 → **MATCH**
+
+**3. Shortlist within unique pool**
+- shortlist ≥ 1? 10 ≥ 1 ✓. shortlist ≤ unique pool? 10 ≤ 5 → **NO → fail**
+- `shortlist_count` = 10 → artifact 10 → **MATCH**
+
+**4. Divergence-method vocabulary**
+- List non-empty (1 entry). "invalid_method" ∉ allowed set → **fail**
+- `methods_used_count` = 1 → artifact 1 → **MATCH**
+- `methods_used` = ["invalid_method"] → artifact same → **MATCH**
+
+**Headline values**
+- All four computed checks completed; at least one fails → `computed_status` = `outside_stated_limits_on_declared_evidence` → artifact same → **MATCH**
+- Any check fails → `verdict` = `SESSION_NOT_COMPLETE` → artifact same → **MATCH**
+- Count: 21 pass, 3 fail, 0 missing → `summary` "21 pass, 3 fail, 0 missing of 24 checks across six sections." → artifact same → **MATCH**
+
+**Confirming the failing checks are exactly the planted wrong values:**
+- Planted wrong values: `methods_used=["invalid_method"]`, captured=5 < target=10, shortlist=10 > unique pool=5.
+- Expected fails: `methods_used_are_stated_methods` (divergence), `volume_meets_declared_target` (idea_pool), `shortlist_within_unique_pool` (selection).
+- Artifact fails: exactly those three — divergence_and_methods, idea_pool_and_volume, selection_and_convergence each show one fail; all other checks pass. → **MATCH** (exactly the three planted violations, no spurious fails, no missed fails).
+- Note: dedup arithmetic is internally consistent (5−0=5) so it correctly passes despite the low volume — the low volume is caught by the volume check, not dedup. Correct.
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case 1 artifact | Recompute | Status |
+|---|---|---|---|
+| volume_gap_ideas | 2.000000 | 2.000000 | MATCH |
+| dedup_discrepancy_ideas | 0.000000 | 0.000000 | MATCH |
+| target_idea_count | 10 | 10 | MATCH |
+| total_ideas_captured | 12 | 12 | MATCH |
+| duplicates_removed | 2 | 2 | MATCH |
+| unique_ideas_after_dedup | 10 | 10 | MATCH |
+| shortlist_count | 3 | 3 | MATCH |
+| methods_used_count | 2 | 2 | MATCH |
+| computed_status | within… | within… | MATCH |
+| verdict | SESSION_COMPLETE | SESSION_COMPLETE | MATCH |
+| summary | 24/0/0 | 24/0/0 | MATCH |
+
+| Quantity | Case 2 artifact | Recompute | Status |
+|---|---|---|---|
+| volume_gap_ideas | -5.000000 | -5.000000 | MATCH |
+| dedup_discrepancy_ideas | 0.000000 | 0.000000 | MATCH |
+| target_idea_count | 10 | 10 | MATCH |
+| total_ideas_captured | 5 | 5 | MATCH |
+| duplicates_removed | 0 | 0 | MATCH |
+| unique_ideas_after_dedup | 5 | 5 | MATCH |
+| shortlist_count | 10 | 10 | MATCH |
+| methods_used_count | 1 | 1 | MATCH |
+| computed_status | outside… | outside… | MATCH |
+| verdict | SESSION_NOT_COMPLETE | SESSION_NOT_COMPLETE | MATCH |
+| summary | 21/3/0 | 21/3/0 | MATCH |
+
+All computed quantities, serialized differences, statuses, verdicts, and summaries reproduce exactly. The violations case fails exactly the three checks corresponding to its planted wrong values.
+
+AGREEMENT: full

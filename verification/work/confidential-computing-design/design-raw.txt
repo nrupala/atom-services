@@ -1,0 +1,118 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "entity": "secure-enclave-v1",
+        "threat_model": {
+          "documented": true,
+          "protects_against": ["host_access", "operator_access", "co_tenant_access"],
+          "does_not_protect_against": ["side_channels", "supply_chain", "flawed_enclave_code", "unsealed_inputs_outputs"],
+          "claims_require_threat_model": true
+        },
+        "technology": {
+          "name": "Intel TDX",
+          "distinctions_considered": true,
+          "chosen_by_workload_shape": true,
+          "chosen_by_available_hardware": true
+        },
+        "attestation": {
+          "verification_implemented": true,
+          "verification_tested": true,
+          "measurement_verified": true,
+          "fresh_nonce_verified": true,
+          "verified_before_trusting": true
+        },
+        "enclave": {
+          "sealed_keys_bound_to_identity_or_measurement": true,
+          "attested_tls_used": true,
+          "surface_area_minimized": true,
+          "trusted_components": [{"name": "core-logic", "trusted_lines": 100}],
+          "declared_trusted_codebase_lines": 100,
+          "debug_enabled_in_production": false
+        },
+        "engineering": {
+          "reproducible_builds": true,
+          "signed_enclave_images": true,
+          "measurements_versioned_and_pinned": true,
+          "real_attestation_in_ci_or_staging": true,
+          "fallback_documented": true,
+          "silent_downgrade_used": false
+        },
+        "keys": {
+          "sealed_keys_tested_including_recovery": true,
+          "root_keys_stored_unsealed_beside_enclave": false,
+          "rotation_designed": true,
+          "recovery_designed": true,
+          "measurement_changes_invalidating_seals_documented": true
+        },
+        "claims": {
+          "claims_match_evidence": true,
+          "marketing_mechanism_audit_done": true,
+          "public_exclusions": ["side_channels", "supply_chain", "flawed_enclave_code", "unsealed_inputs_outputs"],
+          "unverifiable_secure_enclave_claims_made": false,
+          "regulatory_compliance_paired_where_required": true
+        }
+      },
+      "expect": {
+        "outcome": "CONFIDENTIAL_COMPUTING_DESIGN_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid; arithmetic matches; red lines respected. computed_spot_checks: components_evaluated=1, computed_trusted_codebase_lines=100.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "enclave": {
+          "debug_enabled_in_production": true,
+          "trusted_components": [{"name": "core", "trusted_lines": 100}],
+          "declared_trusted_codebase_lines": 50
+        },
+        "keys": {
+          "root_keys_stored_unsealed_beside_enclave": true
+        },
+        "claims": {
+          "unverifiable_secure_enclave_claims_made": true
+        }
+      },
+      "expect": {
+        "outcome": "CONFIDENTIAL_COMPUTING_DESIGN_NOT_READY",
+        "http": 200,
+        "failing_checks": ["enclave.debug_enabled_in_production", "enclave.declared_trusted_codebase_lines", "keys.root_keys_stored_unsealed_beside_enclave", "claims.unverifiable_secure_enclave_claims_made"],
+        "notes": "Violates red lines (debug, root keys, unverifiable claims) and arithmetic consistency (declared 50 vs computed 100)."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "entity": "minimal-test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required fields for logic checks."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "threat_model": "not-an-object",
+        "enclave": {
+          "trusted_components": "should-be-a-list"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for threat_model and enclave.trusted_components."
+      }
+    }
+  ]
+}

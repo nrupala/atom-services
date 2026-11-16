@@ -1,0 +1,319 @@
+{
+  "atom": "reconciled-portfolio-performance-report",
+  "tested_at_utc": "2026-11-15T23:56:28.690961+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "reconciled_portfolio_performance_report",
+  "mcp_tools": [
+    {
+      "name": "reconciled_portfolio_performance_report",
+      "title": "Reconciled portfolio performance report",
+      "description": "Submit a portfolio performance manifest (beginning value, period-end values, external flows, optional benchmark, declared returns, holdings, transactions); get deterministic reconciled performance \u2014 time-weighted and money-weighted returns, a three-leg reconciliation against the declared data, and benchmark comparison \u2014 with status complete / partial / insufficient_evidence and every gap named. Numbers only: no recommendations, nothing labeled optimal.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The portfolio performance manifest (see the atom's SERVICE.md for the field table and the 6-decimal serialization rule).",
+        "properties": {
+          "beginning_value": {
+            "type": "number",
+            "description": "Declared portfolio value at the start of the first period."
+          },
+          "period_end_values": {
+            "type": "array",
+            "description": "Declared period-end values, one per period."
+          },
+          "external_flows": {
+            "type": "array",
+            "description": "Net external flow at the beginning of each period (contributions +, withdrawals \u2212), aligned with period_end_values."
+          },
+          "benchmark_returns": {
+            "type": "array",
+            "description": "Per-period benchmark returns (numbers), aligned with the periods."
+          },
+          "benchmark_name": {
+            "type": "string",
+            "description": "Benchmark name."
+          },
+          "declared_returns": {
+            "type": "array",
+            "description": "Caller-declared per-period returns, reconciled against the computed returns."
+          },
+          "holdings": {
+            "type": "array",
+            "description": "Declared holdings: {id, quantity, price}."
+          },
+          "transactions": {
+            "type": "array",
+            "description": "Declared ledger transactions: {kind: contribution|withdrawal, amount}."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "complete",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All inputs valid, aligned, and sufficient for complete status. computed_spot_checks: period_returns=[0.100000, 0.100000], TWR=0.210000, holdings_total=1210.000000"
+      },
+      "input": {
+        "portfolio": "Test Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [
+          1100.0,
+          1210.0
+        ],
+        "external_flows": [
+          0.0,
+          0.0
+        ],
+        "benchmark_name": "S&P500",
+        "benchmark_returns": [
+          0.05,
+          0.05
+        ],
+        "declared_returns": [
+          0.1,
+          0.1
+        ],
+        "holdings": [
+          {
+            "id": "A",
+            "quantity": 10,
+            "price": 121.0
+          }
+        ],
+        "transactions": [
+          {
+            "kind": "contribution",
+            "amount": 0.0
+          }
+        ]
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"reconciled-portfolio-performance-report\",\"atom_version\":\"0.1.0\",\"portfolio\":\"Test Portfolio\",\"status\":\"complete\",\"layers\":{\"values\":\"present\",\"performance\":\"present\",\"reconciliation\":\"present\",\"benchmark\":\"present\",\"holdings\":\"present\"},\"counts\":{\"periods\":2,\"invalid_value_entries\":0,\"invalid_flow_entries\":0,\"holdings\":1,\"invalid_holdings\":0,\"transactions\":1,\"invalid_transactions\":0},\"gaps\":[],\"performance\":{\"periods\":2,\"beginning_value\":\"1000.000000\",\"final_value\":\"1210.000000\",\"value_change\":\"210.000000\",\"net_external_flows\":\"0.000000\",\"total_gain_after_flows\":\"210.000000\",\"period_returns\":[\"0.100000\",\"0.100000\"],\"time_weighted_return\":\"0.210000\",\"money_weighted_return_per_period\":\"0.100000\",\"mean_period_return\":\"0.100000\",\"twr_irr_difference\":\"0.110000\",\"methods\":[\"time_weighted_return\",\"money_weighted_return_per_period\"]},\"benchmark\":{\"name\":\"S&P500\",\"aligned\":true,\"periods\":2,\"total_return\":\"0.102500\",\"mean_return_per_period\":\"0.050000\",\"excess_total_return\":\"0.107500\",\"periods_portfolio_ahead\":2},\"reconciliation\":{\"flows_vs_ledger\":{\"declared_net_external_flows\":\"0.000000\",\"ledger_contributions\":\"0.000000\",\"ledger_withdrawals\":\"0.000000\",\"ledger_net_external_flows\":\"0.000000\",\"difference\":\"0.000000\"},\"holdings_vs_declared_value\":{\"holdings_total_value\":\"1210.000000\",\"final_declared_value\":\"1210.000000\",\"difference\":\"0.000000\",\"difference_fraction_of_final\":\"0.000000\"},\"declared_vs_computed_returns\":{\"aligned\":true,\"compared_periods\":2,\"differences\":[\"0.000000\",\"0.000000\"],\"max_abs_difference\":\"0.000000\",\"mismatched_periods\":0}},\"holdings\":{\"holdings_count\":1,\"total_value\":\"1210.000000\",\"rows\":[{\"id\":\"A\",\"quantity\":\"10.000000\",\"price\":\"121.000000\",\"value\":\"1210.000000\",\"share_of_holdings\":\"1.000000\"}],\"largest_holding_id\":\"A\",\"largest_holding_share\":\"1.000000\"},\"disclaimer\":\"Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.\",\"summary\":\"Reconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\",\"stamp\":\"RECONCILED PORTFOLIO PERFORMANCE REPORT\\nportfolio: Test Portfolio\\nSTATUS: complete\\nReconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"reconciled-portfolio-performance-report\",\"atom_version\":\"0.1.0\",\"portfolio\":\"Test Portfolio\",\"status\":\"complete\",\"layers\":{\"values\":\"present\",\"performance\":\"present\",\"reconciliation\":\"present\",\"benchmark\":\"present\",\"holdings\":\"present\"},\"counts\":{\"periods\":2,\"invalid_value_entries\":0,\"invalid_flow_entries\":0,\"holdings\":1,\"invalid_holdings\":0,\"transactions\":1,\"invalid_transactions\":0},\"gaps\":[],\"performance\":{\"periods\":2,\"beginning_value\":\"1000.000000\",\"final_value\":\"1210.000000\",\"value_change\":\"210.000000\",\"net_external_flows\":\"0.000000\",\"total_gain_after_flows\":\"210.000000\",\"period_returns\":[\"0.100000\",\"0.100000\"],\"time_weighted_return\":\"0.210000\",\"money_weighted_return_per_period\":\"0.100000\",\"mean_period_return\":\"0.100000\",\"twr_irr_difference\":\"0.110000\",\"methods\":[\"time_weighted_return\",\"money_weighted_return_per_period\"]},\"benchmark\":{\"name\":\"S&P500\",\"aligned\":true,\"periods\":2,\"total_return\":\"0.102500\",\"mean_return_per_period\":\"0.050000\",\"excess_total_return\":\"0.107500\",\"periods_portfolio_ahead\":2},\"reconciliation\":{\"flows_vs_ledger\":{\"declared_net_external_flows\":\"0.000000\",\"ledger_contributions\":\"0.000000\",\"ledger_withdrawals\":\"0.000000\",\"ledger_net_external_flows\":\"0.000000\",\"difference\":\"0.000000\"},\"holdings_vs_declared_value\":{\"holdings_total_value\":\"1210.000000\",\"final_declared_value\":\"1210.000000\",\"difference\":\"0.000000\",\"difference_fraction_of_final\":\"0.000000\"},\"declared_vs_computed_returns\":{\"aligned\":true,\"compared_periods\":2,\"differences\":[\"0.000000\",\"0.000000\"],\"max_abs_difference\":\"0.000000\",\"mismatched_periods\":0}},\"holdings\":{\"holdings_count\":1,\"total_value\":\"1210.000000\",\"rows\":[{\"id\":\"A\",\"quantity\":\"10.000000\",\"price\":\"121.000000\",\"value\":\"1210.000000\",\"share_of_holdings\":\"1.000000\"}],\"largest_holding_id\":\"A\",\"largest_holding_share\":\"1.000000\"},\"disclaimer\":\"Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.\",\"summary\":\"Reconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\",\"stamp\":\"RECONCILED PORTFOLIO PERFORMANCE REPORT\\nportfolio: Test Portfolio\\nSTATUS: complete\\nReconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"reconciled-portfolio-performance-report\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"portfolio\\\": \\\"Test Portfolio\\\",\\n  \\\"status\\\": \\\"complete\\\",\\n  \\\"layers\\\": {\\n    \\\"values\\\": \\\"present\\\",\\n    \\\"performance\\\": \\\"present\\\",\\n    \\\"reconciliation\\\": \\\"present\\\",\\n    \\\"benchmark\\\": \\\"present\\\",\\n    \\\"holdings\\\": \\\"present\\\"\\n  },\\n  \\\"counts\\\": {\\n    \\\"periods\\\": 2,\\n    \\\"invalid_value_entries\\\": 0,\\n    \\\"invalid_flow_entries\\\": 0,\\n    \\\"holdings\\\": 1,\\n    \\\"invalid_holdings\\\": 0,\\n    \\\"transactions\\\": 1,\\n    \\\"invalid_transactions\\\": 0\\n  },\\n  \\\"gaps\\\": [],\\n  \\\"performance\\\": {\\n    \\\"periods\\\": 2,\\n    \\\"beginning_value\\\": \\\"1000.000000\\\",\\n    \\\"final_value\\\": \\\"1210.000000\\\",\\n    \\\"value_change\\\": \\\"210.000000\\\",\\n    \\\"net_external_flows\\\": \\\"0.000000\\\",\\n    \\\"total_gain_after_flows\\\": \\\"210.000000\\\",\\n    \\\"period_returns\\\": [\\n      \\\"0.100000\\\",\\n      \\\"0.100000\\\"\\n    ],\\n    \\\"time_weighted_return\\\": \\\"0.210000\\\",\\n    \\\"money_weighted_return_per_period\\\": \\\"0.100000\\\",\\n    \\\"mean_period_return\\\": \\\"0.100000\\\",\\n    \\\"twr_irr_difference\\\": \\\"0.110000\\\",\\n    \\\"methods\\\": [\\n      \\\"time_weighted_return\\\",\\n      \\\"money_weighted_return_per_period\\\"\\n    ]\\n  },\\n  \\\"benchmark\\\": {\\n    \\\"name\\\": \\\"S&P500\\\",\\n    \\\"aligned\\\": true,\\n    \\\"periods\\\": 2,\\n    \\\"total_return\\\": \\\"0.102500\\\",\\n    \\\"mean_return_per_period\\\": \\\"0.050000\\\",\\n    \\\"excess_total_return\\\": \\\"0.107500\\\",\\n    \\\"periods_portfolio_ahead\\\": 2\\n  },\\n  \\\"reconciliation\\\": {\\n    \\\"flows_vs_ledger\\\": {\\n      \\\"declared_net_external_flows\\\": \\\"0.000000\\\",\\n      \\\"ledger_contributions\\\": \\\"0.000000\\\",\\n      \\\"ledger_withdrawals\\\": \\\"0.000000\\\",\\n      \\\"ledger_net_external_flows\\\": \\\"0.000000\\\",\\n      \\\"difference\\\": \\\"0.000000\\\"\\n    },\\n    \\\"holdings_vs_declared_value\\\": {\\n      \\\"holdings_total_value\\\": \\\"1210.000000\\\",\\n      \\\"final_declared_value\\\": \\\"1210.000000\\\",\\n      \\\"difference\\\": \\\"0.000000\\\",\\n      \\\"difference_fraction_of_final\\\": \\\"0.000000\\\"\\n    },\\n    \\\"declared_vs_computed_returns\\\": {\\n      \\\"aligned\\\": true,\\n      \\\"compared_periods\\\": 2,\\n      \\\"differences\\\": [\\n        \\\"0.000000\\\",\\n        \\\"0.000000\\\"\\n      ],\\n      \\\"max_abs_difference\\\": \\\"0.000000\\\",\\n      \\\"mismatched_periods\\\": 0\\n    }\\n  },\\n  \\\"holdings\\\": {\\n    \\\"holdings_count\\\": 1,\\n    \\\"total_value\\\": \\\"1210.000000\\\",\\n    \\\"rows\\\": [\\n      {\\n        \\\"id\\\": \\\"A\\\",\\n        \\\"quantity\\\": \\\"10.000000\\\",\\n        \\\"price\\\": \\\"121.000000\\\",\\n        \\\"value\\\": \\\"1210.000000\\\",\\n        \\\"share_of_holdings\\\": \\\"1.000000\\\"\\n      }\\n    ],\\n    \\\"largest_holding_id\\\": \\\"A\\\",\\n    \\\"largest_holding_share\\\": \\\"1.000000\\\"\\n  },\\n  \\\"disclaimer\\\": \\\"Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.\\\",\\n  \\\"summary\\\": \\\"Reconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\\\",\\n  \\\"stamp\\\": \\\"RECONCILED PORTFOLIO PERFORMANCE REPORT\\\\nportfolio: Test Portfolio\\\\nSTATUS: complete\\\\nReconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\\\\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"reconciled-portfolio-performance-report\",\"atom_version\":\"0.1.0\",\"portfolio\":\"Test Portfolio\",\"status\":\"complete\",\"layers\":{\"values\":\"present\",\"performance\":\"present\",\"reconciliation\":\"present\",\"benchmark\":\"present\",\"holdings\":\"present\"},\"counts\":{\"periods\":2,\"invalid_value_entries\":0,\"invalid_flow_entries\":0,\"holdings\":1,\"invalid_holdings\":0,\"transactions\":1,\"invalid_transactions\":0},\"gaps\":[],\"performance\":{\"periods\":2,\"beginning_value\":\"1000.000000\",\"final_value\":\"1210.000000\",\"value_change\":\"210.000000\",\"net_external_flows\":\"0.000000\",\"total_gain_after_flows\":\"210.000000\",\"period_returns\":[\"0.100000\",\"0.100000\"],\"time_weighted_return\":\"0.210000\",\"money_weighted_return_per_period\":\"0.100000\",\"mean_period_return\":\"0.100000\",\"twr_irr_difference\":\"0.110000\",\"methods\":[\"time_weighted_return\",\"money_weighted_return_per_period\"]},\"benchmark\":{\"name\":\"S&P500\",\"aligned\":true,\"periods\":2,\"total_return\":\"0.102500\",\"mean_return_per_period\":\"0.050000\",\"excess_total_return\":\"0.107500\",\"periods_portfolio_ahead\":2},\"reconciliation\":{\"flows_vs_ledger\":{\"declared_net_external_flows\":\"0.000000\",\"ledger_contributions\":\"0.000000\",\"ledger_withdrawals\":\"0.000000\",\"ledger_net_external_flows\":\"0.000000\",\"difference\":\"0.000000\"},\"holdings_vs_declared_value\":{\"holdings_total_value\":\"1210.000000\",\"final_declared_value\":\"1210.000000\",\"difference\":\"0.000000\",\"difference_fraction_of_final\":\"0.000000\"},\"declared_vs_computed_returns\":{\"aligned\":true,\"compared_periods\":2,\"differences\":[\"0.000000\",\"0.000000\"],\"max_abs_difference\":\"0.000000\",\"mismatched_periods\":0}},\"holdings\":{\"holdings_count\":1,\"total_value\":\"1210.000000\",\"rows\":[{\"id\":\"A\",\"quantity\":\"10.000000\",\"price\":\"121.000000\",\"value\":\"1210.000000\",\"share_of_holdings\":\"1.000000\"}],\"largest_holding_id\":\"A\",\"largest_holding_share\":\"1.000000\"},\"disclaimer\":\"Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.\",\"summary\":\"Reconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\",\"stamp\":\"RECONCILED PORTFOLIO PERFORMANCE REPORT\\nportfolio: Test Portfolio\\nSTATUS: complete\\nReconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "reconciled-portfolio-performance-report",
+        "atom_version": "0.1.0",
+        "portfolio": "Test Portfolio",
+        "status": "complete",
+        "layers": {
+          "values": "present",
+          "performance": "present",
+          "reconciliation": "present",
+          "benchmark": "present",
+          "holdings": "present"
+        },
+        "counts": {
+          "periods": 2,
+          "invalid_value_entries": 0,
+          "invalid_flow_entries": 0,
+          "holdings": 1,
+          "invalid_holdings": 0,
+          "transactions": 1,
+          "invalid_transactions": 0
+        },
+        "gaps": [],
+        "performance": {
+          "periods": 2,
+          "beginning_value": "1000.000000",
+          "final_value": "1210.000000",
+          "value_change": "210.000000",
+          "net_external_flows": "0.000000",
+          "total_gain_after_flows": "210.000000",
+          "period_returns": [
+            "0.100000",
+            "0.100000"
+          ],
+          "time_weighted_return": "0.210000",
+          "money_weighted_return_per_period": "0.100000",
+          "mean_period_return": "0.100000",
+          "twr_irr_difference": "0.110000",
+          "methods": [
+            "time_weighted_return",
+            "money_weighted_return_per_period"
+          ]
+        },
+        "benchmark": {
+          "name": "S&P500",
+          "aligned": true,
+          "periods": 2,
+          "total_return": "0.102500",
+          "mean_return_per_period": "0.050000",
+          "excess_total_return": "0.107500",
+          "periods_portfolio_ahead": 2
+        },
+        "reconciliation": {
+          "flows_vs_ledger": {
+            "declared_net_external_flows": "0.000000",
+            "ledger_contributions": "0.000000",
+            "ledger_withdrawals": "0.000000",
+            "ledger_net_external_flows": "0.000000",
+            "difference": "0.000000"
+          },
+          "holdings_vs_declared_value": {
+            "holdings_total_value": "1210.000000",
+            "final_declared_value": "1210.000000",
+            "difference": "0.000000",
+            "difference_fraction_of_final": "0.000000"
+          },
+          "declared_vs_computed_returns": {
+            "aligned": true,
+            "compared_periods": 2,
+            "differences": [
+              "0.000000",
+              "0.000000"
+            ],
+            "max_abs_difference": "0.000000",
+            "mismatched_periods": 0
+          }
+        },
+        "holdings": {
+          "holdings_count": 1,
+          "total_value": "1210.000000",
+          "rows": [
+            {
+              "id": "A",
+              "quantity": "10.000000",
+              "price": "121.000000",
+              "value": "1210.000000",
+              "share_of_holdings": "1.000000"
+            }
+          ],
+          "largest_holding_id": "A",
+          "largest_holding_share": "1.000000"
+        },
+        "disclaimer": "Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.",
+        "summary": "Reconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.",
+        "stamp": "RECONCILED PORTFOLIO PERFORMANCE REPORT\nportfolio: Test Portfolio\nSTATUS: complete\nReconciled performance over 2 periods: time-weighted return 0.210000, money-weighted return per period 0.100000, final value 1210.000000; 0 gaps.\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "partial",
+        "http": 200,
+        "failing_checks": [
+          "external_flows_alignment",
+          "holdings_ledger_reconciliation"
+        ],
+        "notes": "Flows are misaligned (length 1 vs 2) and holdings are empty vs final value, resulting in partial status."
+      },
+      "input": {
+        "portfolio": "Violated Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [
+          1100.0,
+          1210.0
+        ],
+        "external_flows": [
+          0.0
+        ],
+        "benchmark_name": "None",
+        "benchmark_returns": [
+          0.0,
+          0.0
+        ],
+        "declared_returns": [
+          0.0,
+          0.0
+        ],
+        "holdings": [],
+        "transactions": []
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"reconciled-portfolio-performance-report\",\"atom_version\":\"0.1.0\",\"portfolio\":\"Violated Portfolio\",\"status\":\"partial\",\"layers\":{\"values\":\"present\",\"performance\":\"present\",\"reconciliation\":\"present\",\"benchmark\":\"present\",\"holdings\":\"present\"},\"counts\":{\"periods\":2,\"invalid_value_entries\":0,\"invalid_flow_entries\":0,\"holdings\":0,\"invalid_holdings\":0,\"transactions\":0,\"invalid_transactions\":0},\"gaps\":[\"external_flows does not align with period_end_values (1 valid of 1 submitted vs 2 periods) \u2014 time-weighted and money-weighted returns are gaps\",\"declared_returns cannot be reconciled \u2014 computed period returns are gaps\"],\"performance\":{\"periods\":2,\"beginning_value\":\"1000.000000\",\"final_value\":\"1210.000000\",\"value_change\":\"210.000000\",\"net_external_flows\":null,\"total_gain_after_flows\":null,\"period_returns\":null,\"time_weighted_return\":null,\"money_weighted_return_per_period\":null,\"mean_period_return\":null,\"twr_irr_difference\":null,\"methods\":[\"time_weighted_return\",\"money_weighted_return_per_period\"]},\"benchmark\":{\"name\":\"None\",\"aligned\":true,\"periods\":2,\"total_return\":\"0.000000\",\"mean_return_per_period\":\"0.000000\",\"excess_total_return\":null,\"periods_portfolio_ahead\":null},\"reconciliation\":{\"flows_vs_ledger\":{\"declared_net_external_flows\":null,\"ledger_contributions\":\"0.000000\",\"ledger_withdrawals\":\"0.000000\",\"ledger_net_external_flows\":\"0.000000\",\"difference\":null},\"holdings_vs_declared_value\":{\"holdings_total_value\":\"0.000000\",\"final_declared_value\":\"1210.000000\",\"difference\":\"-1210.000000\",\"difference_fraction_of_final\":\"-1.000000\"},\"declared_vs_computed_returns\":{\"aligned\":false,\"compared_periods\":0,\"differences\":null,\"max_abs_difference\":null,\"mismatched_periods\":null}},\"holdings\":{\"holdings_count\":0,\"total_value\":\"0.000000\",\"rows\":[],\"largest_holding_id\":null,\"largest_holding_share\":null},\"disclaimer\":\"Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.\",\"summary\":\"Performance over 2 periods: beginning value 1000.000000, final value 1210.000000; time-weighted and money-weighted returns are gaps; 2 gaps.\",\"stamp\":\"RECONCILED PORTFOLIO PERFORMANCE REPORT\\nportfolio: Violated Portfolio\\nSTATUS: partial\\nPerformance over 2 periods: beginning value 1000.000000, final value 1210.000000; time-weighted and money-weighted returns are gaps; 2 gaps.\\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "insufficient_evidence",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Fewer than 2 valid period-end values provided."
+      },
+      "input": {
+        "portfolio": "Sparse Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [
+          1100.0
+        ]
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"reconciled-portfolio-performance-report\",\"atom_version\":\"0.1.0\",\"portfolio\":\"Sparse Portfolio\",\"status\":\"insufficient_evidence\",\"layers\":{\"values\":\"present\",\"performance\":\"absent\",\"reconciliation\":\"absent\",\"benchmark\":\"absent\",\"holdings\":\"absent\"},\"counts\":{\"periods\":1,\"invalid_value_entries\":0,\"invalid_flow_entries\":0,\"holdings\":0,\"invalid_holdings\":0,\"transactions\":0,\"invalid_transactions\":0},\"gaps\":[\"period_end_values: a series with at least 2 valid numeric period-end values is required \u2014 reconciled performance cannot be computed\"],\"performance\":null,\"benchmark\":null,\"reconciliation\":null,\"holdings\":null,\"disclaimer\":\"Educational reporting only \u2014 not financial advice. The tool calculates; the user decides.\",\"summary\":\"Insufficient evidence: beginning value present, period-end values series has 1 valid numeric observations (need a numeric beginning value and at least 2) \u2014 reconciled portfolio performance cannot be computed.\",\"stamp\":\"RECONCILED PORTFOLIO PERFORMANCE REPORT\\nportfolio: Sparse Portfolio\\nSTATUS: insufficient_evidence\\nInsufficient evidence: beginning value present, period-end values series has 1 valid numeric observations (need a numeric beginning value and at least 2) \u2014 reconciled portfolio performance cannot be computed.\\nEducational reporting only \u2014 not financial advice. The tool calculates; the user decides.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violations: portfolio must be string, beginning_value must be number, period_end_values must be list."
+      },
+      "input": {
+        "portfolio": 12345,
+        "beginning_value": "one thousand",
+        "period_end_values": "not a list"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"portfolio\",\"detail\":\"portfolio must be a string\"}"
+        }
+      ]
+    }
+  ]
+}

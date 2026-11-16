@@ -1,0 +1,94 @@
+# Independent recompute — behavioral-finance-bias-check
+
+## Computed quantities defined by SERVICE.md
+
+1. **Cooling-off (48h)** — for entry decisions, pass iff `hours_elapsed >= 48`; non-entry → pass (N/A); missing gating field → missing evidence.
+2. **Sizing cap** — pass iff `position_size_percent <= cap_percent`; either absent → missing evidence.
+3. **Counters per considered bias** — present non-empty list passes iff every entry has `counter_applied: true`; empty list → fail; missing → missing evidence.
+4. **`computed_status`** — `within_limits_on_declared_evidence` / `outside_limits_on_declared_evidence` / null when either primary computed check (sizing cap, cooling-off) cannot be completed.
+5. **`biases_considered_count`** — declared list length, or null.
+6. **`position_size_over_cap_percent`** — position size − cap, serialized as string, 4dp, round-half-up: `floor(v*10000 + 0.5)/10000`, then format `%.4f`. Comparisons use unrounded values.
+7. **`cooling_off_hours_below_48`** — for entry decisions, 48 − hours_elapsed (same serialization); null otherwise.
+8. **Verdict** — CLEAR if all 30 pass; FAILED if any fail; INSUFFICIENT_EVIDENCE if none fail but some missing.
+
+---
+
+## Case 1: `full-pass`
+
+**Sizing cap:** cap = 10.0, size = 5.0. `5.0 <= 10.0` → **pass**. ✓
+- `position_size_over_cap_percent` = 5.0 − 10.0 = **−5.0**
+- Serialize: `floor(−5.0*10000 + 0.5)/10000 = floor(−49999.5)/10000 = −50000/10000 = −5.0` → `"-5.0000"`
+- Artifact: `"-5.0000"` → **MATCH**
+
+**Cooling-off:** `is_entry = true`, hours = 48.0. `48.0 >= 48` → **pass** (equality passes). ✓
+- `cooling_off_hours_below_48` = 48 − 48.0 = **0.0**
+- Serialize: `floor(0.0*10000 + 0.5)/10000 = floor(0.5)/10000 = 0/10000 = 0.0` → `"0.0000"`
+- Artifact: `"0.0000"` → **MATCH**
+
+**Counters per considered bias:** list length 1, entry `{bias:"Anchoring", counter_applied:true}` → all true → **pass**. ✓
+- `biases_considered_count` = **1**; artifact `1` → **MATCH**
+
+**`computed_status`:** both primary computed checks completed and within limits → `within_limits_on_declared_evidence`. Artifact matches → **MATCH**
+
+**Verdict:** all 30 checks pass (I count the artifact's 30 checks: 8 bias_playbook + 3 precommitment + 2 cooling_off + 6 journal + 6 watch + 5 temptation = 30). No fails, no missing → `BIAS_CHECK_CLEAR`. Artifact matches → **MATCH**
+
+**Summary line:** "30 pass, 0 fail, 0 missing of 30" — consistent with the check list. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+**Sizing cap:** cap = 5.0, size = 10.0. `10.0 <= 5.0` is **false** → **fail**. ✓ (artifact: fail)
+- `position_size_over_cap_percent` = 10.0 − 5.0 = **5.0**
+- Serialize: `floor(5.0*10000 + 0.5)/10000 = floor(50000.5)/10000 = 50000/10000 = 5.0` → `"5.0000"`
+- Artifact: `"5.0000"` → **MATCH**
+
+**Cooling-off:** `is_entry = false` → check passes as N/A. ✓ (artifact: pass, "not an entry decision")
+- `cooling_off_hours_below_48` = **null** (non-entry). Artifact: `null` → **MATCH**
+
+**Counters per considered bias:** list length 1, entry `{bias:"Recency", counter_applied:false}` → not all true → **fail**. ✓ (artifact: fail)
+- `biases_considered_count` = **1**; artifact `1` → **MATCH**
+
+**`computed_status`:** sizing cap completed and outside limits → `outside_limits_on_declared_evidence`. Artifact matches → **MATCH**
+
+**Verdict:** any fail → `BIAS_CHECK_FAILED`. Artifact matches → **MATCH**
+
+### Planted wrong values → expected failing checks
+
+The case plants: size 10 > cap 5; `counter_applied: false`; `continuous_price_watching: true`; `decision_driven_by_headlines: true`. Also `is_entry: false` (so thesis/cooling-off are N/A, not failures).
+
+Expected fails:
+- `position_size_within_sizing_cap` (10 > 5) ✓ artifact fail
+- `all_considered_biases_have_counter_applied` (counter false) ✓ artifact fail
+- `no_continuous_price_watching` (true) ✓ artifact fail
+- `decision_not_driven_by_headlines` (true) ✓ artifact fail
+
+That is exactly 4 fails. Artifact reports 4 fails, and they are exactly these four. **MATCH**
+
+**Section roll-up:** bias_playbook fail (2 fails), precommitment pass, cooling_off pass, decision_journal pass, watch_and_challenge fail (1), temptation_and_red_lines fail (1). Artifact sections match → **MATCH**
+
+**Summary line:** "26 pass, 4 fail, 0 missing of 30" — 30 − 4 = 26 pass, consistent. **MATCH**
+
+---
+
+## Cross-checks on non-computed but headline values
+
+- `decision` carried through: "Buy AAPL" / "Panic Sell" — match inputs. **MATCH**
+- `atom_version` "0.1.0" — matches contract. **MATCH**
+- `service` "behavioral-finance-bias-check" — matches contract. **MATCH**
+- Check count 30 in both cases — matches SERVICE.md's "all 30 checks". **MATCH**
+
+## Rounding rule verification
+
+The rule `floor(v*10000 + 0.5)/10000` then `%.4f`:
+- v = −5.0 → floor(−49999.5) = −50000 → −5.0 → `"-5.0000"` ✓
+- v = 0.0 → floor(0.5) = 0 → 0.0 → `"0.0000"` ✓
+- v = 5.0 → floor(50000.5) = 50000 → 5.0 → `"5.0000"` ✓
+
+All three serialized values reproduce exactly. Note the half-up rule is applied to the *scaled* value before flooring, so negative values round toward +∞ at the half — consistent with the stated formula, and the recorded values are exact integers so no half-case ambiguity arises.
+
+## Conclusion
+
+Every computed quantity (sizing cap pass/fail, cooling-off pass/fail, counters pass/fail, `computed_status`, `biases_considered_count`, `position_size_over_cap_percent`, `cooling_off_hours_below_48`), the verdict, the section roll-ups, and the summary counts all reproduce from the recorded inputs under the SERVICE.md rules. The violations case fails exactly the four checks its planted wrong values should fail.
+
+AGREEMENT: full

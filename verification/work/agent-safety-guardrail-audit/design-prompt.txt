@@ -1,0 +1,180 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: agent-safety-guardrail-audit
+
+=== contract.yaml ===
+service_name: agent-safety-guardrail-audit
+display_name: Agent safety guardrail audit
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:agent-safety-guardrails
+binding:
+  skill: agent-safety-guardrails
+  skill_path: workspace/mymilo-build/skills/agent-safety-guardrails/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/agent_safety_guardrail_audit.py — evaluate(manifest) -> audit dict; CLI prints JSON + stamp
+  tests: tests/test_agent_safety_guardrail_audit.py — 15 tests, all passing 2026-11-15
+keys:
+  namespace: agent_safety_guardrail_audit
+  prefix: atm_1_agent_safety_guardrail_audit_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Agent autonomy safety reviews
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Agent safety guardrail audit — `agent-safety-guardrail-audit`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Guard the agents — injection defense, tool least-privilege, approvals, sandboxes, kill switches.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Agent autonomy safety reviews**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Inputs — the agent-safety evidence manifest
+
+| Field | Read by |
+|---|---|
+| `system`, `version` | output (echoed in the audit; not a check) |
+| `guardrails_disabled` (must be `false`) | approval_gates |
+| `injection_defense.external_content_treated_as_data` | injection_defense |
+| `injection_defense.suspicious_imperatives_flagged` | injection_defense |
+| `injection_defense.test_suite.present`, `injection_defense.test_suite.passing` | injection_defense |
+| `tool_access.scoped_to_job` | tool_least_privilege |
+| `tool_access.read_write_separated` | tool_least_privilege |
+| `tool_access.destructive_tools_gated` | tool_least_privilege |
+| `tool_access.shell_access`, `tool_access.shell_sandboxed` (sandboxed required when shell access is present) | tool_least_privilege |
+| `approvals.destructive_actions_require_approval` | approval_gates |
+| `approvals.verified` | approval_gates |
+| `approvals.covered_actions` (list; must include `deploys`, `payments`, `deletions`, `external_sends`, `credential_changes`) | approval_gates |
+| `approvals.bypassable_by_agent` (must be `false`) | approval_gates |
+| `sandbox.enabled` | sandboxing |
+| `sandbox.filesystem_scope_minimal` | sandboxing |
+| `sandbox.egress_restricted` | sandboxing |
+| `sandbox.resource_caps_enforced` | sandboxing |
+| `sandbox.abuse_test_passed` | sandboxing |
+| `budgets.caps_set` | budgets_and_circuit_breakers |
+| `budgets.alert_before_cap` | budgets_and_circuit_breakers |
+| `circuit_breakers.loop_detection_enabled` | budgets_and_circuit_breakers |
+| `kill_switch.present`, `kill_switch.tested` | budgets_and_circuit_breakers |
+| `output_validation.schema_checked` | output_validation |
+| `output_validation.model_output_evaled` (must be `false`) | output_validation |
+| `output_validation.downstream_parameterized` | output_validation |
+| `secrets.values_in_context` (must be `false`) | secrets_hygiene |
+| `secrets.pii_in_context` (must be `false`) | secrets_hygiene |
+| `secrets.credential_handles_only` | secrets_hygiene |
+| `secrets.exfiltration_paths_tested` | secrets_hygiene |
+| `red_team.injection_suite_run` | red_teaming |
+| `red_team.jailbreak_tested` | red_teaming |
+| `red_team.canary_tokens_used` | red_teaming |
+| `red_team.findings_become_regression_tests` | red_teaming |
+
+A field **absent** = evidence missing (`INSUFFICIENT_EVIDENCE` if nothing
+fails). A field present but false / invalid = the check fails
+(`NOT_GUARDED`). All checks pass = `GUARDED`. 34 checks across eight
+sections: injection_defense, tool_least_privilege, approval_gates,
+sandboxing, budgets_and_circuit_breakers, output_validation,
+secrets_hygiene, red_teaming.
+
+## Named doubt (from the register)
+
+Audit scope must stay advisory
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

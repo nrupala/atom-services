@@ -1,0 +1,179 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: defined-flow-auditor
+
+=== contract.yaml ===
+service_name: defined-flow-auditor
+display_name: Defined-flow auditor
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- knowledge-atom:#15
+binding:
+  skill: zero-trust
+  skill_path: workspace/mymilo-build/skills/zero-trust/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/defined_flow_auditor.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_defined_flow_auditor.py — 18 tests, all passing 2026-11-15
+keys:
+  namespace: defined_flow_auditor
+  prefix: atm_1_defined_flow_auditor_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: call
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Guardian Mesh audits of our systems
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Defined-flow auditor — `defined-flow-auditor`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Zero-trust security evaluation — never trust, always verify. Identity-based access, least privilege, continuous verification, NIST 800-63B alignment. Distilled from mykey and zerok-container.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one service call.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Security & privacy who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Guardian Mesh audits of our systems**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **call**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the zero-trust evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_DEFINED`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `system` (string; carried into the verdict output, not itself checked) | — |
+| `auth.every_request_authenticated` | never_trust_always_verify |
+| `auth.every_request_authorized` | never_trust_always_verify |
+| `auth.internal_traffic_trusted` (must be `false` to pass) | never_trust_always_verify |
+| `identity.access_follows_identity` | identity_based_access |
+| `identity.checked_before_access` | identity_based_access |
+| `identity.proof_method_named` | identity_based_access |
+| `privilege.minimum_access` | least_privilege |
+| `privilege.access_expires` | least_privilege |
+| `privilege.credential_exceeds_job` (must be `false` to pass) | least_privilege |
+| `segmentation.components_segmented` | micro_segmentation |
+| `segmentation.blast_radius_bounded` | micro_segmentation |
+| `segmentation.flat_network` (must be `false` to pass) | micro_segmentation |
+| `verification.sessions_expire` | continuous_verification |
+| `verification.tokens_rotate` | continuous_verification |
+| `verification.anomalies_retrigger_auth` | continuous_verification |
+| `gauntlet.server_holds_plaintext_or_keys` (must be `false` to pass) | claim_gauntlet |
+| `gauntlet.server_breach_exposes_user_data` (must be `false` to pass) | claim_gauntlet |
+| `gauntlet.trusted_components_inventoried` | claim_gauntlet |
+| `gauntlet.convenience_decisions_surfaced` | claim_gauntlet |
+| `gauntlet.backdoors_present` (gates the naming check below) | claim_gauntlet |
+| `gauntlet.backdoors_named` (required when a backdoor is present; otherwise the check passes as not applicable) | claim_gauntlet |
+| `scope.adversaries_named` | scope_and_limits |
+| `scope.out_of_scope_named` | scope_and_limits |
+| `scope.compromised_endpoint_limit_acknowledged` | scope_and_limits |
+| `scope.claims_nist_alignment` (gates the controls check below) | scope_and_limits |
+| `scope.nist_controls_named` (required when NIST alignment is claimed; otherwise the check passes as not applicable) | scope_and_limits |
+
+The verdict is one of `DEFINED` (all 24 checks pass), `NOT_DEFINED`
+(any check fails — one failure breaks the claim), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: never_trust_always_verify,
+identity_based_access, least_privilege, micro_segmentation,
+continuous_verification, claim_gauntlet, scope_and_limits.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Guardian Mesh capabilities are spec inputs until behaviour-proven
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

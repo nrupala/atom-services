@@ -1,0 +1,1349 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: data-analysis-deliverable
+
+=== contract.yaml ===
+service_name: data-analysis-deliverable
+display_name: Data analysis deliverable
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:data-analytics
+binding:
+  skill: data-analytics
+  skill_path: workspace/mymilo-build/skills/data-analytics/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REPORT
+endpoints:
+- agent
+keys:
+  namespace: data_analysis_deliverable
+  prefix: atm_1_data_analysis_deliverable_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product and operations analysis
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Data analysis deliverable — `data-analysis-deliverable`
+
+**Deliverable type:** REPORT. This atom sells the report it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Turn data into decisions — question framing, exploratory analysis, statistical care, insights that change actions.
+
+A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this report on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product and operations analysis**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the data-analysis-deliverable manifest
+
+The caller submits one JSON manifest: one analysis-deliverable
+record — the question, the data sources and their provenance, the
+method, the declared result figures with the inputs needed to
+re-derive them, the caveats, and the reproducibility /
+close-the-loop record — worked through the bound skill's method.
+Every field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a field
+present but false / invalid = the check fails
+(`DELIVERABLE_NOT_COMPLETE`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `question` (string; carried into the verdict output, not itself checked) | — |
+| `framing.question_stated` | question_framing |
+| `framing.decision_named` | question_framing |
+| `framing.decision_owner_named` | question_framing |
+| `framing.decision_deadline_stated` | question_framing |
+| `framing.data_that_would_change_decision_stated` | question_framing |
+| `data.sources` (list of strings; computed, see below) | data_provenance |
+| `data.provenance_documented` | data_provenance |
+| `data.coverage_documented` | data_provenance |
+| `data.definitions_documented` | data_provenance |
+| `data.metrics_have_single_definition` | data_provenance |
+| `data.gaps_documented` | data_provenance |
+| `data.biases_documented` | data_provenance |
+| `analysis.distributions_shown` | descriptive_and_diagnostic |
+| `analysis.segments_shown` | descriptive_and_diagnostic |
+| `analysis.trends_on_comparable_windows` | descriptive_and_diagnostic |
+| `analysis.cherry_picked_baselines_used` (must be `false` to pass — skill method step 3) | descriptive_and_diagnostic |
+| `analysis.decomposition_performed` | descriptive_and_diagnostic |
+| `analysis.cohort_views_shown` | descriptive_and_diagnostic |
+| `analysis.mechanisms_triangulated` | descriptive_and_diagnostic |
+| `figures.values` (list of numbers; computed, see below) | descriptive_and_diagnostic |
+| `figures.stated_total` (number; computed, see below) | descriptive_and_diagnostic |
+| `figures.stated_mean` (number; computed, see below) | descriptive_and_diagnostic |
+| `figures.prior_window_value` (number; computed, see below) | descriptive_and_diagnostic |
+| `figures.current_window_value` (number; computed, see below) | descriptive_and_diagnostic |
+| `figures.stated_percent_change` (number; computed, see below) | descriptive_and_diagnostic |
+| `inference.sample_size_or_power_considered` | statistical_care |
+| `inference.uncertainty_stated` | statistical_care |
+| `inference.practical_vs_statistical_significance_distinguished` | statistical_care |
+| `inference.multiple_comparisons_checked` | statistical_care |
+| `inference.causal_claims_from_observational_data_alone` (must be `false` to pass — skill red line) | statistical_care |
+| `recommendation.so_what_stated` | insight_and_action |
+| `recommendation.recommendation_made` | insight_and_action |
+| `recommendation.expected_effect_stated` | insight_and_action |
+| `recommendation.recommendation_owner_named` | insight_and_action |
+| `recommendation.measurement_plan_stated` | insight_and_action |
+| `recommendation.uncertainty_stated_plainly` | insight_and_action |
+| `report.covers_question_data_method_finding_recommendation_caveats` | reporting_and_reproducibility |
+| `report.is_one_page` | reporting_and_reproducibility |
+| `report.caveats_stated` | reporting_and_reproducibility |
+| `report.charts_oversell_findings` (must be `false` to pass — skill red line) | reporting_and_reproducibility |
+| `report.numbers_reproducible` | reporting_and_reproducibility |
+| `closure.predicted_vs_actual_compared` | reporting_and_reproducibility |
+| `closure.model_of_world_updated` | reporting_and_reproducibility |
+
+Three checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Stated total:** the skill's method step 3 is "segments before
+  totals". When the record declares segment `figures.values` and
+  a `figures.stated_total`, the stated total passes only when it
+  equals the sum of the declared values, over a non-empty list.
+  If the values list or the stated total is absent, the check is
+  missing evidence; a present-but-empty values list fails. The
+  output reports `recomputed_total` (null when it cannot be
+  computed).
+- **Stated mean:** the skill's method step 3 is "distributions
+  before averages". The stated mean passes only when it equals
+  the mean of the same declared values, over a non-empty list.
+  Absence is missing evidence. The output reports
+  `recomputed_mean` (null likewise).
+- **Stated percent change:** the skill's method step 3 is
+  "trends on comparable windows". The stated percent change
+  passes only when it equals (current − prior) / prior × 100 over
+  the declared `figures.prior_window_value` and
+  `figures.current_window_value`, with a non-zero prior window.
+  Absence of any of the three numbers is missing evidence. The
+  output reports `recomputed_percent_change` (null likewise,
+  including when the prior window is zero).
+
+A fourth computed check is the declared data-source list: the
+skill's method step 2 ("know the data") requires the sources be
+known, so `data.sources` passes only as a present, non-empty list
+of strings; an absent list is missing evidence and an empty list
+is present and fails. Entries are validated as strings only,
+never enum-checked — declaration is a verdict check, not a type
+error.
+
+**Fixed serialization rule:** computed figures are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values except the
+re-derivation checks, which compare the fixed-6dp difference to
+zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three re-derivation checks cannot be completed).
+
+The verdict is one of `DELIVERABLE_COMPLETE` (all 40 checks
+pass), `DELIVERABLE_NOT_COMPLETE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: question_framing, data_provenance,
+descriptive_and_diagnostic, statistical_care, insight_and_action,
+reporting_and_reproducibility.
+
+## Honest scoping
+
+This atom audits a **declared** analysis-deliverable record — it
+does not run the analysis, source or inspect the data, re-derive
+any figure beyond the three declared re-derivations above, or
+verify that a declared value is true. A deliverable is complete
+*on the caller's declared evidence* even if its conclusion is
+wrong. It is a completeness and consistency audit, **not an
+analysis and not a certification of conclusions**: it never
+decides whether the question was the right one, whether the data
+are what the record claims, whether a decomposition or cohort
+view is actually informative, whether an inference is sound, or
+whether the recommendation is wise — only that the record
+contains what the skill's method, quality gates, and red lines
+demand, and that its declared total, mean, and percent-change
+arithmetic agrees with the inputs it declares.
+
+Thresholds declined — none is invented, because the skill states
+none: no minimum sample size or statistical power; no
+significance level (the skill names no p-value or alpha); no
+confidence level; no effect-size pass mark for practical
+significance; no minimum number of data sources, segments, or
+cohorts beyond a non-empty source list; no accuracy pass mark
+for the predicted-vs-actual comparison in the close-the-loop
+step; no grading of chart quality beyond the declared
+no-oversell red line (chart rules live in the separate
+`data-visualization` skill, which is not bound here); and no
+quality grading of the insight, the triangulation, or the
+recommendation beyond their declared presence. Parts of the
+skill that cannot reduce to deterministic checks over a declared
+record — whether distributions / segments / cohort views are
+actually illuminating, whether mechanisms are genuinely
+triangulated rather than merely declared, and whether an insight
+would in fact change an action — are audited only as declared
+presence, and are named here as not verified.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "data-analysis-deliverable",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DELIVERABLE_COMPLETE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All flags pass; values [10,20] sum 30 mean 15; (110-100)/100*100=10.",
+        "computed_spot_checks": {
+          "recomputed_total": "30.000000",
+          "recomputed_mean": "15.000000",
+          "recomputed_percent_change": "10.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "question": "Why did conversion drop?",
+        "framing": {
+          "question_stated": true,
+          "decision_named": true,
+          "decision_owner_named": true,
+          "decision_deadline_stated": true,
+          "data_that_would_change_decision_stated": true
+        },
+        "data": {
+          "sources": [
+            "db_logs",
+            "crm_data"
+          ],
+          "provenance_documented": true,
+          "coverage_documented": true,
+          "definitions_documented": true,
+          "metrics_have_single_definition": true,
+          "gaps_documented": true,
+          "biases_documented": true
+        },
+        "analysis": {
+          "distributions_shown": true,
+          "segments_shown": true,
+          "trends_on_comparable_windows": true,
+          "cherry_picked_baselines_used": false,
+          "decomposition_performed": true,
+          "cohort_views_shown": true,
+          "mechanisms_triangulated": true
+        },
+        "figures": {
+          "values": [
+            10.0,
+            20.0
+          ],
+          "stated_total": 30.0,
+          "stated_mean": 15.0,
+          "prior_window_value": 100.0,
+          "current_window_value": 110.0,
+          "stated_percent_change": 10.0
+        },
+        "inference": {
+          "sample_size_or_power_considered": true,
+          "uncertainty_stated": true,
+          "practical_vs_statistical_significance_distinguished": true,
+          "multiple_comparisons_checked": true,
+          "causal_claims_from_observational_data_alone": false
+        },
+        "recommendation": {
+          "so_what_stated": true,
+          "recommendation_made": true,
+          "expected_effect_stated": true,
+          "recommendation_owner_named": true,
+          "measurement_plan_stated": true,
+          "uncertainty_stated_plainly": true
+        },
+        "report": {
+          "covers_question_data_method_finding_recommendation_caveats": true,
+          "is_one_page": true,
+          "caveats_stated": true,
+          "charts_oversell_findings": false,
+          "numbers_reproducible": true
+        },
+        "closure": {
+          "predicted_vs_actual_compared": true,
+          "model_of_world_updated": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-analysis-deliverable",
+        "atom_version": "0.1.0",
+        "question": "Why did conversion drop?",
+        "verdict": "DELIVERABLE_COMPLETE",
+        "sections": {
+          "question_framing": "pass",
+          "data_provenance": "pass",
+          "descriptive_and_diagnostic": "pass",
+          "statistical_care": "pass",
+          "insight_and_action": "pass",
+          "reporting_and_reproducibility": "pass"
+        },
+        "checks": [
+          {
+            "section": "question_framing",
+            "check": "question_stated",
+            "status": "pass",
+            "evidence": "red line: no analysis without a question \u2014 the question is stated"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_named",
+            "status": "pass",
+            "evidence": "method step 1 / quality gate: the decision the analysis feeds is named before analysis"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_owner_named",
+            "status": "pass",
+            "evidence": "method step 1 / quality gate: who decides is named \u2014 the decision owner"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_deadline_stated",
+            "status": "pass",
+            "evidence": "method step 1: by when the decision is made is stated"
+          },
+          {
+            "section": "question_framing",
+            "check": "data_that_would_change_decision_stated",
+            "status": "pass",
+            "evidence": "method step 1: what data would change the decision is stated"
+          },
+          {
+            "section": "data_provenance",
+            "check": "data_sources_declared",
+            "status": "pass",
+            "evidence": "method step 2: the data sources the analysis uses are declared \u2014 a present-but-empty list declares none"
+          },
+          {
+            "section": "data_provenance",
+            "check": "provenance_documented",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: data provenance is documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "coverage_documented",
+            "status": "pass",
+            "evidence": "method step 2: data coverage is documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "definitions_documented",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: definitions are documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "metrics_have_single_definition",
+            "status": "pass",
+            "evidence": "method step 2: every metric has a single definition \u2014 a metric with two definitions is a bug"
+          },
+          {
+            "section": "data_provenance",
+            "check": "gaps_documented",
+            "status": "pass",
+            "evidence": "method step 2: gaps in the data are documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "biases_documented",
+            "status": "pass",
+            "evidence": "method step 2: biases in the data are documented"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "distributions_shown",
+            "status": "pass",
+            "evidence": "method step 3 / quality gate: distributions are shown \u2014 distributions before averages"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "segments_shown",
+            "status": "pass",
+            "evidence": "method step 3 / quality gate: segments are shown \u2014 segments before totals"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "trends_on_comparable_windows",
+            "status": "pass",
+            "evidence": "method step 3: trends are shown on comparable windows"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "no_cherry_picked_baselines",
+            "status": "pass",
+            "evidence": "method step 3: no cherry-picked baselines"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "decomposition_performed",
+            "status": "pass",
+            "evidence": "method step 4: what moved the metric is decomposed"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "cohort_views_shown",
+            "status": "pass",
+            "evidence": "method step 4: cohort views are shown"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "mechanisms_triangulated",
+            "status": "pass",
+            "evidence": "method step 4: mechanisms are triangulated"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_total_matches_declared_values",
+            "status": "pass",
+            "evidence": "method step 3: the stated total equals the sum of the declared segment values (segments before totals)"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_mean_matches_declared_values",
+            "status": "pass",
+            "evidence": "method step 3: the stated mean equals the mean of the declared values (distributions before averages)"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_percent_change_matches_declared_windows",
+            "status": "pass",
+            "evidence": "method step 3: the stated percent change equals (current - prior) / prior * 100 over the declared comparable-window values, with a non-zero prior window"
+          },
+          {
+            "section": "statistical_care",
+            "check": "sample_size_or_power_considered",
+            "status": "pass",
+            "evidence": "method step 5: sample size / power is considered when inferring"
+          },
+          {
+            "section": "statistical_care",
+            "check": "uncertainty_stated",
+            "status": "pass",
+            "evidence": "method step 5 / quality gate: inference claims carry uncertainty \u2014 confidence is stated"
+          },
+          {
+            "section": "statistical_care",
+            "check": "practical_vs_statistical_significance_distinguished",
+            "status": "pass",
+            "evidence": "method step 5: practical vs statistical significance is distinguished"
+          },
+          {
+            "section": "statistical_care",
+            "check": "multiple_comparisons_checked",
+            "status": "pass",
+            "evidence": "method step 5 / quality gate: multiple-comparison risk is checked"
+          },
+          {
+            "section": "statistical_care",
+            "check": "no_causal_claims_from_observational_data_alone",
+            "status": "pass",
+            "evidence": "red line: no causal claims from observational data alone"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "so_what_stated",
+            "status": "pass",
+            "evidence": "method step 6: the so-what is stated \u2014 the insight that changes an action"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "recommendation_made",
+            "status": "pass",
+            "evidence": "method step 6: a recommendation is made"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "expected_effect_stated",
+            "status": "pass",
+            "evidence": "method step 6: the recommendation's expected effect is stated"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "recommendation_owner_named",
+            "status": "pass",
+            "evidence": "method step 6 / quality gate: the recommendation has an owner"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "measurement_plan_stated",
+            "status": "pass",
+            "evidence": "method step 6 / quality gate: a measurement plan is stated"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "uncertainty_stated_plainly",
+            "status": "pass",
+            "evidence": "method step 6: uncertainty is stated plainly"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "report_covers_required_parts",
+            "status": "pass",
+            "evidence": "method step 7: the report covers question, data, method, finding, recommendation, and caveats"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "report_is_one_page",
+            "status": "pass",
+            "evidence": "method step 7: the report is one page"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "caveats_stated",
+            "status": "pass",
+            "evidence": "method step 7: caveats are stated in the report"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "charts_do_not_oversell",
+            "status": "pass",
+            "evidence": "red line: no charts that oversell"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "numbers_reproducible",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: numbers are reproducible \u2014 results reproducible"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "predicted_vs_actual_compared",
+            "status": "pass",
+            "evidence": "method step 8: after the action, predicted vs actual is compared \u2014 close the loop"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "model_of_world_updated",
+            "status": "pass",
+            "evidence": "method step 8: the model of the world is updated from the comparison"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "recomputed_total": "30.000000",
+        "recomputed_mean": "15.000000",
+        "recomputed_percent_change": "10.000000",
+        "summary": "40 pass, 0 fail, 0 missing of 40 checks across six sections.",
+        "stamp": "DATA ANALYSIS DELIVERABLE\nquestion: Why did conversion drop?\nVERDICT: DELIVERABLE_COMPLETE\n  question_framing             pass\n  data_provenance              pass\n  descriptive_and_diagnostic   pass\n  statistical_care             pass\n  insight_and_action           pass\n  reporting_and_reproducibility pass\n40 pass, 0 fail, 0 missing of 40 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DELIVERABLE_NOT_COMPLETE",
+        "http": 200,
+        "failing_checks": [
+          "stated_total_matches_declared_values",
+          "stated_mean_matches_declared_values",
+          "stated_percent_change_matches_declared_windows",
+          "no_cherry_picked_baselines",
+          "no_causal_claims_from_observational_data_alone"
+        ],
+        "computed_spot_checks": {
+          "recomputed_total": "20.000000",
+          "recomputed_mean": "10.000000",
+          "recomputed_percent_change": "10.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        },
+        "notes": "Full manifest with exactly 5 planted violations: total 50 vs 20, mean 15 vs 10, pct 5 vs 10, cherry-picked true, causal claims true."
+      },
+      "input": {
+        "question": "Test violation",
+        "framing": {
+          "question_stated": true,
+          "decision_named": true,
+          "decision_owner_named": true,
+          "decision_deadline_stated": true,
+          "data_that_would_change_decision_stated": true
+        },
+        "data": {
+          "sources": [
+            "db_logs",
+            "crm_data"
+          ],
+          "provenance_documented": true,
+          "coverage_documented": true,
+          "definitions_documented": true,
+          "metrics_have_single_definition": true,
+          "gaps_documented": true,
+          "biases_documented": true
+        },
+        "analysis": {
+          "distributions_shown": true,
+          "segments_shown": true,
+          "trends_on_comparable_windows": true,
+          "cherry_picked_baselines_used": true,
+          "decomposition_performed": true,
+          "cohort_views_shown": true,
+          "mechanisms_triangulated": true
+        },
+        "figures": {
+          "values": [
+            10.0,
+            10.0
+          ],
+          "stated_total": 50.0,
+          "stated_mean": 15.0,
+          "prior_window_value": 100.0,
+          "current_window_value": 110.0,
+          "stated_percent_change": 5.0
+        },
+        "inference": {
+          "sample_size_or_power_considered": true,
+          "uncertainty_stated": true,
+          "practical_vs_statistical_significance_distinguished": true,
+          "multiple_comparisons_checked": true,
+          "causal_claims_from_observational_data_alone": true
+        },
+        "recommendation": {
+          "so_what_stated": true,
+          "recommendation_made": true,
+          "expected_effect_stated": true,
+          "recommendation_owner_named": true,
+          "measurement_plan_stated": true,
+          "uncertainty_stated_plainly": true
+        },
+        "report": {
+          "covers_question_data_method_finding_recommendation_caveats": true,
+          "is_one_page": true,
+          "caveats_stated": true,
+          "charts_oversell_findings": false,
+          "numbers_reproducible": true
+        },
+        "closure": {
+          "predicted_vs_actual_compared": true,
+          "model_of_world_updated": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-analysis-deliverable",
+        "atom_version": "0.1.0",
+        "question": "Test violation",
+        "verdict": "DELIVERABLE_NOT_COMPLETE",
+        "sections": {
+          "question_framing": "pass",
+          "data_provenance": "pass",
+          "descriptive_and_diagnostic": "fail",
+          "statistical_care": "fail",
+          "insight_and_action": "pass",
+          "reporting_and_reproducibility": "pass"
+        },
+        "checks": [
+          {
+            "section": "question_framing",
+            "check": "question_stated",
+            "status": "pass",
+            "evidence": "red line: no analysis without a question \u2014 the question is stated"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_named",
+            "status": "pass",
+            "evidence": "method step 1 / quality gate: the decision the analysis feeds is named before analysis"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_owner_named",
+            "status": "pass",
+            "evidence": "method step 1 / quality gate: who decides is named \u2014 the decision owner"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_deadline_stated",
+            "status": "pass",
+            "evidence": "method step 1: by when the decision is made is stated"
+          },
+          {
+            "section": "question_framing",
+            "check": "data_that_would_change_decision_stated",
+            "status": "pass",
+            "evidence": "method step 1: what data would change the decision is stated"
+          },
+          {
+            "section": "data_provenance",
+            "check": "data_sources_declared",
+            "status": "pass",
+            "evidence": "method step 2: the data sources the analysis uses are declared \u2014 a present-but-empty list declares none"
+          },
+          {
+            "section": "data_provenance",
+            "check": "provenance_documented",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: data provenance is documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "coverage_documented",
+            "status": "pass",
+            "evidence": "method step 2: data coverage is documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "definitions_documented",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: definitions are documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "metrics_have_single_definition",
+            "status": "pass",
+            "evidence": "method step 2: every metric has a single definition \u2014 a metric with two definitions is a bug"
+          },
+          {
+            "section": "data_provenance",
+            "check": "gaps_documented",
+            "status": "pass",
+            "evidence": "method step 2: gaps in the data are documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "biases_documented",
+            "status": "pass",
+            "evidence": "method step 2: biases in the data are documented"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "distributions_shown",
+            "status": "pass",
+            "evidence": "method step 3 / quality gate: distributions are shown \u2014 distributions before averages"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "segments_shown",
+            "status": "pass",
+            "evidence": "method step 3 / quality gate: segments are shown \u2014 segments before totals"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "trends_on_comparable_windows",
+            "status": "pass",
+            "evidence": "method step 3: trends are shown on comparable windows"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "no_cherry_picked_baselines",
+            "status": "fail",
+            "evidence": "method step 3: no cherry-picked baselines"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "decomposition_performed",
+            "status": "pass",
+            "evidence": "method step 4: what moved the metric is decomposed"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "cohort_views_shown",
+            "status": "pass",
+            "evidence": "method step 4: cohort views are shown"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "mechanisms_triangulated",
+            "status": "pass",
+            "evidence": "method step 4: mechanisms are triangulated"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_total_matches_declared_values",
+            "status": "fail",
+            "evidence": "method step 3: the stated total equals the sum of the declared segment values (segments before totals)"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_mean_matches_declared_values",
+            "status": "fail",
+            "evidence": "method step 3: the stated mean equals the mean of the declared values (distributions before averages)"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_percent_change_matches_declared_windows",
+            "status": "fail",
+            "evidence": "method step 3: the stated percent change equals (current - prior) / prior * 100 over the declared comparable-window values, with a non-zero prior window"
+          },
+          {
+            "section": "statistical_care",
+            "check": "sample_size_or_power_considered",
+            "status": "pass",
+            "evidence": "method step 5: sample size / power is considered when inferring"
+          },
+          {
+            "section": "statistical_care",
+            "check": "uncertainty_stated",
+            "status": "pass",
+            "evidence": "method step 5 / quality gate: inference claims carry uncertainty \u2014 confidence is stated"
+          },
+          {
+            "section": "statistical_care",
+            "check": "practical_vs_statistical_significance_distinguished",
+            "status": "pass",
+            "evidence": "method step 5: practical vs statistical significance is distinguished"
+          },
+          {
+            "section": "statistical_care",
+            "check": "multiple_comparisons_checked",
+            "status": "pass",
+            "evidence": "method step 5 / quality gate: multiple-comparison risk is checked"
+          },
+          {
+            "section": "statistical_care",
+            "check": "no_causal_claims_from_observational_data_alone",
+            "status": "fail",
+            "evidence": "red line: no causal claims from observational data alone"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "so_what_stated",
+            "status": "pass",
+            "evidence": "method step 6: the so-what is stated \u2014 the insight that changes an action"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "recommendation_made",
+            "status": "pass",
+            "evidence": "method step 6: a recommendation is made"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "expected_effect_stated",
+            "status": "pass",
+            "evidence": "method step 6: the recommendation's expected effect is stated"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "recommendation_owner_named",
+            "status": "pass",
+            "evidence": "method step 6 / quality gate: the recommendation has an owner"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "measurement_plan_stated",
+            "status": "pass",
+            "evidence": "method step 6 / quality gate: a measurement plan is stated"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "uncertainty_stated_plainly",
+            "status": "pass",
+            "evidence": "method step 6: uncertainty is stated plainly"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "report_covers_required_parts",
+            "status": "pass",
+            "evidence": "method step 7: the report covers question, data, method, finding, recommendation, and caveats"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "report_is_one_page",
+            "status": "pass",
+            "evidence": "method step 7: the report is one page"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "caveats_stated",
+            "status": "pass",
+            "evidence": "method step 7: caveats are stated in the report"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "charts_do_not_oversell",
+            "status": "pass",
+            "evidence": "red line: no charts that oversell"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "numbers_reproducible",
+            "status": "pass",
+            "evidence": "method step 7 / quality gate: numbers are reproducible \u2014 results reproducible"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "predicted_vs_actual_compared",
+            "status": "pass",
+            "evidence": "method step 8: after the action, predicted vs actual is compared \u2014 close the loop"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "model_of_world_updated",
+            "status": "pass",
+            "evidence": "method step 8: the model of the world is updated from the comparison"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "recomputed_total": "20.000000",
+        "recomputed_mean": "10.000000",
+        "recomputed_percent_change": "10.000000",
+        "summary": "35 pass, 5 fail, 0 missing of 40 checks across six sections.",
+        "stamp": "DATA ANALYSIS DELIVERABLE\nquestion: Test violation\nVERDICT: DELIVERABLE_NOT_COMPLETE\n  question_framing             pass\n  data_provenance              pass\n  descriptive_and_diagnostic   fail\n  statistical_care             fail\n  insight_and_action           pass\n  reporting_and_reproducibility pass\n35 pass, 5 fail, 0 missing of 40 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required fields for all sections, resulting in insufficient evidence.",
+        "computed_spot_checks": {
+          "recomputed_total": null,
+          "recomputed_mean": null,
+          "recomputed_percent_change": null,
+          "computed_status": null
+        }
+      },
+      "input": {
+        "question": "Minimal input"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-analysis-deliverable",
+        "atom_version": "0.1.0",
+        "question": "Minimal input",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "question_framing": "insufficient_evidence",
+          "data_provenance": "insufficient_evidence",
+          "descriptive_and_diagnostic": "insufficient_evidence",
+          "statistical_care": "insufficient_evidence",
+          "insight_and_action": "insufficient_evidence",
+          "reporting_and_reproducibility": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "question_framing",
+            "check": "question_stated",
+            "status": "missing",
+            "evidence": "red line: no analysis without a question \u2014 the question is stated"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_named",
+            "status": "missing",
+            "evidence": "method step 1 / quality gate: the decision the analysis feeds is named before analysis"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_owner_named",
+            "status": "missing",
+            "evidence": "method step 1 / quality gate: who decides is named \u2014 the decision owner"
+          },
+          {
+            "section": "question_framing",
+            "check": "decision_deadline_stated",
+            "status": "missing",
+            "evidence": "method step 1: by when the decision is made is stated"
+          },
+          {
+            "section": "question_framing",
+            "check": "data_that_would_change_decision_stated",
+            "status": "missing",
+            "evidence": "method step 1: what data would change the decision is stated"
+          },
+          {
+            "section": "data_provenance",
+            "check": "data_sources_declared",
+            "status": "missing",
+            "evidence": "method step 2: the data sources the analysis uses are declared \u2014 a present-but-empty list declares none"
+          },
+          {
+            "section": "data_provenance",
+            "check": "provenance_documented",
+            "status": "missing",
+            "evidence": "method step 2 / quality gate: data provenance is documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "coverage_documented",
+            "status": "missing",
+            "evidence": "method step 2: data coverage is documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "definitions_documented",
+            "status": "missing",
+            "evidence": "method step 2 / quality gate: definitions are documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "metrics_have_single_definition",
+            "status": "missing",
+            "evidence": "method step 2: every metric has a single definition \u2014 a metric with two definitions is a bug"
+          },
+          {
+            "section": "data_provenance",
+            "check": "gaps_documented",
+            "status": "missing",
+            "evidence": "method step 2: gaps in the data are documented"
+          },
+          {
+            "section": "data_provenance",
+            "check": "biases_documented",
+            "status": "missing",
+            "evidence": "method step 2: biases in the data are documented"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "distributions_shown",
+            "status": "missing",
+            "evidence": "method step 3 / quality gate: distributions are shown \u2014 distributions before averages"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "segments_shown",
+            "status": "missing",
+            "evidence": "method step 3 / quality gate: segments are shown \u2014 segments before totals"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "trends_on_comparable_windows",
+            "status": "missing",
+            "evidence": "method step 3: trends are shown on comparable windows"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "no_cherry_picked_baselines",
+            "status": "missing",
+            "evidence": "method step 3: no cherry-picked baselines"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "decomposition_performed",
+            "status": "missing",
+            "evidence": "method step 4: what moved the metric is decomposed"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "cohort_views_shown",
+            "status": "missing",
+            "evidence": "method step 4: cohort views are shown"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "mechanisms_triangulated",
+            "status": "missing",
+            "evidence": "method step 4: mechanisms are triangulated"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_total_matches_declared_values",
+            "status": "missing",
+            "evidence": "method step 3: the stated total equals the sum of the declared segment values (segments before totals)"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_mean_matches_declared_values",
+            "status": "missing",
+            "evidence": "method step 3: the stated mean equals the mean of the declared values (distributions before averages)"
+          },
+          {
+            "section": "descriptive_and_diagnostic",
+            "check": "stated_percent_change_matches_declared_windows",
+            "status": "missing",
+            "evidence": "method step 3: the stated percent change equals (current - prior) / prior * 100 over the declared comparable-window values, with a non-zero prior window"
+          },
+          {
+            "section": "statistical_care",
+            "check": "sample_size_or_power_considered",
+            "status": "missing",
+            "evidence": "method step 5: sample size / power is considered when inferring"
+          },
+          {
+            "section": "statistical_care",
+            "check": "uncertainty_stated",
+            "status": "missing",
+            "evidence": "method step 5 / quality gate: inference claims carry uncertainty \u2014 confidence is stated"
+          },
+          {
+            "section": "statistical_care",
+            "check": "practical_vs_statistical_significance_distinguished",
+            "status": "missing",
+            "evidence": "method step 5: practical vs statistical significance is distinguished"
+          },
+          {
+            "section": "statistical_care",
+            "check": "multiple_comparisons_checked",
+            "status": "missing",
+            "evidence": "method step 5 / quality gate: multiple-comparison risk is checked"
+          },
+          {
+            "section": "statistical_care",
+            "check": "no_causal_claims_from_observational_data_alone",
+            "status": "missing",
+            "evidence": "red line: no causal claims from observational data alone"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "so_what_stated",
+            "status": "missing",
+            "evidence": "method step 6: the so-what is stated \u2014 the insight that changes an action"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "recommendation_made",
+            "status": "missing",
+            "evidence": "method step 6: a recommendation is made"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "expected_effect_stated",
+            "status": "missing",
+            "evidence": "method step 6: the recommendation's expected effect is stated"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "recommendation_owner_named",
+            "status": "missing",
+            "evidence": "method step 6 / quality gate: the recommendation has an owner"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "measurement_plan_stated",
+            "status": "missing",
+            "evidence": "method step 6 / quality gate: a measurement plan is stated"
+          },
+          {
+            "section": "insight_and_action",
+            "check": "uncertainty_stated_plainly",
+            "status": "missing",
+            "evidence": "method step 6: uncertainty is stated plainly"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "report_covers_required_parts",
+            "status": "missing",
+            "evidence": "method step 7: the report covers question, data, method, finding, recommendation, and caveats"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "report_is_one_page",
+            "status": "missing",
+            "evidence": "method step 7: the report is one page"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "caveats_stated",
+            "status": "missing",
+            "evidence": "method step 7: caveats are stated in the report"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "charts_do_not_oversell",
+            "status": "missing",
+            "evidence": "red line: no charts that oversell"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "numbers_reproducible",
+            "status": "missing",
+            "evidence": "method step 7 / quality gate: numbers are reproducible \u2014 results reproducible"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "predicted_vs_actual_compared",
+            "status": "missing",
+            "evidence": "method step 8: after the action, predicted vs actual is compared \u2014 close the loop"
+          },
+          {
+            "section": "reporting_and_reproducibility",
+            "check": "model_of_world_updated",
+            "status": "missing",
+            "evidence": "method step 8: the model of the world is updated from the comparison"
+          }
+        ],
+        "computed_status": null,
+        "recomputed_total": null,
+        "recomputed_mean": null,
+        "recomputed_percent_change": null,
+        "summary": "0 pass, 0 fail, 40 missing of 40 checks across six sections.",
+        "stamp": "DATA ANALYSIS DELIVERABLE\nquestion: Minimal input\nVERDICT: INSUFFICIENT_EVIDENCE\n  question_framing             insufficient_evidence\n  data_provenance              insufficient_evidence\n  descriptive_and_diagnostic   insufficient_evidence\n  statistical_care             insufficient_evidence\n  insight_and_action           insufficient_evidence\n  reporting_and_reproducibility insufficient_evidence\n0 pass, 0 fail, 40 missing of 40 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "field": "figures.stated_total",
+        "notes": "Exactly one type violation: figures.stated_total is a string where a number is required."
+      },
+      "input": {
+        "question": "Why did conversion drop?",
+        "framing": {
+          "question_stated": true,
+          "decision_named": true,
+          "decision_owner_named": true,
+          "decision_deadline_stated": true,
+          "data_that_would_change_decision_stated": true
+        },
+        "data": {
+          "sources": [
+            "db_logs",
+            "crm_data"
+          ],
+          "provenance_documented": true,
+          "coverage_documented": true,
+          "definitions_documented": true,
+          "metrics_have_single_definition": true,
+          "gaps_documented": true,
+          "biases_documented": true
+        },
+        "analysis": {
+          "distributions_shown": true,
+          "segments_shown": true,
+          "trends_on_comparable_windows": true,
+          "cherry_picked_baselines_used": false,
+          "decomposition_performed": true,
+          "cohort_views_shown": true,
+          "mechanisms_triangulated": true
+        },
+        "figures": {
+          "values": [
+            10.0,
+            20.0
+          ],
+          "stated_total": "thirty",
+          "stated_mean": 15.0,
+          "prior_window_value": 100.0,
+          "current_window_value": 110.0,
+          "stated_percent_change": 10.0
+        },
+        "inference": {
+          "sample_size_or_power_considered": true,
+          "uncertainty_stated": true,
+          "practical_vs_statistical_significance_distinguished": true,
+          "multiple_comparisons_checked": true,
+          "causal_claims_from_observational_data_alone": false
+        },
+        "recommendation": {
+          "so_what_stated": true,
+          "recommendation_made": true,
+          "expected_effect_stated": true,
+          "recommendation_owner_named": true,
+          "measurement_plan_stated": true,
+          "uncertainty_stated_plainly": true
+        },
+        "report": {
+          "covers_question_data_method_finding_recommendation_caveats": true,
+          "is_one_page": true,
+          "caveats_stated": true,
+          "charts_oversell_findings": false,
+          "numbers_reproducible": true
+        },
+        "closure": {
+          "predicted_vs_actual_compared": true,
+          "model_of_world_updated": true
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "figures.stated_total",
+        "detail": "figures.stated_total must be a number"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

@@ -1,0 +1,99 @@
+# Independent recompute — claim-evaluation-review
+
+## Serialization rule (applied throughout)
+Round half up to 6dp: `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals.
+
+---
+
+## CASE 1: `full-pass`
+
+### Computed check 1 — `claim_entries_complete`
+One claim entry: label "Claim A" (non-empty string ✓), all four booleans present (restated_precisely, supporting_evidence_sought, refuting_evidence_sought, evidence_presence_assessed). Complete.
+→ **pass**. Artifact: **pass** — **MATCH**. `claims_evaluated` = 1. Artifact: 1 — **MATCH**.
+
+### Computed check 2 — `all_claims_restated_precisely`
+Only entry has `restated_precisely = true`. All true → **pass**. Artifact: **pass** — **MATCH**.
+
+### Computed check 3 — `all_claims_supporting_and_refuting_evidence_sought`
+Entry: supporting=true, refuting=true. Both true for all → **pass**. Artifact: **pass** — **MATCH**.
+
+### Computed check 4 — `all_claims_evidence_presence_assessed`
+Entry: evidence_presence_assessed=true → **pass**. Artifact: **pass** — **MATCH**.
+
+### Computed check 5 — `base_rate_percent_within_percent_range`
+Declared 50.0. 0 ≤ 50.0 ≤ 100 → **pass**. Artifact: **pass** — **MATCH**.
+Serialized: floor(50.0×1000000 + 0.5)/1000000 = floor(50000000.5)/1000000 = 50000000/1000000 = 50 → `"50.000000"`. Artifact: `"50.000000"` — **MATCH**.
+
+### Computed check 6 — `fallacy_screen_covers_stated_fallacies`
+Required 8 tokens: ad_hominem, straw_man, false_dilemma, appeal_to_authority, appeal_to_antiquity, survivorship_stories, motivated_reasoning, cherry_picked_windows.
+Declared list contains all 8 exactly. Omitted = none → **pass**. Artifact: **pass** — **MATCH**. `fallacies_not_checked` = [] — Artifact: [] — **MATCH**.
+
+### Computed check 7 — `confidence_percent_within_percent_range`
+Declared 80.0. 0 ≤ 80.0 ≤ 100 → **pass**. Artifact: **pass** — **MATCH**.
+Serialized: floor(80.0×1000000+0.5)/1000000 = 80000000/1000000 = 80 → `"80.000000"`. Artifact: `"80.000000"` — **MATCH**.
+
+### Computed check 8 — `declared_hit_rate_matches_correct_divided_by_total`
+correct=8, total=10. Computed = 8/10 × 100 = 80.0.
+Serialized: floor(80.0×1000000+0.5)/1000000 = 80 → `"80.000000"`. Artifact: `"80.000000"` — **MATCH**.
+Difference = declared 80.0 − computed 80.0 = 0.0. Serialized: floor(0.0×1000000+0.5)/1000000 = floor(0.5)/1000000 = 0 → `"0.000000"`. Artifact: `"0.000000"` — **MATCH**.
+Difference == 0 → **pass**. Artifact: **pass** — **MATCH**.
+
+### `computed_status`
+All seven non-claim computed checks (2–8) pass → `within_stated_limits_on_declared_evidence`. Artifact: same — **MATCH**.
+
+### Verdict / summary
+All 26 checks pass → `CLAIM_EVALUATION_COMPLETE`. Artifact: same — **MATCH**. Summary "26 pass, 0 fail, 0 missing" — **MATCH**.
+
+---
+
+## CASE 2: `violations`
+
+### Computed check 1 — `claim_entries_complete`
+Entry has label "Claim A" and all four booleans present (values false/true but present). Complete → **pass**. Artifact: **pass** — **MATCH**. `claims_evaluated` = 1 — **MATCH**.
+
+### Computed check 2 — `all_claims_restated_precisely`
+Entry `restated_precisely = false` → not all true → **fail**. Artifact: **fail** — **MATCH**.
+
+### Computed check 3 — `all_claims_supporting_and_refuting_evidence_sought`
+supporting=true, refuting=true → **pass**. Artifact: **pass** — **MATCH**.
+
+### Computed check 4 — `all_claims_evidence_presence_assessed`
+evidence_presence_assessed=true → **pass**. Artifact: **pass** — **MATCH**.
+
+### Computed check 5 — `base_rate_percent_within_percent_range`
+Declared 150.0. 150 > 100 → **fail**. Artifact: **fail** — **MATCH**.
+Serialized: floor(150.0×1000000+0.5)/1000000 = 150000000/1000000 = 150 → `"150.000000"`. Artifact: `"150.000000"` — **MATCH**.
+
+### Computed check 6 — `fallacy_screen_covers_stated_fallacies`
+Declared list = ["ad_hominem"] only. Missing 7: straw_man, false_dilemma, appeal_to_authority, appeal_to_antiquity, survivorship_stories, motivated_reasoning, cherry_picked_windows → **fail**. Artifact: **fail** — **MATCH**.
+`fallacies_not_checked` = those 7 in stated order. Artifact lists exactly those 7 in that order — **MATCH**.
+
+### Computed check 7 — `confidence_percent_within_percent_range`
+Declared 80.0 → in range → **pass**. Artifact: **pass** — **MATCH**. Serialized `"80.000000"` — **MATCH**.
+
+### Computed check 8 — `declared_hit_rate_matches_correct_divided_by_total`
+correct=5, total=10. Computed = 5/10 × 100 = 50.0.
+Serialized: floor(50.0×1000000+0.5)/1000000 = 50 → `"50.000000"`. Artifact: `"50.000000"` — **MATCH**.
+Difference = declared 99.0 − computed 50.0 = 49.0. Serialized: floor(49.0×1000000+0.5)/1000000 = 49000000/1000000 = 49 → `"49.000000"`. Artifact: `"49.000000"` — **MATCH**.
+Difference ≠ 0 → **fail**. Artifact: **fail** — **MATCH**.
+
+### `computed_status`
+At least one of the seven computed checks fails → `outside_stated_limits_on_declared_evidence`. Artifact: same — **MATCH**.
+
+### Non-computed checks (planted wrong values)
+- `no_conclusions_from_vibes_or_authority_alone`: input true (must be false) → **fail**. Artifact: **fail** — **MATCH**.
+- `no_straw_manning_in_own_favor`: input true (must be false) → **fail**. Artifact: **fail** — **MATCH**.
+- `certainty_does_not_outrun_evidence`: input true (must be false) → **fail**. Artifact: **fail** — **MATCH**.
+
+### Confirm failing set is exactly the planted set
+Planted wrong values: restated_precisely=false, conclusions_from_vibes=true, base_rate=150, straw_manning=true, fallacies list incomplete, declared_hit_rate=99 vs 5/10, certainty_outruns=true. That is 7 planted defects.
+Artifact fails exactly: all_claims_restated_precisely, no_conclusions_from_vibes_or_authority_alone, base_rate_percent_within_percent_range, no_straw_manning_in_own_favor, fallacy_screen_covers_stated_fallacies, declared_hit_rate_matches_correct_divided_by_total, certainty_does_not_outrun_evidence — **7 fails, exactly the planted set, no extras, no misses** — **MATCH**.
+
+### Verdict / summary
+Any check fails → `CLAIM_EVALUATION_NOT_COMPLETE`. Artifact: same — **MATCH**. Summary "19 pass, 7 fail, 0 missing of 26" — 26−7=19 ✓ — **MATCH**.
+
+---
+
+Every computed quantity and check in both cases recomputes to the artifact's recorded value. No mismatches found.
+
+AGREEMENT: full

@@ -1,0 +1,1013 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: finance-content-compliance-check
+
+=== contract.yaml ===
+service_name: finance-content-compliance-check
+display_name: Finance content compliance check
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:financial-education-content
+binding:
+  skill: financial-education-content
+  skill_path: workspace/mymilo-build/skills/financial-education-content/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/finance_content_compliance_check.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_finance_content_compliance_check.py — 28 tests, all passing 2026-11-15
+keys:
+  namespace: finance_content_compliance_check
+  prefix: atm_1_finance_content_compliance_check_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Think With Finance compliance content review
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Finance content compliance check — `finance-content-compliance-check`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Publish finance education safely - advice-vs-education boundaries, dated figures, disclosures, no return promises.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Writing & documents who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Think With Finance compliance content review**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the finance-content evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NON_COMPLIANT`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `content` (string; carried into the verdict output, not itself checked) | — |
+| `jurisdiction` (non-empty string; the stated CA/US/other context) | advice_boundary |
+| `advice_boundary.teaches_frameworks_not_recommendations` | advice_boundary |
+| `advice_boundary.personalized_recommendations_present` (must be `false` to pass) | advice_boundary |
+| `advice_boundary.education_not_advice_disclaimer_present` | advice_boundary |
+| `advice_boundary.checklist_passed` | advice_boundary |
+| `advice_boundary.advice_like_content_present` (gates the flagged check below) | advice_boundary |
+| `advice_boundary.advice_like_flagged_for_review` (required when advice-like content is present; otherwise the check passes as not applicable) | advice_boundary |
+| `figures` (list of figures; absent / not a list / empty = both computed checks missing) | accuracy_and_sourcing |
+| `figures[].label` (non-empty string) | accuracy_and_sourcing |
+| `figures[].as_of` (non-empty string; the figure's as-of date) | accuracy_and_sourcing |
+| `figures[].source` (non-empty string) | accuracy_and_sourcing |
+| `figures[].source_is_primary` (must be `true` for a complete figure to pass) | accuracy_and_sourcing |
+| `figures[].rederived` (must be `true` for a complete figure to pass) | accuracy_and_sourcing |
+| `accuracy.primary_sources_linked` | accuracy_and_sourcing |
+| `accuracy.rates_and_limits_dated` | accuracy_and_sourcing |
+| `accuracy.recheck_cadence_set` | accuracy_and_sourcing |
+| `risk.risk_before_upside` | risk_framing |
+| `risk.uses_past_performance` (gates the caveat check below) | risk_framing |
+| `risk.past_performance_caveat_present` (required when past performance is used; otherwise the check passes as not applicable) | risk_framing |
+| `risk.fees_visible` | risk_framing |
+| `risk.taxes_visible` | risk_framing |
+| `risk.return_promises_present` (must be `false` to pass) | risk_framing |
+| `risk.forecasts_presented_as_fact` (must be `false` to pass) | risk_framing |
+| `risk.survivorship_examples_used` (must be `false` to pass) | risk_framing |
+| `calculators.includes_calculator` (gates all four calculator checks below) | calculators_and_tools |
+| `calculators.spec_with_formulas_present` (required when a calculator is included; otherwise the check passes as not applicable) | calculators_and_tools |
+| `calculators.boundary_cases_tested` (required when a calculator is included; otherwise the check passes as not applicable) | calculators_and_tools |
+| `calculators.assumptions_visible_in_ui` (required when a calculator is included; otherwise the check passes as not applicable) | calculators_and_tools |
+| `calculators.dark_patterns_present` (must be `false` when a calculator is included; otherwise the check passes as not applicable) | calculators_and_tools |
+| `commercial.has_sponsored_or_affiliate_content` (gates the labeling check below) | commercial_honesty |
+| `commercial.sponsored_affiliate_hard_labeled` (required when sponsored/affiliate content exists; otherwise the check passes as not applicable) | commercial_honesty |
+| `commercial.conflicts_disclosed` | commercial_honesty |
+| `commercial.editorial_separated_from_sales` | commercial_honesty |
+| `commercial.recommendations_for_undisclosed_compensation` (must be `false` to pass) | commercial_honesty |
+| `commercial.fear_based_selling_present` (must be `false` to pass) | commercial_honesty |
+| `compliance.jurisdiction_notes_file_kept` | compliance_and_corrections |
+| `compliance.tools_collect_user_data` (gates the privacy check below) | compliance_and_corrections |
+| `compliance.privacy_rules_applied` (required when tools collect user data; otherwise the check passes as not applicable) | compliance_and_corrections |
+| `compliance.user_data_leaves_device_without_consent` (must be `false` to pass) | compliance_and_corrections |
+| `corrections.correction_log_maintained` | compliance_and_corrections |
+| `corrections.corrections_made` (gates the correction-note check below) | compliance_and_corrections |
+| `corrections.correction_note_visible_and_dated` (required when corrections were made; otherwise the check passes as not applicable) | compliance_and_corrections |
+
+Two checks are computed, not declared: every declared figure is
+checked for completeness (label, as-of date, source, primary-source
+flag, re-derivation flag), and every complete figure is checked for a
+primary source and a re-derived number, exactly as the skill's accuracy
+discipline requires. The verdict dict also reports `figures_evaluated`
+and `figures_incomplete` counts. No figure, rate or threshold is
+invented by the atom — it checks the caller's declared evidence only.
+
+The verdict is one of `COMPLIANT` (all 32 checks pass),
+`NON_COMPLIANT` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+advice_boundary, accuracy_and_sourcing, risk_framing,
+calculators_and_tools, commercial_honesty, compliance_and_corrections.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "finance-content-compliance-check",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "COMPLIANT",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: figures_evaluated=1, figures_incomplete=0"
+      },
+      "input": {
+        "content": "Investment basics for beginners.",
+        "jurisdiction": "US",
+        "advice_boundary": {
+          "teaches_frameworks_not_recommendations": true,
+          "personalized_recommendations_present": false,
+          "education_not_advice_disclaimer_present": true,
+          "checklist_passed": true,
+          "advice_like_content_present": false,
+          "advice_like_flagged_for_review": true
+        },
+        "figures": [
+          {
+            "label": "S&P 500 Avg Return",
+            "as_of": "2023-12-31",
+            "source": "SEC.gov",
+            "source_is_primary": true,
+            "rederived": true
+          }
+        ],
+        "accuracy": {
+          "primary_sources_linked": true,
+          "rates_and_limits_dated": true,
+          "recheck_cadence_set": true
+        },
+        "risk": {
+          "risk_before_upside": true,
+          "uses_past_performance": false,
+          "past_performance_caveat_present": true,
+          "fees_visible": true,
+          "taxes_visible": true,
+          "return_promises_present": false,
+          "forecasts_presented_as_fact": false,
+          "survivorship_examples_used": false
+        },
+        "calculators": {
+          "includes_calculator": false,
+          "spec_with_formulas_present": true,
+          "boundary_cases_tested": true,
+          "assumptions_visible_in_ui": true,
+          "dark_patterns_present": false
+        },
+        "commercial": {
+          "has_sponsored_or_affiliate_content": false,
+          "sponsored_affiliate_hard_labeled": true,
+          "conflicts_disclosed": true,
+          "editorial_separated_from_sales": true,
+          "recommendations_for_undisclosed_compensation": false,
+          "fear_based_selling_present": false
+        },
+        "compliance": {
+          "jurisdiction_notes_file_kept": true,
+          "tools_collect_user_data": false,
+          "privacy_rules_applied": true,
+          "user_data_leaves_device_without_consent": false
+        },
+        "corrections": {
+          "correction_log_maintained": true,
+          "corrections_made": false,
+          "correction_note_visible_and_dated": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "finance-content-compliance-check",
+        "atom_version": "0.1.0",
+        "content": "Investment basics for beginners.",
+        "verdict": "COMPLIANT",
+        "sections": {
+          "advice_boundary": "pass",
+          "accuracy_and_sourcing": "pass",
+          "risk_framing": "pass",
+          "calculators_and_tools": "pass",
+          "commercial_honesty": "pass",
+          "compliance_and_corrections": "pass"
+        },
+        "checks": [
+          {
+            "section": "advice_boundary",
+            "check": "teaches_frameworks_and_criteria",
+            "status": "pass",
+            "evidence": "education, not advice: teach frameworks, math, and how-to-choose criteria"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "no_personalized_recommendations",
+            "status": "pass",
+            "evidence": "red line: no personalized recommendations, ever \u2014 personalized advice is licensed activity"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "education_not_advice_disclaimer_present",
+            "status": "pass",
+            "evidence": "'this is education; for your situation see a licensed advisor' included where relevant"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "jurisdiction_context_stated",
+            "status": "pass",
+            "evidence": "jurisdiction context stated (CA/US contexts differ \u2014 state the context)"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "advice_boundary_checklist_passed",
+            "status": "pass",
+            "evidence": "quality gate: advice-boundary checklist passed for every piece"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "advice_like_content_flagged",
+            "status": "pass",
+            "evidence": "no advice-like (individualized) content declared"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "figures_complete_and_dated",
+            "status": "pass",
+            "evidence": "every figure carries a label, an as-of date, and a source (skill: date all rates/limits, 'as of <date>, source: ...')"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "figures_primary_sourced_and_rederived",
+            "status": "pass",
+            "evidence": "every figure is linked to a primary source and its number re-derived (skill: re-derive every number; link primary sources \u2014 CRA/IRS/central banks)"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "primary_sources_linked",
+            "status": "pass",
+            "evidence": "primary sources linked (CRA/IRS/central banks)"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "rates_and_limits_dated",
+            "status": "pass",
+            "evidence": "all rates/limits dated ('as of <date>, source: ...')"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "recheck_cadence_set",
+            "status": "pass",
+            "evidence": "quality gate: figures re-checked on a schedule, since figures rot faster than pages"
+          },
+          {
+            "section": "risk_framing",
+            "check": "risk_stated_before_upside",
+            "status": "pass",
+            "evidence": "risk-first framing: uncertainty and risk stated before upside"
+          },
+          {
+            "section": "risk_framing",
+            "check": "past_performance_caveat_present",
+            "status": "pass",
+            "evidence": "no past performance used \u2014 caveat not required"
+          },
+          {
+            "section": "risk_framing",
+            "check": "fees_made_visible",
+            "status": "pass",
+            "evidence": "fees made visible"
+          },
+          {
+            "section": "risk_framing",
+            "check": "taxes_made_visible",
+            "status": "pass",
+            "evidence": "taxes made visible"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_return_promises",
+            "status": "pass",
+            "evidence": "red line: never promise returns or imply guaranteed outcomes"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_forecasts_as_fact",
+            "status": "pass",
+            "evidence": "no forecasts presented as fact"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_survivorship_examples",
+            "status": "pass",
+            "evidence": "no survivorship examples (only-the-winners case studies)"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_spec_with_formulas",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_boundary_cases_tested",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_assumptions_visible",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "no_dark_patterns_in_tools",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "sponsored_affiliate_content_hard_labeled",
+            "status": "pass",
+            "evidence": "no sponsored or affiliate content declared"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "conflicts_disclosed",
+            "status": "pass",
+            "evidence": "conflicts disclosed"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "editorial_separated_from_sales",
+            "status": "pass",
+            "evidence": "editorial separated from sales"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "no_recommendations_for_undisclosed_compensation",
+            "status": "pass",
+            "evidence": "red line: nothing 'recommended' for undisclosed compensation \u2014 no hidden compensation"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "no_fear_based_selling",
+            "status": "pass",
+            "evidence": "red line: no fear-based selling"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "jurisdiction_notes_file_kept",
+            "status": "pass",
+            "evidence": "compliance touchpoint: jurisdiction notes file kept"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "privacy_rules_applied_to_user_data",
+            "status": "pass",
+            "evidence": "tools collect no user data \u2014 privacy rules not applicable"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "no_user_data_leaves_without_consent",
+            "status": "pass",
+            "evidence": "red line: user financial data never leaves the device without explicit, informed consent"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "correction_log_maintained",
+            "status": "pass",
+            "evidence": "quality gate: correction log maintained"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "corrections_visible_and_dated",
+            "status": "pass",
+            "evidence": "no corrections declared"
+          }
+        ],
+        "figures_evaluated": 1,
+        "figures_incomplete": 0,
+        "summary": "32 pass, 0 fail, 0 missing of 32 checks across six sections.",
+        "stamp": "FINANCE CONTENT COMPLIANCE CHECK\ncontent: Investment basics for beginners.\nVERDICT: COMPLIANT\n  advice_boundary            pass\n  accuracy_and_sourcing      pass\n  risk_framing               pass\n  calculators_and_tools      pass\n  commercial_honesty         pass\n  compliance_and_corrections pass\n32 pass, 0 fail, 0 missing of 32 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NON_COMPLIANT",
+        "http": 200,
+        "failing_checks": [
+          "advice_boundary.personalized_recommendations_present",
+          "advice_boundary.advice_like_flagged_for_review"
+        ],
+        "notes": "Violates advice boundary constraints."
+      },
+      "input": {
+        "content": "Aggressive stock picks.",
+        "jurisdiction": "US",
+        "advice_boundary": {
+          "teaches_frameworks_not_recommendations": false,
+          "personalized_recommendations_present": true,
+          "education_not_advice_disclaimer_present": true,
+          "checklist_passed": true,
+          "advice_like_content_present": true,
+          "advice_like_flagged_for_review": false
+        },
+        "figures": [],
+        "accuracy": {
+          "primary_sources_linked": true,
+          "rates_and_limits_dated": true,
+          "recheck_cadence_set": true
+        },
+        "risk": {
+          "risk_before_upside": true,
+          "uses_past_performance": false,
+          "past_performance_caveat_present": true,
+          "fees_visible": true,
+          "taxes_visible": true,
+          "return_promises_present": false,
+          "forecasts_presented_as_fact": false,
+          "survivorship_examples_used": false
+        },
+        "calculators": {
+          "includes_calculator": false,
+          "spec_with_formulas_present": true,
+          "boundary_cases_tested": true,
+          "assumptions_visible_in_ui": true,
+          "dark_patterns_present": false
+        },
+        "commercial": {
+          "has_sponsored_or_affiliate_content": false,
+          "sponsored_affiliate_hard_labeled": true,
+          "conflicts_disclosed": true,
+          "editorial_separated_from_sales": true,
+          "recommendations_for_undisclosed_compensation": false,
+          "fear_based_selling_present": false
+        },
+        "compliance": {
+          "jurisdiction_notes_file_kept": true,
+          "tools_collect_user_data": false,
+          "privacy_rules_applied": true,
+          "user_data_leaves_device_without_consent": false
+        },
+        "corrections": {
+          "correction_log_maintained": true,
+          "corrections_made": false,
+          "correction_note_visible_and_dated": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "finance-content-compliance-check",
+        "atom_version": "0.1.0",
+        "content": "Aggressive stock picks.",
+        "verdict": "NON_COMPLIANT",
+        "sections": {
+          "advice_boundary": "fail",
+          "accuracy_and_sourcing": "insufficient_evidence",
+          "risk_framing": "pass",
+          "calculators_and_tools": "pass",
+          "commercial_honesty": "pass",
+          "compliance_and_corrections": "pass"
+        },
+        "checks": [
+          {
+            "section": "advice_boundary",
+            "check": "teaches_frameworks_and_criteria",
+            "status": "fail",
+            "evidence": "education, not advice: teach frameworks, math, and how-to-choose criteria"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "no_personalized_recommendations",
+            "status": "fail",
+            "evidence": "red line: no personalized recommendations, ever \u2014 personalized advice is licensed activity"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "education_not_advice_disclaimer_present",
+            "status": "pass",
+            "evidence": "'this is education; for your situation see a licensed advisor' included where relevant"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "jurisdiction_context_stated",
+            "status": "pass",
+            "evidence": "jurisdiction context stated (CA/US contexts differ \u2014 state the context)"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "advice_boundary_checklist_passed",
+            "status": "pass",
+            "evidence": "quality gate: advice-boundary checklist passed for every piece"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "advice_like_content_flagged",
+            "status": "fail",
+            "evidence": "compliance touchpoint: content that edges toward advice-like (individualized) is flagged"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "figures_complete_and_dated",
+            "status": "missing",
+            "evidence": "no figures declared"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "figures_primary_sourced_and_rederived",
+            "status": "missing",
+            "evidence": "no figures declared"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "primary_sources_linked",
+            "status": "pass",
+            "evidence": "primary sources linked (CRA/IRS/central banks)"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "rates_and_limits_dated",
+            "status": "pass",
+            "evidence": "all rates/limits dated ('as of <date>, source: ...')"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "recheck_cadence_set",
+            "status": "pass",
+            "evidence": "quality gate: figures re-checked on a schedule, since figures rot faster than pages"
+          },
+          {
+            "section": "risk_framing",
+            "check": "risk_stated_before_upside",
+            "status": "pass",
+            "evidence": "risk-first framing: uncertainty and risk stated before upside"
+          },
+          {
+            "section": "risk_framing",
+            "check": "past_performance_caveat_present",
+            "status": "pass",
+            "evidence": "no past performance used \u2014 caveat not required"
+          },
+          {
+            "section": "risk_framing",
+            "check": "fees_made_visible",
+            "status": "pass",
+            "evidence": "fees made visible"
+          },
+          {
+            "section": "risk_framing",
+            "check": "taxes_made_visible",
+            "status": "pass",
+            "evidence": "taxes made visible"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_return_promises",
+            "status": "pass",
+            "evidence": "red line: never promise returns or imply guaranteed outcomes"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_forecasts_as_fact",
+            "status": "pass",
+            "evidence": "no forecasts presented as fact"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_survivorship_examples",
+            "status": "pass",
+            "evidence": "no survivorship examples (only-the-winners case studies)"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_spec_with_formulas",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_boundary_cases_tested",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_assumptions_visible",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "no_dark_patterns_in_tools",
+            "status": "pass",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "sponsored_affiliate_content_hard_labeled",
+            "status": "pass",
+            "evidence": "no sponsored or affiliate content declared"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "conflicts_disclosed",
+            "status": "pass",
+            "evidence": "conflicts disclosed"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "editorial_separated_from_sales",
+            "status": "pass",
+            "evidence": "editorial separated from sales"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "no_recommendations_for_undisclosed_compensation",
+            "status": "pass",
+            "evidence": "red line: nothing 'recommended' for undisclosed compensation \u2014 no hidden compensation"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "no_fear_based_selling",
+            "status": "pass",
+            "evidence": "red line: no fear-based selling"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "jurisdiction_notes_file_kept",
+            "status": "pass",
+            "evidence": "compliance touchpoint: jurisdiction notes file kept"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "privacy_rules_applied_to_user_data",
+            "status": "pass",
+            "evidence": "tools collect no user data \u2014 privacy rules not applicable"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "no_user_data_leaves_without_consent",
+            "status": "pass",
+            "evidence": "red line: user financial data never leaves the device without explicit, informed consent"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "correction_log_maintained",
+            "status": "pass",
+            "evidence": "quality gate: correction log maintained"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "corrections_visible_and_dated",
+            "status": "pass",
+            "evidence": "no corrections declared"
+          }
+        ],
+        "figures_evaluated": 0,
+        "figures_incomplete": 0,
+        "summary": "27 pass, 3 fail, 2 missing of 32 checks across six sections.",
+        "stamp": "FINANCE CONTENT COMPLIANCE CHECK\ncontent: Aggressive stock picks.\nVERDICT: NON_COMPLIANT\n  advice_boundary            fail\n  accuracy_and_sourcing      insufficient_evidence\n  risk_framing               pass\n  calculators_and_tools      pass\n  commercial_honesty         pass\n  compliance_and_corrections pass\n27 pass, 3 fail, 2 missing of 32 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of required fields."
+      },
+      "input": {
+        "content": "Minimal content."
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "finance-content-compliance-check",
+        "atom_version": "0.1.0",
+        "content": "Minimal content.",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "advice_boundary": "insufficient_evidence",
+          "accuracy_and_sourcing": "insufficient_evidence",
+          "risk_framing": "insufficient_evidence",
+          "calculators_and_tools": "insufficient_evidence",
+          "commercial_honesty": "insufficient_evidence",
+          "compliance_and_corrections": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "advice_boundary",
+            "check": "teaches_frameworks_and_criteria",
+            "status": "missing",
+            "evidence": "education, not advice: teach frameworks, math, and how-to-choose criteria"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "no_personalized_recommendations",
+            "status": "missing",
+            "evidence": "red line: no personalized recommendations, ever \u2014 personalized advice is licensed activity"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "education_not_advice_disclaimer_present",
+            "status": "missing",
+            "evidence": "'this is education; for your situation see a licensed advisor' included where relevant"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "jurisdiction_context_stated",
+            "status": "missing",
+            "evidence": "jurisdiction context stated (CA/US contexts differ \u2014 state the context)"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "advice_boundary_checklist_passed",
+            "status": "missing",
+            "evidence": "quality gate: advice-boundary checklist passed for every piece"
+          },
+          {
+            "section": "advice_boundary",
+            "check": "advice_like_content_flagged",
+            "status": "missing",
+            "evidence": "no advice-like (individualized) content declared"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "figures_complete_and_dated",
+            "status": "missing",
+            "evidence": "no figures declared"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "figures_primary_sourced_and_rederived",
+            "status": "missing",
+            "evidence": "no figures declared"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "primary_sources_linked",
+            "status": "missing",
+            "evidence": "primary sources linked (CRA/IRS/central banks)"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "rates_and_limits_dated",
+            "status": "missing",
+            "evidence": "all rates/limits dated ('as of <date>, source: ...')"
+          },
+          {
+            "section": "accuracy_and_sourcing",
+            "check": "recheck_cadence_set",
+            "status": "missing",
+            "evidence": "quality gate: figures re-checked on a schedule, since figures rot faster than pages"
+          },
+          {
+            "section": "risk_framing",
+            "check": "risk_stated_before_upside",
+            "status": "missing",
+            "evidence": "risk-first framing: uncertainty and risk stated before upside"
+          },
+          {
+            "section": "risk_framing",
+            "check": "past_performance_caveat_present",
+            "status": "missing",
+            "evidence": "no past performance used \u2014 caveat not required"
+          },
+          {
+            "section": "risk_framing",
+            "check": "fees_made_visible",
+            "status": "missing",
+            "evidence": "fees made visible"
+          },
+          {
+            "section": "risk_framing",
+            "check": "taxes_made_visible",
+            "status": "missing",
+            "evidence": "taxes made visible"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_return_promises",
+            "status": "missing",
+            "evidence": "red line: never promise returns or imply guaranteed outcomes"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_forecasts_as_fact",
+            "status": "missing",
+            "evidence": "no forecasts presented as fact"
+          },
+          {
+            "section": "risk_framing",
+            "check": "no_survivorship_examples",
+            "status": "missing",
+            "evidence": "no survivorship examples (only-the-winners case studies)"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_spec_with_formulas",
+            "status": "missing",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_boundary_cases_tested",
+            "status": "missing",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "calculator_assumptions_visible",
+            "status": "missing",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "calculators_and_tools",
+            "check": "no_dark_patterns_in_tools",
+            "status": "missing",
+            "evidence": "no calculator or tool included"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "sponsored_affiliate_content_hard_labeled",
+            "status": "missing",
+            "evidence": "no sponsored or affiliate content declared"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "conflicts_disclosed",
+            "status": "missing",
+            "evidence": "conflicts disclosed"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "editorial_separated_from_sales",
+            "status": "missing",
+            "evidence": "editorial separated from sales"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "no_recommendations_for_undisclosed_compensation",
+            "status": "missing",
+            "evidence": "red line: nothing 'recommended' for undisclosed compensation \u2014 no hidden compensation"
+          },
+          {
+            "section": "commercial_honesty",
+            "check": "no_fear_based_selling",
+            "status": "missing",
+            "evidence": "red line: no fear-based selling"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "jurisdiction_notes_file_kept",
+            "status": "missing",
+            "evidence": "compliance touchpoint: jurisdiction notes file kept"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "privacy_rules_applied_to_user_data",
+            "status": "missing",
+            "evidence": "tools collect no user data \u2014 privacy rules not applicable"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "no_user_data_leaves_without_consent",
+            "status": "missing",
+            "evidence": "red line: user financial data never leaves the device without explicit, informed consent"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "correction_log_maintained",
+            "status": "missing",
+            "evidence": "quality gate: correction log maintained"
+          },
+          {
+            "section": "compliance_and_corrections",
+            "check": "corrections_visible_and_dated",
+            "status": "missing",
+            "evidence": "no corrections declared"
+          }
+        ],
+        "figures_evaluated": 0,
+        "figures_incomplete": 0,
+        "summary": "0 pass, 0 fail, 32 missing of 32 checks across six sections.",
+        "stamp": "FINANCE CONTENT COMPLIANCE CHECK\ncontent: Minimal content.\nVERDICT: INSUFFICIENT_EVIDENCE\n  advice_boundary            insufficient_evidence\n  accuracy_and_sourcing      insufficient_evidence\n  risk_framing               insufficient_evidence\n  calculators_and_tools      insufficient_evidence\n  commercial_honesty         insufficient_evidence\n  compliance_and_corrections insufficient_evidence\n0 pass, 0 fail, 32 missing of 32 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for jurisdiction and advice_boundary."
+      },
+      "input": {
+        "content": "Bad types",
+        "jurisdiction": 123,
+        "advice_boundary": "not_an_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "jurisdiction",
+        "detail": "jurisdiction must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

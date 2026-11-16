@@ -1,0 +1,1203 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: electrical-test-record-preparation
+
+=== contract.yaml ===
+service_name: electrical-test-record-preparation
+display_name: Electrical test record preparation
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:electrical-test-records
+binding:
+  skill: electrical-test-records
+  skill_path: workspace/mymilo-build/skills/electrical-test-records/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/electrical_test_record_preparation.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_electrical_test_record_preparation.py — 19 tests, all passing 2026-11-15
+keys:
+  namespace: electrical_test_record_preparation
+  prefix: atm_1_electrical_test_record_preparation_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: EE test record preparation
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Electrical test record preparation — `electrical-test-record-preparation`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Keep test sheets, trends, and plots that survive audits — standard templates, clean data, honest charts.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Electrical & energy who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **EE test record preparation**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the test-record evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`RECORD_NOT_READY`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `asset` (string; carried into the verdict output, not itself checked) | — |
+| `record.asset_id_present` | template_completeness |
+| `record.datetime_present` | template_completeness |
+| `record.ambient_present` | template_completeness |
+| `record.load_condition_present` | template_completeness |
+| `record.instrument_named` (with `record.calibration_status_recorded`; both must be present and true) | template_completeness |
+| `record.calibration_status_recorded` (see above) | template_completeness |
+| `record.test_method_reference_present` | template_completeness |
+| `record.acceptance_criteria_present` | template_completeness |
+| `record.verdict_value` (string: `"pass"` or `"fail"`; also compared against the readings by the computed consistency check) | template_completeness, machine_readable_format |
+| `record.tester_named` | template_completeness |
+| `record.reviewer_named` | template_completeness |
+| `record.has_na_fields` (gates the reasons check below) | template_completeness |
+| `record.na_reasons_recorded` (required when an `N/A` field exists; otherwise the check passes as not applicable) | template_completeness |
+| `record.is_critical_test` (gates the sign-off check below) | template_completeness |
+| `record.reviewer_signoff_present` (required when the test is critical; otherwise the check passes as not applicable) | template_completeness |
+| `hygiene.asset_ids_consistent` | data_hygiene |
+| `hygiene.si_units_used` | data_hygiene |
+| `hygiene.conversions_noted` | data_hygiene |
+| `hygiene.iso_timestamps` | data_hygiene |
+| `hygiene.single_source_of_truth` | data_hygiene |
+| `hygiene.raw_data_overwritten` (must be `false` to pass) | data_hygiene |
+| `hygiene.photos_attached_and_named` | data_hygiene |
+| `format.single_header_row` | machine_readable_format |
+| `format.tidy_long_format` | machine_readable_format |
+| `format.required_columns_present` | machine_readable_format |
+| `readings` (list of readings; absent / not a list / empty = both computed checks missing) | machine_readable_format |
+| `readings[].point` (non-empty string) | machine_readable_format |
+| `readings[].value` (number) | machine_readable_format |
+| `readings[].unit` (non-empty string) | machine_readable_format |
+| `readings[].acceptance_min` (number; must be ≤ `acceptance_max`) | machine_readable_format |
+| `readings[].acceptance_max` (number) | machine_readable_format |
+| `trending.same_point_method_instrument_class` | trending |
+| `trending.plotted_vs_time` | trending |
+| `trending.load_varies` (gates the vs-load check below) | trending |
+| `trending.plotted_vs_load` (required when load varies; otherwise the check passes as not applicable) | trending |
+| `trending.repair_events_annotated` | trending |
+| `trending.control_bands_from_limits_or_baseline` | trending |
+| `trending.trends_updated_on_cadence` | trending |
+| `trending.anomalies_present` (gates the flagged check below) | trending |
+| `trending.anomalies_flagged_with_action` (required when anomalies are present; otherwise the check passes as not applicable) | trending |
+| `plotting.axes_labeled_with_units` | plotting_discipline |
+| `plotting.version_and_date_on_charts` | plotting_discipline |
+| `plotting.dual_axis_used` (must be `false` to pass) | plotting_discipline |
+| `plotting.out_of_band_points_present` (gates the highlighted check below) | plotting_discipline |
+| `plotting.out_of_band_highlighted` (required when out-of-band points exist; otherwise the check passes as not applicable) | plotting_discipline |
+| `plotting.summary_sheet_per_asset` | plotting_discipline |
+| `retention.archived_and_findable` | retention_and_audit |
+| `retention.retention_per_policy` | retention_and_audit |
+| `retention.superseded_revisions_exist` (gates the retained check below) | retention_and_audit |
+| `retention.superseded_retained_marked` (required when superseded revisions exist; otherwise the check passes as not applicable) | retention_and_audit |
+| `retention.corrections_made` (gates the revision-notes check below) | retention_and_audit |
+| `retention.correction_revision_notes_present` (required when corrections were made; otherwise the check passes as not applicable) | retention_and_audit |
+| `retention.raw_data_destroyed` (must be `false` to pass) | retention_and_audit |
+
+Two checks are computed, not declared: every reading is checked for
+completeness against its declared acceptance limits, and the sheet's
+declared verdict (`record.verdict_value`) is compared with the verdict
+the readings imply against those limits (any reading outside its
+limits means the test verdict is `fail`). The verdict dict also
+reports `readings_evaluated` and `readings_out_of_criteria` counts.
+No acceptance threshold is invented by the atom — the limits are the
+caller's declared criteria, exactly as the skill's template requires
+them on the sheet.
+
+The verdict is one of `RECORD_READY` (all 41 checks pass),
+`RECORD_NOT_READY` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+template_completeness, data_hygiene, machine_readable_format,
+trending, plotting_discipline, retention_and_audit.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Audit-grade records; safety-adjacent
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "electrical-test-record-preparation",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "RECORD_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All checks pass. Computed spot checks: readings_evaluated=1, readings_out_of_criteria=0."
+      },
+      "input": {
+        "asset": "TRANSFORMER-001",
+        "record": {
+          "asset_id_present": true,
+          "datetime_present": true,
+          "ambient_present": true,
+          "load_condition_present": true,
+          "instrument_named": true,
+          "calibration_status_recorded": true,
+          "test_method_reference_present": true,
+          "acceptance_criteria_present": true,
+          "verdict_value": "pass",
+          "tester_named": true,
+          "reviewer_named": true,
+          "has_na_fields": false,
+          "is_critical_test": false
+        },
+        "hygiene": {
+          "asset_ids_consistent": true,
+          "si_units_used": true,
+          "conversions_noted": true,
+          "iso_timestamps": true,
+          "single_source_of_truth": true,
+          "raw_data_overwritten": false,
+          "photos_attached_and_named": true
+        },
+        "format": {
+          "single_header_row": true,
+          "tidy_long_format": true,
+          "required_columns_present": true
+        },
+        "readings": [
+          {
+            "point": "A1",
+            "value": 10.5,
+            "unit": "V",
+            "acceptance_min": 10.0,
+            "acceptance_max": 11.0
+          }
+        ],
+        "trending": {
+          "same_point_method_instrument_class": true,
+          "plotted_vs_time": true,
+          "load_varies": false,
+          "repair_events_annotated": true,
+          "control_bands_from_limits_or_baseline": true,
+          "trends_updated_on_cadence": true,
+          "anomalies_present": false
+        },
+        "plotting": {
+          "axes_labeled_with_units": true,
+          "version_and_date_on_charts": true,
+          "dual_axis_used": false,
+          "out_of_band_points_present": false,
+          "summary_sheet_per_asset": true
+        },
+        "retention": {
+          "archived_and_findable": true,
+          "retention_per_policy": true,
+          "superseded_revisions_exist": false,
+          "corrections_made": false,
+          "raw_data_destroyed": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "electrical-test-record-preparation",
+        "atom_version": "0.1.0",
+        "asset": "TRANSFORMER-001",
+        "verdict": "RECORD_READY",
+        "sections": {
+          "template_completeness": "pass",
+          "data_hygiene": "pass",
+          "machine_readable_format": "pass",
+          "trending": "pass",
+          "plotting_discipline": "pass",
+          "retention_and_audit": "pass"
+        },
+        "checks": [
+          {
+            "section": "template_completeness",
+            "check": "asset_id_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: asset ID"
+          },
+          {
+            "section": "template_completeness",
+            "check": "datetime_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: date/time"
+          },
+          {
+            "section": "template_completeness",
+            "check": "ambient_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: ambient"
+          },
+          {
+            "section": "template_completeness",
+            "check": "load_condition_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: load/condition"
+          },
+          {
+            "section": "template_completeness",
+            "check": "instrument_and_calibration_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: instrument + calibration status"
+          },
+          {
+            "section": "template_completeness",
+            "check": "test_method_reference_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: test method reference"
+          },
+          {
+            "section": "template_completeness",
+            "check": "acceptance_criteria_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: acceptance criteria"
+          },
+          {
+            "section": "template_completeness",
+            "check": "verdict_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: verdict (pass/fail) against the acceptance criteria"
+          },
+          {
+            "section": "template_completeness",
+            "check": "tester_named",
+            "status": "pass",
+            "evidence": "test sheet field: tester"
+          },
+          {
+            "section": "template_completeness",
+            "check": "reviewer_named",
+            "status": "pass",
+            "evidence": "test sheet field: reviewer"
+          },
+          {
+            "section": "template_completeness",
+            "check": "na_fields_have_reasons",
+            "status": "pass",
+            "evidence": "no 'N/A' fields declared"
+          },
+          {
+            "section": "template_completeness",
+            "check": "reviewer_signoff_on_critical_tests",
+            "status": "pass",
+            "evidence": "not a critical test \u2014 reviewer sign-off not required"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "asset_ids_consistent",
+            "status": "pass",
+            "evidence": "consistent asset IDs"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "si_units_used",
+            "status": "pass",
+            "evidence": "SI units \u2014 no unit soup"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "conversions_noted",
+            "status": "pass",
+            "evidence": "SI units with conversions noted"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "iso_timestamps_used",
+            "status": "pass",
+            "evidence": "ISO timestamps"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "single_source_of_truth",
+            "status": "pass",
+            "evidence": "one source of truth (file/DB)"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "raw_data_never_overwritten",
+            "status": "pass",
+            "evidence": "raw data stays RAW (never overwrite \u2014 add derived columns)"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "photos_attached_and_named",
+            "status": "pass",
+            "evidence": "photos attached and named"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "single_header_row",
+            "status": "pass",
+            "evidence": "machine-readable first: one header row"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "tidy_long_format",
+            "status": "pass",
+            "evidence": "tidy/long format (asset, date, point, value, unit, load)"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "required_columns_present",
+            "status": "pass",
+            "evidence": "tidy columns present: asset, date, point, value, unit, load"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "readings_complete_against_criteria",
+            "status": "pass",
+            "evidence": "every reading carries a point, a value with units, and its acceptance criteria"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "declared_verdict_matches_readings",
+            "status": "pass",
+            "evidence": "the declared verdict matches the readings against their acceptance criteria (any reading outside its limits means the test verdict is fail)"
+          },
+          {
+            "section": "trending",
+            "check": "same_point_method_and_instrument_class",
+            "status": "pass",
+            "evidence": "trending: same point + method + instrument class across time"
+          },
+          {
+            "section": "trending",
+            "check": "plotted_vs_time",
+            "status": "pass",
+            "evidence": "plot vs time"
+          },
+          {
+            "section": "trending",
+            "check": "plotted_vs_load_when_load_varies",
+            "status": "pass",
+            "evidence": "load does not vary \u2014 a vs-load plot is not required"
+          },
+          {
+            "section": "trending",
+            "check": "repair_events_annotated",
+            "status": "pass",
+            "evidence": "annotate repairs/changes on charts"
+          },
+          {
+            "section": "trending",
+            "check": "control_bands_from_limits_or_baseline",
+            "status": "pass",
+            "evidence": "control bands from limits or baseline"
+          },
+          {
+            "section": "trending",
+            "check": "trends_updated_on_cadence",
+            "status": "pass",
+            "evidence": "quality gate: trends updated on cadence"
+          },
+          {
+            "section": "trending",
+            "check": "anomalies_flagged_with_action",
+            "status": "pass",
+            "evidence": "no anomalies declared"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "axes_labeled_with_units",
+            "status": "pass",
+            "evidence": "labeled axes with units"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "version_and_date_on_every_chart",
+            "status": "pass",
+            "evidence": "version + date on every chart"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "no_dual_axis_tricks",
+            "status": "pass",
+            "evidence": "no dual-axis tricks to tell a story"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "out_of_band_points_highlighted",
+            "status": "pass",
+            "evidence": "no out-of-band points declared"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "summary_sheet_per_asset",
+            "status": "pass",
+            "evidence": "summary sheet per asset (latest values + verdict)"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "archived_and_findable",
+            "status": "pass",
+            "evidence": "archived, findable in 60 seconds"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "retention_per_policy",
+            "status": "pass",
+            "evidence": "retention per policy"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "superseded_revisions_retained_marked",
+            "status": "pass",
+            "evidence": "no superseded revisions declared"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "corrections_have_dated_revision_notes",
+            "status": "pass",
+            "evidence": "no corrections declared"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "raw_data_never_destroyed",
+            "status": "pass",
+            "evidence": "red line: never destroy raw data"
+          }
+        ],
+        "readings_evaluated": 1,
+        "readings_out_of_criteria": 0,
+        "summary": "41 pass, 0 fail, 0 missing of 41 checks across six sections.",
+        "stamp": "ELECTRICAL TEST RECORD PREPARATION\nasset: TRANSFORMER-001\nVERDICT: RECORD_READY\n  template_completeness    pass\n  data_hygiene             pass\n  machine_readable_format  pass\n  trending                 pass\n  plotting_discipline      pass\n  retention_and_audit      pass\n41 pass, 0 fail, 0 missing of 41 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "RECORD_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "data_hygiene",
+          "machine_readable_format",
+          "plotting_discipline"
+        ],
+        "notes": "Violations: raw_data_overwritten is true, reading value 50.0 is outside criteria [10, 11] contradicting verdict 'pass', and dual_axis_used is true."
+      },
+      "input": {
+        "asset": "TRANSFORMER-001",
+        "record": {
+          "asset_id_present": true,
+          "datetime_present": true,
+          "ambient_present": true,
+          "load_condition_present": true,
+          "instrument_named": true,
+          "calibration_status_recorded": true,
+          "test_method_reference_present": true,
+          "acceptance_criteria_present": true,
+          "verdict_value": "pass",
+          "tester_named": true,
+          "reviewer_named": true,
+          "has_na_fields": false,
+          "is_critical_test": false
+        },
+        "hygiene": {
+          "asset_ids_consistent": true,
+          "si_units_used": true,
+          "conversions_noted": true,
+          "iso_timestamps": true,
+          "single_source_of_truth": true,
+          "raw_data_overwritten": true,
+          "photos_attached_and_named": true
+        },
+        "format": {
+          "single_header_row": true,
+          "tidy_long_format": true,
+          "required_columns_present": true
+        },
+        "readings": [
+          {
+            "point": "A1",
+            "value": 50.0,
+            "unit": "V",
+            "acceptance_min": 10.0,
+            "acceptance_max": 11.0
+          }
+        ],
+        "trending": {
+          "same_point_method_instrument_class": true,
+          "plotted_vs_time": true,
+          "load_varies": false,
+          "repair_events_annotated": true,
+          "control_bands_from_limits_or_baseline": true,
+          "trends_updated_on_cadence": true,
+          "anomalies_present": false
+        },
+        "plotting": {
+          "axes_labeled_with_units": true,
+          "version_and_date_on_charts": true,
+          "dual_axis_used": true,
+          "out_of_band_points_present": false,
+          "summary_sheet_per_asset": true
+        },
+        "retention": {
+          "archived_and_findable": true,
+          "retention_per_policy": true,
+          "superseded_revisions_exist": false,
+          "corrections_made": false,
+          "raw_data_destroyed": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "electrical-test-record-preparation",
+        "atom_version": "0.1.0",
+        "asset": "TRANSFORMER-001",
+        "verdict": "RECORD_NOT_READY",
+        "sections": {
+          "template_completeness": "pass",
+          "data_hygiene": "fail",
+          "machine_readable_format": "fail",
+          "trending": "pass",
+          "plotting_discipline": "fail",
+          "retention_and_audit": "pass"
+        },
+        "checks": [
+          {
+            "section": "template_completeness",
+            "check": "asset_id_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: asset ID"
+          },
+          {
+            "section": "template_completeness",
+            "check": "datetime_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: date/time"
+          },
+          {
+            "section": "template_completeness",
+            "check": "ambient_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: ambient"
+          },
+          {
+            "section": "template_completeness",
+            "check": "load_condition_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: load/condition"
+          },
+          {
+            "section": "template_completeness",
+            "check": "instrument_and_calibration_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: instrument + calibration status"
+          },
+          {
+            "section": "template_completeness",
+            "check": "test_method_reference_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: test method reference"
+          },
+          {
+            "section": "template_completeness",
+            "check": "acceptance_criteria_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: acceptance criteria"
+          },
+          {
+            "section": "template_completeness",
+            "check": "verdict_recorded",
+            "status": "pass",
+            "evidence": "test sheet field: verdict (pass/fail) against the acceptance criteria"
+          },
+          {
+            "section": "template_completeness",
+            "check": "tester_named",
+            "status": "pass",
+            "evidence": "test sheet field: tester"
+          },
+          {
+            "section": "template_completeness",
+            "check": "reviewer_named",
+            "status": "pass",
+            "evidence": "test sheet field: reviewer"
+          },
+          {
+            "section": "template_completeness",
+            "check": "na_fields_have_reasons",
+            "status": "pass",
+            "evidence": "no 'N/A' fields declared"
+          },
+          {
+            "section": "template_completeness",
+            "check": "reviewer_signoff_on_critical_tests",
+            "status": "pass",
+            "evidence": "not a critical test \u2014 reviewer sign-off not required"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "asset_ids_consistent",
+            "status": "pass",
+            "evidence": "consistent asset IDs"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "si_units_used",
+            "status": "pass",
+            "evidence": "SI units \u2014 no unit soup"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "conversions_noted",
+            "status": "pass",
+            "evidence": "SI units with conversions noted"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "iso_timestamps_used",
+            "status": "pass",
+            "evidence": "ISO timestamps"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "single_source_of_truth",
+            "status": "pass",
+            "evidence": "one source of truth (file/DB)"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "raw_data_never_overwritten",
+            "status": "fail",
+            "evidence": "raw data stays RAW (never overwrite \u2014 add derived columns)"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "photos_attached_and_named",
+            "status": "pass",
+            "evidence": "photos attached and named"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "single_header_row",
+            "status": "pass",
+            "evidence": "machine-readable first: one header row"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "tidy_long_format",
+            "status": "pass",
+            "evidence": "tidy/long format (asset, date, point, value, unit, load)"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "required_columns_present",
+            "status": "pass",
+            "evidence": "tidy columns present: asset, date, point, value, unit, load"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "readings_complete_against_criteria",
+            "status": "pass",
+            "evidence": "every reading carries a point, a value with units, and its acceptance criteria"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "declared_verdict_matches_readings",
+            "status": "fail",
+            "evidence": "the declared verdict matches the readings against their acceptance criteria (any reading outside its limits means the test verdict is fail)"
+          },
+          {
+            "section": "trending",
+            "check": "same_point_method_and_instrument_class",
+            "status": "pass",
+            "evidence": "trending: same point + method + instrument class across time"
+          },
+          {
+            "section": "trending",
+            "check": "plotted_vs_time",
+            "status": "pass",
+            "evidence": "plot vs time"
+          },
+          {
+            "section": "trending",
+            "check": "plotted_vs_load_when_load_varies",
+            "status": "pass",
+            "evidence": "load does not vary \u2014 a vs-load plot is not required"
+          },
+          {
+            "section": "trending",
+            "check": "repair_events_annotated",
+            "status": "pass",
+            "evidence": "annotate repairs/changes on charts"
+          },
+          {
+            "section": "trending",
+            "check": "control_bands_from_limits_or_baseline",
+            "status": "pass",
+            "evidence": "control bands from limits or baseline"
+          },
+          {
+            "section": "trending",
+            "check": "trends_updated_on_cadence",
+            "status": "pass",
+            "evidence": "quality gate: trends updated on cadence"
+          },
+          {
+            "section": "trending",
+            "check": "anomalies_flagged_with_action",
+            "status": "pass",
+            "evidence": "no anomalies declared"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "axes_labeled_with_units",
+            "status": "pass",
+            "evidence": "labeled axes with units"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "version_and_date_on_every_chart",
+            "status": "pass",
+            "evidence": "version + date on every chart"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "no_dual_axis_tricks",
+            "status": "fail",
+            "evidence": "no dual-axis tricks to tell a story"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "out_of_band_points_highlighted",
+            "status": "pass",
+            "evidence": "no out-of-band points declared"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "summary_sheet_per_asset",
+            "status": "pass",
+            "evidence": "summary sheet per asset (latest values + verdict)"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "archived_and_findable",
+            "status": "pass",
+            "evidence": "archived, findable in 60 seconds"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "retention_per_policy",
+            "status": "pass",
+            "evidence": "retention per policy"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "superseded_revisions_retained_marked",
+            "status": "pass",
+            "evidence": "no superseded revisions declared"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "corrections_have_dated_revision_notes",
+            "status": "pass",
+            "evidence": "no corrections declared"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "raw_data_never_destroyed",
+            "status": "pass",
+            "evidence": "red line: never destroy raw data"
+          }
+        ],
+        "readings_evaluated": 1,
+        "readings_out_of_criteria": 1,
+        "summary": "38 pass, 3 fail, 0 missing of 41 checks across six sections.",
+        "stamp": "ELECTRICAL TEST RECORD PREPARATION\nasset: TRANSFORMER-001\nVERDICT: RECORD_NOT_READY\n  template_completeness    pass\n  data_hygiene             fail\n  machine_readable_format  fail\n  trending                 pass\n  plotting_discipline      fail\n  retention_and_audit      pass\n38 pass, 3 fail, 0 missing of 41 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Minimal input missing almost all required fields."
+      },
+      "input": {
+        "asset": "TRANSFORMER-001"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "electrical-test-record-preparation",
+        "atom_version": "0.1.0",
+        "asset": "TRANSFORMER-001",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "template_completeness": "insufficient_evidence",
+          "data_hygiene": "insufficient_evidence",
+          "machine_readable_format": "insufficient_evidence",
+          "trending": "insufficient_evidence",
+          "plotting_discipline": "insufficient_evidence",
+          "retention_and_audit": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "template_completeness",
+            "check": "asset_id_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: asset ID"
+          },
+          {
+            "section": "template_completeness",
+            "check": "datetime_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: date/time"
+          },
+          {
+            "section": "template_completeness",
+            "check": "ambient_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: ambient"
+          },
+          {
+            "section": "template_completeness",
+            "check": "load_condition_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: load/condition"
+          },
+          {
+            "section": "template_completeness",
+            "check": "instrument_and_calibration_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: instrument + calibration status"
+          },
+          {
+            "section": "template_completeness",
+            "check": "test_method_reference_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: test method reference"
+          },
+          {
+            "section": "template_completeness",
+            "check": "acceptance_criteria_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: acceptance criteria"
+          },
+          {
+            "section": "template_completeness",
+            "check": "verdict_recorded",
+            "status": "missing",
+            "evidence": "test sheet field: verdict (pass/fail) against the acceptance criteria"
+          },
+          {
+            "section": "template_completeness",
+            "check": "tester_named",
+            "status": "missing",
+            "evidence": "test sheet field: tester"
+          },
+          {
+            "section": "template_completeness",
+            "check": "reviewer_named",
+            "status": "missing",
+            "evidence": "test sheet field: reviewer"
+          },
+          {
+            "section": "template_completeness",
+            "check": "na_fields_have_reasons",
+            "status": "missing",
+            "evidence": "no 'N/A' fields declared"
+          },
+          {
+            "section": "template_completeness",
+            "check": "reviewer_signoff_on_critical_tests",
+            "status": "missing",
+            "evidence": "not a critical test \u2014 reviewer sign-off not required"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "asset_ids_consistent",
+            "status": "missing",
+            "evidence": "consistent asset IDs"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "si_units_used",
+            "status": "missing",
+            "evidence": "SI units \u2014 no unit soup"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "conversions_noted",
+            "status": "missing",
+            "evidence": "SI units with conversions noted"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "iso_timestamps_used",
+            "status": "missing",
+            "evidence": "ISO timestamps"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "single_source_of_truth",
+            "status": "missing",
+            "evidence": "one source of truth (file/DB)"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "raw_data_never_overwritten",
+            "status": "missing",
+            "evidence": "raw data stays RAW (never overwrite \u2014 add derived columns)"
+          },
+          {
+            "section": "data_hygiene",
+            "check": "photos_attached_and_named",
+            "status": "missing",
+            "evidence": "photos attached and named"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "single_header_row",
+            "status": "missing",
+            "evidence": "machine-readable first: one header row"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "tidy_long_format",
+            "status": "missing",
+            "evidence": "tidy/long format (asset, date, point, value, unit, load)"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "required_columns_present",
+            "status": "missing",
+            "evidence": "tidy columns present: asset, date, point, value, unit, load"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "readings_complete_against_criteria",
+            "status": "missing",
+            "evidence": "no readings declared"
+          },
+          {
+            "section": "machine_readable_format",
+            "check": "declared_verdict_matches_readings",
+            "status": "missing",
+            "evidence": "no readings declared"
+          },
+          {
+            "section": "trending",
+            "check": "same_point_method_and_instrument_class",
+            "status": "missing",
+            "evidence": "trending: same point + method + instrument class across time"
+          },
+          {
+            "section": "trending",
+            "check": "plotted_vs_time",
+            "status": "missing",
+            "evidence": "plot vs time"
+          },
+          {
+            "section": "trending",
+            "check": "plotted_vs_load_when_load_varies",
+            "status": "missing",
+            "evidence": "load does not vary \u2014 a vs-load plot is not required"
+          },
+          {
+            "section": "trending",
+            "check": "repair_events_annotated",
+            "status": "missing",
+            "evidence": "annotate repairs/changes on charts"
+          },
+          {
+            "section": "trending",
+            "check": "control_bands_from_limits_or_baseline",
+            "status": "missing",
+            "evidence": "control bands from limits or baseline"
+          },
+          {
+            "section": "trending",
+            "check": "trends_updated_on_cadence",
+            "status": "missing",
+            "evidence": "quality gate: trends updated on cadence"
+          },
+          {
+            "section": "trending",
+            "check": "anomalies_flagged_with_action",
+            "status": "missing",
+            "evidence": "no anomalies declared"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "axes_labeled_with_units",
+            "status": "missing",
+            "evidence": "labeled axes with units"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "version_and_date_on_every_chart",
+            "status": "missing",
+            "evidence": "version + date on every chart"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "no_dual_axis_tricks",
+            "status": "missing",
+            "evidence": "no dual-axis tricks to tell a story"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "out_of_band_points_highlighted",
+            "status": "missing",
+            "evidence": "no out-of-band points declared"
+          },
+          {
+            "section": "plotting_discipline",
+            "check": "summary_sheet_per_asset",
+            "status": "missing",
+            "evidence": "summary sheet per asset (latest values + verdict)"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "archived_and_findable",
+            "status": "missing",
+            "evidence": "archived, findable in 60 seconds"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "retention_per_policy",
+            "status": "missing",
+            "evidence": "retention per policy"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "superseded_revisions_retained_marked",
+            "status": "missing",
+            "evidence": "no superseded revisions declared"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "corrections_have_dated_revision_notes",
+            "status": "missing",
+            "evidence": "no corrections declared"
+          },
+          {
+            "section": "retention_and_audit",
+            "check": "raw_data_never_destroyed",
+            "status": "missing",
+            "evidence": "red line: never destroy raw data"
+          }
+        ],
+        "readings_evaluated": 0,
+        "readings_out_of_criteria": 0,
+        "summary": "0 pass, 0 fail, 41 missing of 41 checks across six sections.",
+        "stamp": "ELECTRICAL TEST RECORD PREPARATION\nasset: TRANSFORMER-001\nVERDICT: INSUFFICIENT_EVIDENCE\n  template_completeness    insufficient_evidence\n  data_hygiene             insufficient_evidence\n  machine_readable_format  insufficient_evidence\n  trending                 insufficient_evidence\n  plotting_discipline      insufficient_evidence\n  retention_and_audit      insufficient_evidence\n0 pass, 0 fail, 41 missing of 41 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Asset is a number instead of string, record is a string instead of object."
+      },
+      "input": {
+        "asset": 12345,
+        "record": "not-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "asset",
+        "detail": "asset must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

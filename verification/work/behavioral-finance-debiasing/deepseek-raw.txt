@@ -1,0 +1,91 @@
+# Independent recompute — behavioral-finance-debiasing
+
+## Computed quantities per SERVICE.md
+
+The spec marks these as computed: (a) rebalancing band check, (b) two found-pattern checks, (c) `position_share_percent_of_portfolio` (report only), (d) `computed_status`, (e) `bias_patterns_found_count`, (f) `allocation_drift_over_band_percent`. Serialization rule: `floor(v*10000 + 0.5)/10000`, formatted to exactly 4 decimals; comparisons use unrounded values.
+
+---
+
+### Case 1: `full-pass`
+
+**Rebalancing band check** (`allocation_within_rebalancing_band`)
+- target = 50.0, current = 51.0, band = 2.0
+- distance = |51.0 − 50.0| = 1.0
+- 1.0 ≤ 2.0 → **pass** (equality would also pass; not triggered here)
+- Artifact: `pass` → **MATCH**
+
+**`allocation_drift_over_band_percent`** = |current − target| − band = 1.0 − 2.0 = **−1.0**
+- Serialize: floor(−1.0·10000 + 0.5)/10000 = floor(−9999.5)/10000 = −10000/10000 = −1.0 → `"-1.0000"`
+- Artifact: `"-1.0000"` → **MATCH**
+
+**`computed_status`**: check completed and within band → `within_declared_band_on_declared_evidence`
+- Artifact: same → **MATCH**
+
+**`bias_patterns_found_count`**: `found` list has 1 entry → **1**
+- Artifact: `1` → **MATCH**
+
+**Found-pattern checks**: entry has `technique_named: true`, `surfaced_to_user: true` → both **pass**
+- Artifact: both `pass` → **MATCH**
+
+**`position_share_percent_of_portfolio`** = 100 × 1000.0 / 10000.0 = 100 × 0.1 = **10.0**
+- Serialize: floor(10.0·10000 + 0.5)/10000 = floor(100000.5)/10000 = 100000/10000 = 10.0 → `"10.0000"`
+- Artifact: `"10.0000"` → **MATCH**
+
+**Verdict**: 36 checks, all pass → `DEBIASED`. Artifact: `DEBIASED` → **MATCH**. Summary "36 pass, 0 fail, 0 missing of 36" → **MATCH**.
+
+---
+
+### Case 2: `violations`
+
+**Rebalancing band check**
+- target = 50.0, current = 60.0, band = 5.0
+- distance = |60.0 − 50.0| = 10.0
+- 10.0 ≤ 5.0? No → **fail**
+- Artifact: `fail` → **MATCH**
+
+**`allocation_drift_over_band_percent`** = 10.0 − 5.0 = **5.0**
+- Serialize: floor(5.0·10000 + 0.5)/10000 = floor(50000.5)/10000 = 50000/10000 = 5.0 → `"5.0000"`
+- Artifact: `"5.0000"` → **MATCH**
+
+**`computed_status`**: completed, outside band → `outside_declared_band_on_declared_evidence`
+- Artifact: same → **MATCH**
+
+**`bias_patterns_found_count`**: `bias_patterns` absent → **null**
+- Artifact: `null` → **MATCH**
+
+**Found-pattern checks**: list missing → both **missing**
+- Artifact: both `missing` → **MATCH**
+
+**`position_share_percent_of_portfolio`**: `position_value` and `whole_portfolio_value` both undeclared → **null**
+- Artifact: `null` → **MATCH**
+
+**Verdict**: any fail → `NOT_DEBIASED`. Artifact: `NOT_DEBIASED` → **MATCH**. Summary "1 pass, 3 fail, 32 missing of 36" → **MATCH**.
+
+---
+
+### Case 2: planted wrong values → expected failing checks
+
+The planted wrong values are:
+1. `single_position_pnl_framing_used: true` (must be false) → `not_framed_as_single_position_pnl` should **fail**. Artifact: `fail` → **MATCH**
+2. `biases_used_to_manipulate: true` (must be false) → `biases_not_used_to_manipulate` should **fail**. Artifact: `fail` → **MATCH**
+3. Rebalancing numbers out of band (10.0 > 5.0) → `allocation_within_rebalancing_band` should **fail**. Artifact: `fail` → **MATCH**
+
+Exactly 3 fails, and they are exactly these three. All other checks are `missing` (absent fields) or `pass` (`loss_aversion_screened: true`). Artifact shows 1 pass, 3 fail, 32 missing → **MATCH**.
+
+---
+
+### Cross-check: section statuses (case 2)
+- bias_screening: 1 pass, 12 missing, 0 fail → `insufficient_evidence` ✓
+- prospect_theory_reframing: 5 missing → `insufficient_evidence` ✓
+- precommitment_rules: 3 missing + 1 fail → `fail` ✓
+- journal_checklists_and_cooling_off: 5 missing → `insufficient_evidence` ✓
+- whole_portfolio_reframing: 1 missing + 1 fail → `fail` ✓
+- guardrails_and_anti_patterns: 6 missing + 1 fail → `fail` ✓
+
+All section statuses **MATCH**.
+
+---
+
+Every computed quantity, serialization, verdict, summary count, and planted-failure set recomputes to the artifact's recorded values in both cases.
+
+AGREEMENT: full

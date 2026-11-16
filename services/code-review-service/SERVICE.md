@@ -1,0 +1,222 @@
+# Code review service — `code-review-service`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Review changes properly — small PRs, a real checklist, blocking vs non-blocking feedback, green gates before approval.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **PR reviews before merge**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the code-review manifest
+
+This atom does not read or review actual code and exercises no
+review judgment. The caller submits one JSON manifest declaring
+a code-review record — its PR size and description, its review
+checklist coverage, its declared comment counts and labels, its
+response / resolution record, its approval-gate record, and its
+red-line / merge record — and the atom validates that artifact
+deterministically. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`CODE_REVIEW_NOT_READY`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `pr.changed_lines` (number; computed, see below) | pr_size_and_description |
+| `pr.description_what_present` | pr_size_and_description |
+| `pr.description_why_present` | pr_size_and_description |
+| `pr.description_how_to_test_present` | pr_size_and_description |
+| `pr.spec_or_issue_linked` | pr_size_and_description |
+| `pr.screenshots_included_for_ui_changes` | pr_size_and_description |
+| `checklist.covered_items` (list of strings; computed, see below) | review_checklist |
+| `checklist.correctness_edge_cases_checked` | review_checklist |
+| `checklist.security_inputs_secrets_dependencies_checked` | review_checklist |
+| `checklist.tests_coverage_and_determinism_checked` | review_checklist |
+| `checklist.readability_names_and_structure_checked` | review_checklist |
+| `feedback.total_comments` (number; computed, see below) | feedback_etiquette |
+| `feedback.labeled_comments` (number; computed, see below) | feedback_etiquette |
+| `feedback.labels_use_must_nit_q_scheme` | feedback_etiquette |
+| `feedback.why_explained` | feedback_etiquette |
+| `feedback.proposes_not_dictates` | feedback_etiquette |
+| `resolution.total_comments` (number; computed, see below) | response_and_resolution |
+| `resolution.answered_comments` (number; computed, see below) | response_and_resolution |
+| `resolution.resolved_only_when_addressed` | response_and_resolution |
+| `resolution.resolved_nits_not_relitigated` | response_and_resolution |
+| `gates.ci_green_before_approval` | approval_gates |
+| `gates.change_nontrivial` (boolean; computed gate input, see below — `true` = the change is non-trivial, `false` = trivial) | approval_gates |
+| `gates.reviewer_count` (number; computed, see below) | approval_gates |
+| `gates.reviewer_sign_off_recorded` | approval_gates |
+| `gates.unresolved_comments` (number; computed, see below) | approval_gates |
+| `gates.behavior_changing` (boolean; computed gate input, see below — `true` = the PR changes behavior, `false` = it does not) | approval_gates |
+| `gates.docs_and_changelog_updated` | approval_gates |
+| `gates.approver_would_ship` | approval_gates |
+| `red_lines.force_push_over_review_without_telling` (must be `false` to pass — skill red line) | red_lines_and_merge_discipline |
+| `red_lines.rubber_stamped` (must be `false` to pass — skill red line) | red_lines_and_merge_discipline |
+| `red_lines.unexplained_blocking` (must be `false` to pass — skill red line) | red_lines_and_merge_discipline |
+| `merge.self_merged_unreviewed` (must be `false` to pass — skill when-to-use rule) | red_lines_and_merge_discipline |
+| `merge.emergency_hotfix` (boolean; computed gate input, see below — `true` = the change is an emergency hotfix, `false` = it is not) | red_lines_and_merge_discipline |
+| `merge.hotfix_post_review_completed` | red_lines_and_merge_discipline |
+
+Eight checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **PR size:** the skill's method step 1 is "keep PRs small
+  (aim ≤ ~400 changed lines)". The declared `pr.changed_lines`
+  therefore passes only when it is at or under 400 — the number
+  the skill itself names. The output reports
+  `computed_changed_lines` and `changed_lines_over_stated_aim`
+  (declared minus 400, null when no count is declared).
+- **Checklist coverage:** the skill's method step 3 names the
+  checklist categories — correctness, security, tests,
+  readability, docs. The declared `checklist.covered_items`
+  list therefore passes only when it contains all five stated
+  entries (`correctness`, `security`, `tests`, `readability`,
+  `docs`); unknown entries do not count toward coverage. A
+  missing list is missing evidence; an empty list is present
+  and fails. The output reports the omitted stated entries as
+  `checklist_items_not_covered` (null when no list is
+  declared). Entries are validated as strings only, never
+  enum-checked — coverage is a verdict check, not a type error.
+- **Feedback labels:** the skill's method step 4 requires
+  comments to be labeled (`must:` blocking, `nit:`
+  non-blocking, `q:` question). The declared
+  `feedback.labeled_comments` therefore passes only when it
+  equals `feedback.total_comments`. The output reports
+  `labeled_comment_difference` (labeled minus total, null when
+  either cannot be computed). Whether any individual comment's
+  label is the *right* label is the reviewer's judgment, not
+  this atom's.
+- **Responses:** the skill's method step 5 requires authors to
+  answer every comment. The declared
+  `resolution.answered_comments` therefore passes only when it
+  equals `resolution.total_comments`. The output reports
+  `answered_comment_difference` (answered minus total, null
+  when either cannot be computed). The feedback and resolution
+  totals are separate declared records; this core does not
+  cross-check one section's total against the other's.
+- **Reviewers:** the skill's quality gate is "at least one
+  reviewer for non-trivial changes". When
+  `gates.change_nontrivial` is declared `true`, the check
+  passes only when `gates.reviewer_count` is at least 1; when
+  it is declared `false`, the skill does not hold the change to
+  that gate and the check passes regardless of reviewer count.
+  The check is missing when either input is absent. The output
+  reports `computed_reviewer_count` (null when no count is
+  declared). No reviewer seniority, identity, or count above
+  one is imposed — the skill states none.
+- **Unresolved comments at approval:** the skill's method
+  step 6 approval gates are "green CI + resolved comments +
+  reviewer sign-off". The declared `gates.unresolved_comments`
+  therefore passes only when it is zero. The output reports
+  `computed_unresolved_comments` (null when no count is
+  declared).
+- **Docs for behavior changes:** the skill's quality gate is
+  "behavior-changing PRs update docs + changelog". When
+  `gates.behavior_changing` is declared `true`, the check
+  passes only when `gates.docs_and_changelog_updated` is
+  declared `true`; when it is declared `false`, the skill does
+  not hold the change to that gate and the check passes
+  regardless. The check is missing when either input is absent.
+- **Hotfix post-review:** the skill's when-to-use rule is
+  "emergency hotfixes get post-review". When
+  `merge.emergency_hotfix` is declared `true`, the check
+  passes only when `merge.hotfix_post_review_completed` is
+  declared `true`; when it is declared `false`, the check
+  passes regardless. The check is missing when either input is
+  absent.
+
+**Fixed serialization rule:** computed amounts and ratios are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the eight computed checks cannot be completed).
+
+The verdict is one of `CODE_REVIEW_READY` (all 29 checks pass),
+`CODE_REVIEW_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: pr_size_and_description, review_checklist,
+feedback_etiquette, response_and_resolution, approval_gates,
+red_lines_and_merge_discipline.
+
+## Honest scoping
+
+This atom audits a **declared** code-review record — it does
+not read a diff, open a repository, run CI, verify that a
+declared value is true, or judge the underlying code. The
+artifact declares its own size, checklist coverage, comment
+counts, dispositions and gates, and this core checks only their
+internal consistency and the completeness of the skill's method
+on the declared evidence. An artifact is ready *on the caller's
+declared evidence* even if the underlying code is poor. It is a
+completeness and consistency audit, **not a code review**: it
+never decides whether the code is correct, secure, readable or
+well tested, whether a comment was rightly blocking or a nit,
+or whether the change should actually merge.
+
+**Thresholds declined — named explicitly.** The skill states no
+number for these, so this atom imposes none, and any future
+imposition must land in the skill first:
+
+- **Test-coverage percentage:** the skill requires tests to be
+  checked for coverage and determinism but states no percentage
+  (no 80%, or any other figure, is imposed).
+- **Review turnaround / response time:** no SLA, review-age or
+  time-to-approval limit is imposed — the skill states none.
+- **Comment volume:** no minimum or maximum comment count, no
+  cap on `nit:` comments, and no minimum number of blocking
+  findings is imposed — only that declared comments are all
+  labeled and all answered.
+- **Reviewer seniority or count above one:** no staff/principal
+  reviewer, code-owner, or two-reviewer requirement is imposed
+  beyond the skill's stated at-least-one for non-trivial
+  changes.
+- **Split quality for large PRs:** beyond the skill's stated
+  ~400-line aim, no judgment is made about whether a large
+  change was split *logically* — that is a review judgment over
+  the actual change, which this atom never sees.
+- **Screenshot count or form for UI changes:** only the declared
+  presence is checked; no number, format or before/after pairing
+  is imposed.
+- **CI specifics:** no required CI duration, flake rate, job
+  list or pipeline shape is imposed — only the declared
+  green-before-approval gate.
+- **Finding severity thresholds:** no per-severity finding
+  counts (critical/high/medium/low) are declared or judged —
+  the skill's vocabulary is its `must:`/`nit:`/`q:` labels, and
+  only their declared coverage is checked.
+
+Named exclusions: no reading or reviewing of actual code or
+diffs; no verification of any declared line count, comment,
+approval or CI result; no correctness, security, readability or
+test-quality judgment; no merge, approval or force-push action
+on any repository.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.

@@ -1,0 +1,157 @@
+{
+  "name": "complete",
+  "manifest": {
+    "system": "product-signing-and-archives",
+    "inventory": [
+      {
+        "id": "archive-envelope",
+        "surface": "at_rest_envelope",
+        "algorithm": "RSA-2048",
+        "purpose": "key_exchange",
+        "shelf_life_years": 30,
+        "owner": "platform"
+      },
+      {
+        "id": "tls-edge",
+        "surface": "tls",
+        "algorithm": "ECDHE-X25519",
+        "purpose": "key_exchange",
+        "shelf_life_years": 5,
+        "owner": "platform"
+      },
+      {
+        "id": "firmware-signing",
+        "surface": "firmware_signing",
+        "algorithm": "ECDSA-P256",
+        "purpose": "signature",
+        "shelf_life_years": 15,
+        "owner": "release"
+      },
+      {
+        "id": "agent-trust-hybrid",
+        "surface": "agent_trust_root",
+        "algorithm": "X25519+ML-KEM-768",
+        "purpose": "key_exchange",
+        "shelf_life_years": 10,
+        "owner": "agents"
+      },
+      {
+        "id": "new-kem",
+        "surface": "tls",
+        "algorithm": "ML-KEM-768",
+        "purpose": "key_exchange",
+        "shelf_life_years": 10,
+        "owner": "platform"
+      },
+      {
+        "id": "archive-aes",
+        "surface": "at_rest_envelope",
+        "algorithm": "AES-256-GCM",
+        "purpose": "encryption",
+        "shelf_life_years": 30,
+        "owner": "platform"
+      }
+    ]
+  },
+  "expected": {
+    "service": "crypto-inventory-pq-migration-map",
+    "atom_version": "0.1.0",
+    "system": "product-signing-and-archives",
+    "status": "complete",
+    "counts": {
+      "total": 6,
+      "invalid_entries": 0,
+      "by_classification": {
+        "quantum_vulnerable": 3,
+        "hybrid_classical_pq": 1,
+        "pq_ready": 1,
+        "symmetric_or_hash_not_broken": 1,
+        "unknown": 0
+      },
+      "migration_needed": 3,
+      "missing_shelf_life": 0,
+      "missing_owner": 0
+    },
+    "migration_map": [
+      {
+        "id": "archive-envelope",
+        "surface": "at_rest_envelope",
+        "algorithm": "RSA-2048",
+        "purpose": "key_exchange",
+        "classification": "quantum_vulnerable",
+        "action": "migrate_hybrid",
+        "target_family": "ML-KEM (FIPS 203)",
+        "shelf_life_years": 30,
+        "owner": "platform",
+        "priority_rank": 1,
+        "basis": "classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto"
+      },
+      {
+        "id": "firmware-signing",
+        "surface": "firmware_signing",
+        "algorithm": "ECDSA-P256",
+        "purpose": "signature",
+        "classification": "quantum_vulnerable",
+        "action": "migrate_hybrid",
+        "target_family": "ML-DSA (FIPS 204) / SLH-DSA (FIPS 205)",
+        "shelf_life_years": 15,
+        "owner": "release",
+        "priority_rank": 2,
+        "basis": "classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto"
+      },
+      {
+        "id": "tls-edge",
+        "surface": "tls",
+        "algorithm": "ECDHE-X25519",
+        "purpose": "key_exchange",
+        "classification": "quantum_vulnerable",
+        "action": "migrate_hybrid",
+        "target_family": "ML-KEM (FIPS 203)",
+        "shelf_life_years": 5,
+        "owner": "platform",
+        "priority_rank": 3,
+        "basis": "classical asymmetric algorithm \u2014 quantum breaks today's asymmetric crypto"
+      },
+      {
+        "id": "agent-trust-hybrid",
+        "surface": "agent_trust_root",
+        "algorithm": "X25519+ML-KEM-768",
+        "purpose": "key_exchange",
+        "classification": "hybrid_classical_pq",
+        "action": "complete_hybrid_transition",
+        "target_family": "ML-KEM (FIPS 203)",
+        "shelf_life_years": 10,
+        "owner": "agents",
+        "priority_rank": 4,
+        "basis": "classical + NIST PQ together \u2014 hybrid mode during transition"
+      },
+      {
+        "id": "new-kem",
+        "surface": "tls",
+        "algorithm": "ML-KEM-768",
+        "purpose": "key_exchange",
+        "classification": "pq_ready",
+        "action": "retain_pq",
+        "target_family": "ML-KEM (FIPS 203)",
+        "shelf_life_years": 10,
+        "owner": "platform",
+        "priority_rank": 5,
+        "basis": "NIST PQC standard family algorithm (FIPS 203/204/205)"
+      },
+      {
+        "id": "archive-aes",
+        "surface": "at_rest_envelope",
+        "algorithm": "AES-256-GCM",
+        "purpose": "encryption",
+        "classification": "symmetric_or_hash_not_broken",
+        "action": "no_pq_migration_needed",
+        "target_family": null,
+        "shelf_life_years": 30,
+        "owner": "platform",
+        "priority_rank": 6,
+        "basis": "symmetric/hash algorithm \u2014 the asymmetric side is what breaks; AES-256 is fine"
+      }
+    ],
+    "summary": "Migration map over 6 inventory entries: 3 quantum-vulnerable, 1 hybrid, 1 PQ-ready, 1 symmetric/hash not broken, 0 unknown; 0 missing shelf-life."
+  }
+}

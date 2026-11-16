@@ -1,0 +1,138 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "asset": "Motor-001",
+        "baseline": {
+          "exists": true,
+          "captured_under_known_load": true,
+          "repair_since_baseline": true,
+          "post_repair_baseline_captured": true
+        },
+        "monitoring": {
+          "techniques_match_asset": true,
+          "fixed_route_points": true,
+          "same_instrument_class": true
+        },
+        "context": {
+          "load_recorded": true,
+          "ambient_recorded": true,
+          "speed_recorded": true
+        },
+        "trending": {
+          "deltas_vs_baseline_computed": true,
+          "rate_of_change_considered": true,
+          "repair_events_annotated": true
+        },
+        "bands": {
+          "defined_per_standard_or_oem": true
+        },
+        "readings": [
+          {
+            "parameter": "vibration",
+            "value": 2.5,
+            "watch_limit": 3.0,
+            "warning_limit": 5.0,
+            "action_limit": 8.0
+          }
+        ],
+        "alarms": [
+          {
+            "id": "A1",
+            "disposition": "noise",
+            "reasoning_recorded": true,
+            "recheck_interval_set": false,
+            "work_request_raised": false
+          }
+        ],
+        "escalation": {
+          "findings_sent_with_trend_pack": true,
+          "alarm_closed_without_triage_note": false,
+          "condemned_or_cleared_on_single_reading": false
+        }
+      },
+      "expect": {
+        "outcome": "TRIAGE_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean requirements met; readings within watch limits; escalation flags correctly set to false."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "asset": "Motor-001",
+        "baseline": {
+          "exists": true,
+          "captured_under_known_load": true,
+          "repair_since_baseline": true,
+          "post_repair_baseline_captured": false
+        },
+        "monitoring": {
+          "techniques_match_asset": true,
+          "fixed_route_points": true,
+          "same_instrument_class": true
+        },
+        "context": {
+          "load_recorded": true,
+          "ambient_recorded": true,
+          "speed_recorded": true
+        },
+        "trending": {
+          "deltas_vs_baseline_computed": true,
+          "rate_of_change_considered": true,
+          "repair_events_annotated": true
+        },
+        "bands": {
+          "defined_per_standard_or_oem": true
+        },
+        "readings": [],
+        "alarms": [],
+        "escalation": {
+          "findings_sent_with_trend_pack": true,
+          "alarm_closed_without_triage_note": true,
+          "condemned_or_cleared_on_single_reading": false
+        }
+      },
+      "expect": {
+        "outcome": "TRIAGE_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "baseline",
+          "escalation"
+        ],
+        "notes": "Fails baseline check (post_repair_baseline_captured is false when repair_since_baseline is true) and escalation check (alarm_closed_without_triage_note is true)."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "asset": "Motor-001"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required boolean fields for the six sections; atom returns insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "asset": "Motor-001",
+        "baseline": "NOT_A_BOOLEAN_OBJECT"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: baseline expected to be an object, received a string."
+      }
+    }
+  ]
+}

@@ -1,0 +1,462 @@
+{
+  "atom": "encryption-claim-audit",
+  "tested_at_utc": "2026-11-15T22:03:31.881290+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "encryption_claim_audit",
+  "mcp_tools": [
+    {
+      "name": "encryption_claim_audit",
+      "title": "Encryption claim audit",
+      "description": "Submit an encryption-claims evidence manifest; get a deterministic CLAIMS_SOUND / CLAIMS_UNSOUND / INSUFFICIENT_EVIDENCE verdict across claim specificity, standard construction, key management, derivation and randomness, coverage, and claim-vs-posture consistency, with per-check evidence.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The encryption-evidence manifest (see the atom's SERVICE.md for the field table).",
+        "properties": {
+          "product": {
+            "type": "string",
+            "description": "Product whose encryption claims are audited."
+          },
+          "claims": {
+            "type": "object",
+            "description": "Declared encryption claims (e.g. end_to_end_encrypted, zero_knowledge)."
+          },
+          "construction": {
+            "type": "object",
+            "description": "Algorithm/mode construction evidence."
+          },
+          "key_management": {
+            "type": "object",
+            "description": "Key generation, storage, rotation and recovery evidence."
+          },
+          "password_derivation": {
+            "type": "object",
+            "description": "Password-derivation (KDF) evidence."
+          },
+          "randomness": {
+            "type": "object",
+            "description": "Randomness-source evidence."
+          },
+          "coverage": {
+            "type": "object",
+            "description": "Data-state coverage evidence (transit, rest, logs, dumps)."
+          },
+          "asymmetric": {
+            "type": "object",
+            "description": "Asymmetric construction evidence."
+          },
+          "access": {
+            "type": "object",
+            "description": "Server plaintext/key access evidence (consistency checks)."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "CLAIMS_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All security controls meet standard construction and consistency requirements. CORRECTED (tester error): algorithm AES (not AES-256-GCM), key_exchange X25519 (not ECDH), storage platform_keystore (not HSM), randomness.source os_csprng (not /dev/urandom), coverage.fails_closed_on_crypto_error at coverage level (not nested in in_use) \u2014 per atom's own test manifest / exact check vocabulary."
+      },
+      "input": {
+        "product": "SecureVault-v1",
+        "claims": {
+          "algorithm": "AES",
+          "mode": "GCM",
+          "key_length_bits": 256,
+          "vague_marketing_terms_used": false,
+          "end_to_end_encrypted": true,
+          "zero_knowledge": true
+        },
+        "construction": {
+          "authenticated_encryption": true,
+          "custom_crypto": false,
+          "nonce_unique_per_key": true
+        },
+        "asymmetric": {
+          "applies": true,
+          "key_exchange": "X25519",
+          "signatures": "Ed25519"
+        },
+        "key_management": {
+          "keys_from_csprng": true,
+          "keys_hardcoded": false,
+          "storage": "platform_keystore",
+          "rotation_planned": true,
+          "recovery_story_documented": true
+        },
+        "password_derivation": {
+          "applies": true,
+          "kdf": "Argon2id",
+          "salt_unique_random_per_key": true,
+          "password_used_directly_as_key": false
+        },
+        "randomness": {
+          "source": "os_csprng"
+        },
+        "coverage": {
+          "transport": {
+            "tls_version": "1.3",
+            "plaintext_fallback": false
+          },
+          "at_rest": {
+            "encrypted": true,
+            "key_stored_with_data": false
+          },
+          "in_use": {
+            "plaintext_logged": false,
+            "plaintext_in_crash_dumps": false
+          },
+          "fails_closed_on_crypto_error": true
+        },
+        "access": {
+          "server_can_read_plaintext": false,
+          "server_holds_decryption_keys": false
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"encryption-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"SecureVault-v1\",\"verdict\":\"CLAIMS_SOUND\",\"sections\":{\"claim_specificity\":\"pass\",\"standard_construction\":\"pass\",\"key_management\":\"pass\",\"derivation_and_randomness\":\"pass\",\"coverage\":\"pass\",\"claim_consistency\":\"pass\"},\"checks\":[{\"section\":\"claim_specificity\",\"check\":\"algorithm_named\",\"status\":\"pass\",\"evidence\":\"algorithm='AES' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"mode_named\",\"status\":\"pass\",\"evidence\":\"mode='GCM' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"key_length_stated\",\"status\":\"pass\",\"evidence\":\"key_length_bits=256 (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"no_vague_unqualified_claim\",\"status\":\"pass\",\"evidence\":\"skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential\"},{\"section\":\"standard_construction\",\"check\":\"symmetric_is_aes_256_gcm\",\"status\":\"pass\",\"evidence\":\"algorithm='AES' mode='GCM' key_length_bits=256 (skill: symmetric: AES-256-GCM)\"},{\"section\":\"standard_construction\",\"check\":\"mode_is_not_ecb\",\"status\":\"pass\",\"evidence\":\"mode='GCM' (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)\"},{\"section\":\"standard_construction\",\"check\":\"authenticated_encryption\",\"status\":\"pass\",\"evidence\":\"skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident\"},{\"section\":\"standard_construction\",\"check\":\"no_custom_crypto\",\"status\":\"pass\",\"evidence\":\"skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES\"},{\"section\":\"standard_construction\",\"check\":\"nonce_unique_per_key\",\"status\":\"pass\",\"evidence\":\"skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key\"},{\"section\":\"standard_construction\",\"check\":\"asymmetric_is_standard\",\"status\":\"pass\",\"evidence\":\"key_exchange='X25519' signatures='Ed25519' (skill: X25519 for key exchange, Ed25519 for signatures)\"},{\"section\":\"key_management\",\"check\":\"keys_generated_from_csprng\",\"status\":\"pass\",\"evidence\":\"skill: keys come from the CSPRNG, never from passwords directly\"},{\"section\":\"key_management\",\"check\":\"no_hardcoded_keys\",\"status\":\"pass\",\"evidence\":\"skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps\"},{\"section\":\"key_management\",\"check\":\"key_storage_in_keystore_or_memory\",\"status\":\"pass\",\"evidence\":\"storage='platform_keystore' (skill: keys live in the platform keystore or in memory only)\"},{\"section\":\"key_management\",\"check\":\"key_rotation_planned\",\"status\":\"pass\",\"evidence\":\"skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?\"},{\"section\":\"key_management\",\"check\":\"recovery_story_documented\",\"status\":\"pass\",\"evidence\":\"skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated\"},{\"section\":\"derivation_and_randomness\",\"check\":\"kdf_is_argon2id_or_pbkdf2\",\"status\":\"pass\",\"evidence\":\"kdf='Argon2id' (skill: Argon2id; PBKDF2 acceptable with high iteration counts; raw SHA-256 is not key derivation)\"},{\"section\":\"derivation_and_randomness\",\"check\":\"unique_random_salt_per_key\",\"status\":\"pass\",\"evidence\":\"skill: passwords become keys through Argon2id with a unique random salt per key\"},{\"section\":\"derivation_and_randomness\",\"check\":\"password_not_used_directly_as_key\",\"status\":\"pass\",\"evidence\":\"skill mistake: weak or missing KDF \u2014 passwords used directly as keys\"},{\"section\":\"derivation_and_randomness\",\"check\":\"randomness_from_os_csprng\",\"status\":\"pass\",\"evidence\":\"source='os_csprng' (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)\"},{\"section\":\"coverage\",\"check\":\"transport_tls_1_2_or_higher\",\"status\":\"pass\",\"evidence\":\"tls_version='1.3' (skill: TLS 1.2+ for every network hop, no exceptions)\"},{\"section\":\"coverage\",\"check\":\"transport_no_plaintext_fallback\",\"status\":\"pass\",\"evidence\":\"skill: TLS 1.2+ for every network hop, no plaintext fallbacks\"},{\"section\":\"coverage\",\"check\":\"at_rest_encrypted\",\"status\":\"pass\",\"evidence\":\"skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets\"},{\"section\":\"coverage\",\"check\":\"key_not_stored_with_data\",\"status\":\"pass\",\"evidence\":\"skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_logged\",\"status\":\"pass\",\"evidence\":\"skill: in use \u2014 minimize plaintext lifetime, never log it\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_in_crash_dumps\",\"status\":\"pass\",\"evidence\":\"skill: in use \u2014 never put plaintext in crash dumps\"},{\"section\":\"coverage\",\"check\":\"fails_closed_on_crypto_failure\",\"status\":\"pass\",\"evidence\":\"skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected\"},{\"section\":\"claim_consistency\",\"check\":\"end_to_end_claim_matches_server_access\",\"status\":\"pass\",\"evidence\":\"end_to_end_encrypted=True server_can_read_plaintext=False (skill: if someone encrypts only in transit, they trust the server; follow the key)\"},{\"section\":\"claim_consistency\",\"check\":\"zero_knowledge_claim_matches_key_access\",\"status\":\"pass\",\"evidence\":\"zero_knowledge=True server_holds_decryption_keys=False (skill: ask where the key lives and who can read it \u2014 the answers draw the real trust boundary)\"}],\"summary\":\"28 pass, 0 fail, 0 missing of 28 checks across six sections.\",\"stamp\":\"ENCRYPTION CLAIM AUDIT\\nproduct: SecureVault-v1\\nVERDICT: CLAIMS_SOUND\\n  claim_specificity        pass\\n  standard_construction    pass\\n  key_management           pass\\n  derivation_and_randomness pass\\n  coverage                 pass\\n  claim_consistency        pass\\n28 pass, 0 fail, 0 missing of 28 checks across six sections.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"encryption-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"SecureVault-v1\",\"verdict\":\"CLAIMS_SOUND\",\"sections\":{\"claim_specificity\":\"pass\",\"standard_construction\":\"pass\",\"key_management\":\"pass\",\"derivation_and_randomness\":\"pass\",\"coverage\":\"pass\",\"claim_consistency\":\"pass\"},\"checks\":[{\"section\":\"claim_specificity\",\"check\":\"algorithm_named\",\"status\":\"pass\",\"evidence\":\"algorithm='AES' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"mode_named\",\"status\":\"pass\",\"evidence\":\"mode='GCM' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"key_length_stated\",\"status\":\"pass\",\"evidence\":\"key_length_bits=256 (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"no_vague_unqualified_claim\",\"status\":\"pass\",\"evidence\":\"skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential\"},{\"section\":\"standard_construction\",\"check\":\"symmetric_is_aes_256_gcm\",\"status\":\"pass\",\"evidence\":\"algorithm='AES' mode='GCM' key_length_bits=256 (skill: symmetric: AES-256-GCM)\"},{\"section\":\"standard_construction\",\"check\":\"mode_is_not_ecb\",\"status\":\"pass\",\"evidence\":\"mode='GCM' (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)\"},{\"section\":\"standard_construction\",\"check\":\"authenticated_encryption\",\"status\":\"pass\",\"evidence\":\"skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident\"},{\"section\":\"standard_construction\",\"check\":\"no_custom_crypto\",\"status\":\"pass\",\"evidence\":\"skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES\"},{\"section\":\"standard_construction\",\"check\":\"nonce_unique_per_key\",\"status\":\"pass\",\"evidence\":\"skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key\"},{\"section\":\"standard_construction\",\"check\":\"asymmetric_is_standard\",\"status\":\"pass\",\"evidence\":\"key_exchange='X25519' signatures='Ed25519' (skill: X25519 for key exchange, Ed25519 for signatures)\"},{\"section\":\"key_management\",\"check\":\"keys_generated_from_csprng\",\"status\":\"pass\",\"evidence\":\"skill: keys come from the CSPRNG, never from passwords directly\"},{\"section\":\"key_management\",\"check\":\"no_hardcoded_keys\",\"status\":\"pass\",\"evidence\":\"skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps\"},{\"section\":\"key_management\",\"check\":\"key_storage_in_keystore_or_memory\",\"status\":\"pass\",\"evidence\":\"storage='platform_keystore' (skill: keys live in the platform keystore or in memory only)\"},{\"section\":\"key_management\",\"check\":\"key_rotation_planned\",\"status\":\"pass\",\"evidence\":\"skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?\"},{\"section\":\"key_management\",\"check\":\"recovery_story_documented\",\"status\":\"pass\",\"evidence\":\"skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated\"},{\"section\":\"derivation_and_randomness\",\"check\":\"kdf_is_argon2id_or_pbkdf2\",\"status\":\"pass\",\"evidence\":\"kdf='Argon2id' (skill: Argon2id; PBKDF2 acceptable with high iteration counts; raw SHA-256 is not key derivation)\"},{\"section\":\"derivation_and_randomness\",\"check\":\"unique_random_salt_per_key\",\"status\":\"pass\",\"evidence\":\"skill: passwords become keys through Argon2id with a unique random salt per key\"},{\"section\":\"derivation_and_randomness\",\"check\":\"password_not_used_directly_as_key\",\"status\":\"pass\",\"evidence\":\"skill mistake: weak or missing KDF \u2014 passwords used directly as keys\"},{\"section\":\"derivation_and_randomness\",\"check\":\"randomness_from_os_csprng\",\"status\":\"pass\",\"evidence\":\"source='os_csprng' (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)\"},{\"section\":\"coverage\",\"check\":\"transport_tls_1_2_or_higher\",\"status\":\"pass\",\"evidence\":\"tls_version='1.3' (skill: TLS 1.2+ for every network hop, no exceptions)\"},{\"section\":\"coverage\",\"check\":\"transport_no_plaintext_fallback\",\"status\":\"pass\",\"evidence\":\"skill: TLS 1.2+ for every network hop, no plaintext fallbacks\"},{\"section\":\"coverage\",\"check\":\"at_rest_encrypted\",\"status\":\"pass\",\"evidence\":\"skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets\"},{\"section\":\"coverage\",\"check\":\"key_not_stored_with_data\",\"status\":\"pass\",\"evidence\":\"skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_logged\",\"status\":\"pass\",\"evidence\":\"skill: in use \u2014 minimize plaintext lifetime, never log it\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_in_crash_dumps\",\"status\":\"pass\",\"evidence\":\"skill: in use \u2014 never put plaintext in crash dumps\"},{\"section\":\"coverage\",\"check\":\"fails_closed_on_crypto_failure\",\"status\":\"pass\",\"evidence\":\"skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected\"},{\"section\":\"claim_consistency\",\"check\":\"end_to_end_claim_matches_server_access\",\"status\":\"pass\",\"evidence\":\"end_to_end_encrypted=True server_can_read_plaintext=False (skill: if someone encrypts only in transit, they trust the server; follow the key)\"},{\"section\":\"claim_consistency\",\"check\":\"zero_knowledge_claim_matches_key_access\",\"status\":\"pass\",\"evidence\":\"zero_knowledge=True server_holds_decryption_keys=False (skill: ask where the key lives and who can read it \u2014 the answers draw the real trust boundary)\"}],\"summary\":\"28 pass, 0 fail, 0 missing of 28 checks across six sections.\",\"stamp\":\"ENCRYPTION CLAIM AUDIT\\nproduct: SecureVault-v1\\nVERDICT: CLAIMS_SOUND\\n  claim_specificity        pass\\n  standard_construction    pass\\n  key_management           pass\\n  derivation_and_randomness pass\\n  coverage                 pass\\n  claim_consistency        pass\\n28 pass, 0 fail, 0 missing of 28 checks across six sections.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"encryption-claim-audit\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"product\\\": \\\"SecureVault-v1\\\",\\n  \\\"verdict\\\": \\\"CLAIMS_SOUND\\\",\\n  \\\"sections\\\": {\\n    \\\"claim_specificity\\\": \\\"pass\\\",\\n    \\\"standard_construction\\\": \\\"pass\\\",\\n    \\\"key_management\\\": \\\"pass\\\",\\n    \\\"derivation_and_randomness\\\": \\\"pass\\\",\\n    \\\"coverage\\\": \\\"pass\\\",\\n    \\\"claim_consistency\\\": \\\"pass\\\"\\n  },\\n  \\\"checks\\\": [\\n    {\\n      \\\"section\\\": \\\"claim_specificity\\\",\\n      \\\"check\\\": \\\"algorithm_named\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"algorithm='AES' (skill: name the algorithm, mode, and key length)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_specificity\\\",\\n      \\\"check\\\": \\\"mode_named\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"mode='GCM' (skill: name the algorithm, mode, and key length)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_specificity\\\",\\n      \\\"check\\\": \\\"key_length_stated\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"key_length_bits=256 (skill: name the algorithm, mode, and key length)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_specificity\\\",\\n      \\\"check\\\": \\\"no_vague_unqualified_claim\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"standard_construction\\\",\\n      \\\"check\\\": \\\"symmetric_is_aes_256_gcm\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"algorithm='AES' mode='GCM' key_length_bits=256 (skill: symmetric: AES-256-GCM)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"standard_construction\\\",\\n      \\\"check\\\": \\\"mode_is_not_ecb\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"mode='GCM' (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"standard_construction\\\",\\n      \\\"check\\\": \\\"authenticated_encryption\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"standard_construction\\\",\\n      \\\"check\\\": \\\"no_custom_crypto\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"standard_construction\\\",\\n      \\\"check\\\": \\\"nonce_unique_per_key\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"standard_construction\\\",\\n      \\\"check\\\": \\\"asymmetric_is_standard\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"key_exchange='X25519' signatures='Ed25519' (skill: X25519 for key exchange, Ed25519 for signatures)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_management\\\",\\n      \\\"check\\\": \\\"keys_generated_from_csprng\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: keys come from the CSPRNG, never from passwords directly\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_management\\\",\\n      \\\"check\\\": \\\"no_hardcoded_keys\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_management\\\",\\n      \\\"check\\\": \\\"key_storage_in_keystore_or_memory\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"storage='platform_keystore' (skill: keys live in the platform keystore or in memory only)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_management\\\",\\n      \\\"check\\\": \\\"key_rotation_planned\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_management\\\",\\n      \\\"check\\\": \\\"recovery_story_documented\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"derivation_and_randomness\\\",\\n      \\\"check\\\": \\\"kdf_is_argon2id_or_pbkdf2\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"kdf='Argon2id' (skill: Argon2id; PBKDF2 acceptable with high iteration counts; raw SHA-256 is not key derivation)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"derivation_and_randomness\\\",\\n      \\\"check\\\": \\\"unique_random_salt_per_key\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: passwords become keys through Argon2id with a unique random salt per key\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"derivation_and_randomness\\\",\\n      \\\"check\\\": \\\"password_not_used_directly_as_key\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill mistake: weak or missing KDF \u2014 passwords used directly as keys\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"derivation_and_randomness\\\",\\n      \\\"check\\\": \\\"randomness_from_os_csprng\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"source='os_csprng' (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"coverage\\\",\\n      \\\"check\\\": \\\"transport_tls_1_2_or_higher\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"tls_version='1.3' (skill: TLS 1.2+ for every network hop, no exceptions)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"coverage\\\",\\n      \\\"check\\\": \\\"transport_no_plaintext_fallback\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: TLS 1.2+ for every network hop, no plaintext fallbacks\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"coverage\\\",\\n      \\\"check\\\": \\\"at_rest_encrypted\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"coverage\\\",\\n      \\\"check\\\": \\\"key_not_stored_with_data\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"coverage\\\",\\n      \\\"check\\\": \\\"in_use_plaintext_not_logged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: in use \u2014 minimize plaintext lifetime, never log it\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"coverage\\\",\\n      \\\"check\\\": \\\"in_use_plaintext_not_in_crash_dumps\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: in use \u2014 never put plaintext in crash dumps\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"coverage\\\",\\n      \\\"check\\\": \\\"fails_closed_on_crypto_failure\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_consistency\\\",\\n      \\\"check\\\": \\\"end_to_end_claim_matches_server_access\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"end_to_end_encrypted=True server_can_read_plaintext=False (skill: if someone encrypts only in transit, they trust the server; follow the key)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"claim_consistency\\\",\\n      \\\"check\\\": \\\"zero_knowledge_claim_matches_key_access\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"zero_knowledge=True server_holds_decryption_keys=False (skill: ask where the key lives and who can read it \u2014 the answers draw the real trust boundary)\\\"\\n    }\\n  ],\\n  \\\"summary\\\": \\\"28 pass, 0 fail, 0 missing of 28 checks across six sections.\\\",\\n  \\\"stamp\\\": \\\"ENCRYPTION CLAIM AUDIT\\\\nproduct: SecureVault-v1\\\\nVERDICT: CLAIMS_SOUND\\\\n  claim_specificity        pass\\\\n  standard_construction    pass\\\\n  key_management           pass\\\\n  derivation_and_randomness pass\\\\n  coverage                 pass\\\\n  claim_consistency        pass\\\\n28 pass, 0 fail, 0 missing of 28 checks across six sections.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"encryption-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"SecureVault-v1\",\"verdict\":\"CLAIMS_SOUND\",\"sections\":{\"claim_specificity\":\"pass\",\"standard_construction\":\"pass\",\"key_management\":\"pass\",\"derivation_and_randomness\":\"pass\",\"coverage\":\"pass\",\"claim_consistency\":\"pass\"},\"checks\":[{\"section\":\"claim_specificity\",\"check\":\"algorithm_named\",\"status\":\"pass\",\"evidence\":\"algorithm='AES' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"mode_named\",\"status\":\"pass\",\"evidence\":\"mode='GCM' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"key_length_stated\",\"status\":\"pass\",\"evidence\":\"key_length_bits=256 (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"no_vague_unqualified_claim\",\"status\":\"pass\",\"evidence\":\"skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential\"},{\"section\":\"standard_construction\",\"check\":\"symmetric_is_aes_256_gcm\",\"status\":\"pass\",\"evidence\":\"algorithm='AES' mode='GCM' key_length_bits=256 (skill: symmetric: AES-256-GCM)\"},{\"section\":\"standard_construction\",\"check\":\"mode_is_not_ecb\",\"status\":\"pass\",\"evidence\":\"mode='GCM' (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)\"},{\"section\":\"standard_construction\",\"check\":\"authenticated_encryption\",\"status\":\"pass\",\"evidence\":\"skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident\"},{\"section\":\"standard_construction\",\"check\":\"no_custom_crypto\",\"status\":\"pass\",\"evidence\":\"skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES\"},{\"section\":\"standard_construction\",\"check\":\"nonce_unique_per_key\",\"status\":\"pass\",\"evidence\":\"skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key\"},{\"section\":\"standard_construction\",\"check\":\"asymmetric_is_standard\",\"status\":\"pass\",\"evidence\":\"key_exchange='X25519' signatures='Ed25519' (skill: X25519 for key exchange, Ed25519 for signatures)\"},{\"section\":\"key_management\",\"check\":\"keys_generated_from_csprng\",\"status\":\"pass\",\"evidence\":\"skill: keys come from the CSPRNG, never from passwords directly\"},{\"section\":\"key_management\",\"check\":\"no_hardcoded_keys\",\"status\":\"pass\",\"evidence\":\"skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps\"},{\"section\":\"key_management\",\"check\":\"key_storage_in_keystore_or_memory\",\"status\":\"pass\",\"evidence\":\"storage='platform_keystore' (skill: keys live in the platform keystore or in memory only)\"},{\"section\":\"key_management\",\"check\":\"key_rotation_planned\",\"status\":\"pass\",\"evidence\":\"skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?\"},{\"section\":\"key_management\",\"check\":\"recovery_story_documented\",\"status\":\"pass\",\"evidence\":\"skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated\"},{\"section\":\"derivation_and_randomness\",\"check\":\"kdf_is_argon2id_or_pbkdf2\",\"status\":\"pass\",\"evidence\":\"kdf='Argon2id' (skill: Argon2id; PBKDF2 acceptable with high iteration counts; raw SHA-256 is not key derivation)\"},{\"section\":\"derivation_and_randomness\",\"check\":\"unique_random_salt_per_key\",\"status\":\"pass\",\"evidence\":\"skill: passwords become keys through Argon2id with a unique random salt per key\"},{\"section\":\"derivation_and_randomness\",\"check\":\"password_not_used_directly_as_key\",\"status\":\"pass\",\"evidence\":\"skill mistake: weak or missing KDF \u2014 passwords used directly as keys\"},{\"section\":\"derivation_and_randomness\",\"check\":\"randomness_from_os_csprng\",\"status\":\"pass\",\"evidence\":\"source='os_csprng' (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)\"},{\"section\":\"coverage\",\"check\":\"transport_tls_1_2_or_higher\",\"status\":\"pass\",\"evidence\":\"tls_version='1.3' (skill: TLS 1.2+ for every network hop, no exceptions)\"},{\"section\":\"coverage\",\"check\":\"transport_no_plaintext_fallback\",\"status\":\"pass\",\"evidence\":\"skill: TLS 1.2+ for every network hop, no plaintext fallbacks\"},{\"section\":\"coverage\",\"check\":\"at_rest_encrypted\",\"status\":\"pass\",\"evidence\":\"skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets\"},{\"section\":\"coverage\",\"check\":\"key_not_stored_with_data\",\"status\":\"pass\",\"evidence\":\"skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_logged\",\"status\":\"pass\",\"evidence\":\"skill: in use \u2014 minimize plaintext lifetime, never log it\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_in_crash_dumps\",\"status\":\"pass\",\"evidence\":\"skill: in use \u2014 never put plaintext in crash dumps\"},{\"section\":\"coverage\",\"check\":\"fails_closed_on_crypto_failure\",\"status\":\"pass\",\"evidence\":\"skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected\"},{\"section\":\"claim_consistency\",\"check\":\"end_to_end_claim_matches_server_access\",\"status\":\"pass\",\"evidence\":\"end_to_end_encrypted=True server_can_read_plaintext=False (skill: if someone encrypts only in transit, they trust the server; follow the key)\"},{\"section\":\"claim_consistency\",\"check\":\"zero_knowledge_claim_matches_key_access\",\"status\":\"pass\",\"evidence\":\"zero_knowledge=True server_holds_decryption_keys=False (skill: ask where the key lives and who can read it \u2014 the answers draw the real trust boundary)\"}],\"summary\":\"28 pass, 0 fail, 0 missing of 28 checks across six sections.\",\"stamp\":\"ENCRYPTION CLAIM AUDIT\\nproduct: SecureVault-v1\\nVERDICT: CLAIMS_SOUND\\n  claim_specificity        pass\\n  standard_construction    pass\\n  key_management           pass\\n  derivation_and_randomness pass\\n  coverage                 pass\\n  claim_consistency        pass\\n28 pass, 0 fail, 0 missing of 28 checks across six sections.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "encryption-claim-audit",
+        "atom_version": "0.1.0",
+        "product": "SecureVault-v1",
+        "verdict": "CLAIMS_SOUND",
+        "sections": {
+          "claim_specificity": "pass",
+          "standard_construction": "pass",
+          "key_management": "pass",
+          "derivation_and_randomness": "pass",
+          "coverage": "pass",
+          "claim_consistency": "pass"
+        },
+        "checks": [
+          {
+            "section": "claim_specificity",
+            "check": "algorithm_named",
+            "status": "pass",
+            "evidence": "algorithm='AES' (skill: name the algorithm, mode, and key length)"
+          },
+          {
+            "section": "claim_specificity",
+            "check": "mode_named",
+            "status": "pass",
+            "evidence": "mode='GCM' (skill: name the algorithm, mode, and key length)"
+          },
+          {
+            "section": "claim_specificity",
+            "check": "key_length_stated",
+            "status": "pass",
+            "evidence": "key_length_bits=256 (skill: name the algorithm, mode, and key length)"
+          },
+          {
+            "section": "claim_specificity",
+            "check": "no_vague_unqualified_claim",
+            "status": "pass",
+            "evidence": "skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential"
+          },
+          {
+            "section": "standard_construction",
+            "check": "symmetric_is_aes_256_gcm",
+            "status": "pass",
+            "evidence": "algorithm='AES' mode='GCM' key_length_bits=256 (skill: symmetric: AES-256-GCM)"
+          },
+          {
+            "section": "standard_construction",
+            "check": "mode_is_not_ecb",
+            "status": "pass",
+            "evidence": "mode='GCM' (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)"
+          },
+          {
+            "section": "standard_construction",
+            "check": "authenticated_encryption",
+            "status": "pass",
+            "evidence": "skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident"
+          },
+          {
+            "section": "standard_construction",
+            "check": "no_custom_crypto",
+            "status": "pass",
+            "evidence": "skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES"
+          },
+          {
+            "section": "standard_construction",
+            "check": "nonce_unique_per_key",
+            "status": "pass",
+            "evidence": "skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key"
+          },
+          {
+            "section": "standard_construction",
+            "check": "asymmetric_is_standard",
+            "status": "pass",
+            "evidence": "key_exchange='X25519' signatures='Ed25519' (skill: X25519 for key exchange, Ed25519 for signatures)"
+          },
+          {
+            "section": "key_management",
+            "check": "keys_generated_from_csprng",
+            "status": "pass",
+            "evidence": "skill: keys come from the CSPRNG, never from passwords directly"
+          },
+          {
+            "section": "key_management",
+            "check": "no_hardcoded_keys",
+            "status": "pass",
+            "evidence": "skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps"
+          },
+          {
+            "section": "key_management",
+            "check": "key_storage_in_keystore_or_memory",
+            "status": "pass",
+            "evidence": "storage='platform_keystore' (skill: keys live in the platform keystore or in memory only)"
+          },
+          {
+            "section": "key_management",
+            "check": "key_rotation_planned",
+            "status": "pass",
+            "evidence": "skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?"
+          },
+          {
+            "section": "key_management",
+            "check": "recovery_story_documented",
+            "status": "pass",
+            "evidence": "skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated"
+          },
+          {
+            "section": "derivation_and_randomness",
+            "check": "kdf_is_argon2id_or_pbkdf2",
+            "status": "pass",
+            "evidence": "kdf='Argon2id' (skill: Argon2id; PBKDF2 acceptable with high iteration counts; raw SHA-256 is not key derivation)"
+          },
+          {
+            "section": "derivation_and_randomness",
+            "check": "unique_random_salt_per_key",
+            "status": "pass",
+            "evidence": "skill: passwords become keys through Argon2id with a unique random salt per key"
+          },
+          {
+            "section": "derivation_and_randomness",
+            "check": "password_not_used_directly_as_key",
+            "status": "pass",
+            "evidence": "skill mistake: weak or missing KDF \u2014 passwords used directly as keys"
+          },
+          {
+            "section": "derivation_and_randomness",
+            "check": "randomness_from_os_csprng",
+            "status": "pass",
+            "evidence": "source='os_csprng' (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)"
+          },
+          {
+            "section": "coverage",
+            "check": "transport_tls_1_2_or_higher",
+            "status": "pass",
+            "evidence": "tls_version='1.3' (skill: TLS 1.2+ for every network hop, no exceptions)"
+          },
+          {
+            "section": "coverage",
+            "check": "transport_no_plaintext_fallback",
+            "status": "pass",
+            "evidence": "skill: TLS 1.2+ for every network hop, no plaintext fallbacks"
+          },
+          {
+            "section": "coverage",
+            "check": "at_rest_encrypted",
+            "status": "pass",
+            "evidence": "skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets"
+          },
+          {
+            "section": "coverage",
+            "check": "key_not_stored_with_data",
+            "status": "pass",
+            "evidence": "skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps"
+          },
+          {
+            "section": "coverage",
+            "check": "in_use_plaintext_not_logged",
+            "status": "pass",
+            "evidence": "skill: in use \u2014 minimize plaintext lifetime, never log it"
+          },
+          {
+            "section": "coverage",
+            "check": "in_use_plaintext_not_in_crash_dumps",
+            "status": "pass",
+            "evidence": "skill: in use \u2014 never put plaintext in crash dumps"
+          },
+          {
+            "section": "coverage",
+            "check": "fails_closed_on_crypto_failure",
+            "status": "pass",
+            "evidence": "skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected"
+          },
+          {
+            "section": "claim_consistency",
+            "check": "end_to_end_claim_matches_server_access",
+            "status": "pass",
+            "evidence": "end_to_end_encrypted=True server_can_read_plaintext=False (skill: if someone encrypts only in transit, they trust the server; follow the key)"
+          },
+          {
+            "section": "claim_consistency",
+            "check": "zero_knowledge_claim_matches_key_access",
+            "status": "pass",
+            "evidence": "zero_knowledge=True server_holds_decryption_keys=False (skill: ask where the key lives and who can read it \u2014 the answers draw the real trust boundary)"
+          }
+        ],
+        "summary": "28 pass, 0 fail, 0 missing of 28 checks across six sections.",
+        "stamp": "ENCRYPTION CLAIM AUDIT\nproduct: SecureVault-v1\nVERDICT: CLAIMS_SOUND\n  claim_specificity        pass\n  standard_construction    pass\n  key_management           pass\n  derivation_and_randomness pass\n  coverage                 pass\n  claim_consistency        pass\n28 pass, 0 fail, 0 missing of 28 checks across six sections."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "CLAIMS_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "standard_construction",
+          "key_management",
+          "coverage",
+          "claim_consistency"
+        ],
+        "notes": "Multiple violations including ECB mode, hardcoded keys, and server-side plaintext access."
+      },
+      "input": {
+        "product": "WeakVault-v1",
+        "claims": {
+          "algorithm": "AES-ECB",
+          "mode": "ECB",
+          "key_length_bits": 128,
+          "vague_marketing_terms_used": true,
+          "end_to_end_encrypted": false,
+          "zero_knowledge": false
+        },
+        "construction": {
+          "authenticated_encryption": false,
+          "custom_crypto": true,
+          "nonce_unique_per_key": false
+        },
+        "asymmetric": {
+          "applies": false
+        },
+        "key_management": {
+          "keys_from_csprng": false,
+          "keys_hardcoded": true,
+          "storage": "plaintext_config",
+          "rotation_planned": false,
+          "recovery_story_documented": false
+        },
+        "password_derivation": {
+          "applies": false
+        },
+        "randomness": {
+          "source": "math.random"
+        },
+        "coverage": {
+          "transport": {
+            "tls_version": "1.0",
+            "plaintext_fallback": true
+          },
+          "at_rest": {
+            "encrypted": false,
+            "key_stored_with_data": true
+          },
+          "in_use": {
+            "plaintext_logged": true,
+            "plaintext_in_crash_dumps": true,
+            "fails_closed_on_crypto_error": false
+          }
+        },
+        "access": {
+          "server_can_read_plaintext": true,
+          "server_holds_decryption_keys": true
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"encryption-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"WeakVault-v1\",\"verdict\":\"CLAIMS_UNSOUND\",\"sections\":{\"claim_specificity\":\"fail\",\"standard_construction\":\"fail\",\"key_management\":\"fail\",\"derivation_and_randomness\":\"fail\",\"coverage\":\"fail\",\"claim_consistency\":\"pass\"},\"checks\":[{\"section\":\"claim_specificity\",\"check\":\"algorithm_named\",\"status\":\"pass\",\"evidence\":\"algorithm='AES-ECB' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"mode_named\",\"status\":\"pass\",\"evidence\":\"mode='ECB' (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"key_length_stated\",\"status\":\"pass\",\"evidence\":\"key_length_bits=128 (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"no_vague_unqualified_claim\",\"status\":\"fail\",\"evidence\":\"skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential\"},{\"section\":\"standard_construction\",\"check\":\"symmetric_is_aes_256_gcm\",\"status\":\"fail\",\"evidence\":\"algorithm='AES-ECB' mode='ECB' key_length_bits=128 (skill: symmetric: AES-256-GCM)\"},{\"section\":\"standard_construction\",\"check\":\"mode_is_not_ecb\",\"status\":\"fail\",\"evidence\":\"mode='ECB' (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)\"},{\"section\":\"standard_construction\",\"check\":\"authenticated_encryption\",\"status\":\"fail\",\"evidence\":\"skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident\"},{\"section\":\"standard_construction\",\"check\":\"no_custom_crypto\",\"status\":\"fail\",\"evidence\":\"skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES\"},{\"section\":\"standard_construction\",\"check\":\"nonce_unique_per_key\",\"status\":\"fail\",\"evidence\":\"skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key\"},{\"section\":\"standard_construction\",\"check\":\"asymmetric_is_standard\",\"status\":\"pass\",\"evidence\":\"no asymmetric cryptography declared\"},{\"section\":\"key_management\",\"check\":\"keys_generated_from_csprng\",\"status\":\"fail\",\"evidence\":\"skill: keys come from the CSPRNG, never from passwords directly\"},{\"section\":\"key_management\",\"check\":\"no_hardcoded_keys\",\"status\":\"fail\",\"evidence\":\"skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps\"},{\"section\":\"key_management\",\"check\":\"key_storage_in_keystore_or_memory\",\"status\":\"fail\",\"evidence\":\"storage='plaintext_config' (skill: keys live in the platform keystore or in memory only)\"},{\"section\":\"key_management\",\"check\":\"key_rotation_planned\",\"status\":\"fail\",\"evidence\":\"skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?\"},{\"section\":\"key_management\",\"check\":\"recovery_story_documented\",\"status\":\"fail\",\"evidence\":\"skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated\"},{\"section\":\"derivation_and_randomness\",\"check\":\"kdf_is_argon2id_or_pbkdf2\",\"status\":\"pass\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"unique_random_salt_per_key\",\"status\":\"pass\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"password_not_used_directly_as_key\",\"status\":\"pass\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"randomness_from_os_csprng\",\"status\":\"fail\",\"evidence\":\"source='math.random' (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)\"},{\"section\":\"coverage\",\"check\":\"transport_tls_1_2_or_higher\",\"status\":\"fail\",\"evidence\":\"tls_version='1.0' (skill: TLS 1.2+ for every network hop, no exceptions)\"},{\"section\":\"coverage\",\"check\":\"transport_no_plaintext_fallback\",\"status\":\"fail\",\"evidence\":\"skill: TLS 1.2+ for every network hop, no plaintext fallbacks\"},{\"section\":\"coverage\",\"check\":\"at_rest_encrypted\",\"status\":\"fail\",\"evidence\":\"skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets\"},{\"section\":\"coverage\",\"check\":\"key_not_stored_with_data\",\"status\":\"fail\",\"evidence\":\"skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_logged\",\"status\":\"fail\",\"evidence\":\"skill: in use \u2014 minimize plaintext lifetime, never log it\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_in_crash_dumps\",\"status\":\"fail\",\"evidence\":\"skill: in use \u2014 never put plaintext in crash dumps\"},{\"section\":\"coverage\",\"check\":\"fails_closed_on_crypto_failure\",\"status\":\"missing\",\"evidence\":\"skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected\"},{\"section\":\"claim_consistency\",\"check\":\"end_to_end_claim_matches_server_access\",\"status\":\"pass\",\"evidence\":\"no end-to-end encryption claim declared\"},{\"section\":\"claim_consistency\",\"check\":\"zero_knowledge_claim_matches_key_access\",\"status\":\"pass\",\"evidence\":\"no zero-knowledge claim declared\"}],\"summary\":\"9 pass, 18 fail, 1 missing of 28 checks across six sections.\",\"stamp\":\"ENCRYPTION CLAIM AUDIT\\nproduct: WeakVault-v1\\nVERDICT: CLAIMS_UNSOUND\\n  claim_specificity        fail\\n  standard_construction    fail\\n  key_management           fail\\n  derivation_and_randomness fail\\n  coverage                 fail\\n  claim_consistency        pass\\n9 pass, 18 fail, 1 missing of 28 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of fields required for a complete audit."
+      },
+      "input": {
+        "product": "Minimal-Audit"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"encryption-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"Minimal-Audit\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"claim_specificity\":\"insufficient_evidence\",\"standard_construction\":\"insufficient_evidence\",\"key_management\":\"insufficient_evidence\",\"derivation_and_randomness\":\"insufficient_evidence\",\"coverage\":\"insufficient_evidence\",\"claim_consistency\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"claim_specificity\",\"check\":\"algorithm_named\",\"status\":\"missing\",\"evidence\":\"algorithm=None (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"mode_named\",\"status\":\"missing\",\"evidence\":\"mode=None (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"key_length_stated\",\"status\":\"missing\",\"evidence\":\"key_length_bits=None (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"no_vague_unqualified_claim\",\"status\":\"missing\",\"evidence\":\"skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential\"},{\"section\":\"standard_construction\",\"check\":\"symmetric_is_aes_256_gcm\",\"status\":\"missing\",\"evidence\":\"algorithm=None mode=None key_length_bits=None (skill: symmetric: AES-256-GCM)\"},{\"section\":\"standard_construction\",\"check\":\"mode_is_not_ecb\",\"status\":\"missing\",\"evidence\":\"mode=None (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)\"},{\"section\":\"standard_construction\",\"check\":\"authenticated_encryption\",\"status\":\"missing\",\"evidence\":\"skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident\"},{\"section\":\"standard_construction\",\"check\":\"no_custom_crypto\",\"status\":\"missing\",\"evidence\":\"skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES\"},{\"section\":\"standard_construction\",\"check\":\"nonce_unique_per_key\",\"status\":\"missing\",\"evidence\":\"skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key\"},{\"section\":\"standard_construction\",\"check\":\"asymmetric_is_standard\",\"status\":\"missing\",\"evidence\":\"no asymmetric cryptography declared\"},{\"section\":\"key_management\",\"check\":\"keys_generated_from_csprng\",\"status\":\"missing\",\"evidence\":\"skill: keys come from the CSPRNG, never from passwords directly\"},{\"section\":\"key_management\",\"check\":\"no_hardcoded_keys\",\"status\":\"missing\",\"evidence\":\"skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps\"},{\"section\":\"key_management\",\"check\":\"key_storage_in_keystore_or_memory\",\"status\":\"missing\",\"evidence\":\"storage=None (skill: keys live in the platform keystore or in memory only)\"},{\"section\":\"key_management\",\"check\":\"key_rotation_planned\",\"status\":\"missing\",\"evidence\":\"skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?\"},{\"section\":\"key_management\",\"check\":\"recovery_story_documented\",\"status\":\"missing\",\"evidence\":\"skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated\"},{\"section\":\"derivation_and_randomness\",\"check\":\"kdf_is_argon2id_or_pbkdf2\",\"status\":\"missing\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"unique_random_salt_per_key\",\"status\":\"missing\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"password_not_used_directly_as_key\",\"status\":\"missing\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"randomness_from_os_csprng\",\"status\":\"missing\",\"evidence\":\"source=None (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)\"},{\"section\":\"coverage\",\"check\":\"transport_tls_1_2_or_higher\",\"status\":\"missing\",\"evidence\":\"tls_version=None (skill: TLS 1.2+ for every network hop, no exceptions)\"},{\"section\":\"coverage\",\"check\":\"transport_no_plaintext_fallback\",\"status\":\"missing\",\"evidence\":\"skill: TLS 1.2+ for every network hop, no plaintext fallbacks\"},{\"section\":\"coverage\",\"check\":\"at_rest_encrypted\",\"status\":\"missing\",\"evidence\":\"skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets\"},{\"section\":\"coverage\",\"check\":\"key_not_stored_with_data\",\"status\":\"missing\",\"evidence\":\"skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_logged\",\"status\":\"missing\",\"evidence\":\"skill: in use \u2014 minimize plaintext lifetime, never log it\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_in_crash_dumps\",\"status\":\"missing\",\"evidence\":\"skill: in use \u2014 never put plaintext in crash dumps\"},{\"section\":\"coverage\",\"check\":\"fails_closed_on_crypto_failure\",\"status\":\"missing\",\"evidence\":\"skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected\"},{\"section\":\"claim_consistency\",\"check\":\"end_to_end_claim_matches_server_access\",\"status\":\"missing\",\"evidence\":\"no end-to-end encryption claim declared\"},{\"section\":\"claim_consistency\",\"check\":\"zero_knowledge_claim_matches_key_access\",\"status\":\"missing\",\"evidence\":\"no zero-knowledge claim declared\"}],\"summary\":\"0 pass, 0 fail, 28 missing of 28 checks across six sections.\",\"stamp\":\"ENCRYPTION CLAIM AUDIT\\nproduct: Minimal-Audit\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  claim_specificity        insufficient_evidence\\n  standard_construction    insufficient_evidence\\n  key_management           insufficient_evidence\\n  derivation_and_randomness insufficient_evidence\\n  coverage                 insufficient_evidence\\n  claim_consistency        insufficient_evidence\\n0 pass, 0 fail, 28 missing of 28 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input schema validation failure due to incorrect data types."
+      },
+      "input": {
+        "product": 12345,
+        "claims": "invalid_string_instead_of_object"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"encryption-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":12345,\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"claim_specificity\":\"insufficient_evidence\",\"standard_construction\":\"insufficient_evidence\",\"key_management\":\"insufficient_evidence\",\"derivation_and_randomness\":\"insufficient_evidence\",\"coverage\":\"insufficient_evidence\",\"claim_consistency\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"claim_specificity\",\"check\":\"algorithm_named\",\"status\":\"missing\",\"evidence\":\"algorithm=None (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"mode_named\",\"status\":\"missing\",\"evidence\":\"mode=None (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"key_length_stated\",\"status\":\"missing\",\"evidence\":\"key_length_bits=None (skill: name the algorithm, mode, and key length)\"},{\"section\":\"claim_specificity\",\"check\":\"no_vague_unqualified_claim\",\"status\":\"missing\",\"evidence\":\"skill: 'military-grade encryption' without algorithm/mode/key length is a red flag, not a credential\"},{\"section\":\"standard_construction\",\"check\":\"symmetric_is_aes_256_gcm\",\"status\":\"missing\",\"evidence\":\"algorithm=None mode=None key_length_bits=None (skill: symmetric: AES-256-GCM)\"},{\"section\":\"standard_construction\",\"check\":\"mode_is_not_ecb\",\"status\":\"missing\",\"evidence\":\"mode=None (skill mistake: ECB mode \u2014 identical plaintext blocks give identical ciphertext blocks)\"},{\"section\":\"standard_construction\",\"check\":\"authenticated_encryption\",\"status\":\"missing\",\"evidence\":\"skill: authenticated encryption \u2014 never raw AES-CBC without a separate MAC; ask if the ciphertext is tamper-evident\"},{\"section\":\"standard_construction\",\"check\":\"no_custom_crypto\",\"status\":\"missing\",\"evidence\":\"skill mistake: homebrew crypto \u2014 custom ciphers, custom modes, 'improved' AES\"},{\"section\":\"standard_construction\",\"check\":\"nonce_unique_per_key\",\"status\":\"missing\",\"evidence\":\"skill mistake: IV/nonce reuse \u2014 GCM with a reused nonce leaks the keystream; nonces must be unique per key\"},{\"section\":\"standard_construction\",\"check\":\"asymmetric_is_standard\",\"status\":\"missing\",\"evidence\":\"no asymmetric cryptography declared\"},{\"section\":\"key_management\",\"check\":\"keys_generated_from_csprng\",\"status\":\"missing\",\"evidence\":\"skill: keys come from the CSPRNG, never from passwords directly\"},{\"section\":\"key_management\",\"check\":\"no_hardcoded_keys\",\"status\":\"missing\",\"evidence\":\"skill mistake: hardcoded keys or IVs \u2014 keys in source, in config, in environment dumps\"},{\"section\":\"key_management\",\"check\":\"key_storage_in_keystore_or_memory\",\"status\":\"missing\",\"evidence\":\"storage=None (skill: keys live in the platform keystore or in memory only)\"},{\"section\":\"key_management\",\"check\":\"key_rotation_planned\",\"status\":\"missing\",\"evidence\":\"skill: plan rotation before you need it \u2014 what happens to old ciphertext when the key changes?\"},{\"section\":\"key_management\",\"check\":\"recovery_story_documented\",\"status\":\"missing\",\"evidence\":\"skill: the recovery story is the security story; 'no recovery possible' is a valid design when stated\"},{\"section\":\"derivation_and_randomness\",\"check\":\"kdf_is_argon2id_or_pbkdf2\",\"status\":\"missing\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"unique_random_salt_per_key\",\"status\":\"missing\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"password_not_used_directly_as_key\",\"status\":\"missing\",\"evidence\":\"no password-derived keys declared\"},{\"section\":\"derivation_and_randomness\",\"check\":\"randomness_from_os_csprng\",\"status\":\"missing\",\"evidence\":\"source=None (skill: the OS CSPRNG \u2014 never Math.random(), never a homebrew PRNG, never a hardcoded seed)\"},{\"section\":\"coverage\",\"check\":\"transport_tls_1_2_or_higher\",\"status\":\"missing\",\"evidence\":\"tls_version=None (skill: TLS 1.2+ for every network hop, no exceptions)\"},{\"section\":\"coverage\",\"check\":\"transport_no_plaintext_fallback\",\"status\":\"missing\",\"evidence\":\"skill: TLS 1.2+ for every network hop, no plaintext fallbacks\"},{\"section\":\"coverage\",\"check\":\"at_rest_encrypted\",\"status\":\"missing\",\"evidence\":\"skill: encrypt everything stored \u2014 databases, blobs, backups, logs that might contain secrets\"},{\"section\":\"coverage\",\"check\":\"key_not_stored_with_data\",\"status\":\"missing\",\"evidence\":\"skill mistake: 'encrypted' with the key next to the data is obfuscation with extra steps\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_logged\",\"status\":\"missing\",\"evidence\":\"skill: in use \u2014 minimize plaintext lifetime, never log it\"},{\"section\":\"coverage\",\"check\":\"in_use_plaintext_not_in_crash_dumps\",\"status\":\"missing\",\"evidence\":\"skill: in use \u2014 never put plaintext in crash dumps\"},{\"section\":\"coverage\",\"check\":\"fails_closed_on_crypto_failure\",\"status\":\"missing\",\"evidence\":\"skill: fail closed or open? When crypto fails, the system refuses, not proceeds unprotected\"},{\"section\":\"claim_consistency\",\"check\":\"end_to_end_claim_matches_server_access\",\"status\":\"missing\",\"evidence\":\"no end-to-end encryption claim declared\"},{\"section\":\"claim_consistency\",\"check\":\"zero_knowledge_claim_matches_key_access\",\"status\":\"missing\",\"evidence\":\"no zero-knowledge claim declared\"}],\"summary\":\"0 pass, 0 fail, 28 missing of 28 checks across six sections.\",\"stamp\":\"ENCRYPTION CLAIM AUDIT\\nproduct: 12345\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  claim_specificity        insufficient_evidence\\n  standard_construction    insufficient_evidence\\n  key_management           insufficient_evidence\\n  derivation_and_randomness insufficient_evidence\\n  coverage                 insufficient_evidence\\n  claim_consistency        insufficient_evidence\\n0 pass, 0 fail, 28 missing of 28 checks across six sections.\"}"
+        }
+      ]
+    }
+  ]
+}

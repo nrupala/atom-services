@@ -1,0 +1,142 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "budget": "Q1 Marketing Plan",
+        "scope": {
+          "budget_type": "operating",
+          "entity_named": true,
+          "currency_stated": true,
+          "governs_stated": true,
+          "exclusions_stated": true
+        },
+        "lines": [
+          {
+            "name": "Ads",
+            "owner": "Marketing Lead",
+            "approach": "zero_based",
+            "driver_documented": true,
+            "driver_quantity": 100,
+            "driver_unit_cost": 5,
+            "amount": 500
+          }
+        ],
+        "totals": {
+          "declared_total": 500,
+          "expected_income": 1000
+        },
+        "revenue": {
+          "linked_to_forecast": true
+        },
+        "contingency": {
+          "explicit_line_present": true,
+          "sized_to_identified_risks": true,
+          "hidden_padding_present": false
+        },
+        "approval": {
+          "baseline_approved_and_locked": true,
+          "approval_thresholds_documented": true,
+          "revisions_reapproved": true
+        },
+        "monitoring": {
+          "monthly_variance_process_running": true,
+          "variance_thresholds_trigger_explanations": true,
+          "variance_actions_tracked": true,
+          "rolling_forecast_cadence_set": true,
+          "rolling_horizon_months": 12
+        },
+        "close": {
+          "annual_true_up_done": true,
+          "carry_over_rules_decided": true,
+          "lessons_carried_to_next_cycle": true,
+          "silent_reallocations_made": false,
+          "actuals_edited_without_annotation": false
+        }
+      },
+      "expect": {
+        "outcome": "BUDGET_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: line amount 500 (100*5), total 500, balance 500 <= 1000, horizon 12. [Tester correction: structured computed_spot_checks list added — Gemini only embedded the spot checks in notes.]",
+        "computed_spot_checks": [
+          "line_amounts_match_driver_products: amount 500 = driver_quantity 100 * driver_unit_cost 5",
+          "computed_total = \"500.00\" (sum of line amounts 500, 2dp serialization)",
+          "total_difference = \"0.00\" (declared_total 500 - computed_total 500)",
+          "budget_balances_against_expected_income: declared_total 500 <= expected_income 1000",
+          "rolling_forecast_covers_twelve_months: rolling_horizon_months 12 = 12",
+          "computed_status = within_stated_limits_on_declared_evidence",
+          "lines_evaluated = 1",
+          "ownerless_line_indexes = []"
+        ]
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "scope": {
+          "budget_type": "invalid_type"
+        },
+        "lines": [
+          {
+            "name": "Bad Line",
+            "owner": "",
+            "approach": "incremental",
+            "driver_documented": true,
+            "driver_quantity": 10,
+            "driver_unit_cost": 10,
+            "amount": 50
+          }
+        ],
+        "totals": {
+          "declared_total": 50,
+          "expected_income": 10
+        },
+        "contingency": {
+          "hidden_padding_present": true
+        }
+      },
+      "expect": {
+        "outcome": "BUDGET_DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "budget_type_is_stated_kind",
+          "every_line_has_named_owner",
+          "line_amounts_match_driver_products",
+          "budget_balances_against_expected_income",
+          "no_hidden_padding"
+        ],
+        "notes": "Fails due to invalid budget type, empty owner, arithmetic mismatch (50 != 10*10), balance violation (50 > 10), and forbidden padding. [Tester correction: failing_checks rewritten from section.field strings (scope.budget_type, structure_and_owners.owner, drivers_and_totals.driver_products, revenue_and_contingency.balance_against_income, revenue_and_contingency.hidden_padding_present) to the exact check names.]"
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "budget": "Minimal"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required fields for checks; returns insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "scope": "not_an_object",
+        "lines": "should_be_a_list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input schema violation; returns 422."
+      }
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "entity": "test-pipeline-001",
+        "sources": {
+          "datasets": [{"name": "raw_logs", "rows": 100}, {"name": "user_data", "rows": 50}],
+          "declared_total_rows": 150,
+          "schemas_and_expectations_declared_for_all_inputs_and_outputs": true,
+          "validation_on_arrival": true,
+          "bad_data_refused_loudly": true,
+          "silent_coercion_present": false
+        },
+        "pipeline": {
+          "steps_rerunnable_idempotently": true,
+          "exactly_once_effects_at_sinks": true,
+          "backfill_tested_once": true,
+          "explicit_step_dependencies": true,
+          "schedules_documented": true,
+          "failures_alert_and_retry": true,
+          "unrecorded_manual_reruns_present": false
+        },
+        "quality": {
+          "row_count_checks_between_stages": true,
+          "freshness_checks_between_stages": true,
+          "null_uniqueness_distribution_checks_between_stages": true,
+          "bad_partitions_quarantined": true,
+          "pipeline_health_dashboard_present": true
+        },
+        "lineage": {
+          "source_to_transform_to_sink_tracked": true,
+          "code_versioned": true,
+          "config_versioned": true,
+          "data_snapshots_versioned": true,
+          "same_inputs_produce_same_outputs_verified": true,
+          "reproducible_with_seeds_and_pinned_env": true
+        },
+        "splits": {
+          "train_rows": 80,
+          "eval_rows": 40,
+          "test_rows": 30,
+          "declared_total_rows": 150,
+          "leakage_checks_cover_time_target_and_cross_splits": true,
+          "split_by_time_or_user_when_temporal": true,
+          "class_balance_assessed": true,
+          "feature_definitions_declared": true,
+          "label_definition_declared": true,
+          "feature_store_only_when_justified": true,
+          "pii_in_training_data_without_lawful_basis": false
+        },
+        "lifecycle": {
+          "eval_suites_versioned_with_model": true,
+          "model_registry_entry_exists": true,
+          "model_card_covers_data_metrics_and_limits": true,
+          "offline_eval_completed_before_prod": true,
+          "rollout_plan_present_before_prod": true
+        },
+        "serving": {
+          "deployment_pattern_declared": true,
+          "estimated_latency_ms": 100.0,
+          "latency_budget_ms": 200.0,
+          "estimated_monthly_cost": 50.0,
+          "monthly_cost_budget": 100.0
+        },
+        "monitoring": {
+          "input_drift_monitored": true,
+          "output_drift_monitored": true,
+          "performance_decay_monitored_vs_baselines": true,
+          "alert_thresholds_set": true,
+          "thresholds_tied_to_retraining_policy": true,
+          "retraining_is_a_pipeline": true
+        }
+      },
+      "expect": {
+        "outcome": "DATA_ML_PIPELINE_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: sources_total=150, split_total=150, latency_headroom=100.000000, cost_headroom=50.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "sources": {
+          "datasets": [{"name": "data", "rows": 100}],
+          "declared_total_rows": 999,
+          "silent_coercion_present": true
+        },
+        "splits": {
+          "train_rows": 10,
+          "eval_rows": 10,
+          "test_rows": 10,
+          "declared_total_rows": 100
+        },
+        "serving": {
+          "estimated_latency_ms": 500.0,
+          "latency_budget_ms": 200.0,
+          "estimated_monthly_cost": 500.0,
+          "monthly_cost_budget": 100.0
+        },
+        "privacy": {"pii_in_training_data_without_lawful_basis": true}
+      },
+      "expect": {
+        "outcome": "DATA_ML_PIPELINE_NOT_READY",
+        "http": 200,
+        "failing_checks": ["sources.declared_total_rows", "sources.silent_coercion_present", "splits.declared_total_rows", "serving.latency_budget_ms", "serving.monthly_cost_budget", "privacy.pii_in_training_data_without_lawful_basis"],
+        "notes": "Violates arithmetic consistency, red-line boolean constraints, and budget thresholds."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "entity": "minimal-test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing almost all required fields for the seven sections."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "sources": {
+          "datasets": "not-a-list",
+          "declared_total_rows": "one-hundred"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: datasets expected list, declared_total_rows expected number."
+      }
+    }
+  ]
+}

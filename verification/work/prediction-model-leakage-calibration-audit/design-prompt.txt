@@ -1,0 +1,201 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: prediction-model-leakage-calibration-audit
+
+=== contract.yaml ===
+service_name: prediction-model-leakage-calibration-audit
+display_name: Prediction model leakage calibration audit
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:prediction
+binding:
+  skill: prediction
+  skill_path: workspace/mymilo-build/skills/prediction/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/prediction_model_leakage_calibration_audit.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_prediction_model_leakage_calibration_audit.py — 24 tests, all passing 2026-11-15
+keys:
+  namespace: prediction_model_leakage_calibration_audit
+  prefix: atm_1_prediction_model_leakage_calibration_audit_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Validating RA and PdM models
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Prediction model leakage calibration audit — `prediction-model-leakage-calibration-audit`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Predict with models honestly — baselines, leakage-free validation, calibration, drift awareness.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Validating RA and PdM models**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the prediction-model evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`PREDICTION_AUDIT_UNSOUND`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `model` (string; carried into the verdict output, not itself checked) | — |
+| `prediction_time` (number; every feature must be available at or before it) | leakage_and_validation |
+| `target.defined` | target_and_decision |
+| `target.horizon_declared` | target_and_decision |
+| `target.decision_defined` | target_and_decision |
+| `target.metric_chosen_from_decision_costs` | target_and_decision |
+| `baseline.computed` | baseline_and_holdout |
+| `baseline.evaluated_on_same_holdout` | baseline_and_holdout |
+| `holdout.model_score` (number; compared against the baseline by the computed check) | baseline_and_holdout |
+| `holdout.baseline_score` (number; see above) | baseline_and_holdout |
+| `holdout.metric_direction` (string: `"lower_is_better"` or `"higher_is_better"`; the model must strictly beat the baseline in that direction) | baseline_and_holdout |
+| `holdout.untouched` | baseline_and_holdout |
+| `validation.split_strategy_documented` | leakage_and_validation |
+| `validation.temporal_data` (with `validation.split_type`; a temporal dataset with a `"random"` split is the red-line fail) | leakage_and_validation |
+| `validation.split_type` (string, e.g. `"time_based"`; see above) | leakage_and_validation |
+| `validation.peeking_at_validation` (must be `false` to pass) | leakage_and_validation |
+| `features[]` (list of feature records, see below) | leakage_and_validation |
+| `features[].available_at` (number; must be ≤ `prediction_time`) | leakage_and_validation |
+| `features[].derived_from_target` (must be `false` for every feature) | leakage_and_validation |
+| `approach.simple_model_tried_first` | model_ladder_and_thresholds |
+| `approach.complexity_justified` | model_ladder_and_thresholds |
+| `approach.outputs_probabilities` | model_ladder_and_thresholds |
+| `approach.action_thresholds_from_decision_costs` | model_ladder_and_thresholds |
+| `calibration.reported` | calibration_and_evaluation |
+| `calibration.max_tolerated_error` (number; the caller's declared tolerance for the computed calibration error) | calibration_and_evaluation |
+| `calibration.observations[]` (list of `{predicted, outcome}` records, see below) | calibration_and_evaluation |
+| `calibration.observations[].predicted` (number, 0–1: a predicted probability) | calibration_and_evaluation |
+| `calibration.observations[].outcome` (number: `0` or `1`, the observed outcome) | calibration_and_evaluation |
+| `evaluation.segment_errors_reported` | calibration_and_evaluation |
+| `evaluation.max_segment_error` (number; the caller's declared maximum segment error) | calibration_and_evaluation |
+| `evaluation.segments[]` (list of `{name, error}` records, see below) | calibration_and_evaluation |
+| `evaluation.segments[].error` (number; must be ≤ `evaluation.max_segment_error`) | calibration_and_evaluation |
+| `drift.monitoring_in_place` | drift_and_deployment |
+| `drift.feedback_loops_identified` | drift_and_deployment |
+| `drift.retraining_policy_defined` | drift_and_deployment |
+| `deployment.versioned_model_and_card` | drift_and_deployment |
+| `deployment.rollback_path_defined` | drift_and_deployment |
+| `deployment.silent_updates_in_production` (must be `false` to pass) | drift_and_deployment |
+
+Five checks are computed, not declared: the model must strictly beat
+the baseline on the untouched holdout in the declared metric
+direction; no feature may be available after `prediction_time` and
+none may be derived from the target; a temporal dataset must not use
+a random split; the calibration error — |mean predicted probability
+− mean observed outcome| over `calibration.observations` — must be
+within the caller's declared `max_tolerated_error`; and every segment
+error must be within the caller's declared `max_segment_error`. No
+threshold is invented by the atom — both tolerances are the caller's
+declared values. The verdict dict also reports `holdout_improvement`,
+`mean_predicted`, `mean_observed` and `calibration_error` as strings
+with exactly four decimal places (round half up to 4dp, then format
+with four decimals — the same fixed rule in both implementations),
+and `worst_segment`, the name of the segment with the highest error
+(first such segment on a tie).
+
+The verdict is one of `PREDICTION_AUDIT_SOUND` (all 27 checks pass),
+`PREDICTION_AUDIT_UNSOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: target_and_decision, baseline_and_holdout,
+leakage_and_validation, model_ladder_and_thresholds,
+calibration_and_evaluation, drift_and_deployment.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

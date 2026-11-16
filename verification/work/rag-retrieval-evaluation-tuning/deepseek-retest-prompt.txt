@@ -1,0 +1,1066 @@
+You are an INDEPENDENT second tester for a deterministic API atom. The evidence below records real HTTP calls to the live gateway.
+
+Your job: INDEPENDENTLY RECOMPUTE the atom's computed quantities BY HAND from each case's INPUT (per the formulas/rules in SERVICE.md), and verify the artifact's numbers and verdict/status against your recomputation. Do not trust the artifact's own summary. Also check: malformed input should return HTTP 422 (never a verdict); determinism and MCP/REST parity flags are given per case.
+
+ATOM: rag-retrieval-evaluation-tuning
+
+
+RETEST WAVE (2026-11-15, fix-stream deploy 7f9cae9fdd60417eb72062905a066554, gateway v1.1.0): this is a re-run of the same recorded battery after a fix for F1 (malformed type-violating input previously returned HTTP 200 instead of HTTP 422 invalid_input). Judge the NEW evidence below fresh.
+
+=== SERVICE.md (computed rules) ===
+# Rag retrieval evaluation tuning — `rag-retrieval-evaluation-tuning`
+
+**Deliverable type:** EVALUATION. This atom sells the evaluation it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build search & RAG that answers — indexing, hybrid retrieval, reranking, retrieval evals, access-scoped filters.
+
+A caller submits the inputs the bound skill works on and receives one evaluation back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this evaluation on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Fixing product search and RAG**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the retrieval-evaluation evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`RAG_EVALUATION_UNSOUND`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `system` (string; carried into the output, not itself checked) | — |
+| `corpus.inventory_declared` | corpus_and_chunking |
+| `corpus.freshness_requirements_declared` | corpus_and_chunking |
+| `corpus.dedup_rules_declared` | corpus_and_chunking |
+| `corpus.per_document_provenance_tracked` | corpus_and_chunking |
+| `chunking.semantic_units` | corpus_and_chunking |
+| `chunking.overlap_discipline_declared` | corpus_and_chunking |
+| `chunking.stable_chunk_ids` | corpus_and_chunking |
+| `retrieval.lexical_used` | hybrid_retrieval |
+| `retrieval.vector_used` | hybrid_retrieval |
+| `retrieval.scores_combined_with_declared_weights` | hybrid_retrieval |
+| `retrieval.embedding_model_version_pinned` | hybrid_retrieval |
+| `retrieval.reindex_plan_for_model_change` | hybrid_retrieval |
+| `reranking.applied` | reranking_and_filters |
+| `reranking.reranker_budget_declared` | reranking_and_filters |
+| `reranking.context_top_n_bounded` | reranking_and_filters |
+| `reranking.filters_applied_before_ranking` | reranking_and_filters |
+| `reranking.scope_leakage_tested` | reranking_and_filters |
+| `reranking.context_token_budget` (number) | reranking_and_filters (computed context check) |
+| `index.incremental_updates_with_tombstones` | index_hygiene |
+| `index.full_rebuild_drill_done` | index_hygiene |
+| `index.size_quota_budgets_monitored` | index_hygiene |
+| `index.embedding_model_and_index_versioned` | index_hygiene |
+| `evaluation.golden_queries_labeled` | evaluation |
+| `evaluation.thresholds_declared` | evaluation |
+| `evaluation.evals_run_in_regression` | evaluation |
+| `evaluation.real_queries_logged_privacy_scoped` | evaluation |
+| `evaluation.tuning_performed` (gates the tuning red line below: required only when true) | evaluation |
+| `evaluation.evals_run_before_tuning` | evaluation |
+| `queries[]` (list of golden queries, see below) | evaluation + reranking_and_filters |
+| `serving.latency_budgets_per_stage_declared` | serving_and_privacy |
+| `serving.latency_budget_measured` | serving_and_privacy |
+| `serving.hot_queries_cached` | serving_and_privacy |
+| `serving.lexical_only_fallback_exists` | serving_and_privacy |
+| `privacy.query_time_access_scopes_enforced` | serving_and_privacy |
+| `privacy.sensitive_content_excluded_or_encrypted` | serving_and_privacy |
+| `privacy.private_corpus` (gates the local-embeddings check below: required only when true) | serving_and_privacy |
+| `privacy.local_embeddings_for_private_corpus` | serving_and_privacy |
+
+Each `queries[]` entry is `{name, k, relevant_doc_ids,
+retrieved_doc_ids, relevance_grades (optional), forbidden_doc_ids,
+context_tokens, min_recall_at_k, min_mrr, min_ndcg_at_k}`. Three
+checks are computed over these declared values — the only metrics the
+skill names, with no threshold imported from outside (every threshold
+is the caller's own, declared per query):
+
+- **Golden metrics** — per query: recall@k = |relevant ∩
+  retrieved[:k]| / |relevant| (distinct ids); reciprocal rank = 1 /
+  rank of the first relevant doc in the full retrieved list (0 when
+  none); nDCG@k = DCG@k / IDCG@k with DCG@k = Σ (2^grade − 1) /
+  log2(rank + 1) over retrieved[:k] (rank 1-based; grade = the
+  declared `relevance_grades` value, unlisted = 0, or binary
+  relevant/not when grades are not declared; IDCG@k is the same sum
+  over the positive grades sorted descending, truncated to k). The
+  check passes only when every query's computed values meet that
+  query's declared `min_*` thresholds.
+- **Scope leakage (red line)** — no retrieved doc id may appear in
+  its query's `forbidden_doc_ids` (the filtered / out-of-scope set).
+- **Context budget (red line)** — every query's `context_tokens`
+  must be within `reranking.context_token_budget`.
+
+Computed floats (the output's `metrics.mean_recall_at_k`,
+`mean_mrr`, `mean_ndcg_at_k`) are serialized as strings with exactly
+four decimal places by a fixed rule shared by the Python and
+TypeScript implementations: round half up to 4dp — floor(v × 10000 +
+0.5) / 10000 — then format with exactly four decimals. Comparisons
+use the unrounded values. The output also carries `metrics`
+counts (queries_total / queries_meeting_thresholds /
+leaked_doc_count).
+
+The verdict is one of `RAG_EVALUATION_SOUND` (all 36 checks pass),
+`RAG_EVALUATION_UNSOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: corpus_and_chunking, hybrid_retrieval,
+reranking_and_filters, index_hygiene, evaluation,
+serving_and_privacy.
+
+## Honest scoping — declared vs measured, named exclusions
+
+- **Declared, not measured.** Everything except the three computed
+  checks is the caller's declaration: this atom does not crawl a
+  corpus, run queries against a live index, time any pipeline stage,
+  or inspect an embedding model. It computes over the retrieved lists
+  and relevance judgments the caller submits, and audits the posture
+  the caller declares.
+- **Metrics are exactly the three the skill names** — recall@k, MRR,
+  nDCG@k. Precision, F1, MAP and latency percentiles are **excluded**:
+  the skill does not name them, so this atom does not invent them.
+- **No threshold is the atom's.** The skill requires golden-set
+  evals "with thresholds" but states no numbers; every threshold
+  compared here is declared per query in the manifest itself.
+- **Relevance judgments are the caller's.** A query with no positive
+  relevance grade has no definable nDCG and counts as missing
+  evidence, not as a zero score.
+- Tuning itself, index building, reranker execution and query
+  serving are the caller's systems — this atom evaluates their
+  declared evidence and submitted retrieval results only.
+
+## Status
+
+Tier A · status: **built-locally** — deterministic core, Python
+oracle, TypeScript port and golden fixtures are built and verified
+locally; no endpoint is live. Release happens one by one, by the
+owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Golden-set scores are checkable deliverable
+
+
+=== cases.json (inputs + expectations) ===
+{
+ "cases": [
+  {
+   "id": "full-pass",
+   "kind": "full-pass",
+   "input": {
+    "system": "production-search-v1",
+    "corpus": {
+     "inventory_declared": true,
+     "freshness_requirements_declared": true,
+     "dedup_rules_declared": true,
+     "per_document_provenance_tracked": true
+    },
+    "chunking": {
+     "semantic_units": true,
+     "overlap_discipline_declared": true,
+     "stable_chunk_ids": true
+    },
+    "retrieval": {
+     "lexical_used": true,
+     "vector_used": true,
+     "scores_combined_with_declared_weights": true,
+     "embedding_model_version_pinned": true,
+     "reindex_plan_for_model_change": true
+    },
+    "reranking": {
+     "applied": true,
+     "reranker_budget_declared": true,
+     "context_top_n_bounded": true,
+     "filters_applied_before_ranking": true,
+     "scope_leakage_tested": true,
+     "context_token_budget": 500
+    },
+    "index": {
+     "incremental_updates_with_tombstones": true,
+     "full_rebuild_drill_done": true,
+     "size_quota_budgets_monitored": true,
+     "embedding_model_and_index_versioned": true
+    },
+    "evaluation": {
+     "golden_queries_labeled": true,
+     "thresholds_declared": true,
+     "evals_run_in_regression": true,
+     "real_queries_logged_privacy_scoped": true,
+     "tuning_performed": false,
+     "evals_run_before_tuning": true
+    },
+    "queries": [
+     {
+      "name": "q1",
+      "k": 1,
+      "relevant_doc_ids": [
+       "doc1"
+      ],
+      "retrieved_doc_ids": [
+       "doc1"
+      ],
+      "relevance_grades": {
+       "doc1": 1
+      },
+      "forbidden_doc_ids": [],
+      "context_tokens": 100,
+      "min_recall_at_k": 1.0,
+      "min_mrr": 1.0,
+      "min_ndcg_at_k": 1.0
+     }
+    ],
+    "serving": {
+     "latency_budgets_per_stage_declared": true,
+     "latency_budget_measured": true,
+     "hot_queries_cached": true,
+     "lexical_only_fallback_exists": true
+    },
+    "privacy": {
+     "query_time_access_scopes_enforced": true,
+     "sensitive_content_excluded_or_encrypted": true,
+     "private_corpus": false,
+     "local_embeddings_for_private_corpus": true
+    }
+   },
+   "expect": {
+    "outcome": "RAG_EVALUATION_SOUND",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "All booleans true, metrics meet thresholds. computed_spot_checks: mean_recall_at_k=1.0000, mean_mrr=1.0000, mean_ndcg_at_k=1.0000 [CORRECTED by tester: relevance_grades as object {doc: grade} per SERVICE.md \"unlisted = 0\" / atom metric shape; originally designed as a list.]"
+   }
+  },
+  {
+   "id": "violations",
+   "kind": "violations",
+   "input": {
+    "queries": [
+     {
+      "name": "q_fail",
+      "k": 1,
+      "relevant_doc_ids": [
+       "doc1"
+      ],
+      "retrieved_doc_ids": [
+       "forbidden_doc"
+      ],
+      "forbidden_doc_ids": [
+       "forbidden_doc"
+      ],
+      "context_tokens": 2000,
+      "min_recall_at_k": 1.0,
+      "min_mrr": 1.0,
+      "min_ndcg_at_k": 1.0
+     }
+    ],
+    "reranking": {
+     "context_token_budget": 500
+    }
+   },
+   "expect": {
+    "outcome": "RAG_EVALUATION_UNSOUND",
+    "http": 200,
+    "failing_checks": [
+     "reranking_and_filters",
+     "evaluation"
+    ],
+    "notes": "Triggers scope leakage (forbidden doc found) and context budget violation (2000 > 500)."
+   }
+  },
+  {
+   "id": "sparse",
+   "kind": "sparse",
+   "input": {
+    "system": "minimal-test"
+   },
+   "expect": {
+    "outcome": "INSUFFICIENT_EVIDENCE",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "Missing almost all required fields for the six evaluation sections."
+   }
+  },
+  {
+   "id": "malformed",
+   "kind": "malformed",
+   "input": {
+    "corpus": "this-should-be-an-object"
+   },
+   "expect": {
+    "outcome": null,
+    "http": 422,
+    "failing_checks": [],
+    "notes": "Type violation: corpus field expects object, received string."
+   }
+  }
+ ]
+}
+
+=== NEW EVIDENCE ARTIFACTS (real HTTP calls, retest) ===
+{
+  "full-pass": {
+    "http_status": 200,
+    "artifact": {
+      "service": "rag-retrieval-evaluation-tuning",
+      "atom_version": "0.1.0",
+      "system": "production-search-v1",
+      "verdict": "RAG_EVALUATION_SOUND",
+      "sections": {
+        "corpus_and_chunking": "pass",
+        "hybrid_retrieval": "pass",
+        "reranking_and_filters": "pass",
+        "index_hygiene": "pass",
+        "evaluation": "pass",
+        "serving_and_privacy": "pass"
+      },
+      "checks": [
+        {
+          "section": "corpus_and_chunking",
+          "check": "corpus_inventory_declared",
+          "status": "pass",
+          "evidence": "corpus first: what's indexed is declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "freshness_requirements_declared",
+          "status": "pass",
+          "evidence": "freshness requirements declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "dedup_rules_declared",
+          "status": "pass",
+          "evidence": "dedup rules declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "per_document_provenance_tracked",
+          "status": "pass",
+          "evidence": "per-document provenance tracked"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "chunking_uses_semantic_units",
+          "status": "pass",
+          "evidence": "chunking strategy: semantic units \u2014 chunking is 80% of RAG quality"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "chunking_overlap_discipline_declared",
+          "status": "pass",
+          "evidence": "chunking overlap discipline declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "stable_chunk_ids",
+          "status": "pass",
+          "evidence": "stable chunk ids"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "lexical_retrieval_used",
+          "status": "pass",
+          "evidence": "hybrid retrieval: BM25/lexical for exact terms (codes, names, numbers)"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "vector_retrieval_used",
+          "status": "pass",
+          "evidence": "hybrid retrieval: vector kNN for meaning"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "hybrid_scores_combined_with_declared_weights",
+          "status": "pass",
+          "evidence": "lexical and vector scores combined with tuned weights"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "embedding_model_version_pinned",
+          "status": "pass",
+          "evidence": "embed model version pinned"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "reindex_plan_for_model_change",
+          "status": "pass",
+          "evidence": "reindex plan for any embedding model change"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "reranking_applied",
+          "status": "pass",
+          "evidence": "rerank with budget: top-K through a reranker to top-N for context"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "reranker_budget_declared",
+          "status": "pass",
+          "evidence": "reranker token budget declared"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "context_top_n_bounded",
+          "status": "pass",
+          "evidence": "context top-N is bounded"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "filters_applied_before_ranking",
+          "status": "pass",
+          "evidence": "filters (time, type, access scope) applied before ranking or hard-enforced in queries"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "scope_leakage_tested",
+          "status": "pass",
+          "evidence": "quality gate: filters enforced pre-rank; scope leakage tested"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "context_within_declared_token_budget",
+          "status": "pass",
+          "evidence": "skill red line: no unbounded context dumps to models \u2014 every query's context_tokens within the declared context_token_budget"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "incremental_updates_with_tombstones",
+          "status": "pass",
+          "evidence": "index hygiene: incremental updates + tombstones"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "full_rebuild_drill_done",
+          "status": "pass",
+          "evidence": "quality gate: periodic full rebuild drill done"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "index_size_quota_budgets_monitored",
+          "status": "pass",
+          "evidence": "index size/quota budgets monitored"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "embedding_model_and_index_versioned",
+          "status": "pass",
+          "evidence": "quality gate: embedding model + index versioned"
+        },
+        {
+          "section": "evaluation",
+          "check": "golden_queries_with_labeled_relevant_docs",
+          "status": "pass",
+          "evidence": "evaluation before tuning: golden queries with labeled relevant docs"
+        },
+        {
+          "section": "evaluation",
+          "check": "thresholds_declared_for_golden_set",
+          "status": "pass",
+          "evidence": "quality gate: golden-set evals with thresholds"
+        },
+        {
+          "section": "evaluation",
+          "check": "evals_run_in_regression",
+          "status": "pass",
+          "evidence": "quality gate: golden-set evals run in CI/regression \u2014 regression gates on every index/pipeline change"
+        },
+        {
+          "section": "evaluation",
+          "check": "real_queries_logged_privacy_scoped",
+          "status": "pass",
+          "evidence": "log real queries (privacy-scoped) to find gaps"
+        },
+        {
+          "section": "evaluation",
+          "check": "golden_metrics_meet_declared_thresholds",
+          "status": "pass",
+          "evidence": "evaluation before tuning: golden queries with labeled relevant docs; computed recall@k / MRR / nDCG@k per query against that query's declared thresholds"
+        },
+        {
+          "section": "evaluation",
+          "check": "no_scope_leakage_in_retrieved_results",
+          "status": "pass",
+          "evidence": "skill red line: no cross-scope leakage \u2014 no retrieved doc is in its query's declared forbidden (filtered / out-of-scope) set"
+        },
+        {
+          "section": "evaluation",
+          "check": "no_tuning_without_evals",
+          "status": "pass",
+          "evidence": "no tuning declared"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "latency_budgets_per_stage_declared",
+          "status": "pass",
+          "evidence": "serving: latency budgets per stage (embed, search, rerank)"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "latency_budget_measured",
+          "status": "pass",
+          "evidence": "quality gate: latency budget measured"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "hot_queries_cached",
+          "status": "pass",
+          "evidence": "cache hot queries"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "lexical_only_fallback_exists",
+          "status": "pass",
+          "evidence": "quality gate: degradation path (lexical-only fallback) when vectors are unavailable exists"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "query_time_access_scopes_enforced",
+          "status": "pass",
+          "evidence": "privacy: query-time access scopes enforced"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "sensitive_content_excluded_or_encrypted_at_rest",
+          "status": "pass",
+          "evidence": "sensitive content excluded or encrypted-at-rest unless explicitly indexed"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "local_embeddings_for_private_corpus",
+          "status": "pass",
+          "evidence": "no private corpus declared"
+        }
+      ],
+      "metrics": {
+        "queries_total": 1,
+        "queries_meeting_thresholds": 1,
+        "mean_recall_at_k": "1.0000",
+        "mean_mrr": "1.0000",
+        "mean_ndcg_at_k": "1.0000",
+        "leaked_doc_count": 0
+      },
+      "summary": "36 pass, 0 fail, 0 missing of 36 checks across six sections.",
+      "stamp": "RAG RETRIEVAL EVALUATION TUNING\nsystem: production-search-v1\nVERDICT: RAG_EVALUATION_SOUND\n  corpus_and_chunking      pass\n  hybrid_retrieval         pass\n  reranking_and_filters    pass\n  index_hygiene            pass\n  evaluation               pass\n  serving_and_privacy      pass\n36 pass, 0 fail, 0 missing of 36 checks across six sections."
+    },
+    "determinism_byte_identical": true,
+    "parity_structured_equal": true
+  },
+  "violations": {
+    "http_status": 200,
+    "artifact": {
+      "service": "rag-retrieval-evaluation-tuning",
+      "atom_version": "0.1.0",
+      "system": null,
+      "verdict": "RAG_EVALUATION_UNSOUND",
+      "sections": {
+        "corpus_and_chunking": "insufficient_evidence",
+        "hybrid_retrieval": "insufficient_evidence",
+        "reranking_and_filters": "fail",
+        "index_hygiene": "insufficient_evidence",
+        "evaluation": "fail",
+        "serving_and_privacy": "insufficient_evidence"
+      },
+      "checks": [
+        {
+          "section": "corpus_and_chunking",
+          "check": "corpus_inventory_declared",
+          "status": "missing",
+          "evidence": "corpus first: what's indexed is declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "freshness_requirements_declared",
+          "status": "missing",
+          "evidence": "freshness requirements declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "dedup_rules_declared",
+          "status": "missing",
+          "evidence": "dedup rules declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "per_document_provenance_tracked",
+          "status": "missing",
+          "evidence": "per-document provenance tracked"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "chunking_uses_semantic_units",
+          "status": "missing",
+          "evidence": "chunking strategy: semantic units \u2014 chunking is 80% of RAG quality"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "chunking_overlap_discipline_declared",
+          "status": "missing",
+          "evidence": "chunking overlap discipline declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "stable_chunk_ids",
+          "status": "missing",
+          "evidence": "stable chunk ids"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "lexical_retrieval_used",
+          "status": "missing",
+          "evidence": "hybrid retrieval: BM25/lexical for exact terms (codes, names, numbers)"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "vector_retrieval_used",
+          "status": "missing",
+          "evidence": "hybrid retrieval: vector kNN for meaning"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "hybrid_scores_combined_with_declared_weights",
+          "status": "missing",
+          "evidence": "lexical and vector scores combined with tuned weights"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "embedding_model_version_pinned",
+          "status": "missing",
+          "evidence": "embed model version pinned"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "reindex_plan_for_model_change",
+          "status": "missing",
+          "evidence": "reindex plan for any embedding model change"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "reranking_applied",
+          "status": "missing",
+          "evidence": "rerank with budget: top-K through a reranker to top-N for context"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "reranker_budget_declared",
+          "status": "missing",
+          "evidence": "reranker token budget declared"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "context_top_n_bounded",
+          "status": "missing",
+          "evidence": "context top-N is bounded"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "filters_applied_before_ranking",
+          "status": "missing",
+          "evidence": "filters (time, type, access scope) applied before ranking or hard-enforced in queries"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "scope_leakage_tested",
+          "status": "missing",
+          "evidence": "quality gate: filters enforced pre-rank; scope leakage tested"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "context_within_declared_token_budget",
+          "status": "fail",
+          "evidence": "skill red line: no unbounded context dumps to models \u2014 every query's context_tokens within the declared context_token_budget"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "incremental_updates_with_tombstones",
+          "status": "missing",
+          "evidence": "index hygiene: incremental updates + tombstones"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "full_rebuild_drill_done",
+          "status": "missing",
+          "evidence": "quality gate: periodic full rebuild drill done"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "index_size_quota_budgets_monitored",
+          "status": "missing",
+          "evidence": "index size/quota budgets monitored"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "embedding_model_and_index_versioned",
+          "status": "missing",
+          "evidence": "quality gate: embedding model + index versioned"
+        },
+        {
+          "section": "evaluation",
+          "check": "golden_queries_with_labeled_relevant_docs",
+          "status": "missing",
+          "evidence": "evaluation before tuning: golden queries with labeled relevant docs"
+        },
+        {
+          "section": "evaluation",
+          "check": "thresholds_declared_for_golden_set",
+          "status": "missing",
+          "evidence": "quality gate: golden-set evals with thresholds"
+        },
+        {
+          "section": "evaluation",
+          "check": "evals_run_in_regression",
+          "status": "missing",
+          "evidence": "quality gate: golden-set evals run in CI/regression \u2014 regression gates on every index/pipeline change"
+        },
+        {
+          "section": "evaluation",
+          "check": "real_queries_logged_privacy_scoped",
+          "status": "missing",
+          "evidence": "log real queries (privacy-scoped) to find gaps"
+        },
+        {
+          "section": "evaluation",
+          "check": "golden_metrics_meet_declared_thresholds",
+          "status": "fail",
+          "evidence": "evaluation before tuning: golden queries with labeled relevant docs; computed recall@k / MRR / nDCG@k per query against that query's declared thresholds"
+        },
+        {
+          "section": "evaluation",
+          "check": "no_scope_leakage_in_retrieved_results",
+          "status": "fail",
+          "evidence": "skill red line: no cross-scope leakage \u2014 no retrieved doc is in its query's declared forbidden (filtered / out-of-scope) set"
+        },
+        {
+          "section": "evaluation",
+          "check": "no_tuning_without_evals",
+          "status": "missing",
+          "evidence": "no tuning declared"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "latency_budgets_per_stage_declared",
+          "status": "missing",
+          "evidence": "serving: latency budgets per stage (embed, search, rerank)"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "latency_budget_measured",
+          "status": "missing",
+          "evidence": "quality gate: latency budget measured"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "hot_queries_cached",
+          "status": "missing",
+          "evidence": "cache hot queries"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "lexical_only_fallback_exists",
+          "status": "missing",
+          "evidence": "quality gate: degradation path (lexical-only fallback) when vectors are unavailable exists"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "query_time_access_scopes_enforced",
+          "status": "missing",
+          "evidence": "privacy: query-time access scopes enforced"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "sensitive_content_excluded_or_encrypted_at_rest",
+          "status": "missing",
+          "evidence": "sensitive content excluded or encrypted-at-rest unless explicitly indexed"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "local_embeddings_for_private_corpus",
+          "status": "missing",
+          "evidence": "no private corpus declared"
+        }
+      ],
+      "metrics": {
+        "queries_total": 1,
+        "queries_meeting_thresholds": 0,
+        "mean_recall_at_k": "0.0000",
+        "mean_mrr": "0.0000",
+        "mean_ndcg_at_k": "0.0000",
+        "leaked_doc_count": 1
+      },
+      "summary": "0 pass, 3 fail, 33 missing of 36 checks across six sections.",
+      "stamp": "RAG RETRIEVAL EVALUATION TUNING\nsystem: None\nVERDICT: RAG_EVALUATION_UNSOUND\n  corpus_and_chunking      insufficient_evidence\n  hybrid_retrieval         insufficient_evidence\n  reranking_and_filters    fail\n  index_hygiene            insufficient_evidence\n  evaluation               fail\n  serving_and_privacy      insufficient_evidence\n0 pass, 3 fail, 33 missing of 36 checks across six sections."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "sparse": {
+    "http_status": 200,
+    "artifact": {
+      "service": "rag-retrieval-evaluation-tuning",
+      "atom_version": "0.1.0",
+      "system": "minimal-test",
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "sections": {
+        "corpus_and_chunking": "insufficient_evidence",
+        "hybrid_retrieval": "insufficient_evidence",
+        "reranking_and_filters": "insufficient_evidence",
+        "index_hygiene": "insufficient_evidence",
+        "evaluation": "insufficient_evidence",
+        "serving_and_privacy": "insufficient_evidence"
+      },
+      "checks": [
+        {
+          "section": "corpus_and_chunking",
+          "check": "corpus_inventory_declared",
+          "status": "missing",
+          "evidence": "corpus first: what's indexed is declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "freshness_requirements_declared",
+          "status": "missing",
+          "evidence": "freshness requirements declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "dedup_rules_declared",
+          "status": "missing",
+          "evidence": "dedup rules declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "per_document_provenance_tracked",
+          "status": "missing",
+          "evidence": "per-document provenance tracked"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "chunking_uses_semantic_units",
+          "status": "missing",
+          "evidence": "chunking strategy: semantic units \u2014 chunking is 80% of RAG quality"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "chunking_overlap_discipline_declared",
+          "status": "missing",
+          "evidence": "chunking overlap discipline declared"
+        },
+        {
+          "section": "corpus_and_chunking",
+          "check": "stable_chunk_ids",
+          "status": "missing",
+          "evidence": "stable chunk ids"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "lexical_retrieval_used",
+          "status": "missing",
+          "evidence": "hybrid retrieval: BM25/lexical for exact terms (codes, names, numbers)"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "vector_retrieval_used",
+          "status": "missing",
+          "evidence": "hybrid retrieval: vector kNN for meaning"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "hybrid_scores_combined_with_declared_weights",
+          "status": "missing",
+          "evidence": "lexical and vector scores combined with tuned weights"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "embedding_model_version_pinned",
+          "status": "missing",
+          "evidence": "embed model version pinned"
+        },
+        {
+          "section": "hybrid_retrieval",
+          "check": "reindex_plan_for_model_change",
+          "status": "missing",
+          "evidence": "reindex plan for any embedding model change"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "reranking_applied",
+          "status": "missing",
+          "evidence": "rerank with budget: top-K through a reranker to top-N for context"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "reranker_budget_declared",
+          "status": "missing",
+          "evidence": "reranker token budget declared"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "context_top_n_bounded",
+          "status": "missing",
+          "evidence": "context top-N is bounded"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "filters_applied_before_ranking",
+          "status": "missing",
+          "evidence": "filters (time, type, access scope) applied before ranking or hard-enforced in queries"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "scope_leakage_tested",
+          "status": "missing",
+          "evidence": "quality gate: filters enforced pre-rank; scope leakage tested"
+        },
+        {
+          "section": "reranking_and_filters",
+          "check": "context_within_declared_token_budget",
+          "status": "missing",
+          "evidence": "no golden queries declared"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "incremental_updates_with_tombstones",
+          "status": "missing",
+          "evidence": "index hygiene: incremental updates + tombstones"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "full_rebuild_drill_done",
+          "status": "missing",
+          "evidence": "quality gate: periodic full rebuild drill done"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "index_size_quota_budgets_monitored",
+          "status": "missing",
+          "evidence": "index size/quota budgets monitored"
+        },
+        {
+          "section": "index_hygiene",
+          "check": "embedding_model_and_index_versioned",
+          "status": "missing",
+          "evidence": "quality gate: embedding model + index versioned"
+        },
+        {
+          "section": "evaluation",
+          "check": "golden_queries_with_labeled_relevant_docs",
+          "status": "missing",
+          "evidence": "evaluation before tuning: golden queries with labeled relevant docs"
+        },
+        {
+          "section": "evaluation",
+          "check": "thresholds_declared_for_golden_set",
+          "status": "missing",
+          "evidence": "quality gate: golden-set evals with thresholds"
+        },
+        {
+          "section": "evaluation",
+          "check": "evals_run_in_regression",
+          "status": "missing",
+          "evidence": "quality gate: golden-set evals run in CI/regression \u2014 regression gates on every index/pipeline change"
+        },
+        {
+          "section": "evaluation",
+          "check": "real_queries_logged_privacy_scoped",
+          "status": "missing",
+          "evidence": "log real queries (privacy-scoped) to find gaps"
+        },
+        {
+          "section": "evaluation",
+          "check": "golden_metrics_meet_declared_thresholds",
+          "status": "missing",
+          "evidence": "no golden queries declared"
+        },
+        {
+          "section": "evaluation",
+          "check": "no_scope_leakage_in_retrieved_results",
+          "status": "missing",
+          "evidence": "no golden queries declared"
+        },
+        {
+          "section": "evaluation",
+          "check": "no_tuning_without_evals",
+          "status": "missing",
+          "evidence": "no tuning declared"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "latency_budgets_per_stage_declared",
+          "status": "missing",
+          "evidence": "serving: latency budgets per stage (embed, search, rerank)"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "latency_budget_measured",
+          "status": "missing",
+          "evidence": "quality gate: latency budget measured"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "hot_queries_cached",
+          "status": "missing",
+          "evidence": "cache hot queries"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "lexical_only_fallback_exists",
+          "status": "missing",
+          "evidence": "quality gate: degradation path (lexical-only fallback) when vectors are unavailable exists"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "query_time_access_scopes_enforced",
+          "status": "missing",
+          "evidence": "privacy: query-time access scopes enforced"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "sensitive_content_excluded_or_encrypted_at_rest",
+          "status": "missing",
+          "evidence": "sensitive content excluded or encrypted-at-rest unless explicitly indexed"
+        },
+        {
+          "section": "serving_and_privacy",
+          "check": "local_embeddings_for_private_corpus",
+          "status": "missing",
+          "evidence": "no private corpus declared"
+        }
+      ],
+      "metrics": {
+        "queries_total": 0,
+        "queries_meeting_thresholds": 0,
+        "mean_recall_at_k": null,
+        "mean_mrr": null,
+        "mean_ndcg_at_k": null,
+        "leaked_doc_count": 0
+      },
+      "summary": "0 pass, 0 fail, 36 missing of 36 checks across six sections.",
+      "stamp": "RAG RETRIEVAL EVALUATION TUNING\nsystem: minimal-test\nVERDICT: INSUFFICIENT_EVIDENCE\n  corpus_and_chunking      insufficient_evidence\n  hybrid_retrieval         insufficient_evidence\n  reranking_and_filters    insufficient_evidence\n  index_hygiene            insufficient_evidence\n  evaluation               insufficient_evidence\n  serving_and_privacy      insufficient_evidence\n0 pass, 0 fail, 36 missing of 36 checks across six sections."
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  },
+  "malformed": {
+    "http_status": 422,
+    "artifact": {
+      "ok": false,
+      "error": "invalid_input",
+      "field": "corpus",
+      "detail": "corpus must be an object"
+    },
+    "determinism_byte_identical": null,
+    "parity_structured_equal": null
+  }
+}
+
+Independently recompute the headline computed quantities for the full-pass and violations cases BY HAND from the inputs above (show arithmetic in your detail fields), compare with the artifacts, check malformed returns HTTP 422 with error invalid_input and never a verdict, and state a verdict.
+
+Answer with JSON only, exactly this shape:
+{"verdict": "PASS"|"FAIL", "findings": [{"case":"<id>","expected":"...","actual":"...","detail":"..."}], "computed_checks": [{"quantity":"...","expected":"<your hand-computed value>","actual":"<artifact value>","match":true}], "notes":"..."}

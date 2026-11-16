@@ -1,0 +1,998 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: agent-safety-guardrail-audit
+
+=== contract.yaml ===
+service_name: agent-safety-guardrail-audit
+display_name: Agent safety guardrail audit
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:agent-safety-guardrails
+binding:
+  skill: agent-safety-guardrails
+  skill_path: workspace/mymilo-build/skills/agent-safety-guardrails/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/agent_safety_guardrail_audit.py — evaluate(manifest) -> audit dict; CLI prints JSON + stamp
+  tests: tests/test_agent_safety_guardrail_audit.py — 15 tests, all passing 2026-11-15
+keys:
+  namespace: agent_safety_guardrail_audit
+  prefix: atm_1_agent_safety_guardrail_audit_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Agent autonomy safety reviews
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Agent safety guardrail audit — `agent-safety-guardrail-audit`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Guard the agents — injection defense, tool least-privilege, approvals, sandboxes, kill switches.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Agent autonomy safety reviews**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Inputs — the agent-safety evidence manifest
+
+| Field | Read by |
+|---|---|
+| `system`, `version` | output (echoed in the audit; not a check) |
+| `guardrails_disabled` (must be `false`) | approval_gates |
+| `injection_defense.external_content_treated_as_data` | injection_defense |
+| `injection_defense.suspicious_imperatives_flagged` | injection_defense |
+| `injection_defense.test_suite.present`, `injection_defense.test_suite.passing` | injection_defense |
+| `tool_access.scoped_to_job` | tool_least_privilege |
+| `tool_access.read_write_separated` | tool_least_privilege |
+| `tool_access.destructive_tools_gated` | tool_least_privilege |
+| `tool_access.shell_access`, `tool_access.shell_sandboxed` (sandboxed required when shell access is present) | tool_least_privilege |
+| `approvals.destructive_actions_require_approval` | approval_gates |
+| `approvals.verified` | approval_gates |
+| `approvals.covered_actions` (list; must include `deploys`, `payments`, `deletions`, `external_sends`, `credential_changes`) | approval_gates |
+| `approvals.bypassable_by_agent` (must be `false`) | approval_gates |
+| `sandbox.enabled` | sandboxing |
+| `sandbox.filesystem_scope_minimal` | sandboxing |
+| `sandbox.egress_restricted` | sandboxing |
+| `sandbox.resource_caps_enforced` | sandboxing |
+| `sandbox.abuse_test_passed` | sandboxing |
+| `budgets.caps_set` | budgets_and_circuit_breakers |
+| `budgets.alert_before_cap` | budgets_and_circuit_breakers |
+| `circuit_breakers.loop_detection_enabled` | budgets_and_circuit_breakers |
+| `kill_switch.present`, `kill_switch.tested` | budgets_and_circuit_breakers |
+| `output_validation.schema_checked` | output_validation |
+| `output_validation.model_output_evaled` (must be `false`) | output_validation |
+| `output_validation.downstream_parameterized` | output_validation |
+| `secrets.values_in_context` (must be `false`) | secrets_hygiene |
+| `secrets.pii_in_context` (must be `false`) | secrets_hygiene |
+| `secrets.credential_handles_only` | secrets_hygiene |
+| `secrets.exfiltration_paths_tested` | secrets_hygiene |
+| `red_team.injection_suite_run` | red_teaming |
+| `red_team.jailbreak_tested` | red_teaming |
+| `red_team.canary_tokens_used` | red_teaming |
+| `red_team.findings_become_regression_tests` | red_teaming |
+
+A field **absent** = evidence missing (`INSUFFICIENT_EVIDENCE` if nothing
+fails). A field present but false / invalid = the check fails
+(`NOT_GUARDED`). All checks pass = `GUARDED`. 34 checks across eight
+sections: injection_defense, tool_least_privilege, approval_gates,
+sandboxing, budgets_and_circuit_breakers, output_validation,
+secrets_hygiene, red_teaming.
+
+## Named doubt (from the register)
+
+Audit scope must stay advisory
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "agent-safety-guardrail-audit",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "GUARDED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 34 checks satisfied. Computed spot checks: 8 sections passed, 0 violations."
+      },
+      "input": {
+        "system": "test-agent",
+        "version": "1.0.0",
+        "guardrails_disabled": false,
+        "injection_defense": {
+          "external_content_treated_as_data": true,
+          "suspicious_imperatives_flagged": true,
+          "test_suite": {
+            "present": true,
+            "passing": true
+          }
+        },
+        "tool_access": {
+          "scoped_to_job": true,
+          "read_write_separated": true,
+          "destructive_tools_gated": true,
+          "shell_access": true,
+          "shell_sandboxed": true
+        },
+        "approvals": {
+          "destructive_actions_require_approval": true,
+          "verified": true,
+          "covered_actions": [
+            "deploys",
+            "payments",
+            "deletions",
+            "external_sends",
+            "credential_changes"
+          ],
+          "bypassable_by_agent": false
+        },
+        "sandbox": {
+          "enabled": true,
+          "filesystem_scope_minimal": true,
+          "egress_restricted": true,
+          "resource_caps_enforced": true,
+          "abuse_test_passed": true
+        },
+        "budgets": {
+          "caps_set": true,
+          "alert_before_cap": true
+        },
+        "circuit_breakers": {
+          "loop_detection_enabled": true
+        },
+        "kill_switch": {
+          "present": true,
+          "tested": true
+        },
+        "output_validation": {
+          "schema_checked": true,
+          "model_output_evaled": false,
+          "downstream_parameterized": true
+        },
+        "secrets": {
+          "values_in_context": false,
+          "pii_in_context": false,
+          "credential_handles_only": true,
+          "exfiltration_paths_tested": true
+        },
+        "red_team": {
+          "injection_suite_run": true,
+          "jailbreak_tested": true,
+          "canary_tokens_used": true,
+          "findings_become_regression_tests": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-safety-guardrail-audit",
+        "atom_version": "0.1.0",
+        "system": "test-agent",
+        "version": "1.0.0",
+        "verdict": "GUARDED",
+        "sections": {
+          "injection_defense": "pass",
+          "tool_least_privilege": "pass",
+          "approval_gates": "pass",
+          "sandboxing": "pass",
+          "budgets_and_circuit_breakers": "pass",
+          "output_validation": "pass",
+          "secrets_hygiene": "pass",
+          "red_teaming": "pass"
+        },
+        "checks": [
+          {
+            "section": "injection_defense",
+            "check": "external_content_treated_as_data",
+            "status": "pass",
+            "evidence": "skill method 1: all external content is hostile data, never instructions"
+          },
+          {
+            "section": "injection_defense",
+            "check": "suspicious_imperatives_flagged",
+            "status": "pass",
+            "evidence": "content stripped/annotated before model use; suspicious imperatives flagged"
+          },
+          {
+            "section": "injection_defense",
+            "check": "injection_test_suite_present",
+            "status": "pass",
+            "evidence": "quality gate: injection test suite exists on the agent's inputs"
+          },
+          {
+            "section": "injection_defense",
+            "check": "injection_test_suite_passing",
+            "status": "pass",
+            "evidence": "quality gate: injection test suite passes on the agent's inputs"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "tools_scoped_to_job",
+            "status": "pass",
+            "evidence": "each agent gets only the tools its job needs"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "read_write_tools_separated",
+            "status": "pass",
+            "evidence": "read tools granted before write tools"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "destructive_tools_gated",
+            "status": "pass",
+            "evidence": "destructive tools gated (approval or explicit scope)"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "shell_access_sandboxed",
+            "status": "pass",
+            "evidence": "no shell passthrough without sandbox"
+          },
+          {
+            "section": "approval_gates",
+            "check": "destructive_actions_require_approval",
+            "status": "pass",
+            "evidence": "deploys, payments, deletions, external sends, credential changes \u2014 human confirms"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approval_requirement_verified",
+            "status": "pass",
+            "evidence": "quality gate: destructive actions require approval (verified, not assumed)"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approvals_cover_all_sensitive_actions",
+            "status": "pass",
+            "evidence": "covered_actions=['deploys', 'payments', 'deletions', 'external_sends', 'credential_changes']"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approval_not_bypassable_by_agent",
+            "status": "pass",
+            "evidence": "the guardrail is not configurable away by the agent"
+          },
+          {
+            "section": "approval_gates",
+            "check": "guardrails_not_disabled",
+            "status": "pass",
+            "evidence": "skill red line: never disable guardrails 'to make it work'"
+          },
+          {
+            "section": "sandboxing",
+            "check": "untrusted_code_sandboxed",
+            "status": "pass",
+            "evidence": "untrusted code/tooling runs in isolation"
+          },
+          {
+            "section": "sandboxing",
+            "check": "filesystem_scope_minimal",
+            "status": "pass",
+            "evidence": "filesystem scope minimal"
+          },
+          {
+            "section": "sandboxing",
+            "check": "egress_restricted",
+            "status": "pass",
+            "evidence": "egress restricted"
+          },
+          {
+            "section": "sandboxing",
+            "check": "resource_caps_enforced",
+            "status": "pass",
+            "evidence": "resource caps enforced"
+          },
+          {
+            "section": "sandboxing",
+            "check": "sandbox_abuse_test_passed",
+            "status": "pass",
+            "evidence": "quality gate: sandbox + egress + resource caps verified with an abuse test"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "budget_caps_set",
+            "status": "pass",
+            "evidence": "token/cost/time caps set"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "budgets_alert_before_cap",
+            "status": "pass",
+            "evidence": "quality gate: budgets alert before cap"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "loop_detection_enabled",
+            "status": "pass",
+            "evidence": "loop detection: same action N times -> stop + escalate"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "kill_switch_present",
+            "status": "pass",
+            "evidence": "kill switch per agent"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "kill_switch_tested",
+            "status": "pass",
+            "evidence": "quality gate: kill switch tested"
+          },
+          {
+            "section": "output_validation",
+            "check": "output_schema_checked",
+            "status": "pass",
+            "evidence": "schema-check what agents produce before acting on it"
+          },
+          {
+            "section": "output_validation",
+            "check": "model_output_not_evaled",
+            "status": "pass",
+            "evidence": "never eval model output"
+          },
+          {
+            "section": "output_validation",
+            "check": "downstream_calls_parameterized",
+            "status": "pass",
+            "evidence": "parameterize everything downstream"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "secret_values_not_in_context",
+            "status": "pass",
+            "evidence": "skill red line: no secrets in agent context by default"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "pii_not_in_context",
+            "status": "pass",
+            "evidence": "skill red line: no PII in agent context by default"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "credential_handles_only",
+            "status": "pass",
+            "evidence": "agents reference credential handles, not values"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "exfiltration_paths_tested",
+            "status": "pass",
+            "evidence": "exfiltration paths (rendering, URLs, logs) considered in tests"
+          },
+          {
+            "section": "red_teaming",
+            "check": "injection_suite_run_against_interface",
+            "status": "pass",
+            "evidence": "injection suites: instructions hidden in content"
+          },
+          {
+            "section": "red_teaming",
+            "check": "jailbreak_attempts_tested",
+            "status": "pass",
+            "evidence": "jailbreak attempts run against the interface"
+          },
+          {
+            "section": "red_teaming",
+            "check": "canary_tokens_used",
+            "status": "pass",
+            "evidence": "canary tokens for leak detection"
+          },
+          {
+            "section": "red_teaming",
+            "check": "findings_become_regression_tests",
+            "status": "pass",
+            "evidence": "findings become regression tests"
+          }
+        ],
+        "summary": "34 pass, 0 fail, 0 missing of 34 checks across eight sections.",
+        "stamp": "AGENT-SAFETY GUARDRAIL AUDIT\nsystem: test-agent  version: 1.0.0\nVERDICT: GUARDED\n  injection_defense              pass\n  tool_least_privilege           pass\n  approval_gates                 pass\n  sandboxing                     pass\n  budgets_and_circuit_breakers   pass\n  output_validation              pass\n  secrets_hygiene                pass\n  red_teaming                    pass\n34 pass, 0 fail, 0 missing of 34 checks across eight sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_GUARDED",
+        "http": 200,
+        "failing_checks": [
+          "approval_gates",
+          "output_validation",
+          "secrets_hygiene"
+        ],
+        "notes": "Violates mandatory negative constraints: guardrails_disabled must be false, bypassable_by_agent must be false, model_output_evaled must be false, values_in_context must be false."
+      },
+      "input": {
+        "guardrails_disabled": true,
+        "approvals": {
+          "bypassable_by_agent": true
+        },
+        "output_validation": {
+          "model_output_evaled": true
+        },
+        "secrets": {
+          "values_in_context": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-safety-guardrail-audit",
+        "atom_version": "0.1.0",
+        "system": null,
+        "version": null,
+        "verdict": "NOT_GUARDED",
+        "sections": {
+          "injection_defense": "insufficient_evidence",
+          "tool_least_privilege": "insufficient_evidence",
+          "approval_gates": "fail",
+          "sandboxing": "insufficient_evidence",
+          "budgets_and_circuit_breakers": "insufficient_evidence",
+          "output_validation": "fail",
+          "secrets_hygiene": "fail",
+          "red_teaming": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "injection_defense",
+            "check": "external_content_treated_as_data",
+            "status": "missing",
+            "evidence": "skill method 1: all external content is hostile data, never instructions"
+          },
+          {
+            "section": "injection_defense",
+            "check": "suspicious_imperatives_flagged",
+            "status": "missing",
+            "evidence": "content stripped/annotated before model use; suspicious imperatives flagged"
+          },
+          {
+            "section": "injection_defense",
+            "check": "injection_test_suite_present",
+            "status": "missing",
+            "evidence": "quality gate: injection test suite exists on the agent's inputs"
+          },
+          {
+            "section": "injection_defense",
+            "check": "injection_test_suite_passing",
+            "status": "missing",
+            "evidence": "quality gate: injection test suite passes on the agent's inputs"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "tools_scoped_to_job",
+            "status": "missing",
+            "evidence": "each agent gets only the tools its job needs"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "read_write_tools_separated",
+            "status": "missing",
+            "evidence": "read tools granted before write tools"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "destructive_tools_gated",
+            "status": "missing",
+            "evidence": "destructive tools gated (approval or explicit scope)"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "shell_access_sandboxed",
+            "status": "missing",
+            "evidence": "no shell access declared"
+          },
+          {
+            "section": "approval_gates",
+            "check": "destructive_actions_require_approval",
+            "status": "missing",
+            "evidence": "deploys, payments, deletions, external sends, credential changes \u2014 human confirms"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approval_requirement_verified",
+            "status": "missing",
+            "evidence": "quality gate: destructive actions require approval (verified, not assumed)"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approvals_cover_all_sensitive_actions",
+            "status": "missing",
+            "evidence": "covered_actions=None"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approval_not_bypassable_by_agent",
+            "status": "fail",
+            "evidence": "the guardrail is not configurable away by the agent"
+          },
+          {
+            "section": "approval_gates",
+            "check": "guardrails_not_disabled",
+            "status": "fail",
+            "evidence": "skill red line: never disable guardrails 'to make it work'"
+          },
+          {
+            "section": "sandboxing",
+            "check": "untrusted_code_sandboxed",
+            "status": "missing",
+            "evidence": "untrusted code/tooling runs in isolation"
+          },
+          {
+            "section": "sandboxing",
+            "check": "filesystem_scope_minimal",
+            "status": "missing",
+            "evidence": "filesystem scope minimal"
+          },
+          {
+            "section": "sandboxing",
+            "check": "egress_restricted",
+            "status": "missing",
+            "evidence": "egress restricted"
+          },
+          {
+            "section": "sandboxing",
+            "check": "resource_caps_enforced",
+            "status": "missing",
+            "evidence": "resource caps enforced"
+          },
+          {
+            "section": "sandboxing",
+            "check": "sandbox_abuse_test_passed",
+            "status": "missing",
+            "evidence": "quality gate: sandbox + egress + resource caps verified with an abuse test"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "budget_caps_set",
+            "status": "missing",
+            "evidence": "token/cost/time caps set"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "budgets_alert_before_cap",
+            "status": "missing",
+            "evidence": "quality gate: budgets alert before cap"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "loop_detection_enabled",
+            "status": "missing",
+            "evidence": "loop detection: same action N times -> stop + escalate"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "kill_switch_present",
+            "status": "missing",
+            "evidence": "kill switch per agent"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "kill_switch_tested",
+            "status": "missing",
+            "evidence": "quality gate: kill switch tested"
+          },
+          {
+            "section": "output_validation",
+            "check": "output_schema_checked",
+            "status": "missing",
+            "evidence": "schema-check what agents produce before acting on it"
+          },
+          {
+            "section": "output_validation",
+            "check": "model_output_not_evaled",
+            "status": "fail",
+            "evidence": "never eval model output"
+          },
+          {
+            "section": "output_validation",
+            "check": "downstream_calls_parameterized",
+            "status": "missing",
+            "evidence": "parameterize everything downstream"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "secret_values_not_in_context",
+            "status": "fail",
+            "evidence": "skill red line: no secrets in agent context by default"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "pii_not_in_context",
+            "status": "missing",
+            "evidence": "skill red line: no PII in agent context by default"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "credential_handles_only",
+            "status": "missing",
+            "evidence": "agents reference credential handles, not values"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "exfiltration_paths_tested",
+            "status": "missing",
+            "evidence": "exfiltration paths (rendering, URLs, logs) considered in tests"
+          },
+          {
+            "section": "red_teaming",
+            "check": "injection_suite_run_against_interface",
+            "status": "missing",
+            "evidence": "injection suites: instructions hidden in content"
+          },
+          {
+            "section": "red_teaming",
+            "check": "jailbreak_attempts_tested",
+            "status": "missing",
+            "evidence": "jailbreak attempts run against the interface"
+          },
+          {
+            "section": "red_teaming",
+            "check": "canary_tokens_used",
+            "status": "missing",
+            "evidence": "canary tokens for leak detection"
+          },
+          {
+            "section": "red_teaming",
+            "check": "findings_become_regression_tests",
+            "status": "missing",
+            "evidence": "findings become regression tests"
+          }
+        ],
+        "summary": "0 pass, 4 fail, 30 missing of 34 checks across eight sections.",
+        "stamp": "AGENT-SAFETY GUARDRAIL AUDIT\nsystem: None  version: None\nVERDICT: NOT_GUARDED\n  injection_defense              insufficient_evidence\n  tool_least_privilege           insufficient_evidence\n  approval_gates                 fail\n  sandboxing                     insufficient_evidence\n  budgets_and_circuit_breakers   insufficient_evidence\n  output_validation              fail\n  secrets_hygiene                fail\n  red_teaming                    insufficient_evidence\n0 pass, 4 fail, 30 missing of 34 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields absent, resulting in insufficient evidence to determine guardrail status."
+      },
+      "input": {
+        "system": "minimal-agent",
+        "version": "0.1.0"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-safety-guardrail-audit",
+        "atom_version": "0.1.0",
+        "system": "minimal-agent",
+        "version": "0.1.0",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "injection_defense": "insufficient_evidence",
+          "tool_least_privilege": "insufficient_evidence",
+          "approval_gates": "insufficient_evidence",
+          "sandboxing": "insufficient_evidence",
+          "budgets_and_circuit_breakers": "insufficient_evidence",
+          "output_validation": "insufficient_evidence",
+          "secrets_hygiene": "insufficient_evidence",
+          "red_teaming": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "injection_defense",
+            "check": "external_content_treated_as_data",
+            "status": "missing",
+            "evidence": "skill method 1: all external content is hostile data, never instructions"
+          },
+          {
+            "section": "injection_defense",
+            "check": "suspicious_imperatives_flagged",
+            "status": "missing",
+            "evidence": "content stripped/annotated before model use; suspicious imperatives flagged"
+          },
+          {
+            "section": "injection_defense",
+            "check": "injection_test_suite_present",
+            "status": "missing",
+            "evidence": "quality gate: injection test suite exists on the agent's inputs"
+          },
+          {
+            "section": "injection_defense",
+            "check": "injection_test_suite_passing",
+            "status": "missing",
+            "evidence": "quality gate: injection test suite passes on the agent's inputs"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "tools_scoped_to_job",
+            "status": "missing",
+            "evidence": "each agent gets only the tools its job needs"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "read_write_tools_separated",
+            "status": "missing",
+            "evidence": "read tools granted before write tools"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "destructive_tools_gated",
+            "status": "missing",
+            "evidence": "destructive tools gated (approval or explicit scope)"
+          },
+          {
+            "section": "tool_least_privilege",
+            "check": "shell_access_sandboxed",
+            "status": "missing",
+            "evidence": "no shell access declared"
+          },
+          {
+            "section": "approval_gates",
+            "check": "destructive_actions_require_approval",
+            "status": "missing",
+            "evidence": "deploys, payments, deletions, external sends, credential changes \u2014 human confirms"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approval_requirement_verified",
+            "status": "missing",
+            "evidence": "quality gate: destructive actions require approval (verified, not assumed)"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approvals_cover_all_sensitive_actions",
+            "status": "missing",
+            "evidence": "covered_actions=None"
+          },
+          {
+            "section": "approval_gates",
+            "check": "approval_not_bypassable_by_agent",
+            "status": "missing",
+            "evidence": "the guardrail is not configurable away by the agent"
+          },
+          {
+            "section": "approval_gates",
+            "check": "guardrails_not_disabled",
+            "status": "missing",
+            "evidence": "skill red line: never disable guardrails 'to make it work'"
+          },
+          {
+            "section": "sandboxing",
+            "check": "untrusted_code_sandboxed",
+            "status": "missing",
+            "evidence": "untrusted code/tooling runs in isolation"
+          },
+          {
+            "section": "sandboxing",
+            "check": "filesystem_scope_minimal",
+            "status": "missing",
+            "evidence": "filesystem scope minimal"
+          },
+          {
+            "section": "sandboxing",
+            "check": "egress_restricted",
+            "status": "missing",
+            "evidence": "egress restricted"
+          },
+          {
+            "section": "sandboxing",
+            "check": "resource_caps_enforced",
+            "status": "missing",
+            "evidence": "resource caps enforced"
+          },
+          {
+            "section": "sandboxing",
+            "check": "sandbox_abuse_test_passed",
+            "status": "missing",
+            "evidence": "quality gate: sandbox + egress + resource caps verified with an abuse test"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "budget_caps_set",
+            "status": "missing",
+            "evidence": "token/cost/time caps set"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "budgets_alert_before_cap",
+            "status": "missing",
+            "evidence": "quality gate: budgets alert before cap"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "loop_detection_enabled",
+            "status": "missing",
+            "evidence": "loop detection: same action N times -> stop + escalate"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "kill_switch_present",
+            "status": "missing",
+            "evidence": "kill switch per agent"
+          },
+          {
+            "section": "budgets_and_circuit_breakers",
+            "check": "kill_switch_tested",
+            "status": "missing",
+            "evidence": "quality gate: kill switch tested"
+          },
+          {
+            "section": "output_validation",
+            "check": "output_schema_checked",
+            "status": "missing",
+            "evidence": "schema-check what agents produce before acting on it"
+          },
+          {
+            "section": "output_validation",
+            "check": "model_output_not_evaled",
+            "status": "missing",
+            "evidence": "never eval model output"
+          },
+          {
+            "section": "output_validation",
+            "check": "downstream_calls_parameterized",
+            "status": "missing",
+            "evidence": "parameterize everything downstream"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "secret_values_not_in_context",
+            "status": "missing",
+            "evidence": "skill red line: no secrets in agent context by default"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "pii_not_in_context",
+            "status": "missing",
+            "evidence": "skill red line: no PII in agent context by default"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "credential_handles_only",
+            "status": "missing",
+            "evidence": "agents reference credential handles, not values"
+          },
+          {
+            "section": "secrets_hygiene",
+            "check": "exfiltration_paths_tested",
+            "status": "missing",
+            "evidence": "exfiltration paths (rendering, URLs, logs) considered in tests"
+          },
+          {
+            "section": "red_teaming",
+            "check": "injection_suite_run_against_interface",
+            "status": "missing",
+            "evidence": "injection suites: instructions hidden in content"
+          },
+          {
+            "section": "red_teaming",
+            "check": "jailbreak_attempts_tested",
+            "status": "missing",
+            "evidence": "jailbreak attempts run against the interface"
+          },
+          {
+            "section": "red_teaming",
+            "check": "canary_tokens_used",
+            "status": "missing",
+            "evidence": "canary tokens for leak detection"
+          },
+          {
+            "section": "red_teaming",
+            "check": "findings_become_regression_tests",
+            "status": "missing",
+            "evidence": "findings become regression tests"
+          }
+        ],
+        "summary": "0 pass, 0 fail, 34 missing of 34 checks across eight sections.",
+        "stamp": "AGENT-SAFETY GUARDRAIL AUDIT\nsystem: minimal-agent  version: 0.1.0\nVERDICT: INSUFFICIENT_EVIDENCE\n  injection_defense              insufficient_evidence\n  tool_least_privilege           insufficient_evidence\n  approval_gates                 insufficient_evidence\n  sandboxing                     insufficient_evidence\n  budgets_and_circuit_breakers   insufficient_evidence\n  output_validation              insufficient_evidence\n  secrets_hygiene                insufficient_evidence\n  red_teaming                    insufficient_evidence\n0 pass, 0 fail, 34 missing of 34 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for boolean and object fields triggers validation error."
+      },
+      "input": {
+        "guardrails_disabled": "not-a-boolean",
+        "tool_access": "should-be-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "guardrails_disabled",
+        "detail": "guardrails_disabled must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

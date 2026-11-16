@@ -1,0 +1,248 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: reconciled-portfolio-performance-report
+
+=== contract.yaml ===
+service_name: reconciled-portfolio-performance-report
+display_name: Reconciled portfolio performance report
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:portfolio-tracking
+binding:
+  skill: portfolio-tracking
+  skill_path: workspace/mymilo-build/skills/portfolio-tracking/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REPORT
+endpoints:
+- API
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/reconciled_portfolio_performance_report.py — evaluate(manifest) -> reconciled performance report dict; CLI prints JSON + stamp
+  tests: tests/test_reconciled_portfolio_performance_report.py — 23 tests, all passing 2026-11-15
+keys:
+  namespace: reconciled_portfolio_performance_report
+  prefix: atm_1_reconciled_portfolio_performance_report_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Investment ledger review and attribution
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Reconciled portfolio performance report — `reconciled-portfolio-performance-report`
+
+**Deliverable type:** REPORT. This atom sells the report it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Track and attribute honestly — positions ledger, TWR/IRR math, benchmarks, tax lots, privacy scrubbed.
+
+A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this report on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Investment ledger review and attribution**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the performance manifest
+
+The caller submits one JSON manifest. `portfolio` (string) is carried
+into the output, not itself analysed. Everything below is computed
+over the submitted declarations only; nothing is defaulted, fetched
+or interpolated — a figure whose inputs were not submitted is a
+labeled gap (null), never silently filled in. The manifest carries
+no account numbers or identifiers (the skill's privacy rule):
+aggregate figures only.
+
+| Field | Read from |
+|---|---|
+| `portfolio` (string; carried into the output, not itself analysed) | manifest |
+| `beginning_value` (number; portfolio value at the start of the first period — required) | manifest |
+| `period_end_values` (list of numbers; declared portfolio value at the end of each period, in period order — at least 2 valid entries required; non-numeric entries are counted in `counts.invalid_value_entries` and excluded) | manifest |
+| `external_flows` (list of numbers, aligned period-for-period with `period_end_values`; each entry is the net external cash flow at the BEGINNING of its period — contributions positive, withdrawals negative. Absent or misaligned = period returns are gaps, never defaulted to zero) | manifest |
+| `benchmark_name` (string; the benchmark chosen in advance, carried into the benchmark section) | manifest |
+| `benchmark_returns` (list of numbers; benchmark periodic returns, aligned period-for-period with `period_end_values`) | manifest |
+| `declared_returns` (list of numbers; the caller's own declared period returns, aligned period-for-period — reconciled against the computed period returns) | manifest |
+| `holdings` (list of entries, below — the declared positions ledger) | manifest |
+| `holdings[].id` (string; carried into the holding rows) | entry |
+| `holdings[].quantity` / `holdings[].price` (numbers; holding value = quantity × price — an entry without both numeric is counted in `counts.invalid_holdings` and excluded) | entry |
+| `transactions` (list of entries, below — the ledger's external-flow record) | manifest |
+| `transactions[].kind` (`"contribution"` or `"withdrawal"`; anything else is counted in `counts.invalid_transactions` and excluded) | entry |
+| `transactions[].amount` (number ≥ 0; the magnitude of that contribution or withdrawal) | entry |
+
+## What is computed
+
+- **Period returns** (flow-adjusted, from the declared values):
+  r_i = V_i ÷ (V_{i−1} + F_i) − 1, with V_{−1} the beginning value
+  and F_i the flow at the beginning of period i. A period whose
+  base (previous value plus its flow) is not positive has no
+  defined return; the whole return path is then a labeled gap —
+  adjusted and unadjusted periods are never mixed.
+- **Performance math, stated explicitly** (the skill: "pick, state
+  which, and never mix. Show both when they tell different
+  stories"): **time-weighted return** — the chain product of
+  (1 + r_i) − 1, independent of cash-flow timing — and
+  **money-weighted return (IRR) per period** — the rate solving
+  B(1+r)^n + Σ F_i (1+r)^(n−i) = final value, found by a fixed
+  bracket search (lower bracket −0.999999; upper bracket 1, 3, 7, …
+  doubling-plus-one up to 1048575) followed by exactly 200
+  bisection iterations, integer powers by repeated multiplication.
+  When no sign-changing bracket exists in that searched range the
+  IRR is a labeled gap, not a guess. Both are always labeled
+  separately, the mean period return is shown, and the
+  **TWR − IRR difference** is reported as its own figure. Also:
+  value change, net external flows and total gain after flows
+  (final − beginning − net flows).
+- **Reconciliation** (the skill: reconcile to statements,
+  discrepancies fixed at the source — this core reports the
+  discrepancies as numbers and never edits a declared figure).
+  Three legs: (1) **flows vs ledger** — declared net external
+  flows minus ledger net (contributions − withdrawals from
+  `transactions`); (2) **holdings vs declared value** — the
+  holdings ledger total (Σ quantity × price) minus the final
+  declared period-end value, and that difference as a fraction of
+  the final value; (3) **declared vs computed returns** — the
+  per-period differences, the largest absolute difference, and the
+  count of periods whose difference is not zero at the report's
+  six-decimal precision. A discrepancy is a *finding*, not a gap:
+  a fully evidenced report with a nonzero discrepancy is
+  `complete`, with the discrepancy printed.
+- **Benchmark comparison** (only over a series aligned
+  period-for-period): benchmark total return (chain product),
+  benchmark mean period return, excess total return (portfolio
+  TWR − benchmark total) and the count of periods in which the
+  portfolio period return exceeded the benchmark's.
+- **Holdings ledger:** per-holding value (quantity × price) and
+  share of the holdings total, the holdings total, and the
+  largest holding.
+- **Layers:** values, performance, reconciliation, benchmark and
+  holdings are each reported `present` or `absent` — missing
+  layers are gaps, not guesses.
+- **Not computed — named exclusions:** **XIRR** (the skill names
+  it but states no date or day-count convention; this core
+  computes the periodic IRR on the submitted period grid
+  instead); **attribution decomposition** (allocation vs
+  selection vs timing vs costs vs currency — the skill asks for a
+  written one-paragraph truth, a judgment artifact, and supplies
+  no input data model or formula for the decomposition);
+  **tax lots / adjusted cost base** (the skill asks for awareness
+  and clean data for an accountant, and states no jurisdictional
+  computation); **benchmark fees/taxes adjustment** ("including
+  fees and taxes where material" — no materiality rule or tax
+  model is stated). No recommendation, and nothing labeled
+  optimal or recommended, is ever produced.
+
+**Serialization rule (both implementations, byte-identical):** every
+computed floating quantity is rendered as a string with exactly six
+decimal places, rounded half away from zero on the binary double
+(scaled = ⌊|x|·10⁶ + 0.5⌋; zero renders `0.000000`, never
+`-0.000000`). Counts and period indices stay integers. Declared
+quantities echoed into the report (beginning and period-end values,
+flows, quantities, prices, amounts) are rendered under the same
+rule. All internal arithmetic is IEEE-754 double arithmetic in a
+fixed loop order using only +, −, ×, ÷ (and integer powers by
+repeated multiplication).
+
+The output status is one of `complete` (a numeric beginning value,
+a values series with at least 2 valid observations, flows aligned,
+and no gaps of any kind), `partial` (performance computed but some
+figure or section is a labeled gap — missing flows, misaligned
+series, invalid entries, an unbracketed money-weighted return), or
+`insufficient_evidence` (no numeric beginning value, or fewer than
+2 valid numeric period-end values), with `counts`, the ordered
+`gaps` list naming every gap, the sections above (null when their
+inputs are absent), and the non-advisory disclaimer carried on
+every output: educational reporting only — the tool calculates;
+the user decides.
+
+## Status
+
+Tier A · status: **built-locally** — deterministic core built and
+verified locally (Python oracle + byte-identical TypeScript port);
+no endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Finance-adjacent; reporting not advice
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

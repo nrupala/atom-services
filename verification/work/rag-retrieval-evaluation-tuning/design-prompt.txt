@@ -1,0 +1,246 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: rag-retrieval-evaluation-tuning
+
+=== contract.yaml ===
+service_name: rag-retrieval-evaluation-tuning
+display_name: Rag retrieval evaluation tuning
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:retrieval-engineering
+binding:
+  skill: retrieval-engineering
+  skill_path: workspace/mymilo-build/skills/retrieval-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: EVALUATION
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/rag_retrieval_evaluation_tuning.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_rag_retrieval_evaluation_tuning.py — 21 tests, all passing 2026-11-15
+keys:
+  namespace: rag_retrieval_evaluation_tuning
+  prefix: atm_1_rag_retrieval_evaluation_tuning_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Fixing product search and RAG
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Rag retrieval evaluation tuning — `rag-retrieval-evaluation-tuning`
+
+**Deliverable type:** EVALUATION. This atom sells the evaluation it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build search & RAG that answers — indexing, hybrid retrieval, reranking, retrieval evals, access-scoped filters.
+
+A caller submits the inputs the bound skill works on and receives one evaluation back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this evaluation on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Fixing product search and RAG**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the retrieval-evaluation evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`RAG_EVALUATION_UNSOUND`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `system` (string; carried into the output, not itself checked) | — |
+| `corpus.inventory_declared` | corpus_and_chunking |
+| `corpus.freshness_requirements_declared` | corpus_and_chunking |
+| `corpus.dedup_rules_declared` | corpus_and_chunking |
+| `corpus.per_document_provenance_tracked` | corpus_and_chunking |
+| `chunking.semantic_units` | corpus_and_chunking |
+| `chunking.overlap_discipline_declared` | corpus_and_chunking |
+| `chunking.stable_chunk_ids` | corpus_and_chunking |
+| `retrieval.lexical_used` | hybrid_retrieval |
+| `retrieval.vector_used` | hybrid_retrieval |
+| `retrieval.scores_combined_with_declared_weights` | hybrid_retrieval |
+| `retrieval.embedding_model_version_pinned` | hybrid_retrieval |
+| `retrieval.reindex_plan_for_model_change` | hybrid_retrieval |
+| `reranking.applied` | reranking_and_filters |
+| `reranking.reranker_budget_declared` | reranking_and_filters |
+| `reranking.context_top_n_bounded` | reranking_and_filters |
+| `reranking.filters_applied_before_ranking` | reranking_and_filters |
+| `reranking.scope_leakage_tested` | reranking_and_filters |
+| `reranking.context_token_budget` (number) | reranking_and_filters (computed context check) |
+| `index.incremental_updates_with_tombstones` | index_hygiene |
+| `index.full_rebuild_drill_done` | index_hygiene |
+| `index.size_quota_budgets_monitored` | index_hygiene |
+| `index.embedding_model_and_index_versioned` | index_hygiene |
+| `evaluation.golden_queries_labeled` | evaluation |
+| `evaluation.thresholds_declared` | evaluation |
+| `evaluation.evals_run_in_regression` | evaluation |
+| `evaluation.real_queries_logged_privacy_scoped` | evaluation |
+| `evaluation.tuning_performed` (gates the tuning red line below: required only when true) | evaluation |
+| `evaluation.evals_run_before_tuning` | evaluation |
+| `queries[]` (list of golden queries, see below) | evaluation + reranking_and_filters |
+| `serving.latency_budgets_per_stage_declared` | serving_and_privacy |
+| `serving.latency_budget_measured` | serving_and_privacy |
+| `serving.hot_queries_cached` | serving_and_privacy |
+| `serving.lexical_only_fallback_exists` | serving_and_privacy |
+| `privacy.query_time_access_scopes_enforced` | serving_and_privacy |
+| `privacy.sensitive_content_excluded_or_encrypted` | serving_and_privacy |
+| `privacy.private_corpus` (gates the local-embeddings check below: required only when true) | serving_and_privacy |
+| `privacy.local_embeddings_for_private_corpus` | serving_and_privacy |
+
+Each `queries[]` entry is `{name, k, relevant_doc_ids,
+retrieved_doc_ids, relevance_grades (optional), forbidden_doc_ids,
+context_tokens, min_recall_at_k, min_mrr, min_ndcg_at_k}`. Three
+checks are computed over these declared values — the only metrics the
+skill names, with no threshold imported from outside (every threshold
+is the caller's own, declared per query):
+
+- **Golden metrics** — per query: recall@k = |relevant ∩
+  retrieved[:k]| / |relevant| (distinct ids); reciprocal rank = 1 /
+  rank of the first relevant doc in the full retrieved list (0 when
+  none); nDCG@k = DCG@k / IDCG@k with DCG@k = Σ (2^grade − 1) /
+  log2(rank + 1) over retrieved[:k] (rank 1-based; grade = the
+  declared `relevance_grades` value, unlisted = 0, or binary
+  relevant/not when grades are not declared; IDCG@k is the same sum
+  over the positive grades sorted descending, truncated to k). The
+  check passes only when every query's computed values meet that
+  query's declared `min_*` thresholds.
+- **Scope leakage (red line)** — no retrieved doc id may appear in
+  its query's `forbidden_doc_ids` (the filtered / out-of-scope set).
+- **Context budget (red line)** — every query's `context_tokens`
+  must be within `reranking.context_token_budget`.
+
+Computed floats (the output's `metrics.mean_recall_at_k`,
+`mean_mrr`, `mean_ndcg_at_k`) are serialized as strings with exactly
+four decimal places by a fixed rule shared by the Python and
+TypeScript implementations: round half up to 4dp — floor(v × 10000 +
+0.5) / 10000 — then format with exactly four decimals. Comparisons
+use the unrounded values. The output also carries `metrics`
+counts (queries_total / queries_meeting_thresholds /
+leaked_doc_count).
+
+The verdict is one of `RAG_EVALUATION_SOUND` (all 36 checks pass),
+`RAG_EVALUATION_UNSOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: corpus_and_chunking, hybrid_retrieval,
+reranking_and_filters, index_hygiene, evaluation,
+serving_and_privacy.
+
+## Honest scoping — declared vs measured, named exclusions
+
+- **Declared, not measured.** Everything except the three computed
+  checks is the caller's declaration: this atom does not crawl a
+  corpus, run queries against a live index, time any pipeline stage,
+  or inspect an embedding model. It computes over the retrieved lists
+  and relevance judgments the caller submits, and audits the posture
+  the caller declares.
+- **Metrics are exactly the three the skill names** — recall@k, MRR,
+  nDCG@k. Precision, F1, MAP and latency percentiles are **excluded**:
+  the skill does not name them, so this atom does not invent them.
+- **No threshold is the atom's.** The skill requires golden-set
+  evals "with thresholds" but states no numbers; every threshold
+  compared here is declared per query in the manifest itself.
+- **Relevance judgments are the caller's.** A query with no positive
+  relevance grade has no definable nDCG and counts as missing
+  evidence, not as a zero score.
+- Tuning itself, index building, reranker execution and query
+  serving are the caller's systems — this atom evaluates their
+  declared evidence and submitted retrieval results only.
+
+## Status
+
+Tier A · status: **built-locally** — deterministic core, Python
+oracle, TypeScript port and golden fixtures are built and verified
+locally; no endpoint is live. Release happens one by one, by the
+owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Golden-set scores are checkable deliverable
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

@@ -1,0 +1,464 @@
+{
+  "atom": "zero-knowledge-claim-audit",
+  "tested_at_utc": "2026-11-15T22:20:42.241627+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "zero_knowledge_claim_audit",
+  "mcp_tools": [
+    {
+      "name": "zero_knowledge_claim_audit",
+      "title": "Zero knowledge claim audit",
+      "description": "Submit a declared zero-knowledge architecture claims manifest (claim basis, server access and storage, client-side encryption, key journey, trusted parties and recovery, plaintext and metadata scope, theater and threat model); get a deterministic CLAIMS_SOUND / CLAIMS_UNSOUND / INSUFFICIENT_EVIDENCE verdict across six sections, with per-check evidence. Declared claims only; no proof or system is verified.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The zero-knowledge claims manifest (see the atom's SERVICE.md for the field table).",
+        "properties": {
+          "product": {
+            "type": "string",
+            "description": "Product the claims cover."
+          },
+          "claims": {
+            "type": "object",
+            "description": "Claim-basis evidence (what is claimed and on what basis)."
+          },
+          "access": {
+            "type": "object",
+            "description": "Server-access evidence (whether the server can read user data)."
+          },
+          "storage": {
+            "type": "object",
+            "description": "Storage evidence (opaque-bytes-only declaration)."
+          },
+          "encryption": {
+            "type": "object",
+            "description": "Client-side encryption evidence (device-side, authenticated, not TLS alone)."
+          },
+          "keys": {
+            "type": "object",
+            "description": "Key-journey evidence (keys never leave the device, client-side derivation, backups)."
+          },
+          "trust": {
+            "type": "object",
+            "description": "Trusted-parties evidence (escrow, recovery backdoors, trusted components)."
+          },
+          "recovery": {
+            "type": "object",
+            "description": "Recovery evidence (recovery model and its consistency with the claims)."
+          },
+          "scope": {
+            "type": "object",
+            "description": "Plaintext and metadata scope evidence."
+          },
+          "theater": {
+            "type": "object",
+            "description": "Theater and threat-model evidence (incl. the web-app paradox where applicable)."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "CLAIMS_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 27 checks pass; recovery consistency is valid; trusted components list is complete."
+      },
+      "input": {
+        "product": "SecureVault",
+        "claims": {
+          "claim_basis": "cryptographic_guarantee"
+        },
+        "access": {
+          "server_can_read_user_data": false
+        },
+        "storage": {
+          "server_stores_only_opaque_bytes": true
+        },
+        "encryption": {
+          "encryption_happens_on_client_device": true,
+          "plaintext_exists_only_on_client_device": true,
+          "authenticated_encryption": true,
+          "relies_on_tls_alone": false
+        },
+        "keys": {
+          "keys_never_leave_device": true,
+          "key_derivation_client_side": true,
+          "key_journey_documented": true,
+          "key_backup_uploads_key_to_server": false
+        },
+        "trust": {
+          "key_escrow": false,
+          "recovery_backdoor": false,
+          "admin_plaintext_view": false,
+          "trusted_components": [
+            "client",
+            "operating_system",
+            "distribution_channel"
+          ],
+          "trusted_third_parties_in_data_path": []
+        },
+        "recovery": {
+          "password_reset_recovers_data": false,
+          "no_recovery_possible_claimed": true
+        },
+        "scope": {
+          "plaintext_locations_documented": true,
+          "plaintext_in_logs": false,
+          "plaintext_in_crash_dumps": false,
+          "plaintext_in_thumbnails_or_previews": false,
+          "metadata_leakage_acknowledged": true,
+          "residual_risks_documented": true
+        },
+        "theater": {
+          "client_type": "native_app",
+          "web_app_trust_distinction_acknowledged": true,
+          "search_or_indexing_requires_server_plaintext_or_tokens": false,
+          "threat_model_includes_malicious_operator": true
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-knowledge-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"SecureVault\",\"verdict\":\"CLAIMS_SOUND\",\"sections\":{\"core_test\":\"pass\",\"client_side_encryption\":\"pass\",\"key_journey\":\"pass\",\"trusted_parties_and_recovery\":\"pass\",\"plaintext_and_metadata_scope\":\"pass\",\"theater_and_threat_model\":\"pass\"},\"checks\":[{\"section\":\"core_test\",\"check\":\"server_operator_cannot_read_user_data\",\"status\":\"pass\",\"evidence\":\"skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge\"},{\"section\":\"core_test\",\"check\":\"server_stores_only_opaque_bytes\",\"status\":\"pass\",\"evidence\":\"skill: the server receives and stores opaque bytes; plaintext exists only on the user's device\"},{\"section\":\"core_test\",\"check\":\"claim_basis_is_cryptographic_guarantee\",\"status\":\"pass\",\"evidence\":\"claim_basis='cryptographic_guarantee' (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says\"},{\"section\":\"client_side_encryption\",\"check\":\"plaintext_only_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts\"},{\"section\":\"client_side_encryption\",\"check\":\"authenticated_encryption\",\"status\":\"pass\",\"evidence\":\"skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_independent_of_transport\",\"status\":\"pass\",\"evidence\":\"skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe\"},{\"section\":\"key_journey\",\"check\":\"keys_never_leave_device\",\"status\":\"pass\",\"evidence\":\"skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'\"},{\"section\":\"key_journey\",\"check\":\"key_derivation_client_side\",\"status\":\"pass\",\"evidence\":\"skill: key derivation happens locally (password -> KDF -> key, all client-side)\"},{\"section\":\"key_journey\",\"check\":\"key_journey_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings\"},{\"section\":\"key_journey\",\"check\":\"no_key_backup_uploaded_to_server\",\"status\":\"pass\",\"evidence\":\"skill (theater): key 'backup' uploads the key to the server under another name\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_key_escrow\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no key escrow\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_recovery_backdoor\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no recovery backdoor\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_admin_plaintext_view\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no admin plaintext view\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_components_named_including_client_os_distribution\",\"status\":\"pass\",\"evidence\":\"trusted_components=['client', 'operating_system', 'distribution_channel'] (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_third_parties_in_data_path_listed\",\"status\":\"pass\",\"evidence\":\"trusted_third_parties_in_data_path=[] (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"recovery_claims_consistent\",\"status\":\"pass\",\"evidence\":\"password_reset_recovers_data=False no_recovery_possible_claimed=True (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_locations_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_logs\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_crash_dumps\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_thumbnails_or_previews\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"metadata_leakage_acknowledged\",\"status\":\"pass\",\"evidence\":\"skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"residual_risks_documented\",\"status\":\"pass\",\"evidence\":\"skill: residual risks are part of the answer, not a footnote\"},{\"section\":\"theater_and_threat_model\",\"check\":\"client_type_declared\",\"status\":\"pass\",\"evidence\":\"client_type='native_app' (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)\"},{\"section\":\"theater_and_threat_model\",\"check\":\"web_app_trust_distinction_acknowledged\",\"status\":\"pass\",\"evidence\":\"client is not declared as a web app served by the same server\"},{\"section\":\"theater_and_threat_model\",\"check\":\"search_indexing_does_not_expose_plaintext_or_tokens\",\"status\":\"pass\",\"evidence\":\"skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens\"},{\"section\":\"theater_and_threat_model\",\"check\":\"threat_model_includes_malicious_operator\",\"status\":\"pass\",\"evidence\":\"skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)\"}],\"summary\":\"27 pass, 0 fail, 0 missing of 27 checks across six sections.\",\"stamp\":\"ZERO-KNOWLEDGE CLAIM AUDIT\\nproduct: SecureVault\\nVERDICT: CLAIMS_SOUND\\n  core_test                    pass\\n  client_side_encryption       pass\\n  key_journey                  pass\\n  trusted_parties_and_recovery pass\\n  plaintext_and_metadata_scope pass\\n  theater_and_threat_model     pass\\n27 pass, 0 fail, 0 missing of 27 checks across six sections.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-knowledge-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"SecureVault\",\"verdict\":\"CLAIMS_SOUND\",\"sections\":{\"core_test\":\"pass\",\"client_side_encryption\":\"pass\",\"key_journey\":\"pass\",\"trusted_parties_and_recovery\":\"pass\",\"plaintext_and_metadata_scope\":\"pass\",\"theater_and_threat_model\":\"pass\"},\"checks\":[{\"section\":\"core_test\",\"check\":\"server_operator_cannot_read_user_data\",\"status\":\"pass\",\"evidence\":\"skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge\"},{\"section\":\"core_test\",\"check\":\"server_stores_only_opaque_bytes\",\"status\":\"pass\",\"evidence\":\"skill: the server receives and stores opaque bytes; plaintext exists only on the user's device\"},{\"section\":\"core_test\",\"check\":\"claim_basis_is_cryptographic_guarantee\",\"status\":\"pass\",\"evidence\":\"claim_basis='cryptographic_guarantee' (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says\"},{\"section\":\"client_side_encryption\",\"check\":\"plaintext_only_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts\"},{\"section\":\"client_side_encryption\",\"check\":\"authenticated_encryption\",\"status\":\"pass\",\"evidence\":\"skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_independent_of_transport\",\"status\":\"pass\",\"evidence\":\"skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe\"},{\"section\":\"key_journey\",\"check\":\"keys_never_leave_device\",\"status\":\"pass\",\"evidence\":\"skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'\"},{\"section\":\"key_journey\",\"check\":\"key_derivation_client_side\",\"status\":\"pass\",\"evidence\":\"skill: key derivation happens locally (password -> KDF -> key, all client-side)\"},{\"section\":\"key_journey\",\"check\":\"key_journey_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings\"},{\"section\":\"key_journey\",\"check\":\"no_key_backup_uploaded_to_server\",\"status\":\"pass\",\"evidence\":\"skill (theater): key 'backup' uploads the key to the server under another name\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_key_escrow\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no key escrow\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_recovery_backdoor\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no recovery backdoor\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_admin_plaintext_view\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no admin plaintext view\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_components_named_including_client_os_distribution\",\"status\":\"pass\",\"evidence\":\"trusted_components=['client', 'operating_system', 'distribution_channel'] (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_third_parties_in_data_path_listed\",\"status\":\"pass\",\"evidence\":\"trusted_third_parties_in_data_path=[] (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"recovery_claims_consistent\",\"status\":\"pass\",\"evidence\":\"password_reset_recovers_data=False no_recovery_possible_claimed=True (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_locations_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_logs\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_crash_dumps\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_thumbnails_or_previews\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"metadata_leakage_acknowledged\",\"status\":\"pass\",\"evidence\":\"skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"residual_risks_documented\",\"status\":\"pass\",\"evidence\":\"skill: residual risks are part of the answer, not a footnote\"},{\"section\":\"theater_and_threat_model\",\"check\":\"client_type_declared\",\"status\":\"pass\",\"evidence\":\"client_type='native_app' (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)\"},{\"section\":\"theater_and_threat_model\",\"check\":\"web_app_trust_distinction_acknowledged\",\"status\":\"pass\",\"evidence\":\"client is not declared as a web app served by the same server\"},{\"section\":\"theater_and_threat_model\",\"check\":\"search_indexing_does_not_expose_plaintext_or_tokens\",\"status\":\"pass\",\"evidence\":\"skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens\"},{\"section\":\"theater_and_threat_model\",\"check\":\"threat_model_includes_malicious_operator\",\"status\":\"pass\",\"evidence\":\"skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)\"}],\"summary\":\"27 pass, 0 fail, 0 missing of 27 checks across six sections.\",\"stamp\":\"ZERO-KNOWLEDGE CLAIM AUDIT\\nproduct: SecureVault\\nVERDICT: CLAIMS_SOUND\\n  core_test                    pass\\n  client_side_encryption       pass\\n  key_journey                  pass\\n  trusted_parties_and_recovery pass\\n  plaintext_and_metadata_scope pass\\n  theater_and_threat_model     pass\\n27 pass, 0 fail, 0 missing of 27 checks across six sections.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"zero-knowledge-claim-audit\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"product\\\": \\\"SecureVault\\\",\\n  \\\"verdict\\\": \\\"CLAIMS_SOUND\\\",\\n  \\\"sections\\\": {\\n    \\\"core_test\\\": \\\"pass\\\",\\n    \\\"client_side_encryption\\\": \\\"pass\\\",\\n    \\\"key_journey\\\": \\\"pass\\\",\\n    \\\"trusted_parties_and_recovery\\\": \\\"pass\\\",\\n    \\\"plaintext_and_metadata_scope\\\": \\\"pass\\\",\\n    \\\"theater_and_threat_model\\\": \\\"pass\\\"\\n  },\\n  \\\"checks\\\": [\\n    {\\n      \\\"section\\\": \\\"core_test\\\",\\n      \\\"check\\\": \\\"server_operator_cannot_read_user_data\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"core_test\\\",\\n      \\\"check\\\": \\\"server_stores_only_opaque_bytes\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: the server receives and stores opaque bytes; plaintext exists only on the user's device\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"core_test\\\",\\n      \\\"check\\\": \\\"claim_basis_is_cryptographic_guarantee\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"claim_basis='cryptographic_guarantee' (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"client_side_encryption\\\",\\n      \\\"check\\\": \\\"encryption_on_client_device\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"client_side_encryption\\\",\\n      \\\"check\\\": \\\"plaintext_only_on_client_device\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"client_side_encryption\\\",\\n      \\\"check\\\": \\\"authenticated_encryption\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"client_side_encryption\\\",\\n      \\\"check\\\": \\\"encryption_independent_of_transport\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_journey\\\",\\n      \\\"check\\\": \\\"keys_never_leave_device\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_journey\\\",\\n      \\\"check\\\": \\\"key_derivation_client_side\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: key derivation happens locally (password -> KDF -> key, all client-side)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_journey\\\",\\n      \\\"check\\\": \\\"key_journey_documented\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"key_journey\\\",\\n      \\\"check\\\": \\\"no_key_backup_uploaded_to_server\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill (theater): key 'backup' uploads the key to the server under another name\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trusted_parties_and_recovery\\\",\\n      \\\"check\\\": \\\"no_key_escrow\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: no trusted third parties in the data path \u2014 no key escrow\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trusted_parties_and_recovery\\\",\\n      \\\"check\\\": \\\"no_recovery_backdoor\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: no trusted third parties in the data path \u2014 no recovery backdoor\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trusted_parties_and_recovery\\\",\\n      \\\"check\\\": \\\"no_admin_plaintext_view\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: no trusted third parties in the data path \u2014 no admin plaintext view\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trusted_parties_and_recovery\\\",\\n      \\\"check\\\": \\\"trusted_components_named_including_client_os_distribution\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"trusted_components=['client', 'operating_system', 'distribution_channel'] (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trusted_parties_and_recovery\\\",\\n      \\\"check\\\": \\\"trusted_third_parties_in_data_path_listed\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"trusted_third_parties_in_data_path=[] (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"trusted_parties_and_recovery\\\",\\n      \\\"check\\\": \\\"recovery_claims_consistent\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"password_reset_recovers_data=False no_recovery_possible_claimed=True (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"plaintext_and_metadata_scope\\\",\\n      \\\"check\\\": \\\"plaintext_locations_documented\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"plaintext_and_metadata_scope\\\",\\n      \\\"check\\\": \\\"plaintext_not_in_logs\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"plaintext_and_metadata_scope\\\",\\n      \\\"check\\\": \\\"plaintext_not_in_crash_dumps\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"plaintext_and_metadata_scope\\\",\\n      \\\"check\\\": \\\"plaintext_not_in_thumbnails_or_previews\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"plaintext_and_metadata_scope\\\",\\n      \\\"check\\\": \\\"metadata_leakage_acknowledged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"plaintext_and_metadata_scope\\\",\\n      \\\"check\\\": \\\"residual_risks_documented\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill: residual risks are part of the answer, not a footnote\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"theater_and_threat_model\\\",\\n      \\\"check\\\": \\\"client_type_declared\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"client_type='native_app' (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"theater_and_threat_model\\\",\\n      \\\"check\\\": \\\"web_app_trust_distinction_acknowledged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"client is not declared as a web app served by the same server\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"theater_and_threat_model\\\",\\n      \\\"check\\\": \\\"search_indexing_does_not_expose_plaintext_or_tokens\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"theater_and_threat_model\\\",\\n      \\\"check\\\": \\\"threat_model_includes_malicious_operator\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)\\\"\\n    }\\n  ],\\n  \\\"summary\\\": \\\"27 pass, 0 fail, 0 missing of 27 checks across six sections.\\\",\\n  \\\"stamp\\\": \\\"ZERO-KNOWLEDGE CLAIM AUDIT\\\\nproduct: SecureVault\\\\nVERDICT: CLAIMS_SOUND\\\\n  core_test                    pass\\\\n  client_side_encryption       pass\\\\n  key_journey                  pass\\\\n  trusted_parties_and_recovery pass\\\\n  plaintext_and_metadata_scope pass\\\\n  theater_and_threat_model     pass\\\\n27 pass, 0 fail, 0 missing of 27 checks across six sections.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"zero-knowledge-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"SecureVault\",\"verdict\":\"CLAIMS_SOUND\",\"sections\":{\"core_test\":\"pass\",\"client_side_encryption\":\"pass\",\"key_journey\":\"pass\",\"trusted_parties_and_recovery\":\"pass\",\"plaintext_and_metadata_scope\":\"pass\",\"theater_and_threat_model\":\"pass\"},\"checks\":[{\"section\":\"core_test\",\"check\":\"server_operator_cannot_read_user_data\",\"status\":\"pass\",\"evidence\":\"skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge\"},{\"section\":\"core_test\",\"check\":\"server_stores_only_opaque_bytes\",\"status\":\"pass\",\"evidence\":\"skill: the server receives and stores opaque bytes; plaintext exists only on the user's device\"},{\"section\":\"core_test\",\"check\":\"claim_basis_is_cryptographic_guarantee\",\"status\":\"pass\",\"evidence\":\"claim_basis='cryptographic_guarantee' (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says\"},{\"section\":\"client_side_encryption\",\"check\":\"plaintext_only_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts\"},{\"section\":\"client_side_encryption\",\"check\":\"authenticated_encryption\",\"status\":\"pass\",\"evidence\":\"skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_independent_of_transport\",\"status\":\"pass\",\"evidence\":\"skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe\"},{\"section\":\"key_journey\",\"check\":\"keys_never_leave_device\",\"status\":\"pass\",\"evidence\":\"skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'\"},{\"section\":\"key_journey\",\"check\":\"key_derivation_client_side\",\"status\":\"pass\",\"evidence\":\"skill: key derivation happens locally (password -> KDF -> key, all client-side)\"},{\"section\":\"key_journey\",\"check\":\"key_journey_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings\"},{\"section\":\"key_journey\",\"check\":\"no_key_backup_uploaded_to_server\",\"status\":\"pass\",\"evidence\":\"skill (theater): key 'backup' uploads the key to the server under another name\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_key_escrow\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no key escrow\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_recovery_backdoor\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no recovery backdoor\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_admin_plaintext_view\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no admin plaintext view\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_components_named_including_client_os_distribution\",\"status\":\"pass\",\"evidence\":\"trusted_components=['client', 'operating_system', 'distribution_channel'] (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_third_parties_in_data_path_listed\",\"status\":\"pass\",\"evidence\":\"trusted_third_parties_in_data_path=[] (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"recovery_claims_consistent\",\"status\":\"pass\",\"evidence\":\"password_reset_recovers_data=False no_recovery_possible_claimed=True (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_locations_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_logs\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_crash_dumps\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_thumbnails_or_previews\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"metadata_leakage_acknowledged\",\"status\":\"pass\",\"evidence\":\"skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"residual_risks_documented\",\"status\":\"pass\",\"evidence\":\"skill: residual risks are part of the answer, not a footnote\"},{\"section\":\"theater_and_threat_model\",\"check\":\"client_type_declared\",\"status\":\"pass\",\"evidence\":\"client_type='native_app' (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)\"},{\"section\":\"theater_and_threat_model\",\"check\":\"web_app_trust_distinction_acknowledged\",\"status\":\"pass\",\"evidence\":\"client is not declared as a web app served by the same server\"},{\"section\":\"theater_and_threat_model\",\"check\":\"search_indexing_does_not_expose_plaintext_or_tokens\",\"status\":\"pass\",\"evidence\":\"skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens\"},{\"section\":\"theater_and_threat_model\",\"check\":\"threat_model_includes_malicious_operator\",\"status\":\"pass\",\"evidence\":\"skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)\"}],\"summary\":\"27 pass, 0 fail, 0 missing of 27 checks across six sections.\",\"stamp\":\"ZERO-KNOWLEDGE CLAIM AUDIT\\nproduct: SecureVault\\nVERDICT: CLAIMS_SOUND\\n  core_test                    pass\\n  client_side_encryption       pass\\n  key_journey                  pass\\n  trusted_parties_and_recovery pass\\n  plaintext_and_metadata_scope pass\\n  theater_and_threat_model     pass\\n27 pass, 0 fail, 0 missing of 27 checks across six sections.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "zero-knowledge-claim-audit",
+        "atom_version": "0.1.0",
+        "product": "SecureVault",
+        "verdict": "CLAIMS_SOUND",
+        "sections": {
+          "core_test": "pass",
+          "client_side_encryption": "pass",
+          "key_journey": "pass",
+          "trusted_parties_and_recovery": "pass",
+          "plaintext_and_metadata_scope": "pass",
+          "theater_and_threat_model": "pass"
+        },
+        "checks": [
+          {
+            "section": "core_test",
+            "check": "server_operator_cannot_read_user_data",
+            "status": "pass",
+            "evidence": "skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge"
+          },
+          {
+            "section": "core_test",
+            "check": "server_stores_only_opaque_bytes",
+            "status": "pass",
+            "evidence": "skill: the server receives and stores opaque bytes; plaintext exists only on the user's device"
+          },
+          {
+            "section": "core_test",
+            "check": "claim_basis_is_cryptographic_guarantee",
+            "status": "pass",
+            "evidence": "claim_basis='cryptographic_guarantee' (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)"
+          },
+          {
+            "section": "client_side_encryption",
+            "check": "encryption_on_client_device",
+            "status": "pass",
+            "evidence": "skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says"
+          },
+          {
+            "section": "client_side_encryption",
+            "check": "plaintext_only_on_client_device",
+            "status": "pass",
+            "evidence": "skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts"
+          },
+          {
+            "section": "client_side_encryption",
+            "check": "authenticated_encryption",
+            "status": "pass",
+            "evidence": "skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently"
+          },
+          {
+            "section": "client_side_encryption",
+            "check": "encryption_independent_of_transport",
+            "status": "pass",
+            "evidence": "skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe"
+          },
+          {
+            "section": "key_journey",
+            "check": "keys_never_leave_device",
+            "status": "pass",
+            "evidence": "skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'"
+          },
+          {
+            "section": "key_journey",
+            "check": "key_derivation_client_side",
+            "status": "pass",
+            "evidence": "skill: key derivation happens locally (password -> KDF -> key, all client-side)"
+          },
+          {
+            "section": "key_journey",
+            "check": "key_journey_documented",
+            "status": "pass",
+            "evidence": "skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings"
+          },
+          {
+            "section": "key_journey",
+            "check": "no_key_backup_uploaded_to_server",
+            "status": "pass",
+            "evidence": "skill (theater): key 'backup' uploads the key to the server under another name"
+          },
+          {
+            "section": "trusted_parties_and_recovery",
+            "check": "no_key_escrow",
+            "status": "pass",
+            "evidence": "skill: no trusted third parties in the data path \u2014 no key escrow"
+          },
+          {
+            "section": "trusted_parties_and_recovery",
+            "check": "no_recovery_backdoor",
+            "status": "pass",
+            "evidence": "skill: no trusted third parties in the data path \u2014 no recovery backdoor"
+          },
+          {
+            "section": "trusted_parties_and_recovery",
+            "check": "no_admin_plaintext_view",
+            "status": "pass",
+            "evidence": "skill: no trusted third parties in the data path \u2014 no admin plaintext view"
+          },
+          {
+            "section": "trusted_parties_and_recovery",
+            "check": "trusted_components_named_including_client_os_distribution",
+            "status": "pass",
+            "evidence": "trusted_components=['client', 'operating_system', 'distribution_channel'] (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)"
+          },
+          {
+            "section": "trusted_parties_and_recovery",
+            "check": "trusted_third_parties_in_data_path_listed",
+            "status": "pass",
+            "evidence": "trusted_third_parties_in_data_path=[] (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)"
+          },
+          {
+            "section": "trusted_parties_and_recovery",
+            "check": "recovery_claims_consistent",
+            "status": "pass",
+            "evidence": "password_reset_recovers_data=False no_recovery_possible_claimed=True (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)"
+          },
+          {
+            "section": "plaintext_and_metadata_scope",
+            "check": "plaintext_locations_documented",
+            "status": "pass",
+            "evidence": "skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary"
+          },
+          {
+            "section": "plaintext_and_metadata_scope",
+            "check": "plaintext_not_in_logs",
+            "status": "pass",
+            "evidence": "skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee"
+          },
+          {
+            "section": "plaintext_and_metadata_scope",
+            "check": "plaintext_not_in_crash_dumps",
+            "status": "pass",
+            "evidence": "skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee"
+          },
+          {
+            "section": "plaintext_and_metadata_scope",
+            "check": "plaintext_not_in_thumbnails_or_previews",
+            "status": "pass",
+            "evidence": "skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee"
+          },
+          {
+            "section": "plaintext_and_metadata_scope",
+            "check": "metadata_leakage_acknowledged",
+            "status": "pass",
+            "evidence": "skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it"
+          },
+          {
+            "section": "plaintext_and_metadata_scope",
+            "check": "residual_risks_documented",
+            "status": "pass",
+            "evidence": "skill: residual risks are part of the answer, not a footnote"
+          },
+          {
+            "section": "theater_and_threat_model",
+            "check": "client_type_declared",
+            "status": "pass",
+            "evidence": "client_type='native_app' (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)"
+          },
+          {
+            "section": "theater_and_threat_model",
+            "check": "web_app_trust_distinction_acknowledged",
+            "status": "pass",
+            "evidence": "client is not declared as a web app served by the same server"
+          },
+          {
+            "section": "theater_and_threat_model",
+            "check": "search_indexing_does_not_expose_plaintext_or_tokens",
+            "status": "pass",
+            "evidence": "skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens"
+          },
+          {
+            "section": "theater_and_threat_model",
+            "check": "threat_model_includes_malicious_operator",
+            "status": "pass",
+            "evidence": "skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)"
+          }
+        ],
+        "summary": "27 pass, 0 fail, 0 missing of 27 checks across six sections.",
+        "stamp": "ZERO-KNOWLEDGE CLAIM AUDIT\nproduct: SecureVault\nVERDICT: CLAIMS_SOUND\n  core_test                    pass\n  client_side_encryption       pass\n  key_journey                  pass\n  trusted_parties_and_recovery pass\n  plaintext_and_metadata_scope pass\n  theater_and_threat_model     pass\n27 pass, 0 fail, 0 missing of 27 checks across six sections."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "CLAIMS_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "access.server_can_read_user_data",
+          "trust.trusted_components",
+          "recovery.password_reset_recovers_data",
+          "recovery.no_recovery_possible_claimed",
+          "theater.web_app_trust_distinction_acknowledged"
+        ],
+        "notes": "Violates server access, trusted components list, recovery consistency, and web-app trust requirements."
+      },
+      "input": {
+        "product": "InsecureVault",
+        "claims": {
+          "claim_basis": "cryptographic_guarantee"
+        },
+        "access": {
+          "server_can_read_user_data": true
+        },
+        "storage": {
+          "server_stores_only_opaque_bytes": true
+        },
+        "encryption": {
+          "encryption_happens_on_client_device": true,
+          "plaintext_exists_only_on_client_device": true,
+          "authenticated_encryption": true,
+          "relies_on_tls_alone": false
+        },
+        "keys": {
+          "keys_never_leave_device": true,
+          "key_derivation_client_side": true,
+          "key_journey_documented": true,
+          "key_backup_uploads_key_to_server": false
+        },
+        "trust": {
+          "key_escrow": false,
+          "recovery_backdoor": false,
+          "admin_plaintext_view": false,
+          "trusted_components": [
+            "client"
+          ],
+          "trusted_third_parties_in_data_path": []
+        },
+        "recovery": {
+          "password_reset_recovers_data": true,
+          "no_recovery_possible_claimed": true
+        },
+        "scope": {
+          "plaintext_locations_documented": true,
+          "plaintext_in_logs": false,
+          "plaintext_in_crash_dumps": false,
+          "plaintext_in_thumbnails_or_previews": false,
+          "metadata_leakage_acknowledged": true,
+          "residual_risks_documented": true
+        },
+        "theater": {
+          "client_type": "web_app_served_by_same_server",
+          "web_app_trust_distinction_acknowledged": false,
+          "search_or_indexing_requires_server_plaintext_or_tokens": false,
+          "threat_model_includes_malicious_operator": true
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-knowledge-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"InsecureVault\",\"verdict\":\"CLAIMS_UNSOUND\",\"sections\":{\"core_test\":\"fail\",\"client_side_encryption\":\"pass\",\"key_journey\":\"pass\",\"trusted_parties_and_recovery\":\"fail\",\"plaintext_and_metadata_scope\":\"pass\",\"theater_and_threat_model\":\"fail\"},\"checks\":[{\"section\":\"core_test\",\"check\":\"server_operator_cannot_read_user_data\",\"status\":\"fail\",\"evidence\":\"skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge\"},{\"section\":\"core_test\",\"check\":\"server_stores_only_opaque_bytes\",\"status\":\"pass\",\"evidence\":\"skill: the server receives and stores opaque bytes; plaintext exists only on the user's device\"},{\"section\":\"core_test\",\"check\":\"claim_basis_is_cryptographic_guarantee\",\"status\":\"pass\",\"evidence\":\"claim_basis='cryptographic_guarantee' (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says\"},{\"section\":\"client_side_encryption\",\"check\":\"plaintext_only_on_client_device\",\"status\":\"pass\",\"evidence\":\"skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts\"},{\"section\":\"client_side_encryption\",\"check\":\"authenticated_encryption\",\"status\":\"pass\",\"evidence\":\"skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_independent_of_transport\",\"status\":\"pass\",\"evidence\":\"skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe\"},{\"section\":\"key_journey\",\"check\":\"keys_never_leave_device\",\"status\":\"pass\",\"evidence\":\"skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'\"},{\"section\":\"key_journey\",\"check\":\"key_derivation_client_side\",\"status\":\"pass\",\"evidence\":\"skill: key derivation happens locally (password -> KDF -> key, all client-side)\"},{\"section\":\"key_journey\",\"check\":\"key_journey_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings\"},{\"section\":\"key_journey\",\"check\":\"no_key_backup_uploaded_to_server\",\"status\":\"pass\",\"evidence\":\"skill (theater): key 'backup' uploads the key to the server under another name\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_key_escrow\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no key escrow\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_recovery_backdoor\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no recovery backdoor\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_admin_plaintext_view\",\"status\":\"pass\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no admin plaintext view\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_components_named_including_client_os_distribution\",\"status\":\"fail\",\"evidence\":\"trusted_components=['client'] (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_third_parties_in_data_path_listed\",\"status\":\"pass\",\"evidence\":\"trusted_third_parties_in_data_path=[] (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"recovery_claims_consistent\",\"status\":\"fail\",\"evidence\":\"password_reset_recovers_data=True no_recovery_possible_claimed=True (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_locations_documented\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_logs\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_crash_dumps\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_thumbnails_or_previews\",\"status\":\"pass\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"metadata_leakage_acknowledged\",\"status\":\"pass\",\"evidence\":\"skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"residual_risks_documented\",\"status\":\"pass\",\"evidence\":\"skill: residual risks are part of the answer, not a footnote\"},{\"section\":\"theater_and_threat_model\",\"check\":\"client_type_declared\",\"status\":\"pass\",\"evidence\":\"client_type='web_app_served_by_same_server' (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)\"},{\"section\":\"theater_and_threat_model\",\"check\":\"web_app_trust_distinction_acknowledged\",\"status\":\"fail\",\"evidence\":\"client_type='web_app_served_by_same_server' web_app_trust_distinction_acknowledged=False (skill: the web-app paradox \u2014 browser-delivered crypto moves trust to the server's code pipeline; it is not the same guarantee as a locally installed client, and that distinction must be stated)\"},{\"section\":\"theater_and_threat_model\",\"check\":\"search_indexing_does_not_expose_plaintext_or_tokens\",\"status\":\"pass\",\"evidence\":\"skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens\"},{\"section\":\"theater_and_threat_model\",\"check\":\"threat_model_includes_malicious_operator\",\"status\":\"pass\",\"evidence\":\"skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)\"}],\"summary\":\"23 pass, 4 fail, 0 missing of 27 checks across six sections.\",\"stamp\":\"ZERO-KNOWLEDGE CLAIM AUDIT\\nproduct: InsecureVault\\nVERDICT: CLAIMS_UNSOUND\\n  core_test                    fail\\n  client_side_encryption       pass\\n  key_journey                  pass\\n  trusted_parties_and_recovery fail\\n  plaintext_and_metadata_scope pass\\n  theater_and_threat_model     fail\\n23 pass, 4 fail, 0 missing of 27 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Manifest lacks required fields for a full audit."
+      },
+      "input": {
+        "product": "MinimalAudit",
+        "claims": {
+          "claim_basis": "cryptographic_guarantee"
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-knowledge-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"MinimalAudit\",\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"core_test\":\"insufficient_evidence\",\"client_side_encryption\":\"insufficient_evidence\",\"key_journey\":\"insufficient_evidence\",\"trusted_parties_and_recovery\":\"insufficient_evidence\",\"plaintext_and_metadata_scope\":\"insufficient_evidence\",\"theater_and_threat_model\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"core_test\",\"check\":\"server_operator_cannot_read_user_data\",\"status\":\"missing\",\"evidence\":\"skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge\"},{\"section\":\"core_test\",\"check\":\"server_stores_only_opaque_bytes\",\"status\":\"missing\",\"evidence\":\"skill: the server receives and stores opaque bytes; plaintext exists only on the user's device\"},{\"section\":\"core_test\",\"check\":\"claim_basis_is_cryptographic_guarantee\",\"status\":\"pass\",\"evidence\":\"claim_basis='cryptographic_guarantee' (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_on_client_device\",\"status\":\"missing\",\"evidence\":\"skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says\"},{\"section\":\"client_side_encryption\",\"check\":\"plaintext_only_on_client_device\",\"status\":\"missing\",\"evidence\":\"skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts\"},{\"section\":\"client_side_encryption\",\"check\":\"authenticated_encryption\",\"status\":\"missing\",\"evidence\":\"skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_independent_of_transport\",\"status\":\"missing\",\"evidence\":\"skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe\"},{\"section\":\"key_journey\",\"check\":\"keys_never_leave_device\",\"status\":\"missing\",\"evidence\":\"skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'\"},{\"section\":\"key_journey\",\"check\":\"key_derivation_client_side\",\"status\":\"missing\",\"evidence\":\"skill: key derivation happens locally (password -> KDF -> key, all client-side)\"},{\"section\":\"key_journey\",\"check\":\"key_journey_documented\",\"status\":\"missing\",\"evidence\":\"skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings\"},{\"section\":\"key_journey\",\"check\":\"no_key_backup_uploaded_to_server\",\"status\":\"missing\",\"evidence\":\"skill (theater): key 'backup' uploads the key to the server under another name\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_key_escrow\",\"status\":\"missing\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no key escrow\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_recovery_backdoor\",\"status\":\"missing\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no recovery backdoor\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_admin_plaintext_view\",\"status\":\"missing\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no admin plaintext view\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_components_named_including_client_os_distribution\",\"status\":\"missing\",\"evidence\":\"trusted_components=None (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_third_parties_in_data_path_listed\",\"status\":\"missing\",\"evidence\":\"trusted_third_parties_in_data_path=None (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"recovery_claims_consistent\",\"status\":\"missing\",\"evidence\":\"password_reset_recovers_data=None no_recovery_possible_claimed=None (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_locations_documented\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_logs\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_crash_dumps\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_thumbnails_or_previews\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"metadata_leakage_acknowledged\",\"status\":\"missing\",\"evidence\":\"skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"residual_risks_documented\",\"status\":\"missing\",\"evidence\":\"skill: residual risks are part of the answer, not a footnote\"},{\"section\":\"theater_and_threat_model\",\"check\":\"client_type_declared\",\"status\":\"missing\",\"evidence\":\"client_type=None (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)\"},{\"section\":\"theater_and_threat_model\",\"check\":\"web_app_trust_distinction_acknowledged\",\"status\":\"missing\",\"evidence\":\"client is not declared as a web app served by the same server\"},{\"section\":\"theater_and_threat_model\",\"check\":\"search_indexing_does_not_expose_plaintext_or_tokens\",\"status\":\"missing\",\"evidence\":\"skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens\"},{\"section\":\"theater_and_threat_model\",\"check\":\"threat_model_includes_malicious_operator\",\"status\":\"missing\",\"evidence\":\"skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)\"}],\"summary\":\"1 pass, 0 fail, 26 missing of 27 checks across six sections.\",\"stamp\":\"ZERO-KNOWLEDGE CLAIM AUDIT\\nproduct: MinimalAudit\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  core_test                    insufficient_evidence\\n  client_side_encryption       insufficient_evidence\\n  key_journey                  insufficient_evidence\\n  trusted_parties_and_recovery insufficient_evidence\\n  plaintext_and_metadata_scope insufficient_evidence\\n  theater_and_threat_model     insufficient_evidence\\n1 pass, 0 fail, 26 missing of 27 checks across six sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: claim_basis expects string, access expects object."
+      },
+      "input": {
+        "product": "MalformedAudit",
+        "claims": {
+          "claim_basis": 12345
+        },
+        "access": "not_an_object"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"zero-knowledge-claim-audit\",\"atom_version\":\"0.1.0\",\"product\":\"MalformedAudit\",\"verdict\":\"CLAIMS_UNSOUND\",\"sections\":{\"core_test\":\"fail\",\"client_side_encryption\":\"insufficient_evidence\",\"key_journey\":\"insufficient_evidence\",\"trusted_parties_and_recovery\":\"insufficient_evidence\",\"plaintext_and_metadata_scope\":\"insufficient_evidence\",\"theater_and_threat_model\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"core_test\",\"check\":\"server_operator_cannot_read_user_data\",\"status\":\"missing\",\"evidence\":\"skill: the core test \u2014 can the server operator (malicious, curious, or compelled) read user data? If yes, the system is not zero-knowledge\"},{\"section\":\"core_test\",\"check\":\"server_stores_only_opaque_bytes\",\"status\":\"missing\",\"evidence\":\"skill: the server receives and stores opaque bytes; plaintext exists only on the user's device\"},{\"section\":\"core_test\",\"check\":\"claim_basis_is_cryptographic_guarantee\",\"status\":\"fail\",\"evidence\":\"claim_basis=12345 (skill: distinguish can't read (cryptographic guarantee) from won't read (policy promise); only the first is ZK)\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_on_client_device\",\"status\":\"missing\",\"evidence\":\"skill: client-side encryption, always \u2014 if encryption does not happen on your device, it is not zero-knowledge, whatever the marketing page says\"},{\"section\":\"client_side_encryption\",\"check\":\"plaintext_only_on_client_device\",\"status\":\"missing\",\"evidence\":\"skill: plaintext exists only on the user's device; the server stores unreadable bytes and only the user decrypts\"},{\"section\":\"client_side_encryption\",\"check\":\"authenticated_encryption\",\"status\":\"missing\",\"evidence\":\"skill: authenticated encryption \u2014 ciphertext must be tamper-evident; encryption without authentication lets an attacker modify data silently\"},{\"section\":\"client_side_encryption\",\"check\":\"encryption_independent_of_transport\",\"status\":\"missing\",\"evidence\":\"skill: encryption independent of transport \u2014 TLS protects the pipe, ZK protects the data; a system that relies on TLS alone trusts the server at the end of the pipe\"},{\"section\":\"key_journey\",\"check\":\"keys_never_leave_device\",\"status\":\"missing\",\"evidence\":\"skill: keys never leave the device \u2014 not in transit, not 'temporarily', not for 'convenience features'\"},{\"section\":\"key_journey\",\"check\":\"key_derivation_client_side\",\"status\":\"missing\",\"evidence\":\"skill: key derivation happens locally (password -> KDF -> key, all client-side)\"},{\"section\":\"key_journey\",\"check\":\"key_journey_documented\",\"status\":\"missing\",\"evidence\":\"skill: follow the key \u2014 where is it generated, where is it stored, what crosses the network? Gaps in the diagram are the audit findings\"},{\"section\":\"key_journey\",\"check\":\"no_key_backup_uploaded_to_server\",\"status\":\"missing\",\"evidence\":\"skill (theater): key 'backup' uploads the key to the server under another name\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_key_escrow\",\"status\":\"missing\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no key escrow\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_recovery_backdoor\",\"status\":\"missing\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no recovery backdoor\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"no_admin_plaintext_view\",\"status\":\"missing\",\"evidence\":\"skill: no trusted third parties in the data path \u2014 no admin plaintext view\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_components_named_including_client_os_distribution\",\"status\":\"missing\",\"evidence\":\"trusted_components=None (skill: name every trusted component explicitly \u2014 including the client itself, the OS, and the distribution channel)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"trusted_third_parties_in_data_path_listed\",\"status\":\"missing\",\"evidence\":\"trusted_third_parties_in_data_path=None (skill: each exception is a named party you now trust \u2014 list them; an empty list declares none)\"},{\"section\":\"trusted_parties_and_recovery\",\"check\":\"recovery_claims_consistent\",\"status\":\"missing\",\"evidence\":\"password_reset_recovers_data=None no_recovery_possible_claimed=None (skill: read the recovery story \u2014 'forgot password' recovery and 'we can't recover your data' cannot both be true; the recovery mechanism defines the real trust model)\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_locations_documented\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 list every place plaintext exists, however briefly (memory, logs, crash dumps, thumbnails, previews); each is a scope boundary\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_logs\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in logs is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_crash_dumps\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in crash dumps is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"plaintext_not_in_thumbnails_or_previews\",\"status\":\"missing\",\"evidence\":\"skill: follow the plaintext \u2014 plaintext in thumbnails and previews is a scope boundary where plaintext exists outside the device guarantee\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"metadata_leakage_acknowledged\",\"status\":\"missing\",\"evidence\":\"skill: check the metadata \u2014 traffic analysis and blob-size leakage survive encryption; sizes, timing, and access patterns are data too, and ZK does not hide that you store data, how much, or when you access it\"},{\"section\":\"plaintext_and_metadata_scope\",\"check\":\"residual_risks_documented\",\"status\":\"missing\",\"evidence\":\"skill: residual risks are part of the answer, not a footnote\"},{\"section\":\"theater_and_threat_model\",\"check\":\"client_type_declared\",\"status\":\"missing\",\"evidence\":\"client_type=None (skill: say which one you are looking at \u2014 a locally installed client or a web app served by the same server)\"},{\"section\":\"theater_and_threat_model\",\"check\":\"web_app_trust_distinction_acknowledged\",\"status\":\"missing\",\"evidence\":\"client is not declared as a web app served by the same server\"},{\"section\":\"theater_and_threat_model\",\"check\":\"search_indexing_does_not_expose_plaintext_or_tokens\",\"status\":\"missing\",\"evidence\":\"skill (theater): the 'encrypted' search/indexing requires the server to see plaintext or searchable tokens\"},{\"section\":\"theater_and_threat_model\",\"check\":\"threat_model_includes_malicious_operator\",\"status\":\"missing\",\"evidence\":\"skill (theater): the threat model quietly excludes the actual adversary (a malicious operator)\"}],\"summary\":\"0 pass, 1 fail, 26 missing of 27 checks across six sections.\",\"stamp\":\"ZERO-KNOWLEDGE CLAIM AUDIT\\nproduct: MalformedAudit\\nVERDICT: CLAIMS_UNSOUND\\n  core_test                    fail\\n  client_side_encryption       insufficient_evidence\\n  key_journey                  insufficient_evidence\\n  trusted_parties_and_recovery insufficient_evidence\\n  plaintext_and_metadata_scope insufficient_evidence\\n  theater_and_threat_model     insufficient_evidence\\n0 pass, 1 fail, 26 missing of 27 checks across six sections.\"}"
+        }
+      ]
+    }
+  ]
+}

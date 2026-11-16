@@ -1,0 +1,167 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "product": "SecureVault",
+        "claims": {
+          "claim_basis": "cryptographic_guarantee"
+        },
+        "access": {
+          "server_can_read_user_data": false
+        },
+        "storage": {
+          "server_stores_only_opaque_bytes": true
+        },
+        "encryption": {
+          "encryption_happens_on_client_device": true,
+          "plaintext_exists_only_on_client_device": true,
+          "authenticated_encryption": true,
+          "relies_on_tls_alone": false
+        },
+        "keys": {
+          "keys_never_leave_device": true,
+          "key_derivation_client_side": true,
+          "key_journey_documented": true,
+          "key_backup_uploads_key_to_server": false
+        },
+        "trust": {
+          "key_escrow": false,
+          "recovery_backdoor": false,
+          "admin_plaintext_view": false,
+          "trusted_components": [
+            "client",
+            "operating_system",
+            "distribution_channel"
+          ],
+          "trusted_third_parties_in_data_path": []
+        },
+        "recovery": {
+          "password_reset_recovers_data": false,
+          "no_recovery_possible_claimed": true
+        },
+        "scope": {
+          "plaintext_locations_documented": true,
+          "plaintext_in_logs": false,
+          "plaintext_in_crash_dumps": false,
+          "plaintext_in_thumbnails_or_previews": false,
+          "metadata_leakage_acknowledged": true,
+          "residual_risks_documented": true
+        },
+        "theater": {
+          "client_type": "native_app",
+          "web_app_trust_distinction_acknowledged": true,
+          "search_or_indexing_requires_server_plaintext_or_tokens": false,
+          "threat_model_includes_malicious_operator": true
+        }
+      },
+      "expect": {
+        "outcome": "CLAIMS_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 27 checks pass; recovery consistency is valid; trusted components list is complete."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "product": "InsecureVault",
+        "claims": {
+          "claim_basis": "cryptographic_guarantee"
+        },
+        "access": {
+          "server_can_read_user_data": true
+        },
+        "storage": {
+          "server_stores_only_opaque_bytes": true
+        },
+        "encryption": {
+          "encryption_happens_on_client_device": true,
+          "plaintext_exists_only_on_client_device": true,
+          "authenticated_encryption": true,
+          "relies_on_tls_alone": false
+        },
+        "keys": {
+          "keys_never_leave_device": true,
+          "key_derivation_client_side": true,
+          "key_journey_documented": true,
+          "key_backup_uploads_key_to_server": false
+        },
+        "trust": {
+          "key_escrow": false,
+          "recovery_backdoor": false,
+          "admin_plaintext_view": false,
+          "trusted_components": [
+            "client"
+          ],
+          "trusted_third_parties_in_data_path": []
+        },
+        "recovery": {
+          "password_reset_recovers_data": true,
+          "no_recovery_possible_claimed": true
+        },
+        "scope": {
+          "plaintext_locations_documented": true,
+          "plaintext_in_logs": false,
+          "plaintext_in_crash_dumps": false,
+          "plaintext_in_thumbnails_or_previews": false,
+          "metadata_leakage_acknowledged": true,
+          "residual_risks_documented": true
+        },
+        "theater": {
+          "client_type": "web_app_served_by_same_server",
+          "web_app_trust_distinction_acknowledged": false,
+          "search_or_indexing_requires_server_plaintext_or_tokens": false,
+          "threat_model_includes_malicious_operator": true
+        }
+      },
+      "expect": {
+        "outcome": "CLAIMS_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "access.server_can_read_user_data",
+          "trust.trusted_components",
+          "recovery.password_reset_recovers_data",
+          "recovery.no_recovery_possible_claimed",
+          "theater.web_app_trust_distinction_acknowledged"
+        ],
+        "notes": "Violates server access, trusted components list, recovery consistency, and web-app trust requirements."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "product": "MinimalAudit",
+        "claims": {
+          "claim_basis": "cryptographic_guarantee"
+        }
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Manifest lacks required fields for a full audit."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "product": "MalformedAudit",
+        "claims": {
+          "claim_basis": 12345
+        },
+        "access": "not_an_object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: claim_basis expects string, access expects object."
+      }
+    }
+  ]
+}

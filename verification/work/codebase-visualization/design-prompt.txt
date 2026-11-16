@@ -1,0 +1,335 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: codebase-visualization
+
+=== contract.yaml ===
+service_name: codebase-visualization
+display_name: Codebase visualization
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:code-visualization
+binding:
+  skill: code-visualization
+  skill_path: workspace/mymilo-build/skills/code-visualization/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: codebase_visualization
+  prefix: atm_1_codebase_visualization_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Codebase onboarding diagrams
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Codebase visualization — `codebase-visualization`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): See the codebase — diagrams-as-code, dependency and call graphs, architecture maps, history views.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Codebase onboarding diagrams**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the codebase-visualization manifest
+
+This atom does not render a diagram, draw a graph, read any
+actual code, or exercise any judgment of its own. The caller
+submits one JSON manifest declaring a visualization artifact
+record — its declared diagram entries, its dependency view and
+module counts, its call & flow views, its architecture map and
+declared C4 levels, its metrics and history views with a
+declared top hotspot, and its honesty record — and the atom
+validates that artifact deterministically. Every field below is
+read by the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`CODEBASE_VISUALIZATION_NOT_READY`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `diagrams_as_code.key_diagrams_exist_as_code_in_repo` | diagrams_as_code |
+| `diagrams_as_code.regenerable` | diagrams_as_code |
+| `diagrams_as_code.versioned_and_diffable` | diagrams_as_code |
+| `diagrams_as_code.regenerated_on_change` | diagrams_as_code |
+| `diagrams_as_code.diagrams` (list of diagram entries; absent / not a list / empty = both computed diagram checks missing) | diagrams_as_code |
+| `diagrams_as_code.diagrams[].name` (string; must be non-empty for the entry to be complete) | diagrams_as_code |
+| `diagrams_as_code.diagrams[].format` (string; must be non-empty for the entry to be complete, and one of the stated formats to pass the format check — see below) | diagrams_as_code |
+| `diagrams_as_code.diagrams[].scope` (string; must be non-empty for the entry to be complete) | diagrams_as_code |
+| `diagrams_as_code.diagrams[].generation_source` (string; must be non-empty for the entry to be complete) | diagrams_as_code |
+| `diagrams_as_code.diagrams[].generated_at` (string; must be non-empty for the entry to be complete — a label, not a parsed date; no freshness age is computed from it) | diagrams_as_code |
+| `dependency.graph_present` | dependency_views |
+| `dependency.cycles_highlighted` | dependency_views |
+| `dependency.layering_violations_highlighted` | dependency_views |
+| `dependency.known_issues_list_maintained` | dependency_views |
+| `dependency.modules_total` (number; computed, see below) | dependency_views |
+| `dependency.modules_included` (number; computed, see below) | dependency_views |
+| `call_and_flow.call_graph_for_hot_paths_present` | call_and_flow_views |
+| `call_and_flow.sequence_diagrams_for_critical_journeys_present` | call_and_flow_views |
+| `call_and_flow.data_flow_for_pipelines_present` | call_and_flow_views |
+| `architecture.map_present` | architecture_maps |
+| `architecture.levels_declared` (list of strings; computed, see below) | architecture_maps |
+| `architecture.one_page_per_level` | architecture_maps |
+| `architecture.owners_annotated` | architecture_maps |
+| `architecture.boundaries_annotated` | architecture_maps |
+| `architecture.adrs_live_beside_maps` | architecture_maps |
+| `metrics.complexity_heatmap_present` | metrics_and_history_views |
+| `metrics.coverage_overlay_present` | metrics_and_history_views |
+| `metrics.hotspot_view_considered` | metrics_and_history_views |
+| `metrics.hotspot_change_frequency` (number; computed, see below) | metrics_and_history_views |
+| `metrics.hotspot_complexity` (number; computed, see below) | metrics_and_history_views |
+| `metrics.declared_hotspot_score` (number; computed, see below) | metrics_and_history_views |
+| `history.churn_timeline_present` | metrics_and_history_views |
+| `history.ownership_map_present` | metrics_and_history_views |
+| `history.incident_overlays_present` | metrics_and_history_views |
+| `honesty.each_diagram_labeled_scope_and_generation_source` | honesty_and_currency |
+| `honesty.diagrams_labeled_generated_at_tool_scope` | honesty_and_currency |
+| `honesty.generatable_diagrams_generated` | honesty_and_currency |
+| `honesty.stale_diagrams_shipped_as_truth` (must be `false` to pass — skill red line) | honesty_and_currency |
+| `honesty.unlabeled_hand_drawn_maps_guiding_decisions` (must be `false` to pass — skill red line) | honesty_and_currency |
+
+Five checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Diagram entries:** the entries check passes only when every
+  declared diagram entry carries a non-empty `name`, `format`,
+  `scope`, `generation_source` and `generated_at` string. A
+  missing or empty list is missing evidence; an incomplete entry
+  makes both computed diagram checks missing (the entry cannot be
+  evaluated). The output reports `diagrams_evaluated` (the count
+  of complete entries).
+- **Diagram formats:** the skill's method step 1 names the
+  diagrams-as-code tools — "Mermaid/Graphviz/PlantUML in the
+  repo". The format check therefore passes only when every
+  complete entry's declared `format` is one of `mermaid`,
+  `graphviz`, `plantuml`. Entries are validated as strings only,
+  never enum-checked at type level — format membership is a
+  verdict check, not a type error.
+- **Dependency coverage:** the declared
+  `dependency.modules_included` passes only when it equals the
+  declared `dependency.modules_total` (with a positive total —
+  a zero total fails, as no graph over zero modules can be
+  evaluated). The output reports `computed_dependency_coverage`
+  (`modules_included` / `modules_total`, null when it cannot be
+  computed) and `dependency_coverage_difference` (included minus
+  total, null likewise). **No partial-coverage percentage is
+  imposed** as a pass mark — only exact equality of the two
+  declared counts.
+- **C4 levels:** the skill's method step 4 states the C4-lite
+  levels — context → containers → components. The declared
+  `architecture.levels_declared` list therefore passes only when
+  it contains all three stated entries (`context`, `containers`,
+  `components`); extra entries do not hurt, unknown entries do
+  not count toward coverage. A missing list is missing evidence;
+  an empty list is present and fails. The output reports the
+  omitted stated entries as `c4_levels_not_declared` (null when
+  no list is declared). Entries are validated as strings only,
+  never enum-checked — coverage is a verdict check, not a type
+  error.
+- **Hotspot score:** the skill's method step 5 defines hotspots
+  as change-frequency × complexity. The declared
+  `metrics.declared_hotspot_score` therefore passes only when it
+  equals `metrics.hotspot_change_frequency` ×
+  `metrics.hotspot_complexity`. The output reports
+  `computed_hotspot_score` and `hotspot_score_difference`
+  (declared minus computed, null when either cannot be
+  computed).
+
+**Fixed serialization rule:** computed amounts and ratios are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five computed checks cannot be completed).
+
+The verdict is one of `CODEBASE_VISUALIZATION_READY` (all 32
+checks pass), `CODEBASE_VISUALIZATION_NOT_READY` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across six sections: diagrams_as_code,
+dependency_views, call_and_flow_views, architecture_maps,
+metrics_and_history_views, honesty_and_currency.
+
+## Checks by section
+
+- **diagrams_as_code** (6): key diagrams exist as code in-repo;
+  regenerable; versioned and diff-able; regenerated on change;
+  diagram entries complete (computed); diagram formats use the
+  stated diagrams-as-code tools (computed).
+- **dependency_views** (5): dependency graph present; cycles
+  highlighted; layering violations highlighted; known-issues
+  list maintained; dependency graph covers all declared modules
+  (computed).
+- **call_and_flow_views** (3): call graph for hot paths present;
+  sequence diagrams for critical journeys present; data-flow
+  views for pipelines present.
+- **architecture_maps** (6): architecture map present; C4 levels
+  cover the stated levels (computed); one page per level; owners
+  annotated; boundaries annotated; ADRs live beside the maps.
+- **metrics_and_history_views** (7): complexity heatmap present;
+  coverage overlay present; hotspot view considered; hotspot
+  score matches change-frequency × complexity (computed); churn
+  timeline present; ownership map present; incident overlays
+  present.
+- **honesty_and_currency** (5): each diagram labeled with scope
+  and generation source; diagrams labeled generated-at + tool +
+  scope; generatable diagrams generated; stale diagrams not
+  shipped as truth (red line); unlabeled hand-drawn maps not
+  guiding decisions (red line).
+
+## Honest scoping
+
+This atom audits a **declared** visualization artifact record —
+it does not render graphics, generate a diagram, parse or read
+actual code, build a dependency/call graph from a repository,
+verify that a declared diagram exists in any repo, or verify
+that a declared value is true. It exercises no judgment of its
+own: the artifact declares its own views, coverage, encodings
+and labels, and this core checks only their internal
+consistency and the completeness of the skill's method on the
+declared evidence. An artifact is ready *on the caller's
+declared evidence* even if its diagrams are poor or its
+codebase is tangled. It is a completeness and consistency
+audit, **not a visualization review**: it never decides whether
+a diagram is clear, whether an architecture map is accurate,
+whether a hotspot deserves refactoring, or whether the declared
+coverage matches the real codebase.
+
+Named exclusions: no rendering or generation of any diagram; no
+reading, indexing or parsing of any source code or repository;
+no verification of any declared diagram, module count, cycle,
+or label against a real codebase; no clarity, accuracy or
+usefulness judgment of any view.
+
+## Thresholds declined
+
+The skill states no number for these, so none is imposed —
+naming them here instead of inventing one:
+
+- **No minimum diagram count** — the skill requires key diagrams
+  as code in-repo, but states no number of diagrams; only entry
+  completeness and stated formats are checked.
+- **No partial dependency-coverage percentage** — no percentage
+  (e.g. 80% or 90% of modules) is accepted as passing; only
+  exact equality of the declared included and total counts.
+- **No hotspot score cutoff** — the skill states the product
+  formula (change-frequency × complexity) but no score above
+  which a module counts as a hotspot; only the arithmetic is
+  re-derived, and no refactor-target judgment is made.
+- **No complexity or churn threshold** — no complexity value or
+  change-frequency value is treated as high or low.
+- **No diagram freshness age** — the skill requires a
+  generated-at label and forbids stale diagrams shipped as
+  truth, but states no maximum age in days; staleness is the
+  caller's declaration (`stale_diagrams_shipped_as_truth`), and
+  `generated_at` is checked as a non-empty label, never parsed
+  or aged.
+- **No allowable cycle or layering-violation count** — the skill
+  requires cycles and violations to be visible, but states no
+  permitted number; only their declared visibility is checked.
+- **No coverage-overlay percentage, heatmap scale, or history
+  window** — the skill names these views but states no coverage
+  percentage, colour scale, or time window for them.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

@@ -1,0 +1,143 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "system": "production-cluster-alpha",
+        "auth": {
+          "every_request_authenticated": true,
+          "every_request_authorized": true,
+          "internal_traffic_trusted": false
+        },
+        "identity": {
+          "access_follows_identity": true,
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "privilege": {
+          "minimum_access": true,
+          "access_expires": true,
+          "credential_exceeds_job": false
+        },
+        "segmentation": {
+          "components_segmented": true,
+          "blast_radius_bounded": true,
+          "flat_network": false
+        },
+        "verification": {
+          "sessions_expire": true,
+          "tokens_rotate": true,
+          "anomalies_retrigger_auth": true
+        },
+        "gauntlet": {
+          "server_holds_plaintext_or_keys": false,
+          "server_breach_exposes_user_data": false,
+          "trusted_components_inventoried": true,
+          "convenience_decisions_surfaced": true,
+          "backdoors_present": false
+        },
+        "scope": {
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "compromised_endpoint_limit_acknowledged": true,
+          "claims_nist_alignment": false
+        }
+      },
+      "expect": {
+        "outcome": "DEFINED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean requirements met, including negative constraints (false) and conditional logic (backdoors/NIST)."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "system": "test-system",
+        "auth": {
+          "every_request_authenticated": true,
+          "every_request_authorized": true,
+          "internal_traffic_trusted": true
+        },
+        "identity": {
+          "access_follows_identity": true,
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "privilege": {
+          "minimum_access": true,
+          "access_expires": true,
+          "credential_exceeds_job": true
+        },
+        "segmentation": {
+          "components_segmented": true,
+          "blast_radius_bounded": true,
+          "flat_network": true
+        },
+        "verification": {
+          "sessions_expire": true,
+          "tokens_rotate": true,
+          "anomalies_retrigger_auth": true
+        },
+        "gauntlet": {
+          "server_holds_plaintext_or_keys": true,
+          "server_breach_exposes_user_data": true,
+          "trusted_components_inventoried": true,
+          "convenience_decisions_surfaced": true,
+          "backdoors_present": false
+        },
+        "scope": {
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "compromised_endpoint_limit_acknowledged": true,
+          "claims_nist_alignment": false
+        }
+      },
+      "expect": {
+        "outcome": "NOT_DEFINED",
+        "http": 200,
+        "failing_checks": [
+          "never_trust_always_verify",
+          "least_privilege",
+          "micro_segmentation",
+          "claim_gauntlet"
+        ],
+        "notes": "Violates negative constraints: internal_traffic_trusted, credential_exceeds_job, flat_network, and gauntlet security flags."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "system": "minimal-test",
+        "auth": {
+          "every_request_authenticated": true
+        }
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields missing; atom cannot complete the audit."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "system": "malformed-test",
+        "auth": {
+          "every_request_authenticated": "YES_PLEASE"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: string provided where boolean expected for auth field."
+      }
+    }
+  ]
+}

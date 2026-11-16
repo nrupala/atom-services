@@ -1,0 +1,236 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: agent-interoperability-design
+
+=== contract.yaml ===
+service_name: agent-interoperability-design
+display_name: Agent interoperability design
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:agent-interoperability
+binding:
+  skill: agent-interoperability
+  skill_path: workspace/mymilo-build/skills/agent-interoperability/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/agent_interoperability_design.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_agent_interoperability_design.py — 32 tests, all passing 2026-11-15
+keys:
+  namespace: agent_interoperability_design
+  prefix: atm_1_agent_interoperability_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Connecting agents across protocols
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Agent interoperability design — `agent-interoperability-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Work with all sorts of agents — MCP/ACP/A2A landscape, bridge patterns, handoff contracts, agent auth.
+
+A caller submits a declared agent-interoperability design manifest and receives one deterministic verdict back: is this design sound *on its declared evidence*, judged against the bound skill's own method, quality gates, and red lines? One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Connecting agents across protocols**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the interoperability design manifest
+
+The caller submits one JSON manifest: a declared design pack for one
+agent-interoperability design. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`DESIGN_NOT_SOUND`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `design` (string; carried into the verdict output, not itself checked) | — |
+| `integrations` (list of objects, see below) | protocol_selection |
+| `integrations[].counterparty_type` (string; one of `tools_for_models`, `editor_agent_session`, `agent_to_agent`, `human_or_script` — computed, see below) | protocol_selection |
+| `integrations[].protocol` (string; one of `mcp`, `acp_stdio`, `acp_rest`, `a2a`, `rest_cli_web` — computed, see below) | protocol_selection |
+| `integrations[].rationale_documented` | protocol_selection |
+| `architecture.single_core` | bridge_architecture |
+| `architecture.protocol_adapters` | bridge_architecture |
+| `architecture.business_logic_per_protocol` (must be `false` to pass — "never implement business logic per protocol") | bridge_architecture |
+| `gateway.remote_or_untrusted_agents_present` (gates the five gateway checks below) | gateway_and_remote_access |
+| `gateway.single_authenticated_broker` (required when remote/untrusted agents are present; otherwise the check passes as not applicable) | gateway_and_remote_access |
+| `gateway.broker_authenticated` (required when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `gateway.broker_audited` (required when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `gateway.broker_rate_limited` (required when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `gateway.direct_doors_to_remote_agents` (must be `false` to pass when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `handoff.contracts_used_for_non_trivial_coordination` | handoff_contracts |
+| `handoff.contract_states_goal` | handoff_contracts |
+| `handoff.contract_states_constraints` | handoff_contracts |
+| `handoff.contract_states_acceptance_criteria` | handoff_contracts |
+| `handoff.contract_states_report_back_location` | handoff_contracts |
+| `identity.each_agent_own_credential` | identity_and_credentials |
+| `identity.credentials_least_privilege` | identity_and_credentials |
+| `identity.credentials_short_lived` | identity_and_credentials |
+| `identity.credentials_revocable` | identity_and_credentials |
+| `identity.shared_forever_keys_present` (must be `false` to pass — no shared "service-to-service forever" keys) | identity_and_credentials |
+| `discovery.capabilities_published` | versioning_and_discovery |
+| `discovery.version_published` | versioning_and_discovery |
+| `discovery.negotiation_supported` | versioning_and_discovery |
+| `discovery.graceful_degradation_declared` | versioning_and_discovery |
+| `audit.message_log_kept` | audit_and_provenance |
+| `audit.log_records_who_asked` | audit_and_provenance |
+| `audit.log_records_what_ran` | audit_and_provenance |
+| `audit.log_records_what_changed` | audit_and_provenance |
+| `testing.handshake_tests_exist` | handshake_testing_and_red_lines |
+| `testing.handshake_tests_pass` | handshake_testing_and_red_lines |
+| `testing.handshake_tests_both_directions` | handshake_testing_and_red_lines |
+| `testing.handshake_tests_per_protocol` | handshake_testing_and_red_lines |
+| `red_lines.unsandboxed_third_party_agents_present` (must be `false` to pass — skill red line) | handshake_testing_and_red_lines |
+| `red_lines.secrets_or_private_data_in_messages_by_default` (must be `false` to pass — skill red line) | handshake_testing_and_red_lines |
+
+One section is computed from the declared values, using only what
+the skill itself states — no outside criterion is imported:
+
+- **Protocol match (Method step 1, "pick by counterparty, not
+  fashion"):** the skill assigns protocols by counterparty class —
+  tools/resources for models → MCP (`"mcp"`); editor ↔ agent
+  sessions → Agent Client Protocol over stdio (`"acp_stdio"`);
+  agent ↔ agent runs / services → Agent Communication Protocol
+  over REST (`"acp_rest"`) or A2A (`"a2a"`); humans, scripts,
+  anything → REST/CLI/web (`"rest_cli_web"`). A declared
+  `counterparty_type` outside the skill's four classes fails the
+  vocabulary check; a declared `protocol` that is not the skill's
+  protocol for its counterparty fails the match check. A missing
+  `counterparty_type` or `protocol` on any integration is missing
+  evidence, not a failure.
+
+The output also reports the computed `protocol_status`
+(`sound_on_declared_evidence` / `not_sound_on_declared_evidence`
+/ null when either computed check cannot be completed) and
+`integration_count` — the number of declared integrations (null
+when no integration list is declared). Both are exact integers /
+fixed strings in both implementations, so the Python and
+TypeScript outputs are byte-identical.
+
+The verdict is one of `DESIGN_SOUND` (all 36 checks pass),
+`DESIGN_NOT_SOUND` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across eight sections:
+protocol_selection, bridge_architecture, gateway_and_remote_access,
+handoff_contracts, identity_and_credentials,
+versioning_and_discovery, audit_and_provenance,
+handshake_testing_and_red_lines.
+
+## Honest scoping
+
+This atom evaluates **declared** evidence about a design — it does
+not connect to any agent, speak any protocol, run a handshake test,
+inspect credentials or traffic, or verify that a declared value is
+true. A design is sound *on the caller's declared evidence*: a
+design that declares scoped, short-lived, revocable credentials
+passes those checks even if the deployed agents share a forever
+key. It is a design verdict over a manifest, **not** a live
+interoperability test or a security audit.
+
+Named exclusions: no check of *how* a protocol adapter, broker, or
+sandbox is implemented (the skill names the patterns and their
+properties, not implementations, so none are invented); no
+credential lifetime, rate-limit, or audit-retention thresholds
+(the skill states none, so none are checked — only that
+credentials are declared short-lived and the broker declared
+rate-limited); no judgment of whether MCP, ACP, or A2A is the
+"best" protocol beyond the skill's own counterparty mapping; no
+live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python oracle
+and TypeScript port built and parity-proven locally; no endpoint is
+live. Release happens one by one, by the owner's GO, per the approved
+queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

@@ -1,0 +1,116 @@
+# Independent recompute — auth-design-review
+
+## Rule set I applied (from SERVICE.md, not from the artifact)
+
+Per check: a field **absent** → `missing` (INSUFFICIENT_EVIDENCE); present but failing → `fail`; passing → `pass`.
+
+- **Positive checks** (field must be `true`): pass iff value `true`.
+- **Negative checks** (field must be `false`): pass iff value `false`.
+- **Password checks** (`passwords_hashed_strong_when_used`, `passwords_long_not_complex_when_used`): required only if `human_auth.passwords_used == true`; otherwise pass as not-applicable.
+- **OAuth checks** (5): required only if `oauth.oauth_used == true`; otherwise pass as not-applicable.
+- **Section status**: `fail` if any check in section fails; else `pass` (no missing in these cases).
+- **Verdict**: `AUTH_DESIGN_SOUND` iff all 40 pass; `AUTH_DESIGN_DEFICIENT` if any fail; `INSUFFICIENT_EVIDENCE` if none fail but any missing.
+- **Summary counts**: pass/fail/missing tallied over the 40 checks; total = 40.
+
+Check count per section (from the manifest field list): human_authentication 6, sessions 4, oauth_and_oidc 5, service_tokens 7, authorization 6, lifecycle 4, anti_abuse_and_audit 8. Sum = 6+4+5+7+6+4+8 = **40**. ✓
+
+---
+
+## Case 1 — `full-pass` (system: secure-auth-service)
+
+### human_authentication (6 checks)
+| check | field | value | rule | my status |
+|---|---|---|---|---|
+| passkeys_preferred | passkeys_preferred | true | positive | pass |
+| mfa_enforced_for_admin | mfa_enforced_for_admin | true | positive | pass |
+| mfa_enforced_for_sensitive_ops | mfa_enforced_for_sensitive_ops | true | positive | pass |
+| passwords_hashed_strong_when_used | passwords_used=false | — | N/A → pass | pass |
+| passwords_long_not_complex_when_used | passwords_used=false | — | N/A → pass | pass |
+| no_shared_accounts | shared_accounts_present=false | false | negative | pass |
+
+Section: 6 pass, 0 fail → **pass**. Artifact: `pass` → **MATCH**.
+
+### sessions (4)
+secure_httponly_samesite_cookies=true→pass; rotate_on_login_and_privilege_change=true→pass; expiry_defined=true→pass; server_side_revocation_works=true→pass. 4 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### oauth_and_oidc (5)
+oauth_used=false → all five N/A → pass. 5 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### service_tokens (7)
+short_lived=true→pass; scoped=true→pass; audience_bound=true→pass; jit_over_long_lived_keys=true→pass; rotation_revocation_tested=true→pass; lifetimes_and_scopes_documented=true→pass; long_lived_unrevocable_credentials_present=false→negative→pass. 7 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### authorization (6)
+server_side_checks_per_endpoint=true→pass; rbac_coarse=true→pass; abac_fine=true→pass; deny_by_default=true→pass; client_side_only_authorization=false→negative→pass; hand_rolled_crypto_or_protocols=false→negative→pass. 6 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### lifecycle (4)
+provisioning_reviewed=true→pass; deprovisioning_checklist_exists=true→pass; deprovisioning_exercised=true→pass; access_reviews_scheduled_for_admin=true→pass. 4 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### anti_abuse_and_audit (8)
+login_rate_limited=true→pass; token_endpoints_rate_limited=true→pass; lockout_balanced_no_user_dos=true→pass; anomaly_alerting=true→pass; authn_events_logged=true→pass; authz_denials_logged=true→pass; permission_changes_logged=true→pass; logs_include_actor_and_context=true→pass. 8 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### Totals
+pass = 6+4+5+7+6+4+8 = **40**; fail = **0**; missing = **0**; total = **40**.
+Verdict: 0 fail, 0 missing → **AUTH_DESIGN_SOUND**.
+
+Artifact summary: "40 pass, 0 fail, 0 missing of 40 checks" → **MATCH**.
+Artifact verdict: `AUTH_DESIGN_SOUND` → **MATCH**.
+Artifact `checks` array length: I count 40 entries (6+4+5+7+6+4+8) → **MATCH**.
+
+---
+
+## Case 2 — `violations` (system: insecure-auth-service)
+
+Planted wrong values: `shared_accounts_present=true`, `long_lived_unrevocable_credentials_present=true`, `client_side_only_authorization=true`. Everything else identical to case 1.
+
+### human_authentication (6)
+First five identical to case 1 → pass (passkeys, mfa_admin, mfa_sensitive, two N/A password checks).
+no_shared_accounts: shared_accounts_present=**true**, negative check → **fail**.
+Section: 5 pass, 1 fail → **fail**. Artifact `fail` → **MATCH**.
+
+### sessions (4) — all true → 4 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### oauth_and_oidc (5) — oauth_used=false → 5 N/A pass → **pass**. Artifact `pass` → **MATCH**.
+
+### service_tokens (7)
+short_lived, scoped, audience_bound, jit, rotation_revocation_tested, lifetimes_and_scopes_documented all true → 6 pass.
+no_long_lived_unrevocable_credentials: long_lived_unrevocable_credentials_present=**true**, negative → **fail**.
+Section: 6 pass, 1 fail → **fail**. Artifact `fail` → **MATCH**.
+
+### authorization (6)
+server_side_checks_per_endpoint, rbac_coarse, abac_fine, deny_by_default all true → 4 pass.
+no_client_side_only_authorization: client_side_only_authorization=**true**, negative → **fail**.
+no_hand_rolled_crypto_or_protocols: hand_rolled_crypto_or_protocols=false, negative → pass.
+Section: 5 pass, 1 fail → **fail**. Artifact `fail` → **MATCH**.
+
+### lifecycle (4) — all true → 4 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### anti_abuse_and_audit (8) — all true → 8 pass → **pass**. Artifact `pass` → **MATCH**.
+
+### Totals
+pass = 5+4+5+6+5+4+8 = **37**; fail = 1+1+1 = **3**; missing = **0**; total = **40**.
+Verdict: 3 fail → **AUTH_DESIGN_DEFICIENT**.
+
+Artifact summary: "37 pass, 3 fail, 0 missing of 40 checks" → **MATCH**.
+Artifact verdict: `AUTH_DESIGN_DEFICIENT` → **MATCH**.
+Artifact `checks` array length: 40 → **MATCH**.
+
+### Planted-value confirmation
+The three failing checks are exactly:
+1. `no_shared_accounts` ← `shared_accounts_present=true`
+2. `no_long_lived_unrevocable_credentials` ← `long_lived_unrevocable_credentials_present=true`
+3. `no_client_side_only_authorization` ← `client_side_only_authorization=true`
+
+No other check fails, and no planted value is missed. **Confirmed: exactly the three planted wrong values fail, and nothing else.**
+
+---
+
+## Cross-check of artifact-internal consistency
+- Both artifacts: `checks` length 40 = sum of section check counts. ✓
+- Both artifacts: per-section statuses agree with the per-check statuses I recomputed. ✓
+- Both artifacts: summary counts (40/0/0 and 37/3/0) agree with my tallies. ✓
+- Both artifacts: verdict agrees with the fail/missing rule. ✓
+- `system` string carried into output matches input in both cases. ✓
+
+No mismatches found on any computed quantity.
+
+AGREEMENT: full

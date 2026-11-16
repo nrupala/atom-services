@@ -1,0 +1,112 @@
+# Independent recompute — crm-pipeline-operations
+
+## Case 1: `full-pass`
+
+### Computed check 1 — Pipeline stages coverage
+Stated stages (skill step 3): `lead, qualified, proposal, decision, won, lost` (6).
+Declared `stages_used` = `[lead, qualified, proposal, decision, won, lost]`.
+Coverage = all 6 present → omitted = `[]`.
+- Artifact `pipeline_stages_not_covered` = `[]` → **MATCH**
+- Check `pipeline_stages_cover_stated_stages` = pass → **MATCH**
+
+### Computed check 2 — Deal rows complete
+1 row: stage="lead" (non-empty string ✓), value=1000.0 ✓, age_days=10 ✓, has_next_step=true ✓, has_next_step_date=true ✓, open=true ✓. Complete.
+- Check = pass → **MATCH**
+
+### Computed check 3 — Deal stages are stated stages
+Row stage "lead" ∈ {lead,qualified,proposal,decision,won,lost} ✓.
+- Check = pass → **MATCH**
+
+### Computed check 4 — Next step + date on every open deal
+Open rows: 1 (the lead row). It has has_next_step=true AND has_next_step_date=true → violations = 0. Open count = 1 ≠ 0.
+- `open_deals_without_next_step_or_date_count` = 0 → **MATCH**
+- Check = pass → **MATCH**
+
+### Computed check 5 — Staleness vs caller threshold
+Threshold = 30. Open rows: age_days=10. 10 > 30? No → not stale. Stale count = 0. Open count = 1 ≠ 0.
+- `stale_deal_count` = 0 → **MATCH**
+- Check = pass → **MATCH**
+
+### Row-derived aggregates
+- `deal_count` = len(deals) = 1 → **MATCH**
+- `open_deal_count` = count(open=true) = 1 → **MATCH**
+- `stage_distribution` (stated order): lead=1, qualified=0, proposal=0, decision=0, won=0, lost=0 → **MATCH**
+- `computed_open_value_total` = sum value over open = 1000.0.
+  Serialization: floor(1000.0·1000000 + 0.5)/1000000 = floor(1000000000.5)/1000000 = 1000000000/1000000 = 1000.0 → format 6dp = `"1000.000000"` → **MATCH**
+- `computed_pipeline_value_total` = sum over all rows = 1000.0 → `"1000.000000"` → **MATCH**
+
+### computed_status
+All five computed checks completed and pass → `within_stated_limits_on_declared_evidence` → **MATCH**
+
+### Verdict / summary
+All 38 declared booleans true (or false where required false). 38 pass, 0 fail, 0 missing → `CRM_PIPELINE_READY` → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Computed check 1 — Pipeline stages coverage
+Declared `stages_used` = `[lead]`. Stated = 6. Covered = {lead}. Omitted = `[qualified, proposal, decision, won, lost]`.
+- `pipeline_stages_not_covered` = `["qualified","proposal","decision","won","lost"]` → **MATCH**
+- Check = fail → **MATCH**
+
+### Computed check 2 — Deal rows complete
+1 row: stage="lead" ✓, value=100.0 ✓, age_days=50 ✓, has_next_step=false (present, boolean ✓), has_next_step_date=false ✓, open=true ✓. Complete (presence, not truth, is required).
+- Check = pass → **MATCH**
+
+### Computed check 3 — Deal stages are stated stages
+"lead" ∈ stated set ✓ → pass → **MATCH**
+
+### Computed check 4 — Next step + date on every open deal
+Open rows: 1. has_next_step=false OR has_next_step_date=false → violation. Count = 1. Open count = 1 ≠ 0.
+- `open_deals_without_next_step_or_date_count` = 1 → **MATCH**
+- Check = fail → **MATCH**
+
+### Computed check 5 — Staleness
+Threshold = 30. Open row age_days=50. 50 > 30 → stale. Stale count = 1. Open count = 1 ≠ 0.
+- `stale_deal_count` = 1 → **MATCH**
+- Check = fail → **MATCH**
+
+### Row-derived aggregates
+- `deal_count` = 1 → **MATCH**
+- `open_deal_count` = 1 → **MATCH**
+- `stage_distribution`: lead=1, others 0 → **MATCH**
+- `computed_open_value_total` = 100.0 → floor(100·1000000+0.5)/1000000 = 100000000/1000000 = 100.0 → `"100.000000"` → **MATCH**
+- `computed_pipeline_value_total` = 100.0 → `"100.000000"` → **MATCH**
+
+### computed_status
+Computed checks completed; at least one fails (stages coverage, next-step, staleness) → `outside_stated_limits_on_declared_evidence` → **MATCH**
+
+### Planted wrong values → expected failing checks
+Planted deviations in input:
+1. `contact_rules.unapproved_outreach_sent = true` → check `no_unapproved_outreach` must fail. Artifact: fail → **MATCH**
+2. `stages_used = [lead]` → `pipeline_stages_cover_stated_stages` must fail. Artifact: fail → **MATCH**
+3. Deal row `has_next_step=false, has_next_step_date=false` on an open deal → `every_open_deal_has_next_step_and_date` must fail. Artifact: fail → **MATCH**
+4. Deal row `age_days=50 > threshold 30` → `no_open_deal_stale_beyond_declared_threshold` must fail. Artifact: fail → **MATCH**
+
+Exactly 4 checks fail, and they are exactly the four the planted values should trip. No other check fails (all other booleans true / required-false fields false). Section rollups: contact_rules_and_privacy=fail, pipeline_stages_and_deals=fail, all others pass → **MATCH**.
+
+### Verdict / summary
+34 pass, 4 fail, 0 missing of 38 → `CRM_PIPELINE_NOT_READY` → **MATCH**
+
+---
+
+## Summary of comparisons
+
+| Quantity | Case 1 artifact | Recompute | Case 2 artifact | Recompute |
+|---|---|---|---|---|
+| pipeline_stages_not_covered | [] | [] ✓ | 5 omitted | 5 omitted ✓ |
+| deal_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| open_deal_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| stale_deal_count | 0 | 0 ✓ | 1 | 1 ✓ |
+| open_deals_without_next_step_or_date_count | 0 | 0 ✓ | 1 | 1 ✓ |
+| stage_distribution | lead=1 | lead=1 ✓ | lead=1 | lead=1 ✓ |
+| computed_open_value_total | 1000.000000 | 1000.000000 ✓ | 100.000000 | 100.000000 ✓ |
+| computed_pipeline_value_total | 1000.000000 | 1000.000000 ✓ | 100.000000 | 100.000000 ✓ |
+| computed_status | within | within ✓ | outside | outside ✓ |
+| verdict | READY | READY ✓ | NOT_READY | NOT_READY ✓ |
+| summary | 38/0/0 | 38/0/0 ✓ | 34/4/0 | 34/4/0 ✓ |
+
+All computed quantities and all five computed checks reproduce exactly under the stated serialization rule (round half up to 6dp, `floor(v·1000000+0.5)/1000000`, six-decimal format). The violations case fails exactly the four checks its planted wrong values should fail.
+
+AGREEMENT: full

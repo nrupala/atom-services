@@ -1,0 +1,1334 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: cost-estimate-preparation
+
+=== contract.yaml ===
+service_name: cost-estimate-preparation
+display_name: Cost estimate preparation
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:cost-estimation
+binding:
+  skill: cost-estimation
+  skill_path: workspace/mymilo-build/skills/cost-estimation/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: cost_estimate_preparation
+  prefix: atm_1_cost_estimate_preparation_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: EE work package estimates
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Cost estimate preparation — `cost-estimate-preparation`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Estimate costs honestly — classes, methods, ranges, escalation, and learning from estimate vs actual.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **EE work package estimates**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the cost-estimate manifest
+
+This atom does not produce a cost estimate and exercises no
+estimating judgment. The caller submits one JSON manifest
+declaring a cost estimate artifact — its basis document, its
+element line items, its three-point uncertainty items, its
+declared totals chain, its should-cost / vendor-quote record,
+and its estimate-vs-actual feedback record — and the atom
+validates that artifact deterministically. Every field below is
+read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but
+false / invalid = the check fails (`COST_ESTIMATE_NOT_READY`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `basis.document_present` | basis_and_class |
+| `basis.estimate_class` (string; computed vocabulary check, see below) | basis_and_class |
+| `basis.method` (string; computed vocabulary check, see below) | basis_and_class |
+| `basis.assumptions_documented` | basis_and_class |
+| `basis.exclusions_documented` | basis_and_class |
+| `basis.estimator_identified` | basis_and_class |
+| `elements.breakdown_not_lump_sum` | elements_and_line_items |
+| `elements.labor_burden_included` | elements_and_line_items |
+| `elements.hidden_padding_in_rates` (must be `false` to pass — skill red line) | elements_and_line_items |
+| `line_items` (list of line-item entries; absent / not a list / empty = all three computed line-item checks missing) | elements_and_line_items |
+| `line_items[].label` (string; must be non-empty for the entry to be complete) | elements_and_line_items |
+| `line_items[].category` (string; must be non-empty for the entry to be complete; validated as a string only, never enum-checked — the skill names the element categories as guidance, and no category coverage is imposed) | elements_and_line_items |
+| `line_items[].quantity` (number; computed, see below) | elements_and_line_items |
+| `line_items[].unit_rate` (number; computed, see below) | elements_and_line_items |
+| `line_items[].declared_amount` (number; declared, re-derived, see below) | elements_and_line_items |
+| `uncertainty.ranges_stated_for_material_uncertainty` | uncertainty_and_ranges |
+| `uncertainty.items` (list of three-point items; absent / not a list / empty = all three computed uncertainty checks missing) | uncertainty_and_ranges |
+| `uncertainty.items[].label` (string; must be non-empty for the entry to be complete) | uncertainty_and_ranges |
+| `uncertainty.items[].optimistic` (number; computed, see below) | uncertainty_and_ranges |
+| `uncertainty.items[].likely` (number; computed, see below) | uncertainty_and_ranges |
+| `uncertainty.items[].pessimistic` (number; computed, see below) | uncertainty_and_ranges |
+| `uncertainty.items[].declared_expected_value` (number; presence only — the skill states no expected-value formula, see Thresholds declined) | uncertainty_and_ranges |
+| `uncertainty.items[].declared_spread` (number; declared, re-derived, see below) | uncertainty_and_ranges |
+| `uncertainty.expected_values_stated` | uncertainty_and_ranges |
+| `uncertainty.single_number_precision_on_uncertain_scope` (must be `false` to pass — skill red line) | uncertainty_and_ranges |
+| `totals.declared_subtotal` (number; computed, see below) | elements_and_line_items, totals_escalation_and_currency |
+| `totals.contingency_percent` (number; a declaration — never a pass mark, see below) | totals_escalation_and_currency |
+| `totals.declared_contingency_amount` (number; declared, re-derived, see below) | totals_escalation_and_currency |
+| `totals.escalation_percent` (number; a declaration — never a pass mark, see below) | totals_escalation_and_currency |
+| `totals.declared_escalation_amount` (number; declared, re-derived, see below) | totals_escalation_and_currency |
+| `totals.declared_grand_total` (number; declared, re-derived, see below) | totals_escalation_and_currency |
+| `totals.escalation_impacts_stated` | totals_escalation_and_currency |
+| `totals.currency_impacts_stated` | totals_escalation_and_currency |
+| `totals.quote_validity_dates_captured` | totals_escalation_and_currency |
+| `should_cost.benchmark_built_for_big_items` | should_cost_and_quotes |
+| `should_cost.vendor_quote_amount` (number; computed, see below) | should_cost_and_quotes |
+| `should_cost.should_cost_amount` (number; computed, see below) | should_cost_and_quotes |
+| `should_cost.declared_variance_percent` (number; declared, re-derived, see below) | should_cost_and_quotes |
+| `should_cost.quote_compared_to_benchmark` | should_cost_and_quotes |
+| `should_cost.divergences_explained` | should_cost_and_quotes |
+| `should_cost.quote_exclusions_reviewed` | should_cost_and_quotes |
+| `should_cost.quote_assumptions_reviewed` | should_cost_and_quotes |
+| `should_cost.validity_period_respected` | should_cost_and_quotes |
+| `should_cost.quote_accepted_without_scope_review` (must be `false` to pass — skill red line) | should_cost_and_quotes |
+| `feedback.estimate_vs_actual_tracked_per_item` | feedback_loop |
+| `feedback.rates_updated_from_actuals` | feedback_loop |
+| `feedback.variance_lessons_published` | feedback_loop |
+
+Nine checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Estimate class:** the skill's method step 1 names the
+  classes — concept/ROM, budget, definitive. The declared
+  `basis.estimate_class` therefore passes only when it is one
+  of the stated tokens (`concept_rom`, `budget`, `definitive`);
+  any other string is present and fails, an absent field is
+  missing. The string is validated as a string only at the type
+  layer — membership is a verdict check, not a type error.
+- **Method:** the skill's method step 2 names the methods —
+  bottom-up (elements) when design exists, parametric (unit
+  rates, cost curves) when history exists, analogous (adjust a
+  comparable explicitly) for one-offs. The declared
+  `basis.method` therefore passes only when it is one of the
+  stated tokens (`bottom_up`, `parametric`, `analogous`). Which
+  method fits the situation is the estimator's judgment and is
+  not second-guessed here.
+- **Line-item amounts:** the skill's method step 3 builds the
+  estimate from elements — material, labor (hours × rates incl.
+  burden), equipment, subcontract, freight, indirects. Each
+  declared line amount therefore passes only when it equals
+  its declared `quantity` × `unit_rate`, and the entries check
+  only when every entry carries a non-empty `label` and
+  `category` and numeric `quantity`, `unit_rate` and
+  `declared_amount`. A missing or empty list is missing
+  evidence; an incomplete entry makes the entries, amounts and
+  subtotal checks missing (the entry cannot be re-derived).
+  The output reports `line_items_evaluated` (the count of
+  complete entries).
+- **Subtotal:** the declared `totals.declared_subtotal` passes
+  only when it equals the sum of the declared line amounts.
+  The output reports `computed_subtotal` and
+  `subtotal_difference` (declared minus computed, null when
+  either cannot be computed).
+- **Three-point spreads and ordering:** the skill's method
+  step 4 states three points — optimistic / likely /
+  pessimistic — yielding an expected value and a spread. Each
+  declared `declared_spread` therefore passes only when it
+  equals `pessimistic` − `optimistic`, and the ordering check
+  only when every item is in optimistic ≤ likely ≤ pessimistic
+  order. The output reports `uncertainty_items_evaluated`,
+  `computed_total_spread` (the sum of the re-derived spreads)
+  and `total_spread_difference` (the sum of declared spreads
+  minus the computed total, null when an item is incomplete).
+  The declared expected value is **not** re-derived: the skill
+  states no formula for it (see Thresholds declined), so it is
+  checked for presence as part of entry completeness only.
+- **Contingency amount:** the declared
+  `totals.declared_contingency_amount` passes only when it
+  equals `totals.declared_subtotal` ×
+  `totals.contingency_percent` / 100. The output reports
+  `computed_contingency_amount` and `contingency_difference`
+  (declared minus computed, null when either cannot be
+  computed).
+- **Escalation amount:** the declared
+  `totals.declared_escalation_amount` passes only when it
+  equals `totals.declared_subtotal` ×
+  `totals.escalation_percent` / 100. The output reports
+  `computed_escalation_amount` and `escalation_difference`
+  (declared minus computed, null likewise).
+- **Grand total:** the declared `totals.declared_grand_total`
+  passes only when it equals `totals.declared_subtotal` +
+  `totals.declared_contingency_amount` +
+  `totals.declared_escalation_amount` (the declared amounts, so
+  a wrong contingency amount fails its own check without
+  cascading into this one). The output reports
+  `computed_grand_total` and `grand_total_difference`
+  (declared minus computed, null likewise).
+- **Should-cost variance:** the skill's method step 6 builds an
+  independent benchmark for big items and compares vendor
+  quotes against it. The declared
+  `should_cost.declared_variance_percent` therefore passes
+  only when it equals (`should_cost.vendor_quote_amount` −
+  `should_cost.should_cost_amount`) /
+  `should_cost.should_cost_amount` × 100, with a non-zero
+  benchmark (a zero benchmark fails — no finite variance
+  exists). Whether the variance is acceptable, and how a gap
+  reconciles (scope, rates, or margin), is the caller's
+  recorded answer (`should_cost.divergences_explained`), not
+  this atom's judgment. The output reports
+  `computed_quote_variance_percent` and
+  `quote_variance_difference` (declared minus computed, null
+  when either cannot be computed).
+
+**Fixed serialization rule:** computed amounts and ratios are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the nine computed checks cannot be completed).
+
+The verdict is one of `COST_ESTIMATE_READY` (all 35 checks
+pass), `COST_ESTIMATE_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: basis_and_class, elements_and_line_items,
+uncertainty_and_ranges, totals_escalation_and_currency,
+should_cost_and_quotes, feedback_loop.
+
+## Thresholds declined
+
+The following are deliberately **not** imposed, because the
+skill does not fix them. Naming them here is the audit trail
+for their absence:
+
+- **Class percentage bands as pass marks.** The skill gives
+  each class a reality band (concept/ROM ±30–50%, budget
+  ±15–20%, definitive ±5–10%) as a description of what the
+  class means, not a fixed value an artifact's declared range
+  must hit. No declared range percent is checked against a
+  band; the class token alone is checked.
+- **Expected-value formula.** Method step 4 says three points
+  yield an "expected value + spread" but states no formula —
+  neither a PERT weighting ((optimistic + 4 × likely +
+  pessimistic) / 6) nor a simple mean is written in the skill,
+  so neither is imposed. The declared expected value is
+  presence-checked only; the spread, whose arithmetic the
+  points themselves define, is re-derived.
+- **Contingency percent.** The skill never fixes a contingency
+  percentage. The declared percent is a declaration whose
+  amount arithmetic alone is re-derived — any percent passes
+  if its amount holds.
+- **Escalation percent / rate.** The skill requires escalation
+  to be handled and its impacts stated, but fixes no inflation,
+  fx, or lead-time rate. The declared percent is treated
+  exactly like the contingency percent.
+- **Acceptable quote variance.** The skill requires gaps
+  between quotes and the should-cost benchmark to be
+  reconciled and explained; it states no variance percentage
+  at which a quote becomes unacceptable. Only the variance
+  arithmetic is re-derived.
+- **Line-item category coverage.** The skill names the element
+  categories (material, labor, equipment, subcontract, freight,
+  indirects) as the breakdown to build from; it does not state
+  that every estimate must carry every category (a services
+  estimate may have no freight). Categories are validated as
+  non-empty strings for traceability; no coverage check is
+  imposed.
+- **Analogous-estimate adjustment size.** Method step 2 says an
+  analogous estimate adjusts a comparable "explicitly"; it
+  states no adjustment factor or bound, so none is checked —
+  the method token and the basis document carry that evidence.
+
+## Honest scoping
+
+This atom audits a **declared** cost estimate artifact — it
+does not build the estimate, price the caller's actual work,
+verify that a declared value is true, or give estimating
+advice. An artifact is ready *on the caller's declared
+evidence* even if its underlying numbers are optimistic. It is
+a completeness and consistency audit, **not an estimate
+review**: it never decides whether the quantities or rates are
+realistic, whether the class fits the scope's maturity, whether
+the contingency or escalation percent is adequate (the skill
+fixes neither, so none is imposed), whether the expected values
+are well derived (no formula is stated, so none is imposed), or
+whether a vendor quote should be accepted (only that its scope
+was reviewed, its exclusions and assumptions read, its validity
+respected, and its divergence from the benchmark explained and
+arithmetically consistent).
+
+Named exclusions: no production of an estimate from raw scope
+or drawings; no verification of any declared quantity, rate,
+amount, quote, or actual; no rate benchmarking against market
+data; no class-band, contingency-adequacy, escalation-adequacy
+or variance-acceptability judgment; no live verification of any
+declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "cost-estimate-preparation",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "COST_ESTIMATE_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All arithmetic matches: line 100 x 50 = 5000 = subtotal 5000; spread 30-10 = 20 declared 20; contingency 5000 x 10% = 500; escalation 5000 x 5% = 250; grand total 5000+500+250 = 5750; quote variance (110-100)/100 x 100 = 10. All 35 checks pass. [Tester correction: designer omitted the structured computed_spot_checks; added.]",
+        "computed_spot_checks": {
+          "computed_subtotal": "5000.000000",
+          "subtotal_difference": "0.000000",
+          "computed_total_spread": "20.000000",
+          "total_spread_difference": "0.000000",
+          "computed_contingency_amount": "500.000000",
+          "contingency_difference": "0.000000",
+          "computed_escalation_amount": "250.000000",
+          "escalation_difference": "0.000000",
+          "computed_grand_total": "5750.000000",
+          "grand_total_difference": "0.000000",
+          "computed_quote_variance_percent": "10.000000",
+          "quote_variance_difference": "0.000000",
+          "line_items_evaluated": 1,
+          "uncertainty_items_evaluated": 1,
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "entity": "Project Alpha",
+        "basis": {
+          "document_present": true,
+          "estimate_class": "definitive",
+          "method": "bottom_up",
+          "assumptions_documented": true,
+          "exclusions_documented": true,
+          "estimator_identified": true
+        },
+        "elements": {
+          "breakdown_not_lump_sum": true,
+          "labor_burden_included": true,
+          "hidden_padding_in_rates": false
+        },
+        "line_items": [
+          {
+            "label": "Labor",
+            "category": "labor",
+            "quantity": 100.0,
+            "unit_rate": 50.0,
+            "declared_amount": 5000.0
+          }
+        ],
+        "uncertainty": {
+          "ranges_stated_for_material_uncertainty": true,
+          "items": [
+            {
+              "label": "Risk A",
+              "optimistic": 10.0,
+              "likely": 20.0,
+              "pessimistic": 30.0,
+              "declared_expected_value": 20.0,
+              "declared_spread": 20.0
+            }
+          ],
+          "expected_values_stated": true,
+          "single_number_precision_on_uncertain_scope": false
+        },
+        "totals": {
+          "declared_subtotal": 5000.0,
+          "contingency_percent": 10.0,
+          "declared_contingency_amount": 500.0,
+          "escalation_percent": 5.0,
+          "declared_escalation_amount": 250.0,
+          "declared_grand_total": 5750.0,
+          "escalation_impacts_stated": true,
+          "currency_impacts_stated": true,
+          "quote_validity_dates_captured": true
+        },
+        "should_cost": {
+          "benchmark_built_for_big_items": true,
+          "vendor_quote_amount": 110.0,
+          "should_cost_amount": 100.0,
+          "declared_variance_percent": 10.0,
+          "quote_compared_to_benchmark": true,
+          "divergences_explained": true,
+          "quote_exclusions_reviewed": true,
+          "quote_assumptions_reviewed": true,
+          "validity_period_respected": true,
+          "quote_accepted_without_scope_review": false
+        },
+        "feedback": {
+          "estimate_vs_actual_tracked_per_item": true,
+          "rates_updated_from_actuals": true,
+          "variance_lessons_published": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "cost-estimate-preparation",
+        "atom_version": "0.1.0",
+        "entity": "Project Alpha",
+        "verdict": "COST_ESTIMATE_READY",
+        "sections": {
+          "basis_and_class": "pass",
+          "elements_and_line_items": "pass",
+          "uncertainty_and_ranges": "pass",
+          "totals_escalation_and_currency": "pass",
+          "should_cost_and_quotes": "pass",
+          "feedback_loop": "pass"
+        },
+        "checks": [
+          {
+            "section": "basis_and_class",
+            "check": "basis_document_present",
+            "status": "pass",
+            "evidence": "quality gate: a basis document is present for the estimate"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "estimate_class_in_stated_classes",
+            "status": "pass",
+            "evidence": "method step 1: the declared estimate class is one of the classes the skill names \u2014 concept/ROM, budget, definitive (declared as concept_rom, budget, or definitive)"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "method_in_stated_methods",
+            "status": "pass",
+            "evidence": "method step 2: the declared method is one of the methods the skill names \u2014 bottom-up, parametric, analogous (declared as bottom_up, parametric, or analogous)"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "assumptions_documented",
+            "status": "pass",
+            "evidence": "quality gate: the basis document states the estimate's assumptions"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "exclusions_documented",
+            "status": "pass",
+            "evidence": "quality gate: the basis document states the estimate's exclusions"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "estimator_identified",
+            "status": "pass",
+            "evidence": "quality gate: the basis document identifies the estimator"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "elements_broken_down_not_lump_sum",
+            "status": "pass",
+            "evidence": "method step 3: the estimate is broken into elements, not lump sums \u2014 material, labor, equipment, subcontract, freight, indirects"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "labor_rates_include_burden",
+            "status": "pass",
+            "evidence": "method step 3: labor is costed as hours x rates including burden"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "line_item_entries_complete",
+            "status": "pass",
+            "evidence": "every line item carries a label, a category, a quantity, a unit rate, and a declared amount"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "line_item_amounts_match_quantity_times_rate",
+            "status": "pass",
+            "evidence": "method step 3: each declared line amount equals its declared quantity multiplied by its declared unit rate"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "subtotal_matches_sum_of_line_items",
+            "status": "pass",
+            "evidence": "method step 3: the declared subtotal equals the sum of the declared line amounts"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "no_hidden_padding_in_rates",
+            "status": "pass",
+            "evidence": "red line: no padding is hidden inside rates"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "ranges_stated_for_material_uncertainty",
+            "status": "pass",
+            "evidence": "quality gate: ranges, not points, are stated for material uncertainty"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "uncertainty_entries_complete",
+            "status": "pass",
+            "evidence": "every uncertainty item carries a label, three points, a declared expected value, and a declared spread"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "three_point_ordering_valid",
+            "status": "pass",
+            "evidence": "method step 4: each item's three points are in optimistic <= likely <= pessimistic order"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "three_point_spreads_match_pessimistic_minus_optimistic",
+            "status": "pass",
+            "evidence": "method step 4: each declared spread equals its declared pessimistic minus optimistic value (the declared expected value states no formula in the skill and is checked for presence only)"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "expected_values_stated",
+            "status": "pass",
+            "evidence": "method step 4: an expected value is stated for each shaky item alongside its spread"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "no_single_number_precision_on_uncertain_scope",
+            "status": "pass",
+            "evidence": "red line: no single-number precision is presented on uncertain scope"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "contingency_amount_matches_subtotal_times_percent",
+            "status": "pass",
+            "evidence": "the declared contingency amount equals the declared subtotal multiplied by the declared contingency percent (the percent itself is fixed by no statement in the skill and is not judged here)"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "escalation_amount_matches_subtotal_times_percent",
+            "status": "pass",
+            "evidence": "method step 5: the declared escalation amount equals the declared subtotal multiplied by the declared escalation percent (the percent itself is fixed by no statement in the skill and is not judged here)"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "grand_total_matches_subtotal_plus_contingency_plus_escalation",
+            "status": "pass",
+            "evidence": "the declared grand total equals the declared subtotal plus the declared contingency amount plus the declared escalation amount"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "escalation_impacts_stated",
+            "status": "pass",
+            "evidence": "method step 5: escalation impacts \u2014 inflation and lead-time \u2014 are stated"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "currency_impacts_stated",
+            "status": "pass",
+            "evidence": "method step 5: currency (fx) impacts are stated"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "quote_validity_dates_captured",
+            "status": "pass",
+            "evidence": "method step 5: quote validity dates are captured"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "should_cost_benchmark_built",
+            "status": "pass",
+            "evidence": "method step 6: an independent should-cost benchmark is built for big items"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_compared_to_benchmark",
+            "status": "pass",
+            "evidence": "method step 6: vendor quotes are compared against the should-cost benchmark"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_variance_percent_matches_rederived",
+            "status": "pass",
+            "evidence": "method step 6: the declared variance percent equals the declared vendor quote minus the declared should-cost benchmark, divided by the benchmark, times 100 (whether the variance is acceptable is not judged here)"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "divergences_explained",
+            "status": "pass",
+            "evidence": "quality gate: divergences between quotes and the benchmark are explained \u2014 scope, rates, or margin"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_exclusions_reviewed",
+            "status": "pass",
+            "evidence": "quality gate: the quotes' exclusions are reviewed line by line"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_assumptions_reviewed",
+            "status": "pass",
+            "evidence": "method step 7: the quotes' assumptions are reviewed line by line"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "validity_period_respected",
+            "status": "pass",
+            "evidence": "method step 7: the quote validity period is respected"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "no_quote_accepted_without_scope_review",
+            "status": "pass",
+            "evidence": "red line: no vendor quote is accepted without scope review"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "estimate_vs_actual_tracked_per_item",
+            "status": "pass",
+            "evidence": "quality gate: estimate vs actual is tracked per item"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "rates_updated_from_actuals",
+            "status": "pass",
+            "evidence": "quality gate: tracked actuals are fed back into rates"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "variance_lessons_published",
+            "status": "pass",
+            "evidence": "method step 8: variance lessons are published"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "line_items_evaluated": 1,
+        "computed_subtotal": "5000.000000",
+        "subtotal_difference": "0.000000",
+        "uncertainty_items_evaluated": 1,
+        "computed_total_spread": "20.000000",
+        "total_spread_difference": "0.000000",
+        "computed_contingency_amount": "500.000000",
+        "contingency_difference": "0.000000",
+        "computed_escalation_amount": "250.000000",
+        "escalation_difference": "0.000000",
+        "computed_grand_total": "5750.000000",
+        "grand_total_difference": "0.000000",
+        "computed_quote_variance_percent": "10.000000",
+        "quote_variance_difference": "0.000000",
+        "summary": "35 pass, 0 fail, 0 missing of 35 checks across six sections.",
+        "stamp": "COST ESTIMATE PREPARATION\nentity: Project Alpha\nVERDICT: COST_ESTIMATE_READY\n  basis_and_class              pass\n  elements_and_line_items      pass\n  uncertainty_and_ranges       pass\n  totals_escalation_and_currency pass\n  should_cost_and_quotes       pass\n  feedback_loop                pass\n35 pass, 0 fail, 0 missing of 35 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "COST_ESTIMATE_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "estimate_class_in_stated_classes",
+          "no_hidden_padding_in_rates",
+          "line_item_amounts_match_quantity_times_rate",
+          "three_point_spreads_match_pessimistic_minus_optimistic",
+          "contingency_amount_matches_subtotal_times_percent"
+        ],
+        "notes": "Full manifest with exactly 5 planted violations: estimate_class 'invalid_class' not in stated tokens; hidden_padding_in_rates=true (red line); line declared_amount 6000 vs 100 x 50 = 5000; declared_spread 50 vs 30-10 = 20; declared_contingency_amount 500 vs 6000 x 10% = 600. Subtotal 6000 equals sum of declared amounts, escalation 300 = 6000 x 5%, grand total 6800 = 6000+500+300 on declared amounts, and quote variance 10 all hold, so no other check fails. [Tester correction: designer listed section names (basis_and_class, elements_and_line_items) as failing_checks instead of exact check names, and supplied a sparse input (partial basis + one line item only) whose absent sections would be missing (30 missing) rather than failing; rebuilt as a full manifest carrying exactly the intended violations and corrected failing_checks to the 5 exact check names. Designer also omitted the structured computed_spot_checks; added.]",
+        "computed_spot_checks": {
+          "computed_subtotal": "6000.000000",
+          "subtotal_difference": "0.000000",
+          "computed_total_spread": "20.000000",
+          "total_spread_difference": "30.000000",
+          "computed_contingency_amount": "600.000000",
+          "contingency_difference": "-100.000000",
+          "computed_escalation_amount": "300.000000",
+          "escalation_difference": "0.000000",
+          "computed_grand_total": "6800.000000",
+          "grand_total_difference": "0.000000",
+          "computed_quote_variance_percent": "10.000000",
+          "quote_variance_difference": "0.000000",
+          "line_items_evaluated": 1,
+          "uncertainty_items_evaluated": 1,
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "entity": "Project Alpha",
+        "basis": {
+          "document_present": true,
+          "estimate_class": "invalid_class",
+          "method": "bottom_up",
+          "assumptions_documented": true,
+          "exclusions_documented": true,
+          "estimator_identified": true
+        },
+        "elements": {
+          "breakdown_not_lump_sum": true,
+          "labor_burden_included": true,
+          "hidden_padding_in_rates": true
+        },
+        "line_items": [
+          {
+            "label": "Labor",
+            "category": "labor",
+            "quantity": 100.0,
+            "unit_rate": 50.0,
+            "declared_amount": 6000.0
+          }
+        ],
+        "uncertainty": {
+          "ranges_stated_for_material_uncertainty": true,
+          "items": [
+            {
+              "label": "Risk A",
+              "optimistic": 10.0,
+              "likely": 20.0,
+              "pessimistic": 30.0,
+              "declared_expected_value": 20.0,
+              "declared_spread": 50.0
+            }
+          ],
+          "expected_values_stated": true,
+          "single_number_precision_on_uncertain_scope": false
+        },
+        "totals": {
+          "declared_subtotal": 6000.0,
+          "contingency_percent": 10.0,
+          "declared_contingency_amount": 500.0,
+          "escalation_percent": 5.0,
+          "declared_escalation_amount": 300.0,
+          "declared_grand_total": 6800.0,
+          "escalation_impacts_stated": true,
+          "currency_impacts_stated": true,
+          "quote_validity_dates_captured": true
+        },
+        "should_cost": {
+          "benchmark_built_for_big_items": true,
+          "vendor_quote_amount": 110.0,
+          "should_cost_amount": 100.0,
+          "declared_variance_percent": 10.0,
+          "quote_compared_to_benchmark": true,
+          "divergences_explained": true,
+          "quote_exclusions_reviewed": true,
+          "quote_assumptions_reviewed": true,
+          "validity_period_respected": true,
+          "quote_accepted_without_scope_review": false
+        },
+        "feedback": {
+          "estimate_vs_actual_tracked_per_item": true,
+          "rates_updated_from_actuals": true,
+          "variance_lessons_published": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "cost-estimate-preparation",
+        "atom_version": "0.1.0",
+        "entity": "Project Alpha",
+        "verdict": "COST_ESTIMATE_NOT_READY",
+        "sections": {
+          "basis_and_class": "fail",
+          "elements_and_line_items": "fail",
+          "uncertainty_and_ranges": "fail",
+          "totals_escalation_and_currency": "fail",
+          "should_cost_and_quotes": "pass",
+          "feedback_loop": "pass"
+        },
+        "checks": [
+          {
+            "section": "basis_and_class",
+            "check": "basis_document_present",
+            "status": "pass",
+            "evidence": "quality gate: a basis document is present for the estimate"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "estimate_class_in_stated_classes",
+            "status": "fail",
+            "evidence": "method step 1: the declared estimate class is one of the classes the skill names \u2014 concept/ROM, budget, definitive (declared as concept_rom, budget, or definitive)"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "method_in_stated_methods",
+            "status": "pass",
+            "evidence": "method step 2: the declared method is one of the methods the skill names \u2014 bottom-up, parametric, analogous (declared as bottom_up, parametric, or analogous)"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "assumptions_documented",
+            "status": "pass",
+            "evidence": "quality gate: the basis document states the estimate's assumptions"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "exclusions_documented",
+            "status": "pass",
+            "evidence": "quality gate: the basis document states the estimate's exclusions"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "estimator_identified",
+            "status": "pass",
+            "evidence": "quality gate: the basis document identifies the estimator"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "elements_broken_down_not_lump_sum",
+            "status": "pass",
+            "evidence": "method step 3: the estimate is broken into elements, not lump sums \u2014 material, labor, equipment, subcontract, freight, indirects"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "labor_rates_include_burden",
+            "status": "pass",
+            "evidence": "method step 3: labor is costed as hours x rates including burden"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "line_item_entries_complete",
+            "status": "pass",
+            "evidence": "every line item carries a label, a category, a quantity, a unit rate, and a declared amount"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "line_item_amounts_match_quantity_times_rate",
+            "status": "fail",
+            "evidence": "method step 3: each declared line amount equals its declared quantity multiplied by its declared unit rate"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "subtotal_matches_sum_of_line_items",
+            "status": "pass",
+            "evidence": "method step 3: the declared subtotal equals the sum of the declared line amounts"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "no_hidden_padding_in_rates",
+            "status": "fail",
+            "evidence": "red line: no padding is hidden inside rates"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "ranges_stated_for_material_uncertainty",
+            "status": "pass",
+            "evidence": "quality gate: ranges, not points, are stated for material uncertainty"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "uncertainty_entries_complete",
+            "status": "pass",
+            "evidence": "every uncertainty item carries a label, three points, a declared expected value, and a declared spread"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "three_point_ordering_valid",
+            "status": "pass",
+            "evidence": "method step 4: each item's three points are in optimistic <= likely <= pessimistic order"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "three_point_spreads_match_pessimistic_minus_optimistic",
+            "status": "fail",
+            "evidence": "method step 4: each declared spread equals its declared pessimistic minus optimistic value (the declared expected value states no formula in the skill and is checked for presence only)"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "expected_values_stated",
+            "status": "pass",
+            "evidence": "method step 4: an expected value is stated for each shaky item alongside its spread"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "no_single_number_precision_on_uncertain_scope",
+            "status": "pass",
+            "evidence": "red line: no single-number precision is presented on uncertain scope"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "contingency_amount_matches_subtotal_times_percent",
+            "status": "fail",
+            "evidence": "the declared contingency amount equals the declared subtotal multiplied by the declared contingency percent (the percent itself is fixed by no statement in the skill and is not judged here)"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "escalation_amount_matches_subtotal_times_percent",
+            "status": "pass",
+            "evidence": "method step 5: the declared escalation amount equals the declared subtotal multiplied by the declared escalation percent (the percent itself is fixed by no statement in the skill and is not judged here)"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "grand_total_matches_subtotal_plus_contingency_plus_escalation",
+            "status": "pass",
+            "evidence": "the declared grand total equals the declared subtotal plus the declared contingency amount plus the declared escalation amount"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "escalation_impacts_stated",
+            "status": "pass",
+            "evidence": "method step 5: escalation impacts \u2014 inflation and lead-time \u2014 are stated"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "currency_impacts_stated",
+            "status": "pass",
+            "evidence": "method step 5: currency (fx) impacts are stated"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "quote_validity_dates_captured",
+            "status": "pass",
+            "evidence": "method step 5: quote validity dates are captured"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "should_cost_benchmark_built",
+            "status": "pass",
+            "evidence": "method step 6: an independent should-cost benchmark is built for big items"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_compared_to_benchmark",
+            "status": "pass",
+            "evidence": "method step 6: vendor quotes are compared against the should-cost benchmark"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_variance_percent_matches_rederived",
+            "status": "pass",
+            "evidence": "method step 6: the declared variance percent equals the declared vendor quote minus the declared should-cost benchmark, divided by the benchmark, times 100 (whether the variance is acceptable is not judged here)"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "divergences_explained",
+            "status": "pass",
+            "evidence": "quality gate: divergences between quotes and the benchmark are explained \u2014 scope, rates, or margin"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_exclusions_reviewed",
+            "status": "pass",
+            "evidence": "quality gate: the quotes' exclusions are reviewed line by line"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_assumptions_reviewed",
+            "status": "pass",
+            "evidence": "method step 7: the quotes' assumptions are reviewed line by line"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "validity_period_respected",
+            "status": "pass",
+            "evidence": "method step 7: the quote validity period is respected"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "no_quote_accepted_without_scope_review",
+            "status": "pass",
+            "evidence": "red line: no vendor quote is accepted without scope review"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "estimate_vs_actual_tracked_per_item",
+            "status": "pass",
+            "evidence": "quality gate: estimate vs actual is tracked per item"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "rates_updated_from_actuals",
+            "status": "pass",
+            "evidence": "quality gate: tracked actuals are fed back into rates"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "variance_lessons_published",
+            "status": "pass",
+            "evidence": "method step 8: variance lessons are published"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "line_items_evaluated": 1,
+        "computed_subtotal": "6000.000000",
+        "subtotal_difference": "0.000000",
+        "uncertainty_items_evaluated": 1,
+        "computed_total_spread": "20.000000",
+        "total_spread_difference": "30.000000",
+        "computed_contingency_amount": "600.000000",
+        "contingency_difference": "-100.000000",
+        "computed_escalation_amount": "300.000000",
+        "escalation_difference": "0.000000",
+        "computed_grand_total": "6800.000000",
+        "grand_total_difference": "0.000000",
+        "computed_quote_variance_percent": "10.000000",
+        "quote_variance_difference": "0.000000",
+        "summary": "30 pass, 5 fail, 0 missing of 35 checks across six sections.",
+        "stamp": "COST ESTIMATE PREPARATION\nentity: Project Alpha\nVERDICT: COST_ESTIMATE_NOT_READY\n  basis_and_class              fail\n  elements_and_line_items      fail\n  uncertainty_and_ranges       fail\n  totals_escalation_and_currency fail\n  should_cost_and_quotes       pass\n  feedback_loop                pass\n30 pass, 5 fail, 0 missing of 35 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required sections for validation."
+      },
+      "input": {
+        "entity": "Minimal"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "cost-estimate-preparation",
+        "atom_version": "0.1.0",
+        "entity": "Minimal",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "basis_and_class": "insufficient_evidence",
+          "elements_and_line_items": "insufficient_evidence",
+          "uncertainty_and_ranges": "insufficient_evidence",
+          "totals_escalation_and_currency": "insufficient_evidence",
+          "should_cost_and_quotes": "insufficient_evidence",
+          "feedback_loop": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "basis_and_class",
+            "check": "basis_document_present",
+            "status": "missing",
+            "evidence": "quality gate: a basis document is present for the estimate"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "estimate_class_in_stated_classes",
+            "status": "missing",
+            "evidence": "method step 1: the declared estimate class is one of the classes the skill names \u2014 concept/ROM, budget, definitive (declared as concept_rom, budget, or definitive)"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "method_in_stated_methods",
+            "status": "missing",
+            "evidence": "method step 2: the declared method is one of the methods the skill names \u2014 bottom-up, parametric, analogous (declared as bottom_up, parametric, or analogous)"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "assumptions_documented",
+            "status": "missing",
+            "evidence": "quality gate: the basis document states the estimate's assumptions"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "exclusions_documented",
+            "status": "missing",
+            "evidence": "quality gate: the basis document states the estimate's exclusions"
+          },
+          {
+            "section": "basis_and_class",
+            "check": "estimator_identified",
+            "status": "missing",
+            "evidence": "quality gate: the basis document identifies the estimator"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "elements_broken_down_not_lump_sum",
+            "status": "missing",
+            "evidence": "method step 3: the estimate is broken into elements, not lump sums \u2014 material, labor, equipment, subcontract, freight, indirects"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "labor_rates_include_burden",
+            "status": "missing",
+            "evidence": "method step 3: labor is costed as hours x rates including burden"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "line_item_entries_complete",
+            "status": "missing",
+            "evidence": "no line items declared"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "line_item_amounts_match_quantity_times_rate",
+            "status": "missing",
+            "evidence": "no line items declared"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "subtotal_matches_sum_of_line_items",
+            "status": "missing",
+            "evidence": "no line items declared"
+          },
+          {
+            "section": "elements_and_line_items",
+            "check": "no_hidden_padding_in_rates",
+            "status": "missing",
+            "evidence": "red line: no padding is hidden inside rates"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "ranges_stated_for_material_uncertainty",
+            "status": "missing",
+            "evidence": "quality gate: ranges, not points, are stated for material uncertainty"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "uncertainty_entries_complete",
+            "status": "missing",
+            "evidence": "no three-point uncertainty items declared"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "three_point_ordering_valid",
+            "status": "missing",
+            "evidence": "no three-point uncertainty items declared"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "three_point_spreads_match_pessimistic_minus_optimistic",
+            "status": "missing",
+            "evidence": "no three-point uncertainty items declared"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "expected_values_stated",
+            "status": "missing",
+            "evidence": "method step 4: an expected value is stated for each shaky item alongside its spread"
+          },
+          {
+            "section": "uncertainty_and_ranges",
+            "check": "no_single_number_precision_on_uncertain_scope",
+            "status": "missing",
+            "evidence": "red line: no single-number precision is presented on uncertain scope"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "contingency_amount_matches_subtotal_times_percent",
+            "status": "missing",
+            "evidence": "the declared contingency amount equals the declared subtotal multiplied by the declared contingency percent (the percent itself is fixed by no statement in the skill and is not judged here)"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "escalation_amount_matches_subtotal_times_percent",
+            "status": "missing",
+            "evidence": "method step 5: the declared escalation amount equals the declared subtotal multiplied by the declared escalation percent (the percent itself is fixed by no statement in the skill and is not judged here)"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "grand_total_matches_subtotal_plus_contingency_plus_escalation",
+            "status": "missing",
+            "evidence": "the declared grand total equals the declared subtotal plus the declared contingency amount plus the declared escalation amount"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "escalation_impacts_stated",
+            "status": "missing",
+            "evidence": "method step 5: escalation impacts \u2014 inflation and lead-time \u2014 are stated"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "currency_impacts_stated",
+            "status": "missing",
+            "evidence": "method step 5: currency (fx) impacts are stated"
+          },
+          {
+            "section": "totals_escalation_and_currency",
+            "check": "quote_validity_dates_captured",
+            "status": "missing",
+            "evidence": "method step 5: quote validity dates are captured"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "should_cost_benchmark_built",
+            "status": "missing",
+            "evidence": "method step 6: an independent should-cost benchmark is built for big items"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_compared_to_benchmark",
+            "status": "missing",
+            "evidence": "method step 6: vendor quotes are compared against the should-cost benchmark"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_variance_percent_matches_rederived",
+            "status": "missing",
+            "evidence": "method step 6: the declared variance percent equals the declared vendor quote minus the declared should-cost benchmark, divided by the benchmark, times 100 (whether the variance is acceptable is not judged here)"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "divergences_explained",
+            "status": "missing",
+            "evidence": "quality gate: divergences between quotes and the benchmark are explained \u2014 scope, rates, or margin"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_exclusions_reviewed",
+            "status": "missing",
+            "evidence": "quality gate: the quotes' exclusions are reviewed line by line"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "quote_assumptions_reviewed",
+            "status": "missing",
+            "evidence": "method step 7: the quotes' assumptions are reviewed line by line"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "validity_period_respected",
+            "status": "missing",
+            "evidence": "method step 7: the quote validity period is respected"
+          },
+          {
+            "section": "should_cost_and_quotes",
+            "check": "no_quote_accepted_without_scope_review",
+            "status": "missing",
+            "evidence": "red line: no vendor quote is accepted without scope review"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "estimate_vs_actual_tracked_per_item",
+            "status": "missing",
+            "evidence": "quality gate: estimate vs actual is tracked per item"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "rates_updated_from_actuals",
+            "status": "missing",
+            "evidence": "quality gate: tracked actuals are fed back into rates"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "variance_lessons_published",
+            "status": "missing",
+            "evidence": "method step 8: variance lessons are published"
+          }
+        ],
+        "computed_status": null,
+        "line_items_evaluated": 0,
+        "computed_subtotal": null,
+        "subtotal_difference": null,
+        "uncertainty_items_evaluated": 0,
+        "computed_total_spread": null,
+        "total_spread_difference": null,
+        "computed_contingency_amount": null,
+        "contingency_difference": null,
+        "computed_escalation_amount": null,
+        "escalation_difference": null,
+        "computed_grand_total": null,
+        "grand_total_difference": null,
+        "computed_quote_variance_percent": null,
+        "quote_variance_difference": null,
+        "summary": "0 pass, 0 fail, 35 missing of 35 checks across six sections.",
+        "stamp": "COST ESTIMATE PREPARATION\nentity: Minimal\nVERDICT: INSUFFICIENT_EVIDENCE\n  basis_and_class              insufficient_evidence\n  elements_and_line_items      insufficient_evidence\n  uncertainty_and_ranges       insufficient_evidence\n  totals_escalation_and_currency insufficient_evidence\n  should_cost_and_quotes       insufficient_evidence\n  feedback_loop                insufficient_evidence\n0 pass, 0 fail, 35 missing of 35 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: totals.declared_subtotal expects a number, received a string. [Tester correction: designer used basis: 'not_an_object' (a section-level object type not listed as a typed field in the SERVICE.md input table); replaced with a documented typed field (totals.declared_subtotal, number) carrying a string value.]"
+      },
+      "input": {
+        "totals": {
+          "declared_subtotal": "five thousand"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "totals.declared_subtotal",
+        "detail": "totals.declared_subtotal must be a number"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

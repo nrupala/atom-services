@@ -1,0 +1,1017 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: acp-protocol-integration-review
+
+=== contract.yaml ===
+service_name: acp-protocol-integration-review
+display_name: Acp protocol integration review
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:acp-engineering
+binding:
+  skill: acp-engineering
+  skill_path: workspace/mymilo-build/skills/acp-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/acp_protocol_integration_review.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_acp_protocol_integration_review.py — 37 tests, all passing 2026-11-15
+keys:
+  namespace: acp_protocol_integration_review
+  prefix: atm_1_acp_protocol_integration_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Agent protocol integration builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# ACP protocol integration review — `acp-protocol-integration-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Speak both ACPs — Agent Client Protocol sessions and Agent Communication Protocol runs, done right.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Agent protocol integration builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the ACP integration manifest
+
+The caller submits one JSON manifest: a declared review pack for one
+ACP integration. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`INTEGRATION_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `implementation` (string; carried into the verdict output, not itself checked) | — |
+| `protocol.flavor` (string; must be `"ACP-client"` or `"ACP-comm"` to pass — computed, see below) | disambiguation_and_scope |
+| `protocol.disambiguated_naming` | disambiguation_and_scope |
+| `protocol.spec_version_documented` | disambiguation_and_scope |
+| `protocol.supported_subset_documented` | disambiguation_and_scope |
+| `adapter.thin` | adapter_architecture |
+| `adapter.single_core_protocol_at_edge` | adapter_architecture |
+| `adapter.business_logic_in_wire_layer` (must be `false` to pass) | adapter_architecture |
+| `surface.client_flow_complete` (required only when the flavour is `ACP-client`; otherwise the check passes as not applicable) | protocol_surface |
+| `surface.client_permissions_handled` (required only when the flavour is `ACP-client`; otherwise not applicable) | protocol_surface |
+| `surface.comm_endpoints_complete` (required only when the flavour is `ACP-comm`; otherwise not applicable) | protocol_surface |
+| `surface.comm_message_parts_typed` (required only when the flavour is `ACP-comm`; otherwise not applicable) | protocol_surface |
+| `lifecycle.unknown_sessions_or_runs_handled` | lifecycle_correctness |
+| `lifecycle.cancels_handled` | lifecycle_correctness |
+| `lifecycle.errors_handled` | lifecycle_correctness |
+| `lifecycle.reconnects_handled` | lifecycle_correctness |
+| `lifecycle.state_leaks_across_sessions` (must be `false` to pass) | lifecycle_correctness |
+| `streaming.updates_ordered` | streaming_discipline |
+| `streaming.chunk_sizes_bounded` | streaming_discipline |
+| `streaming.backpressure_addressed` | streaming_discipline |
+| `streaming.terminal_states_clear` | streaming_discipline |
+| `security.remote_endpoints_present` (gates the authentication check below) | security |
+| `security.remote_endpoints_authenticated` (required when remote endpoints are present — skill red line; otherwise the check passes as not applicable) | security |
+| `security.inputs_validated` | security |
+| `security.output_sizes_capped` | security |
+| `security.tool_execution_sandboxed` | security |
+| `honesty.unimplemented_modes_noted` | honesty_tests_and_upgrade_path |
+| `honesty.unsupported_features_faked` (must be `false` to pass — skill red line) | honesty_tests_and_upgrade_path |
+| `tests.scripted_client_handshake_covered` | honesty_tests_and_upgrade_path |
+| `tests.lifecycle_happy_error_cancel_covered` | honesty_tests_and_upgrade_path |
+| `tests.contract_tests_in_ci_per_protocol` | honesty_tests_and_upgrade_path |
+| `upgrade.sdk_upgrade_path_documented` | honesty_tests_and_upgrade_path |
+| `upgrade.adapter_tests_kept_for_sdk_swap` | honesty_tests_and_upgrade_path |
+
+One check is computed from the declared values, using only the
+skill's own vocabulary — no outside threshold is imported:
+
+- **Flavour recognition:** the skill speaks exactly two ACPs and
+  its quality gate requires disambiguated naming in docs/code
+  ("ACP-client" vs "ACP-comm"). The declared `protocol.flavor`
+  therefore passes only when it is exactly `"ACP-client"` (Agent
+  Client Protocol: `initialize` → `session/new` → `session/prompt`
+  with streamed `session/update` chunks; permissions; stdio
+  JSON-RPC) or exactly `"ACP-comm"` (Agent Communication Protocol:
+  REST — `GET /agents`, `POST /runs` (sync/async/stream),
+  `GET /runs/:id`, cancel; message parts with content types). Any
+  other declared value fails; a missing flavour is missing
+  evidence. The output also reports the derived `flavor_status`
+  (`acp_client` / `acp_comm` / `unrecognized` / null when no
+  flavour is declared). The flavour also gates the
+  protocol-surface checks: an ACP-client integration is checked on
+  its client flow and permissions handling, an ACP-comm
+  integration on its REST endpoints and typed message parts, and
+  the other flavour's checks pass as not applicable.
+
+Two skill statements are deliberately **not** turned into
+arithmetic: the skill says chunk sizes are bounded and output
+sizes are capped, but states no number for either, so both are
+declared booleans — no bound or cap is invented here.
+
+The verdict is one of `INTEGRATION_SOUND` (all 31 checks pass),
+`INTEGRATION_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: disambiguation_and_scope,
+adapter_architecture, protocol_surface, lifecycle_correctness,
+streaming_discipline, security, honesty_tests_and_upgrade_path.
+
+## Honest scoping
+
+This atom reviews **declared** evidence about an ACP integration —
+it does not connect to, probe, or run the integration, speak
+either protocol to it, execute its contract tests, or verify that
+a declared value is true. An integration is sound *on the caller's
+declared evidence*: an adapter that declares authenticated remote
+endpoints and ordered, bounded streaming passes those checks even
+if the running system does something else.
+
+Named exclusions: no check of *which* spec version is documented
+or *which* subset is supported, only that both are documented;
+no numeric bound on chunk or output sizes (the skill states
+none); no assessment of the business logic behind the adapter,
+only that none is declared in the wire layer; no live verification
+of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python oracle
+and TypeScript port built and parity-proven locally; no endpoint is
+live. Release happens one by one, by the owner's GO, per the approved
+queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "acp-protocol-integration-review",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "INTEGRATION_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 31 checks pass for ACP-client flavor. Computed flavor_status: acp_client."
+      },
+      "input": {
+        "implementation": "v1.0.0-stable",
+        "protocol": {
+          "flavor": "ACP-client",
+          "disambiguated_naming": true,
+          "spec_version_documented": true,
+          "supported_subset_documented": true
+        },
+        "adapter": {
+          "thin": true,
+          "single_core_protocol_at_edge": true,
+          "business_logic_in_wire_layer": false
+        },
+        "surface": {
+          "client_flow_complete": true,
+          "client_permissions_handled": true
+        },
+        "lifecycle": {
+          "unknown_sessions_or_runs_handled": true,
+          "cancels_handled": true,
+          "errors_handled": true,
+          "reconnects_handled": true,
+          "state_leaks_across_sessions": false
+        },
+        "streaming": {
+          "updates_ordered": true,
+          "chunk_sizes_bounded": true,
+          "backpressure_addressed": true,
+          "terminal_states_clear": true
+        },
+        "security": {
+          "remote_endpoints_present": true,
+          "remote_endpoints_authenticated": true,
+          "inputs_validated": true,
+          "output_sizes_capped": true,
+          "tool_execution_sandboxed": true
+        },
+        "honesty": {
+          "unimplemented_modes_noted": true,
+          "unsupported_features_faked": false
+        },
+        "upgrade": {
+          "sdk_upgrade_path_documented": true,
+          "adapter_tests_kept_for_sdk_swap": true
+        },
+        "tests": {
+          "scripted_client_handshake_covered": true,
+          "lifecycle_happy_error_cancel_covered": true,
+          "contract_tests_in_ci_per_protocol": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "acp-protocol-integration-review",
+        "atom_version": "0.1.0",
+        "implementation": "v1.0.0-stable",
+        "verdict": "INTEGRATION_SOUND",
+        "sections": {
+          "disambiguation_and_scope": "pass",
+          "adapter_architecture": "pass",
+          "protocol_surface": "pass",
+          "lifecycle_correctness": "pass",
+          "streaming_discipline": "pass",
+          "security": "pass",
+          "honesty_tests_and_upgrade_path": "pass"
+        },
+        "checks": [
+          {
+            "section": "disambiguation_and_scope",
+            "check": "disambiguated_naming_in_docs_and_code",
+            "status": "pass",
+            "evidence": "quality gate: disambiguated naming in docs/code ('ACP-client' vs 'ACP-comm') \u2014 always disambiguate which ACP is meant"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "flavor_recognized",
+            "status": "pass",
+            "evidence": "the declared flavour is one of the skill's two ACPs: 'ACP-client' (Agent Client Protocol) or 'ACP-comm' (Agent Communication Protocol)"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "spec_version_documented",
+            "status": "pass",
+            "evidence": "minimal-but-honest: label spec versions supported"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "supported_subset_documented",
+            "status": "pass",
+            "evidence": "quality gate: spec version + supported subset documented"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "adapter_thin",
+            "status": "pass",
+            "evidence": "protocol adapters stay thin: protocol sits at the edge"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "single_core_protocol_at_edge",
+            "status": "pass",
+            "evidence": "one core, protocol sits at the edge ('agent-commands'-style mapping)"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "no_business_logic_in_wire_layer",
+            "status": "pass",
+            "evidence": "no business logic in the wire layer"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "client_flow_complete_when_client_flavor",
+            "status": "pass",
+            "evidence": "ACP-client surface: initialize -> session/new -> session/prompt with streamed session/update chunks, over stdio JSON-RPC"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "client_permissions_handled_when_client_flavor",
+            "status": "pass",
+            "evidence": "ACP-client surface: permissions are handled"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "comm_endpoints_complete_when_comm_flavor",
+            "status": "pass",
+            "evidence": "not an ACP-comm integration"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "comm_message_parts_typed_when_comm_flavor",
+            "status": "pass",
+            "evidence": "not an ACP-comm integration"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "unknown_sessions_or_runs_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle unknown sessions/runs"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "cancels_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle cancels"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "errors_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle errors"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "reconnects_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle reconnects"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "no_state_leak_across_sessions",
+            "status": "pass",
+            "evidence": "lifecycle: never leak state across sessions"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "updates_ordered",
+            "status": "pass",
+            "evidence": "streaming discipline: order updates"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "chunk_sizes_bounded",
+            "status": "pass",
+            "evidence": "streaming discipline: bounded chunk sizes (the skill states bounded, and states no number \u2014 the bound is declared, not computed)"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "backpressure_addressed",
+            "status": "pass",
+            "evidence": "streaming discipline: backpressure awareness"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "terminal_states_clear",
+            "status": "pass",
+            "evidence": "streaming discipline: clear terminal states (stopReason / run status)"
+          },
+          {
+            "section": "security",
+            "check": "remote_endpoints_authenticated_when_remote",
+            "status": "pass",
+            "evidence": "red line: no unauthenticated remote endpoints \u2014 remote ACP endpoints require auth (tokens/mTLS)"
+          },
+          {
+            "section": "security",
+            "check": "inputs_validated",
+            "status": "pass",
+            "evidence": "security: validate all inputs (quality gate: remote endpoints authenticated; inputs validated)"
+          },
+          {
+            "section": "security",
+            "check": "output_sizes_capped",
+            "status": "pass",
+            "evidence": "security: cap output sizes (the skill states a cap, and states no number \u2014 the cap is declared, not computed)"
+          },
+          {
+            "section": "security",
+            "check": "prompt_triggered_tool_execution_sandboxed",
+            "status": "pass",
+            "evidence": "security: sandbox any tool execution triggered via prompts"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "unimplemented_modes_noted",
+            "status": "pass",
+            "evidence": "minimal-but-honest: note unimplemented modes (e.g. stream)"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "unsupported_features_not_faked",
+            "status": "pass",
+            "evidence": "red line: never fake compliance \u2014 no pretending unsupported features work"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "scripted_client_handshake_covered",
+            "status": "pass",
+            "evidence": "contract tests: scripted client covering handshake"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "lifecycle_happy_error_cancel_covered",
+            "status": "pass",
+            "evidence": "quality gate / contract tests: lifecycle tests \u2014 session/run happy + error + cancel"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "contract_tests_in_ci_per_protocol",
+            "status": "pass",
+            "evidence": "contract tests: in CI, per protocol"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "sdk_upgrade_path_documented",
+            "status": "pass",
+            "evidence": "production upgrade path: official SDKs when the surface grows"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "adapter_tests_kept_for_sdk_swap",
+            "status": "pass",
+            "evidence": "production upgrade path: keep the adapter tests so swaps are safe"
+          }
+        ],
+        "flavor_status": "acp_client",
+        "summary": "31 pass, 0 fail, 0 missing of 31 checks across seven sections.",
+        "stamp": "ACP PROTOCOL INTEGRATION REVIEW\nimplementation: v1.0.0-stable\nVERDICT: INTEGRATION_SOUND\n  disambiguation_and_scope         pass\n  adapter_architecture             pass\n  protocol_surface                 pass\n  lifecycle_correctness            pass\n  streaming_discipline             pass\n  security                         pass\n  honesty_tests_and_upgrade_path   pass\n31 pass, 0 fail, 0 missing of 31 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "INTEGRATION_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "adapter_architecture",
+          "lifecycle_correctness",
+          "honesty_tests_and_upgrade_path"
+        ],
+        "notes": "Violates red lines: business_logic_in_wire_layer=true, state_leaks_across_sessions=true, unsupported_features_faked=true."
+      },
+      "input": {
+        "implementation": "v1.0.0-broken",
+        "protocol": {
+          "flavor": "ACP-client",
+          "disambiguated_naming": true,
+          "spec_version_documented": true,
+          "supported_subset_documented": true
+        },
+        "adapter": {
+          "thin": true,
+          "single_core_protocol_at_edge": true,
+          "business_logic_in_wire_layer": true
+        },
+        "surface": {
+          "client_flow_complete": true,
+          "client_permissions_handled": true
+        },
+        "lifecycle": {
+          "unknown_sessions_or_runs_handled": true,
+          "cancels_handled": true,
+          "errors_handled": true,
+          "reconnects_handled": true,
+          "state_leaks_across_sessions": true
+        },
+        "streaming": {
+          "updates_ordered": true,
+          "chunk_sizes_bounded": true,
+          "backpressure_addressed": true,
+          "terminal_states_clear": true
+        },
+        "security": {
+          "remote_endpoints_present": true,
+          "remote_endpoints_authenticated": true,
+          "inputs_validated": true,
+          "output_sizes_capped": true,
+          "tool_execution_sandboxed": true
+        },
+        "honesty": {
+          "unimplemented_modes_noted": true,
+          "unsupported_features_faked": true
+        },
+        "upgrade": {
+          "sdk_upgrade_path_documented": true,
+          "adapter_tests_kept_for_sdk_swap": true
+        },
+        "tests": {
+          "scripted_client_handshake_covered": true,
+          "lifecycle_happy_error_cancel_covered": true,
+          "contract_tests_in_ci_per_protocol": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "acp-protocol-integration-review",
+        "atom_version": "0.1.0",
+        "implementation": "v1.0.0-broken",
+        "verdict": "INTEGRATION_NOT_SOUND",
+        "sections": {
+          "disambiguation_and_scope": "pass",
+          "adapter_architecture": "fail",
+          "protocol_surface": "pass",
+          "lifecycle_correctness": "fail",
+          "streaming_discipline": "pass",
+          "security": "pass",
+          "honesty_tests_and_upgrade_path": "fail"
+        },
+        "checks": [
+          {
+            "section": "disambiguation_and_scope",
+            "check": "disambiguated_naming_in_docs_and_code",
+            "status": "pass",
+            "evidence": "quality gate: disambiguated naming in docs/code ('ACP-client' vs 'ACP-comm') \u2014 always disambiguate which ACP is meant"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "flavor_recognized",
+            "status": "pass",
+            "evidence": "the declared flavour is one of the skill's two ACPs: 'ACP-client' (Agent Client Protocol) or 'ACP-comm' (Agent Communication Protocol)"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "spec_version_documented",
+            "status": "pass",
+            "evidence": "minimal-but-honest: label spec versions supported"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "supported_subset_documented",
+            "status": "pass",
+            "evidence": "quality gate: spec version + supported subset documented"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "adapter_thin",
+            "status": "pass",
+            "evidence": "protocol adapters stay thin: protocol sits at the edge"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "single_core_protocol_at_edge",
+            "status": "pass",
+            "evidence": "one core, protocol sits at the edge ('agent-commands'-style mapping)"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "no_business_logic_in_wire_layer",
+            "status": "fail",
+            "evidence": "no business logic in the wire layer"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "client_flow_complete_when_client_flavor",
+            "status": "pass",
+            "evidence": "ACP-client surface: initialize -> session/new -> session/prompt with streamed session/update chunks, over stdio JSON-RPC"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "client_permissions_handled_when_client_flavor",
+            "status": "pass",
+            "evidence": "ACP-client surface: permissions are handled"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "comm_endpoints_complete_when_comm_flavor",
+            "status": "pass",
+            "evidence": "not an ACP-comm integration"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "comm_message_parts_typed_when_comm_flavor",
+            "status": "pass",
+            "evidence": "not an ACP-comm integration"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "unknown_sessions_or_runs_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle unknown sessions/runs"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "cancels_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle cancels"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "errors_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle errors"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "reconnects_handled",
+            "status": "pass",
+            "evidence": "lifecycle: handle reconnects"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "no_state_leak_across_sessions",
+            "status": "fail",
+            "evidence": "lifecycle: never leak state across sessions"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "updates_ordered",
+            "status": "pass",
+            "evidence": "streaming discipline: order updates"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "chunk_sizes_bounded",
+            "status": "pass",
+            "evidence": "streaming discipline: bounded chunk sizes (the skill states bounded, and states no number \u2014 the bound is declared, not computed)"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "backpressure_addressed",
+            "status": "pass",
+            "evidence": "streaming discipline: backpressure awareness"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "terminal_states_clear",
+            "status": "pass",
+            "evidence": "streaming discipline: clear terminal states (stopReason / run status)"
+          },
+          {
+            "section": "security",
+            "check": "remote_endpoints_authenticated_when_remote",
+            "status": "pass",
+            "evidence": "red line: no unauthenticated remote endpoints \u2014 remote ACP endpoints require auth (tokens/mTLS)"
+          },
+          {
+            "section": "security",
+            "check": "inputs_validated",
+            "status": "pass",
+            "evidence": "security: validate all inputs (quality gate: remote endpoints authenticated; inputs validated)"
+          },
+          {
+            "section": "security",
+            "check": "output_sizes_capped",
+            "status": "pass",
+            "evidence": "security: cap output sizes (the skill states a cap, and states no number \u2014 the cap is declared, not computed)"
+          },
+          {
+            "section": "security",
+            "check": "prompt_triggered_tool_execution_sandboxed",
+            "status": "pass",
+            "evidence": "security: sandbox any tool execution triggered via prompts"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "unimplemented_modes_noted",
+            "status": "pass",
+            "evidence": "minimal-but-honest: note unimplemented modes (e.g. stream)"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "unsupported_features_not_faked",
+            "status": "fail",
+            "evidence": "red line: never fake compliance \u2014 no pretending unsupported features work"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "scripted_client_handshake_covered",
+            "status": "pass",
+            "evidence": "contract tests: scripted client covering handshake"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "lifecycle_happy_error_cancel_covered",
+            "status": "pass",
+            "evidence": "quality gate / contract tests: lifecycle tests \u2014 session/run happy + error + cancel"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "contract_tests_in_ci_per_protocol",
+            "status": "pass",
+            "evidence": "contract tests: in CI, per protocol"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "sdk_upgrade_path_documented",
+            "status": "pass",
+            "evidence": "production upgrade path: official SDKs when the surface grows"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "adapter_tests_kept_for_sdk_swap",
+            "status": "pass",
+            "evidence": "production upgrade path: keep the adapter tests so swaps are safe"
+          }
+        ],
+        "flavor_status": "acp_client",
+        "summary": "28 pass, 3 fail, 0 missing of 31 checks across seven sections.",
+        "stamp": "ACP PROTOCOL INTEGRATION REVIEW\nimplementation: v1.0.0-broken\nVERDICT: INTEGRATION_NOT_SOUND\n  disambiguation_and_scope         pass\n  adapter_architecture             fail\n  protocol_surface                 pass\n  lifecycle_correctness            fail\n  streaming_discipline             pass\n  security                         pass\n  honesty_tests_and_upgrade_path   fail\n28 pass, 3 fail, 0 missing of 31 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of fields required for full evaluation."
+      },
+      "input": {
+        "implementation": "minimal-test",
+        "protocol": {
+          "flavor": "ACP-client"
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "acp-protocol-integration-review",
+        "atom_version": "0.1.0",
+        "implementation": "minimal-test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "disambiguation_and_scope": "insufficient_evidence",
+          "adapter_architecture": "insufficient_evidence",
+          "protocol_surface": "insufficient_evidence",
+          "lifecycle_correctness": "insufficient_evidence",
+          "streaming_discipline": "insufficient_evidence",
+          "security": "insufficient_evidence",
+          "honesty_tests_and_upgrade_path": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "disambiguation_and_scope",
+            "check": "disambiguated_naming_in_docs_and_code",
+            "status": "missing",
+            "evidence": "quality gate: disambiguated naming in docs/code ('ACP-client' vs 'ACP-comm') \u2014 always disambiguate which ACP is meant"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "flavor_recognized",
+            "status": "pass",
+            "evidence": "the declared flavour is one of the skill's two ACPs: 'ACP-client' (Agent Client Protocol) or 'ACP-comm' (Agent Communication Protocol)"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "spec_version_documented",
+            "status": "missing",
+            "evidence": "minimal-but-honest: label spec versions supported"
+          },
+          {
+            "section": "disambiguation_and_scope",
+            "check": "supported_subset_documented",
+            "status": "missing",
+            "evidence": "quality gate: spec version + supported subset documented"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "adapter_thin",
+            "status": "missing",
+            "evidence": "protocol adapters stay thin: protocol sits at the edge"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "single_core_protocol_at_edge",
+            "status": "missing",
+            "evidence": "one core, protocol sits at the edge ('agent-commands'-style mapping)"
+          },
+          {
+            "section": "adapter_architecture",
+            "check": "no_business_logic_in_wire_layer",
+            "status": "missing",
+            "evidence": "no business logic in the wire layer"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "client_flow_complete_when_client_flavor",
+            "status": "missing",
+            "evidence": "ACP-client surface: initialize -> session/new -> session/prompt with streamed session/update chunks, over stdio JSON-RPC"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "client_permissions_handled_when_client_flavor",
+            "status": "missing",
+            "evidence": "ACP-client surface: permissions are handled"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "comm_endpoints_complete_when_comm_flavor",
+            "status": "pass",
+            "evidence": "not an ACP-comm integration"
+          },
+          {
+            "section": "protocol_surface",
+            "check": "comm_message_parts_typed_when_comm_flavor",
+            "status": "pass",
+            "evidence": "not an ACP-comm integration"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "unknown_sessions_or_runs_handled",
+            "status": "missing",
+            "evidence": "lifecycle: handle unknown sessions/runs"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "cancels_handled",
+            "status": "missing",
+            "evidence": "lifecycle: handle cancels"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "errors_handled",
+            "status": "missing",
+            "evidence": "lifecycle: handle errors"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "reconnects_handled",
+            "status": "missing",
+            "evidence": "lifecycle: handle reconnects"
+          },
+          {
+            "section": "lifecycle_correctness",
+            "check": "no_state_leak_across_sessions",
+            "status": "missing",
+            "evidence": "lifecycle: never leak state across sessions"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "updates_ordered",
+            "status": "missing",
+            "evidence": "streaming discipline: order updates"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "chunk_sizes_bounded",
+            "status": "missing",
+            "evidence": "streaming discipline: bounded chunk sizes (the skill states bounded, and states no number \u2014 the bound is declared, not computed)"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "backpressure_addressed",
+            "status": "missing",
+            "evidence": "streaming discipline: backpressure awareness"
+          },
+          {
+            "section": "streaming_discipline",
+            "check": "terminal_states_clear",
+            "status": "missing",
+            "evidence": "streaming discipline: clear terminal states (stopReason / run status)"
+          },
+          {
+            "section": "security",
+            "check": "remote_endpoints_authenticated_when_remote",
+            "status": "missing",
+            "evidence": "no remote endpoints declared"
+          },
+          {
+            "section": "security",
+            "check": "inputs_validated",
+            "status": "missing",
+            "evidence": "security: validate all inputs (quality gate: remote endpoints authenticated; inputs validated)"
+          },
+          {
+            "section": "security",
+            "check": "output_sizes_capped",
+            "status": "missing",
+            "evidence": "security: cap output sizes (the skill states a cap, and states no number \u2014 the cap is declared, not computed)"
+          },
+          {
+            "section": "security",
+            "check": "prompt_triggered_tool_execution_sandboxed",
+            "status": "missing",
+            "evidence": "security: sandbox any tool execution triggered via prompts"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "unimplemented_modes_noted",
+            "status": "missing",
+            "evidence": "minimal-but-honest: note unimplemented modes (e.g. stream)"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "unsupported_features_not_faked",
+            "status": "missing",
+            "evidence": "red line: never fake compliance \u2014 no pretending unsupported features work"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "scripted_client_handshake_covered",
+            "status": "missing",
+            "evidence": "contract tests: scripted client covering handshake"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "lifecycle_happy_error_cancel_covered",
+            "status": "missing",
+            "evidence": "quality gate / contract tests: lifecycle tests \u2014 session/run happy + error + cancel"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "contract_tests_in_ci_per_protocol",
+            "status": "missing",
+            "evidence": "contract tests: in CI, per protocol"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "sdk_upgrade_path_documented",
+            "status": "missing",
+            "evidence": "production upgrade path: official SDKs when the surface grows"
+          },
+          {
+            "section": "honesty_tests_and_upgrade_path",
+            "check": "adapter_tests_kept_for_sdk_swap",
+            "status": "missing",
+            "evidence": "production upgrade path: keep the adapter tests so swaps are safe"
+          }
+        ],
+        "flavor_status": "acp_client",
+        "summary": "3 pass, 0 fail, 28 missing of 31 checks across seven sections.",
+        "stamp": "ACP PROTOCOL INTEGRATION REVIEW\nimplementation: minimal-test\nVERDICT: INSUFFICIENT_EVIDENCE\n  disambiguation_and_scope         insufficient_evidence\n  adapter_architecture             insufficient_evidence\n  protocol_surface                 insufficient_evidence\n  lifecycle_correctness            insufficient_evidence\n  streaming_discipline             insufficient_evidence\n  security                         insufficient_evidence\n  honesty_tests_and_upgrade_path   insufficient_evidence\n3 pass, 0 fail, 28 missing of 31 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: protocol.flavor expects string, received integer."
+      },
+      "input": {
+        "implementation": "malformed-test",
+        "protocol": {
+          "flavor": 123
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "protocol.flavor",
+        "detail": "protocol.flavor must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

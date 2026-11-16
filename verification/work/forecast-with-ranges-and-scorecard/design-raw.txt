@@ -1,0 +1,117 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "series": "revenue_q1_2026",
+        "forecast": {
+          "purpose_stated": true,
+          "horizon_stated": true,
+          "decision_cadence_matched": true,
+          "owner_named": true
+        },
+        "baselines": {
+          "naive_value": 100,
+          "moving_average_value": 105,
+          "seasonal_naive_value": 110,
+          "compared_to_forecast": true,
+          "complex_model_used": true,
+          "complex_model_beats_baselines": true
+        },
+        "decomposition": {
+          "level_trend_seasonality_shown": true,
+          "drivers_known": true,
+          "driver_based_shown": true
+        },
+        "range": {
+          "low": 90,
+          "base": 100,
+          "high": 110
+        },
+        "scenarios": [
+          {"name": "base", "trigger_condition": "normal"},
+          {"name": "best", "trigger_condition": "growth"},
+          {"name": "worst", "trigger_condition": "recession"}
+        ],
+        "scenario_detail": {"sensitivity_shown": true},
+        "scorecard": {
+          "published": true,
+          "tracked_per_series": true,
+          "history": [
+            {"period": "2025-Q4", "forecast": 100, "actual": 100}
+          ],
+          "declared_mae": 0.0,
+          "declared_mape_percent": 0.0,
+          "declared_bias": 0.0
+        },
+        "revision": {
+          "forecast_actual_history_preserved": true,
+          "revisions_made": true,
+          "revision_reasons_documented": true,
+          "silently_restated": false
+        },
+        "cadence": {
+          "rolling_forecast_maintained": true,
+          "cadence_matches_review_rhythm": true,
+          "forecast_updated_on_cadence": true
+        }
+      },
+      "expect": {
+        "outcome": "FORECAST_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: MAE=0.0, MAPE=0.0, Bias=0.0. Range 90 <= 100 < 110 holds."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "range": {"low": 120, "base": 100, "high": 110},
+        "scorecard": {
+          "history": [{"period": "2025-Q4", "forecast": 200, "actual": 100}],
+          "declared_mae": 0.0,
+          "declared_mape_percent": 0.0,
+          "declared_bias": 0.0
+        }
+      },
+      "expect": {
+        "outcome": "FORECAST_NOT_READY",
+        "http": 200,
+        "failing_checks": ["ranges_and_scenarios", "scorecard_accuracy"],
+        "notes": "Range low > base violates constraint. Declared MAE/MAPE/Bias do not match recomputed values from history."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "series": "minimal_test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required boolean flags and structural data."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "baselines": {
+          "naive_value": "not_a_number",
+          "moving_average_value": 100,
+          "seasonal_naive_value": 100
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: string provided where number expected for naive_value."
+      }
+    }
+  ]
+}

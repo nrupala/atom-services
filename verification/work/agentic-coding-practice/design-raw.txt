@@ -1,0 +1,79 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "practice": "Standardized Agentic Workflow",
+        "spec": { "spec_written_first": true, "small_vertical_slices": true, "diffs_reviewed": true },
+        "hooks": { "wired_as_guardrails": true, "events_and_payloads_known": true, "protected_paths_blocked": true, "formatters_auto_run": true, "secrets_denied": true },
+        "feedback": { "tests_run_after_edit": true, "tests_wired_into_hooks": true, "linters_wired_into_hooks": true },
+        "guardrails": { "protected_paths_declared": true, "no_secrets": true, "docker_used": false, "staging_first": true, "human_in_loop_on_irreversible": true, "autonomous_only_safe_reversible": true, "agent_run_unbounded": false },
+        "context": { "only_what_agent_needs": true, "whole_repo_dumped": false, "files_pulled_into_workspace": true },
+        "tools": { "mcp_tools_typed": true, "mcp_tools_narrowly_scoped": true },
+        "delegation": { "subagent_tasks_bounded": true, "subagent_context_narrow": true, "planner_worker_reviewer_pattern": true },
+        "access": { "broad_write_access": true, "guardrails_present": true }
+      },
+      "expect": {
+        "outcome": "RELIABLE_PRACTICE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 27 boolean checks are set to their passing states, including house rules (docker_used=false, agent_run_unbounded=false, whole_repo_dumped=false) and the conditional guardrails check."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "practice": "Unsafe Workflow",
+        "spec": { "spec_written_first": true, "small_vertical_slices": true, "diffs_reviewed": true },
+        "hooks": { "wired_as_guardrails": true, "events_and_payloads_known": true, "protected_paths_blocked": true, "formatters_auto_run": true, "secrets_denied": true },
+        "feedback": { "tests_run_after_edit": true, "tests_wired_into_hooks": true, "linters_wired_into_hooks": true },
+        "guardrails": { "protected_paths_declared": true, "no_secrets": true, "docker_used": true, "staging_first": true, "human_in_loop_on_irreversible": true, "autonomous_only_safe_reversible": true, "agent_run_unbounded": true },
+        "context": { "only_what_agent_needs": true, "whole_repo_dumped": true, "files_pulled_into_workspace": true },
+        "tools": { "mcp_tools_typed": true, "mcp_tools_narrowly_scoped": true },
+        "delegation": { "subagent_tasks_bounded": true, "subagent_context_narrow": true, "planner_worker_reviewer_pattern": true },
+        "access": { "broad_write_access": true, "guardrails_present": false }
+      },
+      "expect": {
+        "outcome": "NOT_RELIABLE_PRACTICE",
+        "http": 200,
+        "failing_checks": [
+          "guardrails.docker_used",
+          "guardrails.agent_run_unbounded",
+          "context.whole_repo_dumped",
+          "access.guardrails_present"
+        ],
+        "notes": "Violates house rules (Docker, unbounded runs, repo dumping) and the conditional guardrails requirement for broad write access."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "practice": "Minimalist",
+        "spec": { "spec_written_first": true }
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, preventing a full reliability assessment."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "practice": "Malformed Input",
+        "spec": { "spec_written_first": "YES_PLEASE" }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: expected boolean for spec_written_first, received string."
+      }
+    }
+  ]
+}

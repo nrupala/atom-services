@@ -1,0 +1,819 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: code-review-service
+
+=== contract.yaml ===
+service_name: code-review-service
+display_name: Code review service
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:code-review-practice
+binding:
+  skill: code-review-practice
+  skill_path: workspace/mymilo-build/skills/code-review-practice/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+keys:
+  namespace: code_review_service
+  prefix: atm_1_code_review_service_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: PR reviews before merge
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Code review service — `code-review-service`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Review changes properly — small PRs, a real checklist, blocking vs non-blocking feedback, green gates before approval.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **PR reviews before merge**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the code-review manifest
+
+This atom does not read or review actual code and exercises no
+review judgment. The caller submits one JSON manifest declaring
+a code-review record — its PR size and description, its review
+checklist coverage, its declared comment counts and labels, its
+response / resolution record, its approval-gate record, and its
+red-line / merge record — and the atom validates that artifact
+deterministically. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`CODE_REVIEW_NOT_READY`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `pr.changed_lines` (number; computed, see below) | pr_size_and_description |
+| `pr.description_what_present` | pr_size_and_description |
+| `pr.description_why_present` | pr_size_and_description |
+| `pr.description_how_to_test_present` | pr_size_and_description |
+| `pr.spec_or_issue_linked` | pr_size_and_description |
+| `pr.screenshots_included_for_ui_changes` | pr_size_and_description |
+| `checklist.covered_items` (list of strings; computed, see below) | review_checklist |
+| `checklist.correctness_edge_cases_checked` | review_checklist |
+| `checklist.security_inputs_secrets_dependencies_checked` | review_checklist |
+| `checklist.tests_coverage_and_determinism_checked` | review_checklist |
+| `checklist.readability_names_and_structure_checked` | review_checklist |
+| `feedback.total_comments` (number; computed, see below) | feedback_etiquette |
+| `feedback.labeled_comments` (number; computed, see below) | feedback_etiquette |
+| `feedback.labels_use_must_nit_q_scheme` | feedback_etiquette |
+| `feedback.why_explained` | feedback_etiquette |
+| `feedback.proposes_not_dictates` | feedback_etiquette |
+| `resolution.total_comments` (number; computed, see below) | response_and_resolution |
+| `resolution.answered_comments` (number; computed, see below) | response_and_resolution |
+| `resolution.resolved_only_when_addressed` | response_and_resolution |
+| `resolution.resolved_nits_not_relitigated` | response_and_resolution |
+| `gates.ci_green_before_approval` | approval_gates |
+| `gates.change_nontrivial` (boolean; computed gate input, see below — `true` = the change is non-trivial, `false` = trivial) | approval_gates |
+| `gates.reviewer_count` (number; computed, see below) | approval_gates |
+| `gates.reviewer_sign_off_recorded` | approval_gates |
+| `gates.unresolved_comments` (number; computed, see below) | approval_gates |
+| `gates.behavior_changing` (boolean; computed gate input, see below — `true` = the PR changes behavior, `false` = it does not) | approval_gates |
+| `gates.docs_and_changelog_updated` | approval_gates |
+| `gates.approver_would_ship` | approval_gates |
+| `red_lines.force_push_over_review_without_telling` (must be `false` to pass — skill red line) | red_lines_and_merge_discipline |
+| `red_lines.rubber_stamped` (must be `false` to pass — skill red line) | red_lines_and_merge_discipline |
+| `red_lines.unexplained_blocking` (must be `false` to pass — skill red line) | red_lines_and_merge_discipline |
+| `merge.self_merged_unreviewed` (must be `false` to pass — skill when-to-use rule) | red_lines_and_merge_discipline |
+| `merge.emergency_hotfix` (boolean; computed gate input, see below — `true` = the change is an emergency hotfix, `false` = it is not) | red_lines_and_merge_discipline |
+| `merge.hotfix_post_review_completed` | red_lines_and_merge_discipline |
+
+Eight checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **PR size:** the skill's method step 1 is "keep PRs small
+  (aim ≤ ~400 changed lines)". The declared `pr.changed_lines`
+  therefore passes only when it is at or under 400 — the number
+  the skill itself names. The output reports
+  `computed_changed_lines` and `changed_lines_over_stated_aim`
+  (declared minus 400, null when no count is declared).
+- **Checklist coverage:** the skill's method step 3 names the
+  checklist categories — correctness, security, tests,
+  readability, docs. The declared `checklist.covered_items`
+  list therefore passes only when it contains all five stated
+  entries (`correctness`, `security`, `tests`, `readability`,
+  `docs`); unknown entries do not count toward coverage. A
+  missing list is missing evidence; an empty list is present
+  and fails. The output reports the omitted stated entries as
+  `checklist_items_not_covered` (null when no list is
+  declared). Entries are validated as strings only, never
+  enum-checked — coverage is a verdict check, not a type error.
+- **Feedback labels:** the skill's method step 4 requires
+  comments to be labeled (`must:` blocking, `nit:`
+  non-blocking, `q:` question). The declared
+  `feedback.labeled_comments` therefore passes only when it
+  equals `feedback.total_comments`. The output reports
+  `labeled_comment_difference` (labeled minus total, null when
+  either cannot be computed). Whether any individual comment's
+  label is the *right* label is the reviewer's judgment, not
+  this atom's.
+- **Responses:** the skill's method step 5 requires authors to
+  answer every comment. The declared
+  `resolution.answered_comments` therefore passes only when it
+  equals `resolution.total_comments`. The output reports
+  `answered_comment_difference` (answered minus total, null
+  when either cannot be computed). The feedback and resolution
+  totals are separate declared records; this core does not
+  cross-check one section's total against the other's.
+- **Reviewers:** the skill's quality gate is "at least one
+  reviewer for non-trivial changes". When
+  `gates.change_nontrivial` is declared `true`, the check
+  passes only when `gates.reviewer_count` is at least 1; when
+  it is declared `false`, the skill does not hold the change to
+  that gate and the check passes regardless of reviewer count.
+  The check is missing when either input is absent. The output
+  reports `computed_reviewer_count` (null when no count is
+  declared). No reviewer seniority, identity, or count above
+  one is imposed — the skill states none.
+- **Unresolved comments at approval:** the skill's method
+  step 6 approval gates are "green CI + resolved comments +
+  reviewer sign-off". The declared `gates.unresolved_comments`
+  therefore passes only when it is zero. The output reports
+  `computed_unresolved_comments` (null when no count is
+  declared).
+- **Docs for behavior changes:** the skill's quality gate is
+  "behavior-changing PRs update docs + changelog". When
+  `gates.behavior_changing` is declared `true`, the check
+  passes only when `gates.docs_and_changelog_updated` is
+  declared `true`; when it is declared `false`, the skill does
+  not hold the change to that gate and the check passes
+  regardless. The check is missing when either input is absent.
+- **Hotfix post-review:** the skill's when-to-use rule is
+  "emergency hotfixes get post-review". When
+  `merge.emergency_hotfix` is declared `true`, the check
+  passes only when `merge.hotfix_post_review_completed` is
+  declared `true`; when it is declared `false`, the check
+  passes regardless. The check is missing when either input is
+  absent.
+
+**Fixed serialization rule:** computed amounts and ratios are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the eight computed checks cannot be completed).
+
+The verdict is one of `CODE_REVIEW_READY` (all 29 checks pass),
+`CODE_REVIEW_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: pr_size_and_description, review_checklist,
+feedback_etiquette, response_and_resolution, approval_gates,
+red_lines_and_merge_discipline.
+
+## Honest scoping
+
+This atom audits a **declared** code-review record — it does
+not read a diff, open a repository, run CI, verify that a
+declared value is true, or judge the underlying code. The
+artifact declares its own size, checklist coverage, comment
+counts, dispositions and gates, and this core checks only their
+internal consistency and the completeness of the skill's method
+on the declared evidence. An artifact is ready *on the caller's
+declared evidence* even if the underlying code is poor. It is a
+completeness and consistency audit, **not a code review**: it
+never decides whether the code is correct, secure, readable or
+well tested, whether a comment was rightly blocking or a nit,
+or whether the change should actually merge.
+
+**Thresholds declined — named explicitly.** The skill states no
+number for these, so this atom imposes none, and any future
+imposition must land in the skill first:
+
+- **Test-coverage percentage:** the skill requires tests to be
+  checked for coverage and determinism but states no percentage
+  (no 80%, or any other figure, is imposed).
+- **Review turnaround / response time:** no SLA, review-age or
+  time-to-approval limit is imposed — the skill states none.
+- **Comment volume:** no minimum or maximum comment count, no
+  cap on `nit:` comments, and no minimum number of blocking
+  findings is imposed — only that declared comments are all
+  labeled and all answered.
+- **Reviewer seniority or count above one:** no staff/principal
+  reviewer, code-owner, or two-reviewer requirement is imposed
+  beyond the skill's stated at-least-one for non-trivial
+  changes.
+- **Split quality for large PRs:** beyond the skill's stated
+  ~400-line aim, no judgment is made about whether a large
+  change was split *logically* — that is a review judgment over
+  the actual change, which this atom never sees.
+- **Screenshot count or form for UI changes:** only the declared
+  presence is checked; no number, format or before/after pairing
+  is imposed.
+- **CI specifics:** no required CI duration, flake rate, job
+  list or pipeline shape is imposed — only the declared
+  green-before-approval gate.
+- **Finding severity thresholds:** no per-severity finding
+  counts (critical/high/medium/low) are declared or judged —
+  the skill's vocabulary is its `must:`/`nit:`/`q:` labels, and
+  only their declared coverage is checked.
+
+Named exclusions: no reading or reviewing of actual code or
+diffs; no verification of any declared line count, comment,
+approval or CI result; no correctness, security, readability or
+test-quality judgment; no merge, approval or force-push action
+on any repository.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "checklist": {
+        "correctness_edge_cases_checked": true,
+        "covered_items": [
+          "correctness",
+          "security",
+          "tests",
+          "readability",
+          "docs"
+        ],
+        "readability_names_and_structure_checked": true,
+        "security_inputs_secrets_dependencies_checked": true,
+        "tests_coverage_and_determinism_checked": true
+      },
+      "entity": "PR-123",
+      "feedback": {
+        "labeled_comments": 2,
+        "labels_use_must_nit_q_scheme": true,
+        "proposes_not_dictates": true,
+        "total_comments": 2,
+        "why_explained": true
+      },
+      "gates": {
+        "approver_would_ship": true,
+        "behavior_changing": true,
+        "change_nontrivial": true,
+        "ci_green_before_approval": true,
+        "docs_and_changelog_updated": true,
+        "reviewer_count": 1,
+        "reviewer_sign_off_recorded": true,
+        "unresolved_comments": 0
+      },
+      "merge": {
+        "emergency_hotfix": false,
+        "hotfix_post_review_completed": true,
+        "self_merged_unreviewed": false
+      },
+      "pr": {
+        "changed_lines": 300,
+        "description_how_to_test_present": true,
+        "description_what_present": true,
+        "description_why_present": true,
+        "screenshots_included_for_ui_changes": true,
+        "spec_or_issue_linked": true
+      },
+      "red_lines": {
+        "force_push_over_review_without_telling": false,
+        "rubber_stamped": false,
+        "unexplained_blocking": false
+      },
+      "resolution": {
+        "answered_comments": 2,
+        "resolved_nits_not_relitigated": true,
+        "resolved_only_when_addressed": true,
+        "total_comments": 2
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "code-review-service",
+      "atom_version": "0.1.0",
+      "entity": "PR-123",
+      "verdict": "CODE_REVIEW_READY",
+      "sections": {
+        "pr_size_and_description": "pass",
+        "review_checklist": "pass",
+        "feedback_etiquette": "pass",
+        "response_and_resolution": "pass",
+        "approval_gates": "pass",
+        "red_lines_and_merge_discipline": "pass"
+      },
+      "checks": [
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_size_within_stated_aim",
+          "status": "pass",
+          "evidence": "method step 1: the declared changed-line count is at or under the aim the skill names \u2014 keep PRs small (aim <= ~400 changed lines)"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_description_what_present",
+          "status": "pass",
+          "evidence": "method step 2: the PR description states what changed"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_description_why_present",
+          "status": "pass",
+          "evidence": "method step 2: the PR description states why the change was made"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_description_how_to_test_present",
+          "status": "pass",
+          "evidence": "method step 2: the PR description states how-to-test"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "spec_or_issue_linked",
+          "status": "pass",
+          "evidence": "method step 2: the PR description links the spec or issue"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "screenshots_included_for_ui_changes",
+          "status": "pass",
+          "evidence": "method step 2: screenshots are included for UI changes"
+        },
+        {
+          "section": "review_checklist",
+          "check": "checklist_items_cover_stated_checklist",
+          "status": "pass",
+          "evidence": "method step 3: the declared covered checklist items cover every category the skill names \u2014 correctness, security, tests, readability, docs"
+        },
+        {
+          "section": "review_checklist",
+          "check": "correctness_edge_cases_checked",
+          "status": "pass",
+          "evidence": "method step 3: correctness is checked \u2014 logic, edge cases"
+        },
+        {
+          "section": "review_checklist",
+          "check": "security_inputs_secrets_dependencies_checked",
+          "status": "pass",
+          "evidence": "method step 3: security is checked \u2014 inputs, secrets, dependencies"
+        },
+        {
+          "section": "review_checklist",
+          "check": "tests_coverage_and_determinism_checked",
+          "status": "pass",
+          "evidence": "method step 3: tests are checked \u2014 coverage, determinism"
+        },
+        {
+          "section": "review_checklist",
+          "check": "readability_names_and_structure_checked",
+          "status": "pass",
+          "evidence": "method step 3: readability is checked \u2014 names, structure"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "feedback_comments_all_labeled",
+          "status": "pass",
+          "evidence": "method step 4: the declared labeled-comment count equals the declared total comment count \u2014 every comment carries a must:/nit:/q: label"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "labels_use_must_nit_q_scheme",
+          "status": "pass",
+          "evidence": "method step 4: comments are labeled must: (blocking), nit: (non-blocking), q: (question)"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "feedback_why_explained",
+          "status": "pass",
+          "evidence": "method step 4: feedback explains the why"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "feedback_proposes_not_dictates",
+          "status": "pass",
+          "evidence": "method step 4: feedback proposes, it does not dictate"
+        },
+        {
+          "section": "response_and_resolution",
+          "check": "authors_answer_every_comment",
+          "status": "pass",
+          "evidence": "method step 5: the declared answered-comment count equals the declared total comment count \u2014 authors answer every comment"
+        },
+        {
+          "section": "response_and_resolution",
+          "check": "comments_resolved_only_when_addressed",
+          "status": "pass",
+          "evidence": "method step 5: comments are resolved only when addressed"
+        },
+        {
+          "section": "response_and_resolution",
+          "check": "resolved_nits_not_relitigated",
+          "status": "pass",
+          "evidence": "method step 5: resolved nits are never re-litigated"
+        },
+        {
+          "section": "approval_gates",
+          "check": "ci_green_before_approval",
+          "status": "pass",
+          "evidence": "quality gate: CI is green before approval \u2014 red means no merge"
+        },
+        {
+          "section": "approval_gates",
+          "check": "at_least_one_reviewer_for_nontrivial_change",
+          "status": "pass",
+          "evidence": "quality gate: a non-trivial change has at least one reviewer (a declared trivial change is not held to this gate by the skill)"
+        },
+        {
+          "section": "approval_gates",
+          "check": "reviewer_sign_off_recorded",
+          "status": "pass",
+          "evidence": "method step 6: reviewer sign-off is recorded before approval"
+        },
+        {
+          "section": "approval_gates",
+          "check": "no_unresolved_comments_before_approval",
+          "status": "pass",
+          "evidence": "method step 6: the declared unresolved-comment count at approval is zero \u2014 approval gates require resolved comments"
+        },
+        {
+          "section": "approval_gates",
+          "check": "docs_and_changelog_updated_for_behavior_changing_change",
+          "status": "pass",
+          "evidence": "quality gate: a behavior-changing PR updates docs + changelog (a declared non-behavior-changing change is not held to this gate by the skill)"
+        },
+        {
+          "section": "approval_gates",
+          "check": "approver_would_ship",
+          "status": "pass",
+          "evidence": "method step 6: the approver approves only what they would ship"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_force_push_over_review_without_telling",
+          "status": "pass",
+          "evidence": "red line: no force-push over someone else's review without telling them"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_rubber_stamping",
+          "status": "pass",
+          "evidence": "red line: no rubber-stamping"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_unexplained_blocking",
+          "status": "pass",
+          "evidence": "red line: no unexplained blocking"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_self_merged_unreviewed_work",
+          "status": "pass",
+          "evidence": "when to use: no self-merged unreviewed work \u2014 every change is reviewed before merge"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "emergency_hotfix_post_reviewed_if_applicable",
+          "status": "pass",
+          "evidence": "when to use: an emergency hotfix gets post-review (a declared non-hotfix is not held to this gate by the skill)"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "computed_changed_lines": "300.000000",
+      "changed_lines_over_stated_aim": "-100.000000",
+      "checklist_items_not_covered": [],
+      "labeled_comment_difference": "0.000000",
+      "answered_comment_difference": "0.000000",
+      "computed_reviewer_count": "1.000000",
+      "computed_unresolved_comments": "0.000000",
+      "summary": "29 pass, 0 fail, 0 missing of 29 checks across six sections.",
+      "stamp": "CODE REVIEW\nentity: PR-123\nVERDICT: CODE_REVIEW_READY\n  pr_size_and_description      pass\n  review_checklist             pass\n  feedback_etiquette           pass\n  response_and_resolution      pass\n  approval_gates               pass\n  red_lines_and_merge_discipline pass\n29 pass, 0 fail, 0 missing of 29 checks across six sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "checklist": {
+        "correctness_edge_cases_checked": true,
+        "covered_items": [
+          "correctness"
+        ],
+        "readability_names_and_structure_checked": true,
+        "security_inputs_secrets_dependencies_checked": true,
+        "tests_coverage_and_determinism_checked": true
+      },
+      "entity": "PR-124",
+      "feedback": {
+        "labeled_comments": 3,
+        "labels_use_must_nit_q_scheme": true,
+        "proposes_not_dictates": true,
+        "total_comments": 5,
+        "why_explained": true
+      },
+      "gates": {
+        "approver_would_ship": true,
+        "behavior_changing": true,
+        "change_nontrivial": true,
+        "ci_green_before_approval": true,
+        "docs_and_changelog_updated": true,
+        "reviewer_count": 0,
+        "reviewer_sign_off_recorded": true,
+        "unresolved_comments": 2
+      },
+      "merge": {
+        "emergency_hotfix": false,
+        "hotfix_post_review_completed": false,
+        "self_merged_unreviewed": true
+      },
+      "pr": {
+        "changed_lines": 500,
+        "description_how_to_test_present": true,
+        "description_what_present": true,
+        "description_why_present": true,
+        "screenshots_included_for_ui_changes": true,
+        "spec_or_issue_linked": true
+      },
+      "red_lines": {
+        "force_push_over_review_without_telling": true,
+        "rubber_stamped": false,
+        "unexplained_blocking": false
+      },
+      "resolution": {
+        "answered_comments": 2,
+        "resolved_nits_not_relitigated": true,
+        "resolved_only_when_addressed": true,
+        "total_comments": 5
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "code-review-service",
+      "atom_version": "0.1.0",
+      "entity": "PR-124",
+      "verdict": "CODE_REVIEW_NOT_READY",
+      "sections": {
+        "pr_size_and_description": "fail",
+        "review_checklist": "fail",
+        "feedback_etiquette": "fail",
+        "response_and_resolution": "fail",
+        "approval_gates": "fail",
+        "red_lines_and_merge_discipline": "fail"
+      },
+      "checks": [
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_size_within_stated_aim",
+          "status": "fail",
+          "evidence": "method step 1: the declared changed-line count is at or under the aim the skill names \u2014 keep PRs small (aim <= ~400 changed lines)"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_description_what_present",
+          "status": "pass",
+          "evidence": "method step 2: the PR description states what changed"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_description_why_present",
+          "status": "pass",
+          "evidence": "method step 2: the PR description states why the change was made"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "pr_description_how_to_test_present",
+          "status": "pass",
+          "evidence": "method step 2: the PR description states how-to-test"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "spec_or_issue_linked",
+          "status": "pass",
+          "evidence": "method step 2: the PR description links the spec or issue"
+        },
+        {
+          "section": "pr_size_and_description",
+          "check": "screenshots_included_for_ui_changes",
+          "status": "pass",
+          "evidence": "method step 2: screenshots are included for UI changes"
+        },
+        {
+          "section": "review_checklist",
+          "check": "checklist_items_cover_stated_checklist",
+          "status": "fail",
+          "evidence": "method step 3: the declared covered checklist items cover every category the skill names \u2014 correctness, security, tests, readability, docs"
+        },
+        {
+          "section": "review_checklist",
+          "check": "correctness_edge_cases_checked",
+          "status": "pass",
+          "evidence": "method step 3: correctness is checked \u2014 logic, edge cases"
+        },
+        {
+          "section": "review_checklist",
+          "check": "security_inputs_secrets_dependencies_checked",
+          "status": "pass",
+          "evidence": "method step 3: security is checked \u2014 inputs, secrets, dependencies"
+        },
+        {
+          "section": "review_checklist",
+          "check": "tests_coverage_and_determinism_checked",
+          "status": "pass",
+          "evidence": "method step 3: tests are checked \u2014 coverage, determinism"
+        },
+        {
+          "section": "review_checklist",
+          "check": "readability_names_and_structure_checked",
+          "status": "pass",
+          "evidence": "method step 3: readability is checked \u2014 names, structure"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "feedback_comments_all_labeled",
+          "status": "fail",
+          "evidence": "method step 4: the declared labeled-comment count equals the declared total comment count \u2014 every comment carries a must:/nit:/q: label"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "labels_use_must_nit_q_scheme",
+          "status": "pass",
+          "evidence": "method step 4: comments are labeled must: (blocking), nit: (non-blocking), q: (question)"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "feedback_why_explained",
+          "status": "pass",
+          "evidence": "method step 4: feedback explains the why"
+        },
+        {
+          "section": "feedback_etiquette",
+          "check": "feedback_proposes_not_dictates",
+          "status": "pass",
+          "evidence": "method step 4: feedback proposes, it does not dictate"
+        },
+        {
+          "section": "response_and_resolution",
+          "check": "authors_answer_every_comment",
+          "status": "fail",
+          "evidence": "method step 5: the declared answered-comment count equals the declared total comment count \u2014 authors answer every comment"
+        },
+        {
+          "section": "response_and_resolution",
+          "check": "comments_resolved_only_when_addressed",
+          "status": "pass",
+          "evidence": "method step 5: comments are resolved only when addressed"
+        },
+        {
+          "section": "response_and_resolution",
+          "check": "resolved_nits_not_relitigated",
+          "status": "pass",
+          "evidence": "method step 5: resolved nits are never re-litigated"
+        },
+        {
+          "section": "approval_gates",
+          "check": "ci_green_before_approval",
+          "status": "pass",
+          "evidence": "quality gate: CI is green before approval \u2014 red means no merge"
+        },
+        {
+          "section": "approval_gates",
+          "check": "at_least_one_reviewer_for_nontrivial_change",
+          "status": "fail",
+          "evidence": "quality gate: a non-trivial change has at least one reviewer (a declared trivial change is not held to this gate by the skill)"
+        },
+        {
+          "section": "approval_gates",
+          "check": "reviewer_sign_off_recorded",
+          "status": "pass",
+          "evidence": "method step 6: reviewer sign-off is recorded before approval"
+        },
+        {
+          "section": "approval_gates",
+          "check": "no_unresolved_comments_before_approval",
+          "status": "fail",
+          "evidence": "method step 6: the declared unresolved-comment count at approval is zero \u2014 approval gates require resolved comments"
+        },
+        {
+          "section": "approval_gates",
+          "check": "docs_and_changelog_updated_for_behavior_changing_change",
+          "status": "pass",
+          "evidence": "quality gate: a behavior-changing PR updates docs + changelog (a declared non-behavior-changing change is not held to this gate by the skill)"
+        },
+        {
+          "section": "approval_gates",
+          "check": "approver_would_ship",
+          "status": "pass",
+          "evidence": "method step 6: the approver approves only what they would ship"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_force_push_over_review_without_telling",
+          "status": "fail",
+          "evidence": "red line: no force-push over someone else's review without telling them"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_rubber_stamping",
+          "status": "pass",
+          "evidence": "red line: no rubber-stamping"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_unexplained_blocking",
+          "status": "pass",
+          "evidence": "red line: no unexplained blocking"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "no_self_merged_unreviewed_work",
+          "status": "fail",
+          "evidence": "when to use: no self-merged unreviewed work \u2014 every change is reviewed before merge"
+        },
+        {
+          "section": "red_lines_and_merge_discipline",
+          "check": "emergency_hotfix_post_reviewed_if_applicable",
+          "status": "pass",
+          "evidence": "when to use: an emergency hotfix gets post-review (a declared non-hotfix is not held to this gate by the skill)"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "computed_changed_lines": "500.000000",
+      "changed_lines_over_stated_aim": "100.000000",
+      "checklist_items_not_covered": [
+        "security",
+        "tests",
+        "readability",
+        "docs"
+      ],
+      "labeled_comment_difference": "-2.000000",
+      "answered_comment_difference": "-3.000000",
+      "computed_reviewer_count": "0.000000",
+      "computed_unresolved_comments": "2.000000",
+      "summary": "21 pass, 8 fail, 0 missing of 29 checks across six sections.",
+      "stamp": "CODE REVIEW\nentity: PR-124\nVERDICT: CODE_REVIEW_NOT_READY\n  pr_size_and_description      fail\n  review_checklist             fail\n  feedback_etiquette           fail\n  response_and_resolution      fail\n  approval_gates               fail\n  red_lines_and_merge_discipline fail\n21 pass, 8 fail, 0 missing of 29 checks across six sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

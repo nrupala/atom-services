@@ -1,0 +1,233 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: agentic-coding-practice
+
+=== contract.yaml ===
+service_name: agentic-coding-practice
+display_name: Agentic coding practice
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:agentic-coding
+binding:
+  skill: agentic-coding
+  skill_path: workspace/mymilo-build/skills/agentic-coding/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/agentic_coding_practice.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_agentic_coding_practice.py — 36 tests, all passing 2026-11-15
+keys:
+  namespace: agentic_coding_practice
+  prefix: atm_1_agentic_coding_practice_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: tokens
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Coding agent build workflows
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Agentic coding practice — `agentic-coding-practice`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Agentic coding — gets reliable work out of coding agents: tight specs, fast feedback loops, and guardrails so automated coding helps instead of creating chaos.
+
+A caller submits a declared agentic-coding practice manifest and receives one verdict back: is this declared practice reliable, on the skill's own disciplines? One unit of sale = tokens.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Coding agent build workflows**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the agentic-coding practice manifest
+
+The caller submits one JSON manifest: a declared agentic-coding
+setup / workflow. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`NOT_RELIABLE_PRACTICE`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `practice` (string; carried into the verdict output, not itself checked) | — |
+| `spec.spec_written_first` | spec_and_slicing |
+| `spec.small_vertical_slices` | spec_and_slicing |
+| `spec.diffs_reviewed` | spec_and_slicing |
+| `hooks.wired_as_guardrails` | hooks_and_events |
+| `hooks.events_and_payloads_known` | hooks_and_events |
+| `hooks.protected_paths_blocked` | hooks_and_events |
+| `hooks.formatters_auto_run` | hooks_and_events |
+| `hooks.secrets_denied` | hooks_and_events |
+| `feedback.tests_run_after_edit` | feedback_loop |
+| `feedback.tests_wired_into_hooks` | feedback_loop |
+| `feedback.linters_wired_into_hooks` | feedback_loop |
+| `guardrails.protected_paths_declared` | guardrails |
+| `guardrails.no_secrets` | guardrails |
+| `guardrails.docker_used` (must be `false` to pass — skill house rule: no Docker) | guardrails |
+| `guardrails.staging_first` | guardrails |
+| `guardrails.human_in_loop_on_irreversible` | guardrails |
+| `guardrails.autonomous_only_safe_reversible` | guardrails |
+| `guardrails.agent_run_unbounded` (must be `false` to pass — skill anti-pattern) | guardrails |
+| `context.only_what_agent_needs` | context_and_tools |
+| `context.whole_repo_dumped` (must be `false` to pass — skill anti-pattern) | context_and_tools |
+| `context.files_pulled_into_workspace` | context_and_tools |
+| `tools.mcp_tools_typed` | context_and_tools |
+| `tools.mcp_tools_narrowly_scoped` | context_and_tools |
+| `delegation.subagent_tasks_bounded` | delegation_and_access |
+| `delegation.subagent_context_narrow` | delegation_and_access |
+| `delegation.planner_worker_reviewer_pattern` | delegation_and_access |
+| `access.broad_write_access` (gates the guardrails check below) | delegation_and_access |
+| `access.guardrails_present` (required when broad write access is declared; otherwise the check passes as not applicable) | delegation_and_access |
+
+One check is conditional, following the skill's anti-pattern
+wording exactly: the skill refuses "agents with broad write
+access **and zero guardrails**" — broad write access on its own
+is not the failure. When `access.broad_write_access` is declared
+true, `access.guardrails_present` must be declared true; when no
+broad write access is declared, the check passes as not
+applicable.
+
+No check is computed from a numeric value: the skill states no
+numeric threshold, limit, count, or closed vocabulary (its hook
+lifecycle list is open — "PreToolUse, PostToolUse, etc."), so
+none is invented. Every check is a declared boolean read against
+a statement the skill itself makes.
+
+The verdict is one of `RELIABLE_PRACTICE` (all 27 checks pass),
+`NOT_RELIABLE_PRACTICE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: spec_and_slicing, hooks_and_events,
+feedback_loop, guardrails, context_and_tools,
+delegation_and_access.
+
+Two pairs of checks cover the same skill ground twice, stated
+plainly: protected paths appear both as a hooks action
+(`hooks.protected_paths_blocked` — hooks "block edits to
+protected paths") and as a guardrail declaration
+(`guardrails.protected_paths_declared` — guardrails list
+"protected paths"); secrets appear both as a hooks action
+(`hooks.secrets_denied` — hooks "deny secrets") and as a
+guardrail (`guardrails.no_secrets` — guardrails list "no
+secrets"). That is the skill stating the same ground in its
+building-blocks list and its disciplines list, not two different
+findings. Likewise tests appear as a timing check
+(`feedback.tests_run_after_edit` — hooks "run tests after every
+edit") and as a loop-wiring check
+(`feedback.tests_wired_into_hooks` — "tests + linters wired into
+hooks").
+
+## Honest scoping
+
+This atom evaluates **declared** evidence about a coding-agent
+practice — it does not inspect a repository, read hook
+configurations, watch an agent run, review actual diffs, or
+verify that a declared practice is actually followed. A practice
+is reliable *on the caller's declared evidence*: a workflow that
+declares spec-first, hook-wired tests, and no Docker passes those
+checks even if the real workflow does something else.
+
+Named exclusions: it does not write a spec for a feature (the
+skill's example ask — generative authorship, not a checkable
+manifest), does not judge spec quality, diff quality, or code
+quality, does not name which files belong in context, and does
+not score or rank practices. The skill's named multi-agent
+examples (LocalForge's Planner -> Writer -> Reviewer -> Tester,
+the argent WASM sandbox) are examples, not requirements, so no
+check requires them; the one orchestration check reads the
+skill's general planner -> worker -> reviewer pattern. No
+threshold is checked for how small a slice is, how narrow a
+context is, or how long a bounded run may be — the skill states
+none.
+
+## Pricing
+
+Pricing unit: **tokens**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

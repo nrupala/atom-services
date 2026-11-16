@@ -1,0 +1,145 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "system": "production-auth-service",
+        "evaluation": {
+          "claim_stated": true,
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "not_certification_acknowledged": true
+        },
+        "gauntlet": {
+          "authentication_point_identified": true,
+          "session_trusted_indefinitely": false,
+          "master_secret_leaves_client": false,
+          "server_sees_only_encrypted_data": true,
+          "server_breach_exposes_user_data": false
+        },
+        "identity": {
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "cryptography": {
+          "password_kdf": "argon2id",
+          "minimum_secret_length_chars": 16,
+          "claims_nist_alignment": true,
+          "nist_controls_named": true
+        },
+        "findings": {
+          "least_privilege_evaluated": true,
+          "credential_exceeds_job": false,
+          "blast_radius_bounded": true,
+          "flat_network": false,
+          "trust_rechecked_after_login": true
+        },
+        "inventory": {
+          "trusted_components_inventoried": true,
+          "backdoors_present": false,
+          "convenience_decisions_surfaced": true,
+          "internal_network_trusted": false
+        },
+        "limits": {
+          "compromised_endpoint_limit_acknowledged": true,
+          "usability_tradeoff_stated": true,
+          "design_claims_only_acknowledged": true
+        }
+      },
+      "expect": {
+        "outcome": "CLAIM_SUSTAINED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean constraints met, KDF is argon2id, secret length is 16. computed_spot_checks: secret_length_margin_chars = 0.0000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "system": "flawed-service",
+        "evaluation": {
+          "claim_stated": true,
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "not_certification_acknowledged": true
+        },
+        "gauntlet": {
+          "authentication_point_identified": true,
+          "session_trusted_indefinitely": true,
+          "master_secret_leaves_client": false,
+          "server_sees_only_encrypted_data": true,
+          "server_breach_exposes_user_data": false
+        },
+        "identity": {
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "cryptography": {
+          "password_kdf": "sha256",
+          "minimum_secret_length_chars": 8,
+          "claims_nist_alignment": false
+        },
+        "findings": {
+          "least_privilege_evaluated": true,
+          "credential_exceeds_job": true,
+          "blast_radius_bounded": true,
+          "flat_network": true,
+          "trust_rechecked_after_login": true
+        },
+        "inventory": {
+          "trusted_components_inventoried": true,
+          "backdoors_present": false,
+          "convenience_decisions_surfaced": true,
+          "internal_network_trusted": true
+        },
+        "limits": {
+          "compromised_endpoint_limit_acknowledged": true,
+          "usability_tradeoff_stated": true,
+          "design_claims_only_acknowledged": true
+        }
+      },
+      "expect": {
+        "outcome": "CLAIM_NOT_SUSTAINED",
+        "http": 200,
+        "failing_checks": [
+          "gauntlet.session_trusted_indefinitely",
+          "cryptography.password_kdf",
+          "cryptography.minimum_secret_length_chars",
+          "findings.credential_exceeds_job",
+          "findings.flat_network",
+          "inventory.internal_network_trusted"
+        ],
+        "notes": "Multiple red-line violations triggered."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "system": "minimal-test"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of fields results in insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "system": "malformed-test",
+        "evaluation": "not-an-object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for evaluation field triggers 422."
+      }
+    }
+  ]
+}

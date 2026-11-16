@@ -1,0 +1,120 @@
+# Independent recompute — c-engineering-review
+
+## What SERVICE.md marks as computed
+
+Two checks are computed from declared values, plus derived headline values:
+
+1. **Zero warnings** — passes iff `warnings.warning_count == 0` (the skill's one stated number). Absent/non-number → missing evidence. Output `warning_count` = declared count, or `null`.
+2. **Banned calls** — passes iff `bounds.banned_calls` contains none of `{gets, strcpy, sprintf, unchecked_scanf}`. Missing list → missing evidence; empty list → present, passes. Output `banned_calls_found` = stated entries found, in skill's stated order, or `null` if no list.
+3. **`computed_status`** — `within_stated_limits_on_declared_evidence` if both computed checks pass; `outside_...` if either fails; `null` if either cannot be completed.
+4. **`verdict`** — `REVIEW_SOUND` (all 30 pass), `REVIEW_DEFICIENT` (any fail), `INSUFFICIENT_EVIDENCE` (none fail, some missing).
+5. **`summary`** — counts of pass/fail/missing over 30 checks.
+
+The 30 checks = 5 (memory) + 6 (UB) + 2 (warnings) + 4 (bounds) + 7 (sanitizers) + 3 (portability) + 3 (build_and_test). Let me verify: 5+6=11, +2=13, +4=17, +7=24, +3=27, +3=30. ✓
+
+---
+
+## Case 1: `full-pass`
+
+### Zero warnings
+- Declared `warnings.warning_count = 0`.
+- Rule: pass iff count == 0. `0 == 0` → **pass**.
+- Artifact `warning_count`: `0`. **MATCH**.
+- Artifact check `zero_warnings_maintained`: `pass`. **MATCH**.
+
+### Banned calls
+- Declared `bounds.banned_calls = []` (present, empty).
+- Rule: empty list is present and passes; found set = ∅.
+- Artifact `banned_calls_found`: `[]`. **MATCH**.
+- Artifact check `no_banned_functions_present`: `pass`. **MATCH**.
+
+### computed_status
+- Both computed checks pass → `within_stated_limits_on_declared_evidence`.
+- Artifact: `within_stated_limits_on_declared_evidence`. **MATCH**.
+
+### Per-check tally (all 30 declared booleans)
+- memory: 5 true → 5 pass.
+- UB: 5 true + `ub_shortcuts_used=false` (passes, since must be false) → 6 pass.
+- warnings: `warnings_treated_as_errors=true` pass; zero-warnings pass → 2 pass.
+- bounds: `sized_apis_used=true`, `lengths_validated_at_boundaries=true`, `unbounded_operations_in_diff=false` (passes), banned empty (pass) → 4 pass.
+- sanitizers: 7 true → 7 pass.
+- portability: 3 true → 3 pass.
+- build_and_test: 3 true → 3 pass.
+- Total: 5+6+2+4+7+3+3 = **30 pass, 0 fail, 0 missing**.
+
+### verdict & summary
+- All 30 pass → `REVIEW_SOUND`. Artifact: `REVIEW_SOUND`. **MATCH**.
+- Summary: "30 pass, 0 fail, 0 missing of 30 checks". **MATCH**.
+- All 7 sections `pass`. **MATCH**.
+
+---
+
+## Case 2: `violations`
+
+### Zero warnings
+- Declared `warnings.warning_count = 5`.
+- Rule: pass iff == 0. `5 ≠ 0` → **fail**.
+- Artifact `warning_count`: `5`. **MATCH**.
+- Artifact check `zero_warnings_maintained`: `fail`. **MATCH**.
+
+### Banned calls
+- Declared `bounds.banned_calls = ["strcpy"]`.
+- Rule: check each entry against `{gets, strcpy, sprintf, unchecked_scanf}`. `"strcpy"` ∈ set → found.
+- Found set in skill's stated order: `["strcpy"]`.
+- Artifact `banned_calls_found`: `["strcpy"]`. **MATCH**.
+- Artifact check `no_banned_functions_present`: `fail`. **MATCH**.
+
+### computed_status
+- Zero-warnings fails AND banned-calls fails → `outside_stated_limits_on_declared_evidence`.
+- Artifact: `outside_stated_limits_on_declared_evidence`. **MATCH**.
+
+### Per-check tally — confirm the failing checks are exactly the planted ones
+Planted wrong values in this case:
+- `undefined_behavior.ub_shortcuts_used = true` (must be false) → check `no_ub_shortcuts` **fail**.
+- `warnings.warning_count = 5` (≠0) → `zero_warnings_maintained` **fail**.
+- `bounds.unbounded_operations_in_diff = true` (must be false) → `no_unbounded_operations_in_diff` **fail**.
+- `bounds.banned_calls = ["strcpy"]` → `no_banned_functions_present` **fail**.
+
+Everything else is true/false in the passing direction:
+- memory: 5 true → 5 pass.
+- UB: 5 true + `ub_shortcuts_used=true` → 5 pass, 1 fail.
+- warnings: `warnings_treated_as_errors=true` pass; zero-warnings fail → 1 pass, 1 fail.
+- bounds: `sized_apis_used=true`, `lengths_validated_at_boundaries=true` pass; `unbounded_operations_in_diff=true` fail; banned `["strcpy"]` fail → 2 pass, 2 fail.
+- sanitizers: 7 true → 7 pass.
+- portability: 3 true → 3 pass.
+- build_and_test: 3 true → 3 pass.
+
+Totals: pass = 5+5+1+2+7+3+3 = **26**; fail = 0+1+1+2+0+0+0 = **4**; missing = 0. Total 30. ✓
+
+Failing checks: `no_ub_shortcuts`, `zero_warnings_maintained`, `no_unbounded_operations_in_diff`, `no_banned_functions_present` — **exactly the four planted wrong values**. No spurious failures, no missed failures. **MATCH**.
+
+### verdict & summary
+- Any fail → `REVIEW_DEFICIENT`. Artifact: `REVIEW_DEFICIENT`. **MATCH**.
+- Summary: "26 pass, 4 fail, 0 missing of 30 checks". **MATCH**.
+- Sections: memory pass, UB fail, warnings fail, bounds fail, sanitizers pass, portability pass, build_and_test pass. **MATCH** (each section fails iff it contains a failing check).
+
+---
+
+## Summary table
+
+| Quantity | Case | Recomputed | Artifact | Status |
+|---|---|---|---|---|
+| `warning_count` | full-pass | 0 | 0 | MATCH |
+| `warning_count` | violations | 5 | 5 | MATCH |
+| `banned_calls_found` | full-pass | [] | [] | MATCH |
+| `banned_calls_found` | violations | ["strcpy"] | ["strcpy"] | MATCH |
+| zero-warnings check | full-pass | pass | pass | MATCH |
+| zero-warnings check | violations | fail | fail | MATCH |
+| banned-calls check | full-pass | pass | pass | MATCH |
+| banned-calls check | violations | fail | fail | MATCH |
+| `computed_status` | full-pass | within | within | MATCH |
+| `computed_status` | violations | outside | outside | MATCH |
+| `verdict` | full-pass | REVIEW_SOUND | REVIEW_SOUND | MATCH |
+| `verdict` | violations | REVIEW_DEFICIENT | REVIEW_DEFICIENT | MATCH |
+| pass/fail/missing | full-pass | 30/0/0 | 30/0/0 | MATCH |
+| pass/fail/missing | violations | 26/4/0 | 26/4/0 | MATCH |
+| failing-check set | violations | {no_ub_shortcuts, zero_warnings, no_unbounded_ops, no_banned_fns} | same 4 | MATCH |
+
+All computed quantities and headline values recompute exactly from the recorded inputs under the stated rules. The violations case's four failures are precisely the four planted wrong values.
+
+AGREEMENT: full

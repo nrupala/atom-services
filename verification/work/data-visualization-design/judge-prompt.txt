@@ -1,0 +1,1342 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: data-visualization-design
+
+=== contract.yaml ===
+service_name: data-visualization-design
+display_name: Data visualization design
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:data-visualization
+binding:
+  skill: data-visualization
+  skill_path: workspace/mymilo-build/skills/data-visualization/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: data_visualization_design
+  prefix: atm_1_data_visualization_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Report chart production
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Data visualization design — `data-visualization-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Say it with charts — right chart for the job, honest axes, accessible color, annotation that explains.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Report chart production**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the data-visualization-design manifest
+
+This atom does not render a chart, draw a graph, read any
+actual data, or exercise any aesthetic judgment of its own. The
+caller submits one JSON manifest declaring a visualization
+design record — its audience and question, its declared chart
+rows (question type, chart type, axis labels and units, axis
+start, and sorting / dual-axis / truncation / 3D / red-green /
+category-count declarations), its honesty record, and its
+perception, colour, annotation, accessibility, dashboard and
+reproducibility declarations — and the atom validates that
+record deterministically. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid
+= the check fails (`DATA_VISUALIZATION_DESIGN_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `brief.audience` (string; must be non-empty to pass — the declared audience) | question_and_chart_choice |
+| `brief.question` (string; must be non-empty to pass — the declared question the charts answer) | question_and_chart_choice |
+| `charts` (list of chart entries; absent / not a list / empty = all ten computed chart checks missing) | question_and_chart_choice, honesty_and_axes, perception_and_chart_junk, color, annotation_and_labels |
+| `charts[].name` (string; must be non-empty for the entry to be complete) | question_and_chart_choice |
+| `charts[].question_type` (string; must be non-empty for the entry to be complete, and one of the stated question types to pass the mapping check — see below) | question_and_chart_choice |
+| `charts[].chart_type` (string; must be non-empty for the entry to be complete, and the type the skill maps the question type to, to pass the mapping check — see below) | question_and_chart_choice |
+| `charts[].x_axis_label` (string; must be non-empty for the entry to be complete) | annotation_and_labels |
+| `charts[].y_axis_label` (string; must be non-empty for the entry to be complete) | annotation_and_labels |
+| `charts[].y_axis_unit` (string; must be non-empty for the entry to be complete) | annotation_and_labels |
+| `charts[].y_axis_start` (number; computed, see below) | honesty_and_axes |
+| `charts[].categories_count` (number; computed, see below) | color |
+| `charts[].bars_sorted` (boolean; must be present for the entry to be complete; computed, see below) | question_and_chart_choice |
+| `charts[].dual_axis` (boolean; must be present for the entry to be complete; computed, see below) | honesty_and_axes |
+| `charts[].axis_truncated` (boolean; must be present for the entry to be complete; computed, see below) | honesty_and_axes |
+| `charts[].truncated_flagged_loudly` (boolean; must be present for the entry to be complete; computed, see below) | honesty_and_axes |
+| `charts[].uses_3d` (boolean; must be present for the entry to be complete; computed, see below) | perception_and_chart_junk |
+| `charts[].red_green_only` (boolean; must be present for the entry to be complete; computed, see below) | color |
+| `honesty.consistent_scales_when_comparing_panels` | honesty_and_axes |
+| `honesty.data_source_labeled` | honesty_and_axes |
+| `honesty.data_date_labeled` | honesty_and_axes |
+| `honesty.misleading_axes_or_scales_present` (must be `false` to pass — skill red line) | honesty_and_axes |
+| `perception.primary_encoding_uses_position_or_length` | perception_and_chart_junk |
+| `perception.most_important_element_top_left_or_largest` | perception_and_chart_junk |
+| `perception.gridlines_faint` | perception_and_chart_junk |
+| `perception.chart_junk_minimized` | perception_and_chart_junk |
+| `perception.chart_junk_used_as_branding` (must be `false` to pass — skill red line) | perception_and_chart_junk |
+| `color.palette_colorblind_safe` | color |
+| `color.sequential_palette_for_magnitude` | color |
+| `color.diverging_palette_around_real_midpoint` | color |
+| `annotation.title_states_finding_not_topic` | annotation_and_labels |
+| `annotation.events_and_thresholds_marked` | annotation_and_labels |
+| `annotation.outliers_called_out_directly` | annotation_and_labels |
+| `annotation.key_values_annotated` | annotation_and_labels |
+| `accessibility.legible_sizes` | accessibility |
+| `accessibility.alt_text_or_table_fallback_present` | accessibility |
+| `accessibility.values_readable_without_hover` | accessibility |
+| `accessibility.contrast_sufficient_for_print_and_screen` | accessibility |
+| `dashboard.one_screen_one_story` | dashboards_and_reproducibility |
+| `dashboard.metric_definitions_and_owners_declared` | dashboards_and_reproducibility |
+| `dashboard.refresh_cadence_visible` | dashboards_and_reproducibility |
+| `dashboard.stale_panels_retired` | dashboards_and_reproducibility |
+| `reproducibility.tool_version_and_data_snapshot_recorded` | dashboards_and_reproducibility |
+| `reproducibility.data_reproducible` | dashboards_and_reproducibility |
+
+Ten checks are computed from the declared chart rows, using
+only what the skill itself states plus the arithmetic of the
+declared numbers — no outside threshold is imported:
+
+- **Chart entries:** the entries check passes only when every
+  declared chart entry is complete — non-empty `name`,
+  `question_type`, `chart_type`, `x_axis_label`, `y_axis_label`
+  and `y_axis_unit` strings, numeric `y_axis_start` and
+  `categories_count`, and present `bars_sorted`, `dual_axis`,
+  `axis_truncated`, `truncated_flagged_loudly`, `uses_3d` and
+  `red_green_only` booleans. A missing or empty list is missing
+  evidence; an incomplete entry makes all ten computed chart
+  checks missing (the rows cannot be evaluated). The output
+  reports `charts_evaluated` (the count of complete entries).
+- **Chart type for the question:** the skill's method step 1
+  maps question → chart — comparison → sorted bars; trend →
+  line (time on x); distribution → histogram/box; relationship
+  → scatter; composition → stacked bars (sparingly);
+  part-to-whole over time → small multiples, not pie-animations.
+  The mapping check therefore passes only when every complete
+  entry's declared `chart_type` is the type stated for its
+  declared `question_type` (`bar`, `line`, `histogram` /
+  `box_plot`, `scatter`, `stacked_bar`, `small_multiples`).
+  Entries are validated as strings only, never enum-checked at
+  type level — mapping membership is a verdict check, not a
+  type error. The output reports the names of rows that do not
+  match as `charts_not_matching_question` (null when the rows
+  cannot be evaluated). A separate computed check requires
+  every declared comparison row to declare `bars_sorted` (the
+  skill's "sorted bars"); with no comparison row declared it
+  passes vacuously.
+- **Zero baseline for bars:** the skill's method step 2 and
+  quality gate require the y-axis at zero for bars. The check
+  therefore passes only when every complete bar / stacked-bar
+  row's declared `y_axis_start` is zero. A declared bar chart
+  whose axis does not start at zero is a named failing check.
+  Non-bar rows are not held to zero by this check (their
+  truncation is governed by the flagging check below); with no
+  bar row declared the check passes vacuously.
+- **No dual axes:** method step 2 forbids dual axes implying
+  causation; the check passes only when every complete row
+  declares `dual_axis` false.
+- **Truncated axes flagged loudly:** method step 2 requires a
+  truncated axis to be flagged loudly; the check passes only
+  when every complete row that declares `axis_truncated` true
+  also declares `truncated_flagged_loudly` true.
+- **No 3D / no red-green alone:** method step 3 says no 3D and
+  method step 4 / the quality gate say never red/green alone;
+  the checks pass only when every complete row declares
+  `uses_3d` false and `red_green_only` false respectively.
+- **Category count:** method step 4 states "≤7 categories" —
+  the one numeric limit the skill states. The check passes
+  only when the largest declared `categories_count` across
+  complete rows is at most 7. The output reports
+  `computed_max_categories` and
+  `max_categories_difference_from_limit` (largest count minus
+  7, null when either cannot be computed).
+- **Axis labels and units:** every complete entry carries a
+  non-empty x-axis label, y-axis label and y-axis unit, so
+  this check passes exactly when the entries are complete and
+  is missing when they cannot be evaluated.
+
+**Fixed serialization rule:** computed amounts are reported
+as strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; the bar-zero comparison compares the fixed-6dp
+difference to zero. That fixed serialization is what makes
+the Python and TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the ten computed checks cannot be completed).
+
+The verdict is one of `DATA_VISUALIZATION_DESIGN_SOUND` (all
+38 checks pass), `DATA_VISUALIZATION_DESIGN_NOT_SOUND` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections:
+question_and_chart_choice, honesty_and_axes,
+perception_and_chart_junk, color, annotation_and_labels,
+accessibility, dashboards_and_reproducibility.
+
+## Checks by section
+
+- **question_and_chart_choice** (5): audience declared;
+  question declared; chart entries complete (computed); chart
+  types match the declared questions (computed); comparison
+  charts sorted (computed).
+- **honesty_and_axes** (7): bar charts' y-axis starts at zero
+  (computed); no dual axes in declared charts (computed);
+  truncated axes flagged loudly (computed); consistent scales
+  when comparing panels; data source labeled; data date
+  labeled; misleading axes or scales not present (red line).
+- **perception_and_chart_junk** (6): primary encoding uses
+  position or length; most important element top-left or
+  largest; gridlines faint; no 3D in declared charts
+  (computed); chart-junk minimized; chart-junk not used as
+  branding (red line).
+- **color** (5): palette colorblind-safe; sequential palette
+  for magnitude; diverging palette around a real midpoint; red
+  / green not used alone in declared charts (computed);
+  category counts within the stated limit of 7 (computed).
+- **annotation_and_labels** (5): title states the finding, not
+  the topic; events and thresholds marked; outliers called out
+  directly; key values annotated; axis labels and units
+  complete (computed).
+- **accessibility** (4): legible sizes; alt text or table
+  fallback present; values readable without hover; contrast
+  sufficient for print and screen.
+- **dashboards_and_reproducibility** (6): dashboard one screen
+  = one story; metric definitions and owners declared; refresh
+  cadence visible; stale panels retired; tool version and data
+  snapshot recorded; chart data reproducible (red line).
+
+## Honest scoping
+
+This atom audits a **declared** visualization design record —
+it does not render a chart, read the underlying data, inspect
+a rendered image, or verify that a declared chart exists or
+that a declared value is true. It exercises no judgment of
+its own: the record declares its own audience, question,
+chart rows, encodings, axes, palettes and labels, and this
+core checks only their internal consistency and the
+completeness of the skill's method on the declared evidence.
+A design is sound *on the caller's declared evidence* even if
+its charts are ugly or its data is weak. It is a completeness
+and consistency audit, **not a visualization review**: it
+never decides whether a chart is clear, beautiful or
+persuasive, whether a palette actually is colorblind-safe in
+rendering, whether a title really states a finding, or
+whether the declared values match any real chart.
+
+Named exclusions: no rendering or generation of any chart; no
+reading or analysis of any dataset; no verification of any
+declared chart, axis, palette or annotation against a real
+artifact; no clarity, aesthetics or persuasiveness judgment
+of any visualization.
+
+## Thresholds declined
+
+The skill states no number for these, so none is imposed —
+naming them here instead of inventing one:
+
+- **No category limit beyond the stated one** — the skill
+  states ≤7 categories, and only that limit is enforced; no
+  tighter or looser count is invented.
+- **No minimum chart count** — the skill requires the chart
+  type to match the question, but states no number of charts;
+  only entry completeness and the stated mapping are checked.
+- **No axis-start tolerance** — bar axes must start at exactly
+  the declared zero (compared at the fixed 6dp serialization);
+  no "close enough" epsilon is invented, and no maximum
+  truncation amount is imposed on non-bar axes — only the
+  declared flagging is checked.
+- **No font-size, contrast-ratio or gridline-opacity number**
+  — the skill requires legible sizes, sufficient contrast and
+  faint gridlines, but states no point size, ratio (e.g. a
+  WCAG ratio) or opacity; those qualities are the caller's
+  declarations, never re-measured here.
+- **No freshness or refresh-cadence interval** — the skill
+  requires the refresh cadence to be visible and stale panels
+  retired, but states no interval in hours or days; cadence
+  values are never parsed or aged.
+- **No annotation or label length** — the skill requires a
+  finding title, labels and units, but states no word or
+  character limit for them; only non-emptiness of the declared
+  row labels/units is checked.
+- **No dashboard panel count or screen-size limit** — the
+  skill requires one screen = one story, but states no panel
+  count; only the declaration is checked.
+
+Parts of the skill that could not be reduced to deterministic
+checks over a declared record, and are therefore carried only
+as caller declarations (or not at all): whether a palette is
+in fact colorblind-safe when rendered, whether a title in
+fact states a finding rather than a topic, whether an
+encoding in fact reads as position/length-dominant, and
+whether a dashboard in fact tells one story. The atom checks
+that these are *declared*, never that they are *true in the
+rendering* — judging them would require rendering and
+aesthetic judgment, which this atom does not do.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "data-visualization-design",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DATA_VISUALIZATION_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid; single comparison->bar row, y_axis_start 0, categories 5 (max 5, diff -2.000000), all declarations passing. [Tester correction: designer carried computed quantities only in prose notes with no structured computed_spot_checks; added structured block.]",
+        "computed_spot_checks": {
+          "computed_max_categories": "5.000000",
+          "max_categories_difference_from_limit": "-2.000000",
+          "charts_evaluated": 1,
+          "charts_not_matching_question": [],
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "entity": "Q3_Sales_Report",
+        "brief": {
+          "audience": "Executive Board",
+          "question": "How did regional sales perform in Q3?"
+        },
+        "charts": [
+          {
+            "name": "Regional Sales",
+            "question_type": "comparison",
+            "chart_type": "bar",
+            "x_axis_label": "Region",
+            "y_axis_label": "Revenue",
+            "y_axis_unit": "USD",
+            "y_axis_start": 0.0,
+            "categories_count": 5,
+            "bars_sorted": true,
+            "dual_axis": false,
+            "axis_truncated": false,
+            "truncated_flagged_loudly": false,
+            "uses_3d": false,
+            "red_green_only": false
+          }
+        ],
+        "honesty": {
+          "consistent_scales_when_comparing_panels": true,
+          "data_source_labeled": true,
+          "data_date_labeled": true,
+          "misleading_axes_or_scales_present": false
+        },
+        "perception": {
+          "primary_encoding_uses_position_or_length": true,
+          "most_important_element_top_left_or_largest": true,
+          "gridlines_faint": true,
+          "chart_junk_minimized": true,
+          "chart_junk_used_as_branding": false
+        },
+        "color": {
+          "palette_colorblind_safe": true,
+          "sequential_palette_for_magnitude": true,
+          "diverging_palette_around_real_midpoint": true
+        },
+        "annotation": {
+          "title_states_finding_not_topic": true,
+          "events_and_thresholds_marked": true,
+          "outliers_called_out_directly": true,
+          "key_values_annotated": true
+        },
+        "accessibility": {
+          "legible_sizes": true,
+          "alt_text_or_table_fallback_present": true,
+          "values_readable_without_hover": true,
+          "contrast_sufficient_for_print_and_screen": true
+        },
+        "dashboard": {
+          "one_screen_one_story": true,
+          "metric_definitions_and_owners_declared": true,
+          "refresh_cadence_visible": true,
+          "stale_panels_retired": true
+        },
+        "reproducibility": {
+          "tool_version_and_data_snapshot_recorded": true,
+          "data_reproducible": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-visualization-design",
+        "atom_version": "0.1.0",
+        "entity": "Q3_Sales_Report",
+        "verdict": "DATA_VISUALIZATION_DESIGN_SOUND",
+        "sections": {
+          "question_and_chart_choice": "pass",
+          "honesty_and_axes": "pass",
+          "perception_and_chart_junk": "pass",
+          "color": "pass",
+          "annotation_and_labels": "pass",
+          "accessibility": "pass",
+          "dashboards_and_reproducibility": "pass"
+        },
+        "checks": [
+          {
+            "section": "question_and_chart_choice",
+            "check": "audience_declared",
+            "status": "pass",
+            "evidence": "the design record declares its audience as a non-empty string"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "question_declared",
+            "status": "pass",
+            "evidence": "the design record declares the question it answers as a non-empty string"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "chart_entries_complete",
+            "status": "pass",
+            "evidence": "every chart entry carries a name, question type, chart type, axis labels and unit, axis start, category count, and sorting / dual-axis / truncation / 3D / red-green declarations"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "chart_types_match_declared_questions",
+            "status": "pass",
+            "evidence": "method step 1: every declared chart type is the chart the skill maps its declared question type to \u2014 comparison to bar, trend to line, distribution to histogram/box_plot, relationship to scatter, composition to stacked_bar, part-to-whole over time to small_multiples"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "comparison_charts_sorted",
+            "status": "pass",
+            "evidence": "method step 1: every declared comparison chart declares sorted bars (no comparison chart is declared, so this passes vacuously)"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "bar_charts_y_axis_starts_at_zero",
+            "status": "pass",
+            "evidence": "method step 2 / quality gate: every declared bar or stacked-bar chart's declared y-axis start is zero (no bar chart is declared, so this passes vacuously)"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "no_dual_axes_in_declared_charts",
+            "status": "pass",
+            "evidence": "method step 2: no declared chart row declares a dual axis implying causation"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "truncated_axes_flagged_loudly",
+            "status": "pass",
+            "evidence": "method step 2: every declared chart row that declares a truncated axis also declares it flagged loudly"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "consistent_scales_when_comparing_panels",
+            "status": "pass",
+            "evidence": "method step 2: consistent scales are declared when comparing panels"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "data_source_labeled",
+            "status": "pass",
+            "evidence": "method step 2: the data source is labeled on the chart"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "data_date_labeled",
+            "status": "pass",
+            "evidence": "method step 2: the data date is labeled on the chart"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "misleading_axes_or_scales_not_present",
+            "status": "pass",
+            "evidence": "red line: no misleading axes or scales are present"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "primary_encoding_uses_position_or_length",
+            "status": "pass",
+            "evidence": "method step 3: the primary encoding uses position or length, which beat angle, area and colour"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "most_important_element_top_left_or_largest",
+            "status": "pass",
+            "evidence": "method step 3: the most important thing is top-left or largest"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "gridlines_faint",
+            "status": "pass",
+            "evidence": "method step 3: gridlines are faint (chart-junk minimized)"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "no_3d_in_declared_charts",
+            "status": "pass",
+            "evidence": "method step 3: no declared chart row declares 3D"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "chart_junk_minimized",
+            "status": "pass",
+            "evidence": "method step 3: chart-junk is minimized"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "chart_junk_not_used_as_branding",
+            "status": "pass",
+            "evidence": "red line: chart-junk is not used as branding"
+          },
+          {
+            "section": "color",
+            "check": "palette_colorblind_safe",
+            "status": "pass",
+            "evidence": "method step 4 / quality gate: the palette is declared colorblind-safe"
+          },
+          {
+            "section": "color",
+            "check": "sequential_palette_for_magnitude",
+            "status": "pass",
+            "evidence": "method step 4: a sequential palette is used for magnitude"
+          },
+          {
+            "section": "color",
+            "check": "diverging_palette_around_real_midpoint",
+            "status": "pass",
+            "evidence": "method step 4: any diverging palette is around a real midpoint"
+          },
+          {
+            "section": "color",
+            "check": "red_green_not_used_alone_in_declared_charts",
+            "status": "pass",
+            "evidence": "method step 4 / quality gate: no declared chart row declares a red/green-only encoding"
+          },
+          {
+            "section": "color",
+            "check": "category_counts_within_stated_limit",
+            "status": "pass",
+            "evidence": "method step 4: the largest declared category count across chart rows is at most the 7 categories the skill states"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "title_states_finding_not_topic",
+            "status": "pass",
+            "evidence": "method step 5 / quality gate: the title states the finding, not the topic"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "events_and_thresholds_marked",
+            "status": "pass",
+            "evidence": "method step 5: events and thresholds are marked"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "outliers_called_out_directly",
+            "status": "pass",
+            "evidence": "method step 5: outliers are called out directly"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "key_values_annotated",
+            "status": "pass",
+            "evidence": "quality gate: key values are annotated"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "axis_labels_and_units_complete",
+            "status": "pass",
+            "evidence": "every complete chart entry carries a non-empty x-axis label, y-axis label, and y-axis unit"
+          },
+          {
+            "section": "accessibility",
+            "check": "legible_sizes",
+            "status": "pass",
+            "evidence": "method step 6: text sizes are legible"
+          },
+          {
+            "section": "accessibility",
+            "check": "alt_text_or_table_fallback_present",
+            "status": "pass",
+            "evidence": "method step 6 / quality gate: an alt text or table fallback (accessible alternative) exists"
+          },
+          {
+            "section": "accessibility",
+            "check": "values_readable_without_hover",
+            "status": "pass",
+            "evidence": "method step 6: values are readable without hover"
+          },
+          {
+            "section": "accessibility",
+            "check": "contrast_sufficient_for_print_and_screen",
+            "status": "pass",
+            "evidence": "method step 6: contrast is sufficient for print and screen"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "dashboard_one_screen_one_story",
+            "status": "pass",
+            "evidence": "method step 7: a dashboard screen tells one story"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "metric_definitions_and_owners_declared",
+            "status": "pass",
+            "evidence": "method step 7: metric definitions and owners are declared"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "refresh_cadence_visible",
+            "status": "pass",
+            "evidence": "method step 7: the refresh cadence is visible"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "stale_panels_retired",
+            "status": "pass",
+            "evidence": "method step 7: stale panels are retired"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "tool_version_and_data_snapshot_recorded",
+            "status": "pass",
+            "evidence": "method step 8 / quality gate: the tool version and a data snapshot are recorded with the chart"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "chart_data_reproducible",
+            "status": "pass",
+            "evidence": "red line: the charted data is reproducible \u2014 data that cannot be reproduced is never charted"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "charts_evaluated": 1,
+        "computed_max_categories": "5.000000",
+        "max_categories_difference_from_limit": "-2.000000",
+        "charts_not_matching_question": [],
+        "summary": "38 pass, 0 fail, 0 missing of 38 checks across seven sections.",
+        "stamp": "DATA VISUALIZATION DESIGN\nentity: Q3_Sales_Report\nVERDICT: DATA_VISUALIZATION_DESIGN_SOUND\n  question_and_chart_choice            pass\n  honesty_and_axes                     pass\n  perception_and_chart_junk            pass\n  color                                pass\n  annotation_and_labels                pass\n  accessibility                        pass\n  dashboards_and_reproducibility       pass\n38 pass, 0 fail, 0 missing of 38 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DATA_VISUALIZATION_DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "comparison_charts_sorted",
+          "bar_charts_y_axis_starts_at_zero",
+          "no_dual_axes_in_declared_charts",
+          "truncated_axes_flagged_loudly",
+          "no_3d_in_declared_charts",
+          "red_green_not_used_alone_in_declared_charts",
+          "category_counts_within_stated_limit"
+        ],
+        "notes": "Full manifest with exactly 7 planted computed violations on one comparison->bar row: y_axis_start 10 (bar zero fails), categories 10 > 7 (diff 3.000000), bars_sorted false, dual_axis true, axis_truncated true with truncated_flagged_loudly false, uses_3d true, red_green_only true; all other sections passing. [Tester corrections: designer listed 4 inexact/shorthand check names (category_counts_within_limit, no_dual_axes, no_3d, no_red_green_only) instead of exact register names; corrected to the 7 exact names. Designer supplied a sparse input (only entity/brief/charts) whose absent sections would be missing rather than failing; rebuilt as a full manifest carrying exactly the intended violations. Designer omitted structured computed_spot_checks; added.]",
+        "computed_spot_checks": {
+          "computed_max_categories": "10.000000",
+          "max_categories_difference_from_limit": "3.000000",
+          "charts_evaluated": 1,
+          "charts_not_matching_question": [],
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "entity": "Bad_Chart",
+        "brief": {
+          "audience": "A",
+          "question": "Q"
+        },
+        "charts": [
+          {
+            "name": "Bad Bar",
+            "question_type": "comparison",
+            "chart_type": "bar",
+            "x_axis_label": "X",
+            "y_axis_label": "Y",
+            "y_axis_unit": "U",
+            "y_axis_start": 10.0,
+            "categories_count": 10,
+            "bars_sorted": false,
+            "dual_axis": true,
+            "axis_truncated": true,
+            "truncated_flagged_loudly": false,
+            "uses_3d": true,
+            "red_green_only": true
+          }
+        ],
+        "honesty": {
+          "consistent_scales_when_comparing_panels": true,
+          "data_source_labeled": true,
+          "data_date_labeled": true,
+          "misleading_axes_or_scales_present": false
+        },
+        "perception": {
+          "primary_encoding_uses_position_or_length": true,
+          "most_important_element_top_left_or_largest": true,
+          "gridlines_faint": true,
+          "chart_junk_minimized": true,
+          "chart_junk_used_as_branding": false
+        },
+        "color": {
+          "palette_colorblind_safe": true,
+          "sequential_palette_for_magnitude": true,
+          "diverging_palette_around_real_midpoint": true
+        },
+        "annotation": {
+          "title_states_finding_not_topic": true,
+          "events_and_thresholds_marked": true,
+          "outliers_called_out_directly": true,
+          "key_values_annotated": true
+        },
+        "accessibility": {
+          "legible_sizes": true,
+          "alt_text_or_table_fallback_present": true,
+          "values_readable_without_hover": true,
+          "contrast_sufficient_for_print_and_screen": true
+        },
+        "dashboard": {
+          "one_screen_one_story": true,
+          "metric_definitions_and_owners_declared": true,
+          "refresh_cadence_visible": true,
+          "stale_panels_retired": true
+        },
+        "reproducibility": {
+          "tool_version_and_data_snapshot_recorded": true,
+          "data_reproducible": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-visualization-design",
+        "atom_version": "0.1.0",
+        "entity": "Bad_Chart",
+        "verdict": "DATA_VISUALIZATION_DESIGN_NOT_SOUND",
+        "sections": {
+          "question_and_chart_choice": "fail",
+          "honesty_and_axes": "fail",
+          "perception_and_chart_junk": "fail",
+          "color": "fail",
+          "annotation_and_labels": "pass",
+          "accessibility": "pass",
+          "dashboards_and_reproducibility": "pass"
+        },
+        "checks": [
+          {
+            "section": "question_and_chart_choice",
+            "check": "audience_declared",
+            "status": "pass",
+            "evidence": "the design record declares its audience as a non-empty string"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "question_declared",
+            "status": "pass",
+            "evidence": "the design record declares the question it answers as a non-empty string"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "chart_entries_complete",
+            "status": "pass",
+            "evidence": "every chart entry carries a name, question type, chart type, axis labels and unit, axis start, category count, and sorting / dual-axis / truncation / 3D / red-green declarations"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "chart_types_match_declared_questions",
+            "status": "pass",
+            "evidence": "method step 1: every declared chart type is the chart the skill maps its declared question type to \u2014 comparison to bar, trend to line, distribution to histogram/box_plot, relationship to scatter, composition to stacked_bar, part-to-whole over time to small_multiples"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "comparison_charts_sorted",
+            "status": "fail",
+            "evidence": "method step 1: every declared comparison chart declares sorted bars (no comparison chart is declared, so this passes vacuously)"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "bar_charts_y_axis_starts_at_zero",
+            "status": "fail",
+            "evidence": "method step 2 / quality gate: every declared bar or stacked-bar chart's declared y-axis start is zero (no bar chart is declared, so this passes vacuously)"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "no_dual_axes_in_declared_charts",
+            "status": "fail",
+            "evidence": "method step 2: no declared chart row declares a dual axis implying causation"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "truncated_axes_flagged_loudly",
+            "status": "fail",
+            "evidence": "method step 2: every declared chart row that declares a truncated axis also declares it flagged loudly"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "consistent_scales_when_comparing_panels",
+            "status": "pass",
+            "evidence": "method step 2: consistent scales are declared when comparing panels"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "data_source_labeled",
+            "status": "pass",
+            "evidence": "method step 2: the data source is labeled on the chart"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "data_date_labeled",
+            "status": "pass",
+            "evidence": "method step 2: the data date is labeled on the chart"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "misleading_axes_or_scales_not_present",
+            "status": "pass",
+            "evidence": "red line: no misleading axes or scales are present"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "primary_encoding_uses_position_or_length",
+            "status": "pass",
+            "evidence": "method step 3: the primary encoding uses position or length, which beat angle, area and colour"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "most_important_element_top_left_or_largest",
+            "status": "pass",
+            "evidence": "method step 3: the most important thing is top-left or largest"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "gridlines_faint",
+            "status": "pass",
+            "evidence": "method step 3: gridlines are faint (chart-junk minimized)"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "no_3d_in_declared_charts",
+            "status": "fail",
+            "evidence": "method step 3: no declared chart row declares 3D"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "chart_junk_minimized",
+            "status": "pass",
+            "evidence": "method step 3: chart-junk is minimized"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "chart_junk_not_used_as_branding",
+            "status": "pass",
+            "evidence": "red line: chart-junk is not used as branding"
+          },
+          {
+            "section": "color",
+            "check": "palette_colorblind_safe",
+            "status": "pass",
+            "evidence": "method step 4 / quality gate: the palette is declared colorblind-safe"
+          },
+          {
+            "section": "color",
+            "check": "sequential_palette_for_magnitude",
+            "status": "pass",
+            "evidence": "method step 4: a sequential palette is used for magnitude"
+          },
+          {
+            "section": "color",
+            "check": "diverging_palette_around_real_midpoint",
+            "status": "pass",
+            "evidence": "method step 4: any diverging palette is around a real midpoint"
+          },
+          {
+            "section": "color",
+            "check": "red_green_not_used_alone_in_declared_charts",
+            "status": "fail",
+            "evidence": "method step 4 / quality gate: no declared chart row declares a red/green-only encoding"
+          },
+          {
+            "section": "color",
+            "check": "category_counts_within_stated_limit",
+            "status": "fail",
+            "evidence": "method step 4: the largest declared category count across chart rows is at most the 7 categories the skill states"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "title_states_finding_not_topic",
+            "status": "pass",
+            "evidence": "method step 5 / quality gate: the title states the finding, not the topic"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "events_and_thresholds_marked",
+            "status": "pass",
+            "evidence": "method step 5: events and thresholds are marked"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "outliers_called_out_directly",
+            "status": "pass",
+            "evidence": "method step 5: outliers are called out directly"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "key_values_annotated",
+            "status": "pass",
+            "evidence": "quality gate: key values are annotated"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "axis_labels_and_units_complete",
+            "status": "pass",
+            "evidence": "every complete chart entry carries a non-empty x-axis label, y-axis label, and y-axis unit"
+          },
+          {
+            "section": "accessibility",
+            "check": "legible_sizes",
+            "status": "pass",
+            "evidence": "method step 6: text sizes are legible"
+          },
+          {
+            "section": "accessibility",
+            "check": "alt_text_or_table_fallback_present",
+            "status": "pass",
+            "evidence": "method step 6 / quality gate: an alt text or table fallback (accessible alternative) exists"
+          },
+          {
+            "section": "accessibility",
+            "check": "values_readable_without_hover",
+            "status": "pass",
+            "evidence": "method step 6: values are readable without hover"
+          },
+          {
+            "section": "accessibility",
+            "check": "contrast_sufficient_for_print_and_screen",
+            "status": "pass",
+            "evidence": "method step 6: contrast is sufficient for print and screen"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "dashboard_one_screen_one_story",
+            "status": "pass",
+            "evidence": "method step 7: a dashboard screen tells one story"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "metric_definitions_and_owners_declared",
+            "status": "pass",
+            "evidence": "method step 7: metric definitions and owners are declared"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "refresh_cadence_visible",
+            "status": "pass",
+            "evidence": "method step 7: the refresh cadence is visible"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "stale_panels_retired",
+            "status": "pass",
+            "evidence": "method step 7: stale panels are retired"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "tool_version_and_data_snapshot_recorded",
+            "status": "pass",
+            "evidence": "method step 8 / quality gate: the tool version and a data snapshot are recorded with the chart"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "chart_data_reproducible",
+            "status": "pass",
+            "evidence": "red line: the charted data is reproducible \u2014 data that cannot be reproduced is never charted"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "charts_evaluated": 1,
+        "computed_max_categories": "10.000000",
+        "max_categories_difference_from_limit": "3.000000",
+        "charts_not_matching_question": [],
+        "summary": "31 pass, 7 fail, 0 missing of 38 checks across seven sections.",
+        "stamp": "DATA VISUALIZATION DESIGN\nentity: Bad_Chart\nVERDICT: DATA_VISUALIZATION_DESIGN_NOT_SOUND\n  question_and_chart_choice            fail\n  honesty_and_axes                     fail\n  perception_and_chart_junk            fail\n  color                                fail\n  annotation_and_labels                pass\n  accessibility                        pass\n  dashboards_and_reproducibility       pass\n31 pass, 7 fail, 0 missing of 38 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required brief and chart sections."
+      },
+      "input": {
+        "entity": "Incomplete"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "data-visualization-design",
+        "atom_version": "0.1.0",
+        "entity": "Incomplete",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "question_and_chart_choice": "insufficient_evidence",
+          "honesty_and_axes": "insufficient_evidence",
+          "perception_and_chart_junk": "insufficient_evidence",
+          "color": "insufficient_evidence",
+          "annotation_and_labels": "insufficient_evidence",
+          "accessibility": "insufficient_evidence",
+          "dashboards_and_reproducibility": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "question_and_chart_choice",
+            "check": "audience_declared",
+            "status": "missing",
+            "evidence": "the design record declares its audience as a non-empty string"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "question_declared",
+            "status": "missing",
+            "evidence": "the design record declares the question it answers as a non-empty string"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "chart_entries_complete",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "chart_types_match_declared_questions",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "question_and_chart_choice",
+            "check": "comparison_charts_sorted",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "bar_charts_y_axis_starts_at_zero",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "no_dual_axes_in_declared_charts",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "truncated_axes_flagged_loudly",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "consistent_scales_when_comparing_panels",
+            "status": "missing",
+            "evidence": "method step 2: consistent scales are declared when comparing panels"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "data_source_labeled",
+            "status": "missing",
+            "evidence": "method step 2: the data source is labeled on the chart"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "data_date_labeled",
+            "status": "missing",
+            "evidence": "method step 2: the data date is labeled on the chart"
+          },
+          {
+            "section": "honesty_and_axes",
+            "check": "misleading_axes_or_scales_not_present",
+            "status": "missing",
+            "evidence": "red line: no misleading axes or scales are present"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "primary_encoding_uses_position_or_length",
+            "status": "missing",
+            "evidence": "method step 3: the primary encoding uses position or length, which beat angle, area and colour"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "most_important_element_top_left_or_largest",
+            "status": "missing",
+            "evidence": "method step 3: the most important thing is top-left or largest"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "gridlines_faint",
+            "status": "missing",
+            "evidence": "method step 3: gridlines are faint (chart-junk minimized)"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "no_3d_in_declared_charts",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "chart_junk_minimized",
+            "status": "missing",
+            "evidence": "method step 3: chart-junk is minimized"
+          },
+          {
+            "section": "perception_and_chart_junk",
+            "check": "chart_junk_not_used_as_branding",
+            "status": "missing",
+            "evidence": "red line: chart-junk is not used as branding"
+          },
+          {
+            "section": "color",
+            "check": "palette_colorblind_safe",
+            "status": "missing",
+            "evidence": "method step 4 / quality gate: the palette is declared colorblind-safe"
+          },
+          {
+            "section": "color",
+            "check": "sequential_palette_for_magnitude",
+            "status": "missing",
+            "evidence": "method step 4: a sequential palette is used for magnitude"
+          },
+          {
+            "section": "color",
+            "check": "diverging_palette_around_real_midpoint",
+            "status": "missing",
+            "evidence": "method step 4: any diverging palette is around a real midpoint"
+          },
+          {
+            "section": "color",
+            "check": "red_green_not_used_alone_in_declared_charts",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "color",
+            "check": "category_counts_within_stated_limit",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "title_states_finding_not_topic",
+            "status": "missing",
+            "evidence": "method step 5 / quality gate: the title states the finding, not the topic"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "events_and_thresholds_marked",
+            "status": "missing",
+            "evidence": "method step 5: events and thresholds are marked"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "outliers_called_out_directly",
+            "status": "missing",
+            "evidence": "method step 5: outliers are called out directly"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "key_values_annotated",
+            "status": "missing",
+            "evidence": "quality gate: key values are annotated"
+          },
+          {
+            "section": "annotation_and_labels",
+            "check": "axis_labels_and_units_complete",
+            "status": "missing",
+            "evidence": "no chart entries declared"
+          },
+          {
+            "section": "accessibility",
+            "check": "legible_sizes",
+            "status": "missing",
+            "evidence": "method step 6: text sizes are legible"
+          },
+          {
+            "section": "accessibility",
+            "check": "alt_text_or_table_fallback_present",
+            "status": "missing",
+            "evidence": "method step 6 / quality gate: an alt text or table fallback (accessible alternative) exists"
+          },
+          {
+            "section": "accessibility",
+            "check": "values_readable_without_hover",
+            "status": "missing",
+            "evidence": "method step 6: values are readable without hover"
+          },
+          {
+            "section": "accessibility",
+            "check": "contrast_sufficient_for_print_and_screen",
+            "status": "missing",
+            "evidence": "method step 6: contrast is sufficient for print and screen"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "dashboard_one_screen_one_story",
+            "status": "missing",
+            "evidence": "method step 7: a dashboard screen tells one story"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "metric_definitions_and_owners_declared",
+            "status": "missing",
+            "evidence": "method step 7: metric definitions and owners are declared"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "refresh_cadence_visible",
+            "status": "missing",
+            "evidence": "method step 7: the refresh cadence is visible"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "stale_panels_retired",
+            "status": "missing",
+            "evidence": "method step 7: stale panels are retired"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "tool_version_and_data_snapshot_recorded",
+            "status": "missing",
+            "evidence": "method step 8 / quality gate: the tool version and a data snapshot are recorded with the chart"
+          },
+          {
+            "section": "dashboards_and_reproducibility",
+            "check": "chart_data_reproducible",
+            "status": "missing",
+            "evidence": "red line: the charted data is reproducible \u2014 data that cannot be reproduced is never charted"
+          }
+        ],
+        "computed_status": null,
+        "charts_evaluated": 0,
+        "computed_max_categories": null,
+        "max_categories_difference_from_limit": null,
+        "charts_not_matching_question": null,
+        "summary": "0 pass, 0 fail, 38 missing of 38 checks across seven sections.",
+        "stamp": "DATA VISUALIZATION DESIGN\nentity: Incomplete\nVERDICT: INSUFFICIENT_EVIDENCE\n  question_and_chart_choice            insufficient_evidence\n  honesty_and_axes                     insufficient_evidence\n  perception_and_chart_junk            insufficient_evidence\n  color                                insufficient_evidence\n  annotation_and_labels                insufficient_evidence\n  accessibility                        insufficient_evidence\n  dashboards_and_reproducibility       insufficient_evidence\n0 pass, 0 fail, 38 missing of 38 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: charts field expects a list, received a string."
+      },
+      "input": {
+        "entity": "Malformed",
+        "charts": "not_a_list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "charts",
+        "detail": "charts must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

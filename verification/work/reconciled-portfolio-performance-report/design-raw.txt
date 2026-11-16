@@ -1,0 +1,76 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "portfolio": "Test Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [1100.0, 1210.0],
+        "external_flows": [0.0, 0.0],
+        "benchmark_name": "S&P500",
+        "benchmark_returns": [0.05, 0.05],
+        "declared_returns": [0.10, 0.10],
+        "holdings": [{"id": "A", "quantity": 10, "price": 121.0}],
+        "transactions": [{"kind": "contribution", "amount": 0.0}]
+      },
+      "expect": {
+        "outcome": "complete",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All inputs valid, aligned, and sufficient for complete status. computed_spot_checks: period_returns=[0.100000, 0.100000], TWR=0.210000, holdings_total=1210.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "portfolio": "Violated Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [1100.0, 1210.0],
+        "external_flows": [0.0],
+        "benchmark_name": "None",
+        "benchmark_returns": [0.0, 0.0],
+        "declared_returns": [0.0, 0.0],
+        "holdings": [],
+        "transactions": []
+      },
+      "expect": {
+        "outcome": "partial",
+        "http": 200,
+        "failing_checks": ["external_flows_alignment", "holdings_ledger_reconciliation"],
+        "notes": "Flows are misaligned (length 1 vs 2) and holdings are empty vs final value, resulting in partial status."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "portfolio": "Sparse Portfolio",
+        "beginning_value": 1000.0,
+        "period_end_values": [1100.0]
+      },
+      "expect": {
+        "outcome": "insufficient_evidence",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Fewer than 2 valid period-end values provided."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "portfolio": 12345,
+        "beginning_value": "one thousand",
+        "period_end_values": "not a list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violations: portfolio must be string, beginning_value must be number, period_end_values must be list."
+      }
+    }
+  ]
+}

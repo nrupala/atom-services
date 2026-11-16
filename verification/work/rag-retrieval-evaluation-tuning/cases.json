@@ -1,0 +1,152 @@
+{
+ "cases": [
+  {
+   "id": "full-pass",
+   "kind": "full-pass",
+   "input": {
+    "system": "production-search-v1",
+    "corpus": {
+     "inventory_declared": true,
+     "freshness_requirements_declared": true,
+     "dedup_rules_declared": true,
+     "per_document_provenance_tracked": true
+    },
+    "chunking": {
+     "semantic_units": true,
+     "overlap_discipline_declared": true,
+     "stable_chunk_ids": true
+    },
+    "retrieval": {
+     "lexical_used": true,
+     "vector_used": true,
+     "scores_combined_with_declared_weights": true,
+     "embedding_model_version_pinned": true,
+     "reindex_plan_for_model_change": true
+    },
+    "reranking": {
+     "applied": true,
+     "reranker_budget_declared": true,
+     "context_top_n_bounded": true,
+     "filters_applied_before_ranking": true,
+     "scope_leakage_tested": true,
+     "context_token_budget": 500
+    },
+    "index": {
+     "incremental_updates_with_tombstones": true,
+     "full_rebuild_drill_done": true,
+     "size_quota_budgets_monitored": true,
+     "embedding_model_and_index_versioned": true
+    },
+    "evaluation": {
+     "golden_queries_labeled": true,
+     "thresholds_declared": true,
+     "evals_run_in_regression": true,
+     "real_queries_logged_privacy_scoped": true,
+     "tuning_performed": false,
+     "evals_run_before_tuning": true
+    },
+    "queries": [
+     {
+      "name": "q1",
+      "k": 1,
+      "relevant_doc_ids": [
+       "doc1"
+      ],
+      "retrieved_doc_ids": [
+       "doc1"
+      ],
+      "relevance_grades": {
+       "doc1": 1
+      },
+      "forbidden_doc_ids": [],
+      "context_tokens": 100,
+      "min_recall_at_k": 1.0,
+      "min_mrr": 1.0,
+      "min_ndcg_at_k": 1.0
+     }
+    ],
+    "serving": {
+     "latency_budgets_per_stage_declared": true,
+     "latency_budget_measured": true,
+     "hot_queries_cached": true,
+     "lexical_only_fallback_exists": true
+    },
+    "privacy": {
+     "query_time_access_scopes_enforced": true,
+     "sensitive_content_excluded_or_encrypted": true,
+     "private_corpus": false,
+     "local_embeddings_for_private_corpus": true
+    }
+   },
+   "expect": {
+    "outcome": "RAG_EVALUATION_SOUND",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "All booleans true, metrics meet thresholds. computed_spot_checks: mean_recall_at_k=1.0000, mean_mrr=1.0000, mean_ndcg_at_k=1.0000 [CORRECTED by tester: relevance_grades as object {doc: grade} per SERVICE.md \"unlisted = 0\" / atom metric shape; originally designed as a list.]"
+   }
+  },
+  {
+   "id": "violations",
+   "kind": "violations",
+   "input": {
+    "queries": [
+     {
+      "name": "q_fail",
+      "k": 1,
+      "relevant_doc_ids": [
+       "doc1"
+      ],
+      "retrieved_doc_ids": [
+       "forbidden_doc"
+      ],
+      "forbidden_doc_ids": [
+       "forbidden_doc"
+      ],
+      "context_tokens": 2000,
+      "min_recall_at_k": 1.0,
+      "min_mrr": 1.0,
+      "min_ndcg_at_k": 1.0
+     }
+    ],
+    "reranking": {
+     "context_token_budget": 500
+    }
+   },
+   "expect": {
+    "outcome": "RAG_EVALUATION_UNSOUND",
+    "http": 200,
+    "failing_checks": [
+     "reranking_and_filters",
+     "evaluation"
+    ],
+    "notes": "Triggers scope leakage (forbidden doc found) and context budget violation (2000 > 500)."
+   }
+  },
+  {
+   "id": "sparse",
+   "kind": "sparse",
+   "input": {
+    "system": "minimal-test"
+   },
+   "expect": {
+    "outcome": "INSUFFICIENT_EVIDENCE",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "Missing almost all required fields for the six evaluation sections."
+   }
+  },
+  {
+   "id": "malformed",
+   "kind": "malformed",
+   "input": {
+    "corpus": "this-should-be-an-object"
+   },
+   "expect": {
+    "outcome": null,
+    "http": 422,
+    "failing_checks": [],
+    "notes": "Type violation: corpus field expects object, received string."
+   }
+  }
+ ]
+}

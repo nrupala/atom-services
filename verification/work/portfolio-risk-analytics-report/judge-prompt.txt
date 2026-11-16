@@ -1,0 +1,552 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: portfolio-risk-analytics-report
+
+=== contract.yaml ===
+service_name: portfolio-risk-analytics-report
+display_name: Portfolio risk analytics report
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:pae
+binding:
+  skill: pae
+  skill_path: workspace/mymilo-build/skills/pae/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REPORT
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/portfolio_risk_analytics_report.py — evaluate(manifest) -> risk-analytics report dict; CLI prints JSON + stamp
+  tests: tests/test_portfolio_risk_analytics_report.py — 32 tests, all passing 2026-11-15
+keys:
+  namespace: portfolio_risk_analytics_report
+  prefix: atm_1_portfolio_risk_analytics_report_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: query
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Personal portfolio risk analytics runs
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Portfolio risk analytics report — `portfolio-risk-analytics-report`
+
+**Deliverable type:** REPORT. This atom sells the report it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Institutional-grade personal financial analytics — what to track, how to benchmark, how to separate signal from noise. Risk metrics, factor decomposition, stress tests, decision journaling. Tool calculates, user decides.
+
+A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one query.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this report on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Personal portfolio risk analytics runs**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **query**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the portfolio manifest
+
+The caller submits one JSON manifest. `portfolio` (string) is carried
+into the output, not itself analysed. All analytics are computed over
+the submitted series; nothing is defaulted — the skill rules that all
+parameters start blank, so a metric whose parameter was not submitted
+is a labeled gap (null), never silently filled in, and missing data is
+never interpolated.
+
+| Field | Read from |
+|---|---|
+| `portfolio` (string; carried into the output, not itself analysed) | manifest |
+| `returns` (list of numbers; portfolio periodic simple returns, e.g. `0.01` = +1% — the core series; non-numeric entries are counted in `counts.invalid_return_entries` and excluded) | manifest |
+| `benchmark_returns` (list of numbers; benchmark periodic returns, aligned period-for-period with `returns`) | manifest |
+| `periods_per_year` (number > 0; annualization parameter — absent = annualized metrics are gaps, no default is applied) | manifest |
+| `risk_free_per_period` (number; per-period risk-free return — the Sharpe/Sortino excess target and Jensen-alpha baseline; absent = those metrics are gaps) | manifest |
+| `var_confidence` (number strictly between 0 and 1; confidence for historical VaR/CVaR; absent = VaR/CVaR are gaps) | manifest |
+| `holdings` (list of entries, below) | manifest |
+| `holdings[].id` (string; carried into concentration / carry / stress rows) | entry |
+| `holdings[].weight` (number; holding weight in any consistent unit — shares are weight ÷ weight sum; an entry without a numeric weight is counted in `counts.invalid_holdings` and excluded) | entry |
+| `holdings[].currency` (string; groups the currency-share breakdown; absence groups under null) | entry |
+| `holdings[].leveraged` (boolean `true` marks a leveraged holding for carry analysis) | entry |
+| `holdings[].income_per_period` / `holdings[].financing_per_period` (numbers; carry inputs for leveraged holdings — net carry = income − financing) | entry |
+| `factors` (list of `{name, returns}`; factor return series aligned with `returns` — OLS decomposition in submission order) | manifest |
+| `holding_returns` (list of `{id, returns}`; per-holding return series aligned with `returns` — pairwise correlations) | manifest |
+| `correlation_window` (integer, 2..periods; also compute correlations over the last this-many periods) | manifest |
+| `stress_scenarios` (list of entries, below) | manifest |
+| `stress_scenarios[].name` (string; carried into the stress row) | entry |
+| `stress_scenarios[].portfolio_return` (number; a portfolio-level scenario return, used directly when numeric) | entry |
+| `stress_scenarios[].shocks` (list of `{holding_id, return}`; per-holding scenario returns, weighted by current shares — every holding needs a shock) | entry |
+| `decision_journal` (list of `{confidence, correct}`; confidence a number in [0, 1], correct a boolean — invalid entries are counted and excluded) | manifest |
+
+## What is computed
+
+- **Risk metrics** (the skill's descriptive statistics — they describe
+  what the portfolio *has done*, never what it *should* do): mean and
+  total return, best/worst period, positive-period fraction, sample
+  volatility (n−1), downside deviation against the submitted risk-free
+  target, Sharpe and Sortino (per-period and annualized), the
+  drawdown path — maximum drawdown with its peak/trough periods,
+  current drawdown, longest time underwater — and historical VaR /
+  CVaR at the submitted confidence (nearest-rank: index
+  ⌈(1−confidence)·n⌉−1 in the ascending sorted returns; CVaR is the
+  mean of the returns at and beyond that rank). Annualized volatility
+  is vol × √periods_per_year; annualized return is geometric,
+  (cumulative wealth)^(periods_per_year/n) − 1.
+- **Benchmark-relative:** beta (covariance ÷ benchmark variance, from
+  deviation sums), Pearson correlation, tracking error (sample
+  stdev of the return differences), benchmark mean/volatility/total
+  return, and Jensen alpha when a risk-free rate is submitted.
+- **Concentration:** weight sum, Herfindahl index over shares,
+  effective holdings (1/HHI), largest holding, currency shares
+  (null currency first, then alphabetical).
+- **Carry:** per leveraged holding, net carry (income − financing)
+  with a plain `negative_carry` flag when it is negative (the skill:
+  "if carry is negative, say so plainly"), plus the share-weighted
+  net carry when every leveraged holding submits both inputs.
+- **Factor decomposition:** OLS of portfolio returns on an intercept
+  plus the submitted factors (normal equations, partial-pivot
+  Gaussian elimination, singular below a 10⁻¹² pivot), with R² and
+  residual volatility.
+- **Holding correlations:** every pairwise Pearson correlation over
+  the submitted series (a constant series makes its pairs undefined —
+  a labeled gap), the maximum pair, and the last-window matrix when
+  `correlation_window` is submitted.
+- **Stress tests:** each scenario applied to the current allocation —
+  a submitted portfolio return directly, or per-holding shocks
+  weighted by current shares. Scenario magnitudes are the caller's;
+  none are invented here (the skill's named historical episodes are
+  submitted as scenarios, not hard-coded).
+- **Decision-journal calibration:** mean confidence vs hit rate,
+  calibration gap (hit rate − mean confidence) and Brier score.
+- **Layers:** the skill's five layers (holdings, risk metrics, factor
+  exposures, concentration, decisions) are each reported `present` or
+  `absent` — missing layers are gaps, not guesses.
+- **Not computed:** Monte Carlo. The skill asks for 1K–100K simulated
+  paths; no seed, path count or simulation parameter is defaulted in
+  this core, and a simulated distribution would not be a deterministic
+  function of the manifest.
+
+**Serialization rule (both implementations, byte-identical):** every
+computed floating quantity is rendered as a string with exactly six
+decimal places, rounded half away from zero on the binary double
+(scaled = ⌊|x|·10⁶ + 0.5⌋; zero renders `0.000000`, never
+`-0.000000`). Counts, period indices and ranks stay integers. All
+internal arithmetic is IEEE-754 double arithmetic in a fixed loop
+order using only +, −, ×, ÷ and √ (plus one power for geometric
+annualization).
+
+The output status is one of `complete` (a returns series with at
+least 2 valid observations and no gaps of any kind), `partial`
+(analytics computed but some metric or layer is a labeled gap —
+missing parameter, invalid entries, misaligned series, singular
+factors, uncomputable scenario), or `insufficient_evidence` (no
+returns series, or fewer than 2 valid numeric observations), with
+`counts`, the ordered `gaps` list naming every gap, the sections
+above (null when their inputs are absent), and the skill's
+non-advisory disclaimer carried on every output: educational
+analytics only — the tool calculates; the user decides. No
+recommendation, and nothing labeled optimal or recommended, is ever
+produced.
+
+## Status
+
+Tier A · status: **built-locally** — deterministic core built and
+verified locally (Python oracle + byte-identical TypeScript port);
+no endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Product-internal and regulated borderline
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "portfolio-risk-analytics-report",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "complete",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All inputs provided, series length > 2. Computed spot checks: mean return = 0.006667, sample volatility = 0.025166."
+      },
+      "input": {
+        "portfolio": "Test Portfolio",
+        "returns": [
+          0.01,
+          -0.02,
+          0.03
+        ],
+        "benchmark_returns": [
+          0.005,
+          -0.01,
+          0.02
+        ],
+        "periods_per_year": 12,
+        "risk_free_per_period": 0.001,
+        "var_confidence": 0.95,
+        "holdings": [
+          {
+            "id": "A",
+            "weight": 0.5,
+            "currency": "USD"
+          },
+          {
+            "id": "B",
+            "weight": 0.5,
+            "currency": "USD"
+          }
+        ],
+        "correlation_window": 2
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "portfolio-risk-analytics-report",
+        "atom_version": "0.1.0",
+        "portfolio": "Test Portfolio",
+        "status": "complete",
+        "layers": {
+          "holdings": "present",
+          "risk_metrics": "present",
+          "factor_exposures": "absent",
+          "concentration": "present",
+          "decisions": "absent"
+        },
+        "counts": {
+          "periods": 3,
+          "invalid_return_entries": 0,
+          "holdings": 2,
+          "invalid_holdings": 0,
+          "journal_entries": 0,
+          "invalid_journal_entries": 0,
+          "scenarios": 0,
+          "invalid_scenarios": 0,
+          "factors": 0,
+          "holding_series": 0,
+          "invalid_holding_series": 0
+        },
+        "gaps": [],
+        "risk_metrics": {
+          "periods": 3,
+          "mean_return_per_period": "0.006667",
+          "total_return": "0.019494",
+          "best_period_return": "0.030000",
+          "worst_period_return": "-0.020000",
+          "positive_period_fraction": "0.666667",
+          "volatility_per_period": "0.025166",
+          "annualized_volatility": "0.087178",
+          "annualized_return": "0.080286",
+          "downside_deviation_per_period": "0.012124",
+          "sharpe_per_period": "0.225171",
+          "sharpe_annualized": "0.780013",
+          "sortino_per_period": "0.467379",
+          "sortino_annualized": "1.619048",
+          "max_drawdown": "-0.020000",
+          "max_drawdown_peak_period": 0,
+          "max_drawdown_trough_period": 1,
+          "current_drawdown": "0.000000",
+          "longest_underwater_periods": 1,
+          "var_confidence": "0.950000",
+          "historical_var": "0.020000",
+          "historical_cvar": "0.020000"
+        },
+        "benchmark": {
+          "aligned": true,
+          "periods": 3,
+          "mean_return_per_period": "0.005000",
+          "volatility_per_period": "0.015000",
+          "total_return": "0.014849",
+          "beta": "1.666667",
+          "correlation": "0.993399",
+          "tracking_error_per_period": "0.010408",
+          "alpha_per_period": "-0.001000"
+        },
+        "concentration": {
+          "holdings_count": 2,
+          "weight_sum": "1.000000",
+          "hhi": "0.500000",
+          "effective_holdings": "2.000000",
+          "largest_holding_id": "A",
+          "largest_holding_share": "0.500000",
+          "currency_shares": [
+            {
+              "currency": "USD",
+              "share": "1.000000"
+            }
+          ]
+        },
+        "carry": null,
+        "factor_decomposition": null,
+        "holding_correlations": null,
+        "stress_tests": [],
+        "decision_journal": null,
+        "disclaimer": "Educational analytics only \u2014 not financial advice. The tool calculates; the user decides.",
+        "summary": "Risk analytics over 3 periods: total return 0.019494, volatility per period 0.025166, max drawdown -0.020000; 0 gaps.",
+        "stamp": "PORTFOLIO RISK ANALYTICS REPORT\nportfolio: Test Portfolio\nSTATUS: complete\nRisk analytics over 3 periods: total return 0.019494, volatility per period 0.025166, max drawdown -0.020000; 0 gaps.\nEducational analytics only \u2014 not financial advice. The tool calculates; the user decides."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "partial",
+        "http": 200,
+        "failing_checks": [
+          "misaligned_series",
+          "invalid_holdings_count"
+        ],
+        "notes": "Benchmark returns length mismatch with returns; holdings weight is non-numeric."
+      },
+      "input": {
+        "portfolio": "Violated Portfolio",
+        "returns": [
+          0.01,
+          0.02
+        ],
+        "benchmark_returns": [
+          0.01
+        ],
+        "holdings": [
+          {
+            "id": "A",
+            "weight": "invalid_string"
+          }
+        ]
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "portfolio-risk-analytics-report",
+        "atom_version": "0.1.0",
+        "portfolio": "Violated Portfolio",
+        "status": "partial",
+        "layers": {
+          "holdings": "present",
+          "risk_metrics": "present",
+          "factor_exposures": "absent",
+          "concentration": "absent",
+          "decisions": "absent"
+        },
+        "counts": {
+          "periods": 2,
+          "invalid_return_entries": 0,
+          "holdings": 0,
+          "invalid_holdings": 1,
+          "journal_entries": 0,
+          "invalid_journal_entries": 0,
+          "scenarios": 0,
+          "invalid_scenarios": 0,
+          "factors": 0,
+          "holding_series": 0,
+          "invalid_holding_series": 0
+        },
+        "gaps": [
+          "periods_per_year not submitted \u2014 annualized volatility, annualized return and annualized Sharpe/Sortino are gaps",
+          "risk_free_per_period not submitted \u2014 Sharpe, Sortino, downside deviation and alpha are gaps",
+          "var_confidence not submitted \u2014 historical VaR and CVaR are gaps",
+          "benchmark_returns does not align with returns (1 valid of 1 submitted vs 2 periods) \u2014 benchmark metrics are gaps",
+          "holdings: 1 entries without a numeric weight excluded"
+        ],
+        "risk_metrics": {
+          "periods": 2,
+          "mean_return_per_period": "0.015000",
+          "total_return": "0.030200",
+          "best_period_return": "0.020000",
+          "worst_period_return": "0.010000",
+          "positive_period_fraction": "1.000000",
+          "volatility_per_period": "0.007071",
+          "annualized_volatility": null,
+          "annualized_return": null,
+          "downside_deviation_per_period": null,
+          "sharpe_per_period": null,
+          "sharpe_annualized": null,
+          "sortino_per_period": null,
+          "sortino_annualized": null,
+          "max_drawdown": "0.000000",
+          "max_drawdown_peak_period": -1,
+          "max_drawdown_trough_period": -1,
+          "current_drawdown": "0.000000",
+          "longest_underwater_periods": 0,
+          "var_confidence": null,
+          "historical_var": null,
+          "historical_cvar": null
+        },
+        "benchmark": {
+          "aligned": false,
+          "periods": 1,
+          "mean_return_per_period": null,
+          "volatility_per_period": null,
+          "total_return": null,
+          "beta": null,
+          "correlation": null,
+          "tracking_error_per_period": null,
+          "alpha_per_period": null
+        },
+        "concentration": null,
+        "carry": null,
+        "factor_decomposition": null,
+        "holding_correlations": null,
+        "stress_tests": [],
+        "decision_journal": null,
+        "disclaimer": "Educational analytics only \u2014 not financial advice. The tool calculates; the user decides.",
+        "summary": "Risk analytics over 2 periods: total return 0.030200, volatility per period 0.007071, max drawdown 0.000000; 5 gaps.",
+        "stamp": "PORTFOLIO RISK ANALYTICS REPORT\nportfolio: Violated Portfolio\nSTATUS: partial\nRisk analytics over 2 periods: total return 0.030200, volatility per period 0.007071, max drawdown 0.000000; 5 gaps.\nEducational analytics only \u2014 not financial advice. The tool calculates; the user decides."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "insufficient_evidence",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Fewer than 2 valid numeric observations provided."
+      },
+      "input": {
+        "portfolio": "Sparse Portfolio",
+        "returns": [
+          0.05
+        ]
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "portfolio-risk-analytics-report",
+        "atom_version": "0.1.0",
+        "portfolio": "Sparse Portfolio",
+        "status": "insufficient_evidence",
+        "layers": {
+          "holdings": "absent",
+          "risk_metrics": "absent",
+          "factor_exposures": "absent",
+          "concentration": "absent",
+          "decisions": "absent"
+        },
+        "counts": {
+          "periods": 1,
+          "invalid_return_entries": 0,
+          "holdings": 0,
+          "invalid_holdings": 0,
+          "journal_entries": 0,
+          "invalid_journal_entries": 0,
+          "scenarios": 0,
+          "invalid_scenarios": 0,
+          "factors": 0,
+          "holding_series": 0,
+          "invalid_holding_series": 0
+        },
+        "gaps": [
+          "returns: a returns series with at least 2 valid numeric observations is required \u2014 risk analytics cannot be computed"
+        ],
+        "risk_metrics": null,
+        "benchmark": null,
+        "concentration": null,
+        "carry": null,
+        "factor_decomposition": null,
+        "holding_correlations": null,
+        "stress_tests": [],
+        "decision_journal": null,
+        "disclaimer": "Educational analytics only \u2014 not financial advice. The tool calculates; the user decides.",
+        "summary": "Insufficient evidence: returns series has 1 valid numeric observations (need at least 2) \u2014 portfolio risk analytics cannot be computed.",
+        "stamp": "PORTFOLIO RISK ANALYTICS REPORT\nportfolio: Sparse Portfolio\nSTATUS: insufficient_evidence\nInsufficient evidence: returns series has 1 valid numeric observations (need at least 2) \u2014 portfolio risk analytics cannot be computed.\nEducational analytics only \u2014 not financial advice. The tool calculates; the user decides."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: portfolio expects string, returns expects list, holdings expects list."
+      },
+      "input": {
+        "portfolio": 12345,
+        "returns": "not_a_list",
+        "holdings": "should_be_a_list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "portfolio",
+        "detail": "portfolio must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

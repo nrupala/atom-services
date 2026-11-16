@@ -1,0 +1,246 @@
+{
+  "name": "firewall-rules-audit--any-any-fail",
+  "manifest": {
+    "system": "edge-fw-01",
+    "environment": "production",
+    "default_policy": {
+      "inbound": "deny",
+      "outbound": "deny"
+    },
+    "layers_consistent": true,
+    "rules": [
+      {
+        "id": "web-https",
+        "direction": "inbound",
+        "source": "203.0.113.0/24",
+        "destination": "10.0.1.10/32",
+        "port_start": 443,
+        "port_end": 443,
+        "protocol": "tcp",
+        "action": "allow",
+        "owner": "netsec",
+        "reason": "public web",
+        "date": "2026-10-01",
+        "service": "web"
+      },
+      {
+        "id": "ssh-admin",
+        "direction": "inbound",
+        "source": "198.51.100.10/32",
+        "destination": "10.0.1.10/32",
+        "port_start": 22,
+        "port_end": 22,
+        "protocol": "tcp",
+        "action": "allow",
+        "owner": "netsec",
+        "reason": "admin ssh from jump host",
+        "date": "2026-10-01",
+        "service": "ssh"
+      },
+      {
+        "id": "dns-egress",
+        "direction": "outbound",
+        "source": "10.0.1.10/32",
+        "destination": "1.1.1.1/32",
+        "port_start": 53,
+        "port_end": 53,
+        "protocol": "udp",
+        "action": "allow",
+        "owner": "netsec",
+        "reason": "dns resolver",
+        "date": "2026-10-01",
+        "service": "dns"
+      },
+      {
+        "id": "bad-any",
+        "direction": "inbound",
+        "source": "any",
+        "destination": "any",
+        "port_start": 443,
+        "port_end": 443,
+        "protocol": "tcp",
+        "action": "allow",
+        "owner": "netsec",
+        "reason": "debug",
+        "date": "2026-10-01",
+        "service": "web"
+      },
+      {
+        "id": "deny-all-in",
+        "direction": "inbound",
+        "source": "any",
+        "destination": "any",
+        "port_start": 0,
+        "port_end": 65535,
+        "protocol": "any",
+        "action": "deny"
+      },
+      {
+        "id": "deny-all-out",
+        "direction": "outbound",
+        "source": "any",
+        "destination": "any",
+        "port_start": 0,
+        "port_end": 65535,
+        "protocol": "any",
+        "action": "deny"
+      }
+    ],
+    "egress": {
+      "explicit_allowlist": true,
+      "alert_on_denies": true
+    },
+    "change_control": {
+      "changes_reviewed": true,
+      "old_rules_retired_on_schedule": true
+    },
+    "logging": {
+      "denials_logged": true,
+      "rate_limited": true
+    },
+    "testing": {
+      "allowed_and_disallowed_paths_verified": true,
+      "smoke_matrix_per_service": true
+    },
+    "review": {
+      "cadence_days": 30
+    }
+  },
+  "expected": {
+    "service": "firewall-rules-audit",
+    "atom_version": "0.1.0",
+    "system": "edge-fw-01",
+    "environment": "production",
+    "verdict": "UNSOUND",
+    "sections": {
+      "baseline": "pass",
+      "least_privilege": "fail",
+      "egress": "pass",
+      "documentation_change": "pass",
+      "assurance": "pass"
+    },
+    "checks": [
+      {
+        "section": "baseline",
+        "check": "default_deny_inbound",
+        "status": "pass",
+        "evidence": "skill method 1: default deny, both directions \u2014 inbound starts closed"
+      },
+      {
+        "section": "baseline",
+        "check": "default_deny_outbound",
+        "status": "pass",
+        "evidence": "skill method 1: default deny, both directions \u2014 outbound starts closed"
+      },
+      {
+        "section": "baseline",
+        "check": "explicit_default_deny_rule_present",
+        "status": "pass",
+        "evidence": "explicit default-deny rule present: deny-all-in"
+      },
+      {
+        "section": "baseline",
+        "check": "layers_consistent",
+        "status": "pass",
+        "evidence": "skill method 4: platform layers consistent, no conflicting opens"
+      },
+      {
+        "section": "least_privilege",
+        "check": "no_any_any_allow_rules",
+        "status": "fail",
+        "evidence": "any-any allow rules (skill: no any-any in production, ever): bad-any"
+      },
+      {
+        "section": "least_privilege",
+        "check": "no_overly_broad_port_ranges",
+        "status": "pass",
+        "evidence": "no allow rule spans 1000 or more ports"
+      },
+      {
+        "section": "least_privilege",
+        "check": "no_shadowed_rules",
+        "status": "pass",
+        "evidence": "no shadowed rules"
+      },
+      {
+        "section": "least_privilege",
+        "check": "no_direct_sensitive_exposure",
+        "status": "pass",
+        "evidence": "no direct exposure of databases, admin panels, or agent control planes"
+      },
+      {
+        "section": "least_privilege",
+        "check": "no_port_forwards_without_review",
+        "status": "pass",
+        "evidence": "no port-forward without a review (port-forwards are inventory items with reviews)"
+      },
+      {
+        "section": "egress",
+        "check": "explicit_egress_allowlist",
+        "status": "pass",
+        "evidence": "skill method 3: explicit egress \u2014 outbound allowlists for the services actually called"
+      },
+      {
+        "section": "egress",
+        "check": "egress_alert_on_denies",
+        "status": "pass",
+        "evidence": "skill method 3: alert on denies to spot misconfig and compromise"
+      },
+      {
+        "section": "documentation_change",
+        "check": "every_allow_rule_documented",
+        "status": "pass",
+        "evidence": "every allow entry has reason + owner + date (quality gate: every allow entry has reason + owner comment)"
+      },
+      {
+        "section": "documentation_change",
+        "check": "changes_reviewed_like_code",
+        "status": "pass",
+        "evidence": "skill method 6: changes reviewed like code"
+      },
+      {
+        "section": "documentation_change",
+        "check": "temporary_rules_have_ticket_and_expiry",
+        "status": "pass",
+        "evidence": "no temporary rule without a ticket and expiry date"
+      },
+      {
+        "section": "documentation_change",
+        "check": "old_rules_retired_on_schedule",
+        "status": "pass",
+        "evidence": "skill method 6: old rules retired on a schedule"
+      },
+      {
+        "section": "assurance",
+        "check": "denials_logged",
+        "status": "pass",
+        "evidence": "skill method 8: denials logged"
+      },
+      {
+        "section": "assurance",
+        "check": "denial_logging_rate_limited",
+        "status": "pass",
+        "evidence": "skill method 8: denials logged with rate-limits to avoid noise floods"
+      },
+      {
+        "section": "assurance",
+        "check": "post_change_test_allowed_and_blocked",
+        "status": "pass",
+        "evidence": "quality gate: post-change test \u2014 allowed path passes, disallowed fails"
+      },
+      {
+        "section": "assurance",
+        "check": "smoke_matrix_per_service",
+        "status": "pass",
+        "evidence": "skill method 7: keep a smoke matrix per service"
+      },
+      {
+        "section": "assurance",
+        "check": "review_cadence_within_31_days",
+        "status": "pass",
+        "evidence": "cadence_days=30 (skill: review top denied flows monthly; rule review performed on schedule)"
+      }
+    ],
+    "summary": "19 pass, 1 fail, 0 missing of 20 checks across five sections."
+  }
+}

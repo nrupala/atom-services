@@ -1,0 +1,96 @@
+# Independent recompute — `confidential-computing-design`
+
+I recompute every quantity SERVICE.md marks as computed, plus the headline verdict/summary, from the case inputs only.
+
+## Serialization rule (applied to all computed amounts)
+
+Per SERVICE.md: round half up to 6dp via `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. For integer-valued line counts this is trivially `v.000000`.
+
+---
+
+## Case 1: `full-pass`
+
+### Computed check 1 — Threat-model protects coverage
+Stated required entries: `host_access`, `operator_access`, `co_tenant_access`.
+Declared `protects_against` = `[host_access, operator_access, co_tenant_access]`.
+Missing = required − declared = ∅ → **pass**. `threat_protects_not_covered` = `[]`.
+Artifact: `pass`, `[]` → **MATCH**.
+
+### Computed check 2 — Threat-model exclusions coverage
+Required: `side_channels`, `supply_chain`, `flawed_enclave_code`, `unsealed_inputs_outputs`.
+Declared = all four. Missing = ∅ → **pass**. `threat_exclusions_not_covered` = `[]`.
+Artifact: `pass`, `[]` → **MATCH**.
+
+### Computed check 3 — Trusted-component entries
+`trusted_components` = `[{name:"core-logic", trusted_lines:100}]`. One entry, name non-empty string, trusted_lines numeric → complete. `components_evaluated` = **1**.
+Artifact: `1` → **MATCH**.
+
+### Computed check 4 — Trusted-codebase total
+Sum of `trusted_lines` = 100.
+Declared `declared_trusted_codebase_lines` = 100.
+Difference = declared − computed = 100 − 100 = 0.
+Serialize: floor(0·1e6 + 0.5)/1e6 = 0 → `"0.000000"`. Computed total → `"100.000000"`.
+Comparison: difference == 0 → **pass**.
+Artifact: `computed_trusted_codebase_lines` = `"100.000000"`, `trusted_codebase_difference` = `"0.000000"`, check `pass` → **MATCH**.
+
+### Computed check 5 — Public-exclusions coverage
+Required (same four): `side_channels`, `supply_chain`, `flawed_enclave_code`, `unsealed_inputs_outputs`.
+Declared `public_exclusions` = all four. Missing = ∅ → **pass**. `claims_exclusions_not_listed` = `[]`.
+Artifact: `pass`, `[]` → **MATCH**.
+
+### `computed_status`
+All five computed checks completed and pass → `within_stated_limits_on_declared_evidence`.
+Artifact: same → **MATCH**.
+
+### Verdict / summary
+All 35 checks pass, 0 fail, 0 missing → `CONFIDENTIAL_COMPUTING_DESIGN_READY`. Summary "35 pass, 0 fail, 0 missing of 35".
+Artifact: `READY`, "35 pass, 0 fail, 0 missing of 35" → **MATCH**.
+
+---
+
+## Case 2: `violations`
+
+Planted wrong values vs `full-pass`: `declared_trusted_codebase_lines` 100→**50**; `debug_enabled_in_production` false→**true**; `root_keys_stored_unsealed_beside_enclave` false→**true**; `unverifiable_secure_enclave_claims_made` false→**true**. Everything else identical.
+
+### Computed check 1 — Threat-model protects coverage
+Declared = all three required → **pass**, `[]`. Artifact `pass`, `[]` → **MATCH**.
+
+### Computed check 2 — Threat-model exclusions coverage
+Declared = all four → **pass**, `[]`. Artifact `pass`, `[]` → **MATCH**.
+
+### Computed check 3 — Trusted-component entries
+One complete entry → `components_evaluated` = **1**. Artifact `1` → **MATCH**.
+
+### Computed check 4 — Trusted-codebase total
+Sum of `trusted_lines` = 100.
+Declared = 50.
+Difference = 50 − 100 = **−50**.
+Serialize: floor(−50·1e6 + 0.5)/1e6 = floor(−49,999,999.5)/1e6 = −50 → `"-50.000000"`. Computed total → `"100.000000"`.
+Comparison: −50 ≠ 0 → **fail**.
+Artifact: `computed_trusted_codebase_lines` = `"100.000000"`, `trusted_codebase_difference` = `"-50.000000"`, check `fail` → **MATCH**.
+
+### Computed check 5 — Public-exclusions coverage
+Declared = all four → **pass**, `[]`. Artifact `pass`, `[]` → **MATCH**.
+
+### `computed_status`
+A computed check fails → `outside_stated_limits_on_declared_evidence`.
+Artifact: same → **MATCH**.
+
+### Planted-failure confirmation
+The four planted wrong values should fail exactly:
+- `declared_trusted_codebase_lines`=50 → `trusted_codebase_total_matches_component_sum` **fail** ✓ (artifact fail)
+- `debug_enabled_in_production`=true → `production_debug_disabled` **fail** ✓ (artifact fail)
+- `root_keys_stored_unsealed_beside_enclave`=true → `root_keys_never_stored_unsealed` **fail** ✓ (artifact fail)
+- `unverifiable_secure_enclave_claims_made`=true → `no_unverifiable_secure_enclave_claims` **fail** ✓ (artifact fail)
+
+All other 31 checks pass. Artifact reports exactly these 4 fails, 31 pass, 0 missing → **MATCH**. Section statuses: enclave_patterns fail (2 fails), key_management fail (1), claims_discipline fail (1), others pass → **MATCH**.
+
+### Verdict / summary
+Any fail → `CONFIDENTIAL_COMPUTING_DESIGN_NOT_READY`. Summary "31 pass, 4 fail, 0 missing of 35".
+Artifact: `NOT_READY`, "31 pass, 4 fail, 0 missing of 35" → **MATCH**.
+
+---
+
+Every computed quantity, coverage list, count, serialized amount, `computed_status`, section status, verdict, and summary in both artifacts reproduces exactly from the inputs under the stated rule. The violations case fails exactly the four checks the planted values target.
+
+AGREEMENT: full

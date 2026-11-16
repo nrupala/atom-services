@@ -1,0 +1,195 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "model": "test-model-v1",
+        "prediction_time": 100,
+        "target": {
+          "defined": true,
+          "horizon_declared": true,
+          "decision_defined": true,
+          "metric_chosen_from_decision_costs": true
+        },
+        "baseline": {
+          "computed": true,
+          "evaluated_on_same_holdout": true
+        },
+        "holdout": {
+          "model_score": 0.8,
+          "baseline_score": 0.5,
+          "metric_direction": "higher_is_better",
+          "untouched": true
+        },
+        "validation": {
+          "split_strategy_documented": true,
+          "temporal_data": true,
+          "split_type": "time_based",
+          "peeking_at_validation": false
+        },
+        "features": [
+          {
+            "available_at": 50,
+            "derived_from_target": false
+          }
+        ],
+        "approach": {
+          "simple_model_tried_first": true,
+          "complexity_justified": true,
+          "outputs_probabilities": true,
+          "action_thresholds_from_decision_costs": true
+        },
+        "calibration": {
+          "reported": true,
+          "max_tolerated_error": 0.05,
+          "observations": [
+            {
+              "predicted": 0.6,
+              "outcome": 1
+            },
+            {
+              "predicted": 0.4,
+              "outcome": 0
+            }
+          ]
+        },
+        "evaluation": {
+          "segment_errors_reported": true,
+          "max_segment_error": 0.1,
+          "segments": [
+            {
+              "name": "A",
+              "error": 0.02
+            }
+          ]
+        },
+        "drift": {
+          "monitoring_in_place": true,
+          "feedback_loops_identified": true,
+          "retraining_policy_defined": true
+        },
+        "deployment": {
+          "versioned_model_and_card": true,
+          "rollback_path_defined": true,
+          "silent_updates_in_production": false
+        }
+      },
+      "expect": {
+        "outcome": "PREDICTION_AUDIT_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: mean_predicted=0.5000, mean_observed=0.5000, calibration_error=0.0000, holdout_improvement=0.3000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "model": "bad-model",
+        "prediction_time": 100,
+        "target": {
+          "defined": true,
+          "horizon_declared": true,
+          "decision_defined": true,
+          "metric_chosen_from_decision_costs": true
+        },
+        "baseline": {
+          "computed": true,
+          "evaluated_on_same_holdout": true
+        },
+        "holdout": {
+          "model_score": 0.4,
+          "baseline_score": 0.8,
+          "metric_direction": "higher_is_better",
+          "untouched": true
+        },
+        "validation": {
+          "split_strategy_documented": true,
+          "temporal_data": true,
+          "split_type": "random",
+          "peeking_at_validation": false
+        },
+        "features": [
+          {
+            "available_at": 150,
+            "derived_from_target": true
+          }
+        ],
+        "approach": {
+          "simple_model_tried_first": true,
+          "complexity_justified": true,
+          "outputs_probabilities": true,
+          "action_thresholds_from_decision_costs": true
+        },
+        "calibration": {
+          "reported": true,
+          "max_tolerated_error": 0.01,
+          "observations": [
+            {
+              "predicted": 0.9,
+              "outcome": 0
+            }
+          ]
+        },
+        "evaluation": {
+          "segment_errors_reported": true,
+          "max_segment_error": 0.01,
+          "segments": [
+            {
+              "name": "B",
+              "error": 0.5
+            }
+          ]
+        },
+        "drift": {
+          "monitoring_in_place": true,
+          "feedback_loops_identified": true,
+          "retraining_policy_defined": true
+        },
+        "deployment": {
+          "versioned_model_and_card": true,
+          "rollback_path_defined": true,
+          "silent_updates_in_production": false
+        }
+      },
+      "expect": {
+        "outcome": "PREDICTION_AUDIT_UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "baseline_and_holdout",
+          "leakage_and_validation",
+          "calibration_and_evaluation"
+        ],
+        "notes": "Fails due to model score < baseline, temporal data using random split, feature leakage, calibration error > tolerance, and segment error > tolerance."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "model": "incomplete-model"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required boolean flags and data structures."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "model": 123,
+        "prediction_time": "not-a-number"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for model (expected string) and prediction_time (expected number)."
+      }
+    }
+  ]
+}

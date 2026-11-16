@@ -1,0 +1,53 @@
+service_name: tested-authorization-policy-pack
+display_name: Tested authorization policy pack
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:policy-as-code
+binding:
+  skill: policy-as-code
+  skill_path: workspace/mymilo-build/skills/policy-as-code/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+implementation:
+  language: Python 3 (stdlib only) + TypeScript port in rails/gateway
+  entry: src/tested_authorization_policy_pack.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_tested_authorization_policy_pack.py — 21 tests, all passing 2026-11-15; gateway parity in rails/gateway/test/tested-authorization-policy-pack.test.ts with 7 golden fixtures; standalone differential 498/498 byte-identical 2026-11-15
+endpoints:
+- API
+- MCP
+- agent
+keys:
+  namespace: tested_authorization_policy_pack
+  prefix: atm_1_tested_authorization_policy_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Access policy for agents and products
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."

@@ -1,0 +1,1038 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: agent-evaluation-scorecard
+
+=== contract.yaml ===
+service_name: agent-evaluation-scorecard
+display_name: Agent evaluation scorecard
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:agent-evaluation
+binding:
+  skill: agent-evaluation
+  skill_path: workspace/mymilo-build/skills/agent-evaluation/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: EVALUATION
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/agent_evaluation_scorecard.py — evaluate(manifest) -> scorecard dict; CLI prints JSON + stamp
+  tests: tests/test_agent_evaluation_scorecard.py — 17 tests, all passing 2026-11-15
+keys:
+  namespace: agent_evaluation_scorecard
+  prefix: atm_1_agent_evaluation_scorecard_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Agent model change regression gates
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Agent evaluation scorecard — `agent-evaluation-scorecard`
+
+**Deliverable type:** EVALUATION. This atom sells the evaluation it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Measure agents before trusting them — task suites, regression gates, calibrated judging, scorecards.
+
+A caller submits the inputs the bound skill works on and receives one evaluation back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this evaluation on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Agent model change regression gates**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the agent-evaluation evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_TRUSTED`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `agent` (string; carried into the scorecard output, not itself checked) | — |
+| `suite.versioned` | task_suite |
+| `suite.criteria_written_before_run` | task_suite |
+| `suite.acceptance_criteria_per_task` | task_suite |
+| `suite.versioned_with_agent` | task_suite |
+| `run.model_version_pinned` | reproducible_runs |
+| `run.sampling_settings_pinned` | reproducible_runs |
+| `run.tool_state_pinned` | reproducible_runs |
+| `run.fixtures_pinned` | reproducible_runs |
+| `run.raw_transcripts_stored` | reproducible_runs |
+| `run.same_suite_per_candidate` | reproducible_runs |
+| `judging.deterministic_checks_first` | judging |
+| `judging.llm_judge_used` (gates the three LLM-judge controls below: required only when true) | judging |
+| `judging.judge_calibrated_against_human_labels` | judging |
+| `judging.judge_blinded` | judging |
+| `judging.position_bias_controls` | judging |
+| `judging.model_judges_itself` (fails when true and the judge is uncalibrated) | judging |
+| `gates.eval_runs_before_merge` | regression_gates |
+| `gates.regressions_block_merge` | regression_gates |
+| `gates.accepted_tradeoffs_written` | regression_gates |
+| `metrics.steps_tracked` | beyond_accuracy |
+| `metrics.cost_tracked` | beyond_accuracy |
+| `metrics.latency_tracked` | beyond_accuracy |
+| `metrics.refusal_error_rates_tracked` | beyond_accuracy |
+| `metrics.safety_violations_tracked` | beyond_accuracy |
+| `metrics.silent_wrongness_tracked` | beyond_accuracy |
+| `incidents.misbehavior_becomes_named_tests` | incident_replay |
+| `incidents.all_production_incidents_replayed` | incident_replay |
+| `scorecard.published_per_run` | scorecard |
+| `scorecard.stored` | scorecard |
+| `tasks[]` (list of task results, see below) | scorecard |
+| `hygiene.contamination_checked` | benchmark_hygiene |
+| `hygiene.variance_reported` | benchmark_hygiene |
+| `hygiene.rebaselined_after_model_updates` | benchmark_hygiene |
+
+Each `tasks[]` entry is `{name, passed, cost, allowed_cost, latency_ms,
+allowed_latency_ms, safety_violation}`. The scorecard's computed check
+passes only when every task met its own declared acceptance criteria
+(passed, cost and latency within allowance, no safety violation); a
+task missing any acceptance field makes the check
+`INSUFFICIENT_EVIDENCE`. The output also carries the computed
+`scorecard` counts (tasks_total / tasks_passing / safety_violations).
+
+The verdict is one of `TRUSTED` (all 32 checks pass), `NOT_TRUSTED`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across eight sections: task_suite,
+reproducible_runs, judging, regression_gates, beyond_accuracy,
+incident_replay, scorecard, benchmark_hygiene.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "agent-evaluation-scorecard",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "TRUSTED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: tasks_total=1, tasks_passing=1, safety_violations=0"
+      },
+      "input": {
+        "agent": "milo-v4",
+        "suite": {
+          "versioned": true,
+          "criteria_written_before_run": true,
+          "acceptance_criteria_per_task": true,
+          "versioned_with_agent": true
+        },
+        "run": {
+          "model_version_pinned": true,
+          "sampling_settings_pinned": true,
+          "tool_state_pinned": true,
+          "fixtures_pinned": true,
+          "raw_transcripts_stored": true,
+          "same_suite_per_candidate": true
+        },
+        "judging": {
+          "deterministic_checks_first": true,
+          "llm_judge_used": false,
+          "judge_calibrated_against_human_labels": true,
+          "judge_blinded": true,
+          "position_bias_controls": true,
+          "model_judges_itself": false
+        },
+        "gates": {
+          "eval_runs_before_merge": true,
+          "regressions_block_merge": true,
+          "accepted_tradeoffs_written": true
+        },
+        "metrics": {
+          "steps_tracked": true,
+          "cost_tracked": true,
+          "latency_tracked": true,
+          "refusal_error_rates_tracked": true,
+          "safety_violations_tracked": true,
+          "silent_wrongness_tracked": true
+        },
+        "incidents": {
+          "misbehavior_becomes_named_tests": true,
+          "all_production_incidents_replayed": true
+        },
+        "scorecard": {
+          "published_per_run": true,
+          "stored": true
+        },
+        "tasks": [
+          {
+            "name": "t1",
+            "passed": true,
+            "cost": 0.1,
+            "allowed_cost": 0.5,
+            "latency_ms": 100,
+            "allowed_latency_ms": 500,
+            "safety_violation": false
+          }
+        ],
+        "hygiene": {
+          "contamination_checked": true,
+          "variance_reported": true,
+          "rebaselined_after_model_updates": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-evaluation-scorecard",
+        "atom_version": "0.1.0",
+        "agent": "milo-v4",
+        "verdict": "TRUSTED",
+        "sections": {
+          "task_suite": "pass",
+          "reproducible_runs": "pass",
+          "judging": "pass",
+          "regression_gates": "pass",
+          "beyond_accuracy": "pass",
+          "incident_replay": "pass",
+          "scorecard": "pass",
+          "benchmark_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "task_suite",
+            "check": "suite_versioned",
+            "status": "pass",
+            "evidence": "quality gate: suite versioned, criteria written before running"
+          },
+          {
+            "section": "task_suite",
+            "check": "criteria_written_before_running",
+            "status": "pass",
+            "evidence": "acceptance criteria written before the run, not after"
+          },
+          {
+            "section": "task_suite",
+            "check": "acceptance_criteria_defined_per_task",
+            "status": "pass",
+            "evidence": "golden tasks per capability with success definition, allowed cost, allowed latency, safety constraints"
+          },
+          {
+            "section": "task_suite",
+            "check": "suite_versioned_with_agent",
+            "status": "pass",
+            "evidence": "task suites versioned with the agent"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "model_version_pinned",
+            "status": "pass",
+            "evidence": "pin model versions"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "sampling_settings_pinned",
+            "status": "pass",
+            "evidence": "pin seeds/temperatures"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "tool_state_pinned",
+            "status": "pass",
+            "evidence": "pin tool states"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "fixtures_pinned",
+            "status": "pass",
+            "evidence": "pin fixtures"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "raw_transcripts_stored",
+            "status": "pass",
+            "evidence": "store raw transcripts"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "same_suite_for_every_candidate",
+            "status": "pass",
+            "evidence": "run the same suite per candidate"
+          },
+          {
+            "section": "judging",
+            "check": "deterministic_checks_first",
+            "status": "pass",
+            "evidence": "deterministic checks first (did it do the thing?)"
+          },
+          {
+            "section": "judging",
+            "check": "llm_judge_calibrated_against_human_labels",
+            "status": "pass",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "judge_blinded",
+            "status": "pass",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "position_bias_controls",
+            "status": "pass",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "no_uncalibrated_self_judging",
+            "status": "pass",
+            "evidence": "the model under test does not judge itself"
+          },
+          {
+            "section": "regression_gates",
+            "check": "eval_runs_before_merge",
+            "status": "pass",
+            "evidence": "eval suite runs before merging agent changes"
+          },
+          {
+            "section": "regression_gates",
+            "check": "regressions_block_merge",
+            "status": "pass",
+            "evidence": "regressions block until explained"
+          },
+          {
+            "section": "regression_gates",
+            "check": "accepted_tradeoffs_written",
+            "status": "pass",
+            "evidence": "accepted trade-offs are written, not vibes"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "steps_to_completion_tracked",
+            "status": "pass",
+            "evidence": "track steps-to-completion"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "cost_tracked",
+            "status": "pass",
+            "evidence": "track cost"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "latency_tracked",
+            "status": "pass",
+            "evidence": "track latency"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "refusal_and_error_rates_tracked",
+            "status": "pass",
+            "evidence": "track refusal/error rates"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "safety_violations_tracked",
+            "status": "pass",
+            "evidence": "track safety violations"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "silent_wrongness_tracked",
+            "status": "pass",
+            "evidence": "track silent wrongness (confident bad output)"
+          },
+          {
+            "section": "incident_replay",
+            "check": "misbehavior_becomes_named_test_cases",
+            "status": "pass",
+            "evidence": "every production misbehavior becomes a named test case"
+          },
+          {
+            "section": "incident_replay",
+            "check": "all_production_incidents_replayed",
+            "status": "pass",
+            "evidence": "incident replay: incidents turned into permanent regression tests"
+          },
+          {
+            "section": "scorecard",
+            "check": "scorecard_published_per_run",
+            "status": "pass",
+            "evidence": "publish a compact scorecard per run"
+          },
+          {
+            "section": "scorecard",
+            "check": "scorecards_stored",
+            "status": "pass",
+            "evidence": "quality gate: scorecards stored"
+          },
+          {
+            "section": "scorecard",
+            "check": "all_tasks_meet_acceptance_criteria",
+            "status": "pass",
+            "evidence": "every task met its declared acceptance criteria (passed, cost and latency within allowance, no safety violation)"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "contamination_checked",
+            "status": "pass",
+            "evidence": "watch contamination (tasks leaking into training)"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "variance_reported",
+            "status": "pass",
+            "evidence": "run N times, report spread"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "rebaselined_after_model_updates",
+            "status": "pass",
+            "evidence": "re-baseline after model updates"
+          }
+        ],
+        "scorecard": {
+          "tasks_total": 1,
+          "tasks_passing": 1,
+          "safety_violations": 0
+        },
+        "summary": "32 pass, 0 fail, 0 missing of 32 checks across eight sections.",
+        "stamp": "AGENT-EVALUATION SCORECARD\nagent: milo-v4\nVERDICT: TRUSTED\n  task_suite         pass\n  reproducible_runs  pass\n  judging            pass\n  regression_gates   pass\n  beyond_accuracy    pass\n  incident_replay    pass\n  scorecard          pass\n  benchmark_hygiene  pass\n32 pass, 0 fail, 0 missing of 32 checks across eight sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_TRUSTED",
+        "http": 200,
+        "failing_checks": [
+          "task_suite",
+          "judging",
+          "scorecard"
+        ],
+        "notes": "Fails due to suite.versioned=false, model_judges_itself=true (uncalibrated), and task.passed=false."
+      },
+      "input": {
+        "agent": "milo-v4",
+        "suite": {
+          "versioned": false,
+          "criteria_written_before_run": true,
+          "acceptance_criteria_per_task": true,
+          "versioned_with_agent": true
+        },
+        "run": {
+          "model_version_pinned": true,
+          "sampling_settings_pinned": true,
+          "tool_state_pinned": true,
+          "fixtures_pinned": true,
+          "raw_transcripts_stored": true,
+          "same_suite_per_candidate": true
+        },
+        "judging": {
+          "deterministic_checks_first": true,
+          "llm_judge_used": false,
+          "judge_calibrated_against_human_labels": true,
+          "judge_blinded": true,
+          "position_bias_controls": true,
+          "model_judges_itself": true
+        },
+        "gates": {
+          "eval_runs_before_merge": true,
+          "regressions_block_merge": true,
+          "accepted_tradeoffs_written": true
+        },
+        "metrics": {
+          "steps_tracked": true,
+          "cost_tracked": true,
+          "latency_tracked": true,
+          "refusal_error_rates_tracked": true,
+          "safety_violations_tracked": true,
+          "silent_wrongness_tracked": true
+        },
+        "incidents": {
+          "misbehavior_becomes_named_tests": true,
+          "all_production_incidents_replayed": true
+        },
+        "scorecard": {
+          "published_per_run": true,
+          "stored": true
+        },
+        "tasks": [
+          {
+            "name": "t1",
+            "passed": false,
+            "cost": 0.1,
+            "allowed_cost": 0.5,
+            "latency_ms": 100,
+            "allowed_latency_ms": 500,
+            "safety_violation": false
+          }
+        ],
+        "hygiene": {
+          "contamination_checked": true,
+          "variance_reported": true,
+          "rebaselined_after_model_updates": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-evaluation-scorecard",
+        "atom_version": "0.1.0",
+        "agent": "milo-v4",
+        "verdict": "NOT_TRUSTED",
+        "sections": {
+          "task_suite": "fail",
+          "reproducible_runs": "pass",
+          "judging": "pass",
+          "regression_gates": "pass",
+          "beyond_accuracy": "pass",
+          "incident_replay": "pass",
+          "scorecard": "fail",
+          "benchmark_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "task_suite",
+            "check": "suite_versioned",
+            "status": "fail",
+            "evidence": "quality gate: suite versioned, criteria written before running"
+          },
+          {
+            "section": "task_suite",
+            "check": "criteria_written_before_running",
+            "status": "pass",
+            "evidence": "acceptance criteria written before the run, not after"
+          },
+          {
+            "section": "task_suite",
+            "check": "acceptance_criteria_defined_per_task",
+            "status": "pass",
+            "evidence": "golden tasks per capability with success definition, allowed cost, allowed latency, safety constraints"
+          },
+          {
+            "section": "task_suite",
+            "check": "suite_versioned_with_agent",
+            "status": "pass",
+            "evidence": "task suites versioned with the agent"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "model_version_pinned",
+            "status": "pass",
+            "evidence": "pin model versions"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "sampling_settings_pinned",
+            "status": "pass",
+            "evidence": "pin seeds/temperatures"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "tool_state_pinned",
+            "status": "pass",
+            "evidence": "pin tool states"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "fixtures_pinned",
+            "status": "pass",
+            "evidence": "pin fixtures"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "raw_transcripts_stored",
+            "status": "pass",
+            "evidence": "store raw transcripts"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "same_suite_for_every_candidate",
+            "status": "pass",
+            "evidence": "run the same suite per candidate"
+          },
+          {
+            "section": "judging",
+            "check": "deterministic_checks_first",
+            "status": "pass",
+            "evidence": "deterministic checks first (did it do the thing?)"
+          },
+          {
+            "section": "judging",
+            "check": "llm_judge_calibrated_against_human_labels",
+            "status": "pass",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "judge_blinded",
+            "status": "pass",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "position_bias_controls",
+            "status": "pass",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "no_uncalibrated_self_judging",
+            "status": "pass",
+            "evidence": "skill red line: the model under test never judges itself uncalibrated"
+          },
+          {
+            "section": "regression_gates",
+            "check": "eval_runs_before_merge",
+            "status": "pass",
+            "evidence": "eval suite runs before merging agent changes"
+          },
+          {
+            "section": "regression_gates",
+            "check": "regressions_block_merge",
+            "status": "pass",
+            "evidence": "regressions block until explained"
+          },
+          {
+            "section": "regression_gates",
+            "check": "accepted_tradeoffs_written",
+            "status": "pass",
+            "evidence": "accepted trade-offs are written, not vibes"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "steps_to_completion_tracked",
+            "status": "pass",
+            "evidence": "track steps-to-completion"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "cost_tracked",
+            "status": "pass",
+            "evidence": "track cost"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "latency_tracked",
+            "status": "pass",
+            "evidence": "track latency"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "refusal_and_error_rates_tracked",
+            "status": "pass",
+            "evidence": "track refusal/error rates"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "safety_violations_tracked",
+            "status": "pass",
+            "evidence": "track safety violations"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "silent_wrongness_tracked",
+            "status": "pass",
+            "evidence": "track silent wrongness (confident bad output)"
+          },
+          {
+            "section": "incident_replay",
+            "check": "misbehavior_becomes_named_test_cases",
+            "status": "pass",
+            "evidence": "every production misbehavior becomes a named test case"
+          },
+          {
+            "section": "incident_replay",
+            "check": "all_production_incidents_replayed",
+            "status": "pass",
+            "evidence": "incident replay: incidents turned into permanent regression tests"
+          },
+          {
+            "section": "scorecard",
+            "check": "scorecard_published_per_run",
+            "status": "pass",
+            "evidence": "publish a compact scorecard per run"
+          },
+          {
+            "section": "scorecard",
+            "check": "scorecards_stored",
+            "status": "pass",
+            "evidence": "quality gate: scorecards stored"
+          },
+          {
+            "section": "scorecard",
+            "check": "all_tasks_meet_acceptance_criteria",
+            "status": "fail",
+            "evidence": "every task met its declared acceptance criteria (passed, cost and latency within allowance, no safety violation)"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "contamination_checked",
+            "status": "pass",
+            "evidence": "watch contamination (tasks leaking into training)"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "variance_reported",
+            "status": "pass",
+            "evidence": "run N times, report spread"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "rebaselined_after_model_updates",
+            "status": "pass",
+            "evidence": "re-baseline after model updates"
+          }
+        ],
+        "scorecard": {
+          "tasks_total": 1,
+          "tasks_passing": 0,
+          "safety_violations": 0
+        },
+        "summary": "30 pass, 2 fail, 0 missing of 32 checks across eight sections.",
+        "stamp": "AGENT-EVALUATION SCORECARD\nagent: milo-v4\nVERDICT: NOT_TRUSTED\n  task_suite         fail\n  reproducible_runs  pass\n  judging            pass\n  regression_gates   pass\n  beyond_accuracy    pass\n  incident_replay    pass\n  scorecard          fail\n  benchmark_hygiene  pass\n30 pass, 2 fail, 0 missing of 32 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of required fields for sections."
+      },
+      "input": {
+        "agent": "milo-v4",
+        "tasks": [
+          {
+            "name": "t1",
+            "passed": true,
+            "cost": 0.1,
+            "allowed_cost": 0.5,
+            "latency_ms": 100,
+            "allowed_latency_ms": 500,
+            "safety_violation": false
+          }
+        ]
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-evaluation-scorecard",
+        "atom_version": "0.1.0",
+        "agent": "milo-v4",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "task_suite": "insufficient_evidence",
+          "reproducible_runs": "insufficient_evidence",
+          "judging": "insufficient_evidence",
+          "regression_gates": "insufficient_evidence",
+          "beyond_accuracy": "insufficient_evidence",
+          "incident_replay": "insufficient_evidence",
+          "scorecard": "insufficient_evidence",
+          "benchmark_hygiene": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "task_suite",
+            "check": "suite_versioned",
+            "status": "missing",
+            "evidence": "quality gate: suite versioned, criteria written before running"
+          },
+          {
+            "section": "task_suite",
+            "check": "criteria_written_before_running",
+            "status": "missing",
+            "evidence": "acceptance criteria written before the run, not after"
+          },
+          {
+            "section": "task_suite",
+            "check": "acceptance_criteria_defined_per_task",
+            "status": "missing",
+            "evidence": "golden tasks per capability with success definition, allowed cost, allowed latency, safety constraints"
+          },
+          {
+            "section": "task_suite",
+            "check": "suite_versioned_with_agent",
+            "status": "missing",
+            "evidence": "task suites versioned with the agent"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "model_version_pinned",
+            "status": "missing",
+            "evidence": "pin model versions"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "sampling_settings_pinned",
+            "status": "missing",
+            "evidence": "pin seeds/temperatures"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "tool_state_pinned",
+            "status": "missing",
+            "evidence": "pin tool states"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "fixtures_pinned",
+            "status": "missing",
+            "evidence": "pin fixtures"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "raw_transcripts_stored",
+            "status": "missing",
+            "evidence": "store raw transcripts"
+          },
+          {
+            "section": "reproducible_runs",
+            "check": "same_suite_for_every_candidate",
+            "status": "missing",
+            "evidence": "run the same suite per candidate"
+          },
+          {
+            "section": "judging",
+            "check": "deterministic_checks_first",
+            "status": "missing",
+            "evidence": "deterministic checks first (did it do the thing?)"
+          },
+          {
+            "section": "judging",
+            "check": "llm_judge_calibrated_against_human_labels",
+            "status": "missing",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "judge_blinded",
+            "status": "missing",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "position_bias_controls",
+            "status": "missing",
+            "evidence": "no LLM judge declared"
+          },
+          {
+            "section": "judging",
+            "check": "no_uncalibrated_self_judging",
+            "status": "missing",
+            "evidence": "the model under test does not judge itself"
+          },
+          {
+            "section": "regression_gates",
+            "check": "eval_runs_before_merge",
+            "status": "missing",
+            "evidence": "eval suite runs before merging agent changes"
+          },
+          {
+            "section": "regression_gates",
+            "check": "regressions_block_merge",
+            "status": "missing",
+            "evidence": "regressions block until explained"
+          },
+          {
+            "section": "regression_gates",
+            "check": "accepted_tradeoffs_written",
+            "status": "missing",
+            "evidence": "accepted trade-offs are written, not vibes"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "steps_to_completion_tracked",
+            "status": "missing",
+            "evidence": "track steps-to-completion"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "cost_tracked",
+            "status": "missing",
+            "evidence": "track cost"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "latency_tracked",
+            "status": "missing",
+            "evidence": "track latency"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "refusal_and_error_rates_tracked",
+            "status": "missing",
+            "evidence": "track refusal/error rates"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "safety_violations_tracked",
+            "status": "missing",
+            "evidence": "track safety violations"
+          },
+          {
+            "section": "beyond_accuracy",
+            "check": "silent_wrongness_tracked",
+            "status": "missing",
+            "evidence": "track silent wrongness (confident bad output)"
+          },
+          {
+            "section": "incident_replay",
+            "check": "misbehavior_becomes_named_test_cases",
+            "status": "missing",
+            "evidence": "every production misbehavior becomes a named test case"
+          },
+          {
+            "section": "incident_replay",
+            "check": "all_production_incidents_replayed",
+            "status": "missing",
+            "evidence": "incident replay: incidents turned into permanent regression tests"
+          },
+          {
+            "section": "scorecard",
+            "check": "scorecard_published_per_run",
+            "status": "missing",
+            "evidence": "publish a compact scorecard per run"
+          },
+          {
+            "section": "scorecard",
+            "check": "scorecards_stored",
+            "status": "missing",
+            "evidence": "quality gate: scorecards stored"
+          },
+          {
+            "section": "scorecard",
+            "check": "all_tasks_meet_acceptance_criteria",
+            "status": "pass",
+            "evidence": "every task met its declared acceptance criteria (passed, cost and latency within allowance, no safety violation)"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "contamination_checked",
+            "status": "missing",
+            "evidence": "watch contamination (tasks leaking into training)"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "variance_reported",
+            "status": "missing",
+            "evidence": "run N times, report spread"
+          },
+          {
+            "section": "benchmark_hygiene",
+            "check": "rebaselined_after_model_updates",
+            "status": "missing",
+            "evidence": "re-baseline after model updates"
+          }
+        ],
+        "scorecard": {
+          "tasks_total": 1,
+          "tasks_passing": 1,
+          "safety_violations": 0
+        },
+        "summary": "1 pass, 0 fail, 31 missing of 32 checks across eight sections.",
+        "stamp": "AGENT-EVALUATION SCORECARD\nagent: milo-v4\nVERDICT: INSUFFICIENT_EVIDENCE\n  task_suite         insufficient_evidence\n  reproducible_runs  insufficient_evidence\n  judging            insufficient_evidence\n  regression_gates   insufficient_evidence\n  beyond_accuracy    insufficient_evidence\n  incident_replay    insufficient_evidence\n  scorecard          insufficient_evidence\n  benchmark_hygiene  insufficient_evidence\n1 pass, 0 fail, 31 missing of 32 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: agent expects string, tasks expects list."
+      },
+      "input": {
+        "agent": 12345,
+        "tasks": "not-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "agent",
+        "detail": "agent must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

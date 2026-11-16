@@ -1,0 +1,1074 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: architecture-decision-record
+
+=== contract.yaml ===
+service_name: architecture-decision-record
+display_name: Architecture decision record
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:architecture-decisions
+binding:
+  skill: architecture-decisions
+  skill_path: workspace/mymilo-build/skills/architecture-decisions/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/architecture_decision_record.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_architecture_decision_record.py — 38 tests, all passing 2026-11-15
+keys:
+  namespace: architecture_decision_record
+  prefix: atm_1_architecture_decision_record_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Architecture reviews before builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Architecture decision record — `architecture-decision-record`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Make and record architecture decisions (ADRs) with interface contracts and honest trade-offs before code.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Architecture reviews before builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the architecture-decision manifest
+
+The caller submits one JSON manifest: a declared ADR pack for one
+architecture decision. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`ADR_NOT_COMPLETE`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `decision` (string; carried into the verdict output, not itself checked) | — |
+| `nfrs.written` | nfrs_first |
+| `nfrs.quantified_where_possible` | nfrs_first |
+| `nfrs.agreed_before_design_freeze` | nfrs_first |
+| `boundaries.contexts_drawn` | boundaries_and_contracts |
+| `boundaries.core_kept_small` | boundaries_and_contracts |
+| `boundaries.hidden_coupling_present` (must be `false` to pass — skill red line) | boundaries_and_contracts |
+| `boundaries.backdoor_paths_present` (must be `false` to pass — skill red line) | boundaries_and_contracts |
+| `contracts.interfaces_documented` | boundaries_and_contracts |
+| `contracts.interfaces_versioned` | boundaries_and_contracts |
+| `contracts.inputs_outputs_defined` | boundaries_and_contracts |
+| `contracts.errors_defined` | boundaries_and_contracts |
+| `contracts.defined_before_code` | boundaries_and_contracts |
+| `options.alternatives` (list of `{name, serious, tradeoffs_stated}`; computed, see below) | options_and_tradeoffs |
+| `options.prefers_boring_replaceable_tech` | options_and_tradeoffs |
+| `adr.numbered` | adr_format |
+| `adr.context_stated` | adr_format |
+| `adr.decision_stated` | adr_format |
+| `adr.consequences_positive_stated` | adr_format |
+| `adr.consequences_negative_stated` | adr_format |
+| `adr.consequences_risks_stated` | adr_format |
+| `adr.status_stated` | adr_format |
+| `adr.page_count` (number; must be ≤ 1 to pass — computed, see below) | adr_format |
+| `reversibility.assessed` | reversibility_and_security |
+| `reversibility.expensive_choices_isolated_behind_interfaces` | reversibility_and_security |
+| `reversibility.irreversible_decisions_deferred` (must be `false` to pass — skill red line) | reversibility_and_security |
+| `security.data_flows_mapped` | reversibility_and_security |
+| `security.encryption_verification_addressed` | reversibility_and_security |
+| `dependencies.new_dependency_introduced` (gates the reason check below) | lifecycle_and_dependencies |
+| `dependencies.new_dependency_reason_stated` (required when a dependency is introduced; otherwise the check passes as not applicable) | lifecycle_and_dependencies |
+| `supersession.has_superseded_adrs` (gates the link check below) | lifecycle_and_dependencies |
+| `supersession.superseded_adrs_linked_to_replacements` (required when superseded ADRs exist; otherwise the check passes as not applicable) | lifecycle_and_dependencies |
+| `supersession.superseded_silently_rewritten` (must be `false` to pass) | lifecycle_and_dependencies |
+
+Three checks are computed from the declared alternatives list, and
+one from the declared page count, using only what the skill itself
+states — no outside threshold is imported:
+
+- **Alternatives count:** the skill's method step 4 states "list
+  2–3 real alternatives". The declared `options.alternatives` list
+  therefore passes only when it holds between two and three entries
+  inclusive; fewer or more fails. A missing or non-list value is
+  missing evidence, not a failure; an empty list is present and
+  fails.
+- **Trade-offs per alternative:** the same step requires the
+  alternatives be listed "with trade-offs" — every entry must
+  declare `tradeoffs_stated: true`.
+- **Serious alternative:** the skill's quality gate requires "at
+  least one serious alternative considered per major decision" —
+  at least one entry must declare `serious: true`.
+- **One page max:** the skill's ADR format states "One page max."
+  The declared `adr.page_count` passes at or below 1 and fails
+  above it; equality passes, because the skill states a maximum,
+  not a margin below it. An absent value is missing evidence,
+  not a failure; a present value of the wrong type is rejected
+  as invalid input.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when either
+primary computed check — alternatives count, page limit — cannot
+be completed), `alternatives_count` (the declared list length, or
+null), and `page_count_over_limit` — the declared page count minus
+the stated maximum of 1 (null when no numeric count is declared).
+**Fixed serialization rule:** the excess is reported as a string
+with exactly four decimal places, produced in both implementations
+by the same rule — round half up to 4dp,
+`floor(v * 10000 + 0.5) / 10000`, then format with exactly four
+decimals; comparisons use the unrounded values. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The verdict is one of `ADR_COMPLETE` (all 32 checks pass),
+`ADR_NOT_COMPLETE` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across six sections:
+nfrs_first, boundaries_and_contracts, options_and_tradeoffs,
+adr_format, reversibility_and_security,
+lifecycle_and_dependencies.
+
+## Honest scoping
+
+This atom audits a **declared** ADR pack — it does not write the
+ADR, choose the technology, read the repository, or verify that a
+declared value is true. A record is complete *on the caller's
+declared evidence*: a manifest that declares quantified NFRs,
+versioned contracts, and three alternatives with trade-offs passes
+those checks even if the underlying design work was never done. It
+is a completeness audit of the record the skill requires, **not an
+architecture review**: it never judges whether the decision itself
+is wise, whether the chosen option is the right one, or whether the
+stated trade-offs are accurate — only that the record contains
+what the skill's method, quality gates, and red lines demand.
+
+Named exclusions: no check of the ADR's prose (context quality,
+consequence honesty, NFR realism are judgment, and the skill
+states no vocabulary for grading them, so none is invented); no
+status vocabulary is imposed (the skill requires a Status field
+but names no allowed values, so only its presence is checked); no
+verification that a numbered ADR file exists at
+`docs/adr/NNNN-title.md`, only that numbering is declared; no
+live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "architecture-decision-record",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "ADR_COMPLETE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: alternatives_count=2, page_count_over_limit=0.0000 [Tester correction: added supersession.superseded_silently_rewritten=false \u2014 the field was omitted by the designer; as an unconditional false-check its absence would be missing evidence (INSUFFICIENT_EVIDENCE), not a pass.]"
+      },
+      "input": {
+        "decision": "Use PostgreSQL for primary storage",
+        "nfrs": {
+          "written": true,
+          "quantified_where_possible": true,
+          "agreed_before_design_freeze": true
+        },
+        "boundaries": {
+          "contexts_drawn": true,
+          "core_kept_small": true,
+          "hidden_coupling_present": false,
+          "backdoor_paths_present": false
+        },
+        "contracts": {
+          "interfaces_documented": true,
+          "interfaces_versioned": true,
+          "inputs_outputs_defined": true,
+          "errors_defined": true,
+          "defined_before_code": true
+        },
+        "options": {
+          "alternatives": [
+            {
+              "name": "PostgreSQL",
+              "serious": true,
+              "tradeoffs_stated": true
+            },
+            {
+              "name": "MongoDB",
+              "serious": false,
+              "tradeoffs_stated": true
+            }
+          ],
+          "prefers_boring_replaceable_tech": true
+        },
+        "adr": {
+          "numbered": true,
+          "context_stated": true,
+          "decision_stated": true,
+          "consequences_positive_stated": true,
+          "consequences_negative_stated": true,
+          "consequences_risks_stated": true,
+          "status_stated": true,
+          "page_count": 1
+        },
+        "reversibility": {
+          "assessed": true,
+          "expensive_choices_isolated_behind_interfaces": true,
+          "irreversible_decisions_deferred": false
+        },
+        "security": {
+          "data_flows_mapped": true,
+          "encryption_verification_addressed": true
+        },
+        "dependencies": {
+          "new_dependency_introduced": false
+        },
+        "supersession": {
+          "has_superseded_adrs": false,
+          "superseded_silently_rewritten": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "architecture-decision-record",
+        "atom_version": "0.1.0",
+        "decision": "Use PostgreSQL for primary storage",
+        "verdict": "ADR_COMPLETE",
+        "sections": {
+          "nfrs_first": "pass",
+          "boundaries_and_contracts": "pass",
+          "options_and_tradeoffs": "pass",
+          "adr_format": "pass",
+          "reversibility_and_security": "pass",
+          "lifecycle_and_dependencies": "pass"
+        },
+        "checks": [
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_written",
+            "status": "pass",
+            "evidence": "NFRs first: non-functional requirements (performance, scale, availability, security, cost) are written before the design"
+          },
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_quantified_where_possible",
+            "status": "pass",
+            "evidence": "NFRs are quantified where possible, per the skill's method step 1"
+          },
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_agreed_before_design_freeze",
+            "status": "pass",
+            "evidence": "quality gate: NFRs written and agreed before design freeze"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "boundaries_drawn",
+            "status": "pass",
+            "evidence": "boundaries: contexts/modules are drawn before the build"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "core_kept_small",
+            "status": "pass",
+            "evidence": "boundaries: the core is kept small, with clear interfaces at the seams"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "interfaces_documented",
+            "status": "pass",
+            "evidence": "quality gate: interfaces are documented"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "interfaces_versioned",
+            "status": "pass",
+            "evidence": "quality gate: interfaces are versioned \u2014 contracts are defined and versioned before code"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contract_inputs_outputs_defined",
+            "status": "pass",
+            "evidence": "contracts before code: API/module contracts define inputs and outputs"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contract_errors_defined",
+            "status": "pass",
+            "evidence": "contracts before code: API/module contracts define errors"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contracts_defined_before_code",
+            "status": "pass",
+            "evidence": "contracts before code: the contracts are defined before the code that implements them"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "no_hidden_coupling_across_boundaries",
+            "status": "pass",
+            "evidence": "red line: no hidden coupling across boundaries"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "no_backdoor_paths_around_contracts",
+            "status": "pass",
+            "evidence": "red line: no backdoor paths around the contracts"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "alternatives_count_in_stated_range",
+            "status": "pass",
+            "evidence": "options: list 2-3 real alternatives \u2014 the declared alternatives list holds between two and three entries"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "all_alternatives_tradeoffs_stated",
+            "status": "pass",
+            "evidence": "options: each listed alternative carries its trade-offs (honest trade-offs, stated per alternative)"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "at_least_one_serious_alternative",
+            "status": "pass",
+            "evidence": "quality gate: at least one serious alternative considered per major decision"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "boring_replaceable_tech_preferred",
+            "status": "pass",
+            "evidence": "options: prefer boring, replaceable tech"
+          },
+          {
+            "section": "adr_format",
+            "check": "adr_numbered",
+            "status": "pass",
+            "evidence": "artifacts: the ADR is numbered (docs/adr/NNNN-title)"
+          },
+          {
+            "section": "adr_format",
+            "check": "context_stated",
+            "status": "pass",
+            "evidence": "ADR format: Context is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "decision_stated",
+            "status": "pass",
+            "evidence": "ADR format: Decision is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_positive_stated",
+            "status": "pass",
+            "evidence": "ADR format: Consequences state the positives"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_negative_stated",
+            "status": "pass",
+            "evidence": "ADR format: Consequences state the negatives"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_risks_stated",
+            "status": "pass",
+            "evidence": "ADR format: Consequences state the risks"
+          },
+          {
+            "section": "adr_format",
+            "check": "status_stated",
+            "status": "pass",
+            "evidence": "ADR format: Status is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "adr_within_one_page_max",
+            "status": "pass",
+            "evidence": "ADR format: one page max \u2014 the declared page count is at or below one page"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "reversibility_assessed",
+            "status": "pass",
+            "evidence": "reversibility: the decision's reversibility is assessed \u2014 choices that are cheap to undo are preferred"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "expensive_choices_isolated_behind_interfaces",
+            "status": "pass",
+            "evidence": "reversibility: expensive-to-reverse choices are isolated behind interfaces"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "irreversible_decisions_not_deferred",
+            "status": "pass",
+            "evidence": "red line: no 'we'll figure it out later' for irreversible decisions"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "data_flows_mapped",
+            "status": "pass",
+            "evidence": "security by design: data flows are mapped"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "encryption_and_verification_addressed",
+            "status": "pass",
+            "evidence": "security by design: encryption/verification is addressed per the secure-build pattern"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "new_dependency_reason_stated_when_introduced",
+            "status": "pass",
+            "evidence": "no new dependency introduced"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "superseded_adrs_link_to_replacements",
+            "status": "pass",
+            "evidence": "no superseded ADRs declared"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "superseded_adrs_not_silently_rewritten",
+            "status": "pass",
+            "evidence": "decisions live in ADRs \u2014 written once, superseded, never silently rewritten"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "alternatives_count": 2,
+        "page_count_over_limit": "0.0000",
+        "summary": "32 pass, 0 fail, 0 missing of 32 checks across six sections.",
+        "stamp": "ARCHITECTURE DECISION RECORD\ndecision: Use PostgreSQL for primary storage\nVERDICT: ADR_COMPLETE\n  nfrs_first                       pass\n  boundaries_and_contracts         pass\n  options_and_tradeoffs            pass\n  adr_format                       pass\n  reversibility_and_security       pass\n  lifecycle_and_dependencies       pass\n32 pass, 0 fail, 0 missing of 32 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "ADR_NOT_COMPLETE",
+        "http": 200,
+        "failing_checks": [
+          "no_hidden_coupling_across_boundaries",
+          "no_backdoor_paths_around_contracts",
+          "alternatives_count_in_stated_range",
+          "all_alternatives_tradeoffs_stated",
+          "at_least_one_serious_alternative",
+          "adr_within_one_page_max",
+          "irreversible_decisions_not_deferred"
+        ],
+        "notes": "Violates red lines (hidden_coupling, backdoor_paths, irreversible_decisions), alternative count/quality, and page limit."
+      },
+      "input": {
+        "decision": "Bad Architecture",
+        "nfrs": {
+          "written": true,
+          "quantified_where_possible": true,
+          "agreed_before_design_freeze": true
+        },
+        "boundaries": {
+          "contexts_drawn": true,
+          "core_kept_small": true,
+          "hidden_coupling_present": true,
+          "backdoor_paths_present": true
+        },
+        "contracts": {
+          "interfaces_documented": true,
+          "interfaces_versioned": true,
+          "inputs_outputs_defined": true,
+          "errors_defined": true,
+          "defined_before_code": true
+        },
+        "options": {
+          "alternatives": [
+            {
+              "name": "A",
+              "serious": false,
+              "tradeoffs_stated": false
+            }
+          ],
+          "prefers_boring_replaceable_tech": true
+        },
+        "adr": {
+          "numbered": true,
+          "context_stated": true,
+          "decision_stated": true,
+          "consequences_positive_stated": true,
+          "consequences_negative_stated": true,
+          "consequences_risks_stated": true,
+          "status_stated": true,
+          "page_count": 5
+        },
+        "reversibility": {
+          "assessed": true,
+          "expensive_choices_isolated_behind_interfaces": true,
+          "irreversible_decisions_deferred": true
+        },
+        "security": {
+          "data_flows_mapped": true,
+          "encryption_verification_addressed": true
+        },
+        "dependencies": {
+          "new_dependency_introduced": false
+        },
+        "supersession": {
+          "has_superseded_adrs": false,
+          "superseded_silently_rewritten": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "architecture-decision-record",
+        "atom_version": "0.1.0",
+        "decision": "Bad Architecture",
+        "verdict": "ADR_NOT_COMPLETE",
+        "sections": {
+          "nfrs_first": "pass",
+          "boundaries_and_contracts": "fail",
+          "options_and_tradeoffs": "fail",
+          "adr_format": "fail",
+          "reversibility_and_security": "fail",
+          "lifecycle_and_dependencies": "pass"
+        },
+        "checks": [
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_written",
+            "status": "pass",
+            "evidence": "NFRs first: non-functional requirements (performance, scale, availability, security, cost) are written before the design"
+          },
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_quantified_where_possible",
+            "status": "pass",
+            "evidence": "NFRs are quantified where possible, per the skill's method step 1"
+          },
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_agreed_before_design_freeze",
+            "status": "pass",
+            "evidence": "quality gate: NFRs written and agreed before design freeze"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "boundaries_drawn",
+            "status": "pass",
+            "evidence": "boundaries: contexts/modules are drawn before the build"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "core_kept_small",
+            "status": "pass",
+            "evidence": "boundaries: the core is kept small, with clear interfaces at the seams"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "interfaces_documented",
+            "status": "pass",
+            "evidence": "quality gate: interfaces are documented"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "interfaces_versioned",
+            "status": "pass",
+            "evidence": "quality gate: interfaces are versioned \u2014 contracts are defined and versioned before code"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contract_inputs_outputs_defined",
+            "status": "pass",
+            "evidence": "contracts before code: API/module contracts define inputs and outputs"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contract_errors_defined",
+            "status": "pass",
+            "evidence": "contracts before code: API/module contracts define errors"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contracts_defined_before_code",
+            "status": "pass",
+            "evidence": "contracts before code: the contracts are defined before the code that implements them"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "no_hidden_coupling_across_boundaries",
+            "status": "fail",
+            "evidence": "red line: no hidden coupling across boundaries"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "no_backdoor_paths_around_contracts",
+            "status": "fail",
+            "evidence": "red line: no backdoor paths around the contracts"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "alternatives_count_in_stated_range",
+            "status": "fail",
+            "evidence": "options: list 2-3 real alternatives \u2014 the declared alternatives list holds between two and three entries"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "all_alternatives_tradeoffs_stated",
+            "status": "fail",
+            "evidence": "options: each listed alternative carries its trade-offs (honest trade-offs, stated per alternative)"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "at_least_one_serious_alternative",
+            "status": "fail",
+            "evidence": "quality gate: at least one serious alternative considered per major decision"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "boring_replaceable_tech_preferred",
+            "status": "pass",
+            "evidence": "options: prefer boring, replaceable tech"
+          },
+          {
+            "section": "adr_format",
+            "check": "adr_numbered",
+            "status": "pass",
+            "evidence": "artifacts: the ADR is numbered (docs/adr/NNNN-title)"
+          },
+          {
+            "section": "adr_format",
+            "check": "context_stated",
+            "status": "pass",
+            "evidence": "ADR format: Context is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "decision_stated",
+            "status": "pass",
+            "evidence": "ADR format: Decision is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_positive_stated",
+            "status": "pass",
+            "evidence": "ADR format: Consequences state the positives"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_negative_stated",
+            "status": "pass",
+            "evidence": "ADR format: Consequences state the negatives"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_risks_stated",
+            "status": "pass",
+            "evidence": "ADR format: Consequences state the risks"
+          },
+          {
+            "section": "adr_format",
+            "check": "status_stated",
+            "status": "pass",
+            "evidence": "ADR format: Status is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "adr_within_one_page_max",
+            "status": "fail",
+            "evidence": "ADR format: one page max \u2014 the declared page count is at or below one page"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "reversibility_assessed",
+            "status": "pass",
+            "evidence": "reversibility: the decision's reversibility is assessed \u2014 choices that are cheap to undo are preferred"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "expensive_choices_isolated_behind_interfaces",
+            "status": "pass",
+            "evidence": "reversibility: expensive-to-reverse choices are isolated behind interfaces"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "irreversible_decisions_not_deferred",
+            "status": "fail",
+            "evidence": "red line: no 'we'll figure it out later' for irreversible decisions"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "data_flows_mapped",
+            "status": "pass",
+            "evidence": "security by design: data flows are mapped"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "encryption_and_verification_addressed",
+            "status": "pass",
+            "evidence": "security by design: encryption/verification is addressed per the secure-build pattern"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "new_dependency_reason_stated_when_introduced",
+            "status": "pass",
+            "evidence": "no new dependency introduced"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "superseded_adrs_link_to_replacements",
+            "status": "pass",
+            "evidence": "no superseded ADRs declared"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "superseded_adrs_not_silently_rewritten",
+            "status": "pass",
+            "evidence": "decisions live in ADRs \u2014 written once, superseded, never silently rewritten"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "alternatives_count": 1,
+        "page_count_over_limit": "4.0000",
+        "summary": "25 pass, 7 fail, 0 missing of 32 checks across six sections.",
+        "stamp": "ARCHITECTURE DECISION RECORD\ndecision: Bad Architecture\nVERDICT: ADR_NOT_COMPLETE\n  nfrs_first                       pass\n  boundaries_and_contracts         fail\n  options_and_tradeoffs            fail\n  adr_format                       fail\n  reversibility_and_security       fail\n  lifecycle_and_dependencies       pass\n25 pass, 7 fail, 0 missing of 32 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields missing, resulting in insufficient evidence for all sections."
+      },
+      "input": {
+        "decision": "Minimal ADR"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "architecture-decision-record",
+        "atom_version": "0.1.0",
+        "decision": "Minimal ADR",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "nfrs_first": "insufficient_evidence",
+          "boundaries_and_contracts": "insufficient_evidence",
+          "options_and_tradeoffs": "insufficient_evidence",
+          "adr_format": "insufficient_evidence",
+          "reversibility_and_security": "insufficient_evidence",
+          "lifecycle_and_dependencies": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_written",
+            "status": "missing",
+            "evidence": "NFRs first: non-functional requirements (performance, scale, availability, security, cost) are written before the design"
+          },
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_quantified_where_possible",
+            "status": "missing",
+            "evidence": "NFRs are quantified where possible, per the skill's method step 1"
+          },
+          {
+            "section": "nfrs_first",
+            "check": "nfrs_agreed_before_design_freeze",
+            "status": "missing",
+            "evidence": "quality gate: NFRs written and agreed before design freeze"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "boundaries_drawn",
+            "status": "missing",
+            "evidence": "boundaries: contexts/modules are drawn before the build"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "core_kept_small",
+            "status": "missing",
+            "evidence": "boundaries: the core is kept small, with clear interfaces at the seams"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "interfaces_documented",
+            "status": "missing",
+            "evidence": "quality gate: interfaces are documented"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "interfaces_versioned",
+            "status": "missing",
+            "evidence": "quality gate: interfaces are versioned \u2014 contracts are defined and versioned before code"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contract_inputs_outputs_defined",
+            "status": "missing",
+            "evidence": "contracts before code: API/module contracts define inputs and outputs"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contract_errors_defined",
+            "status": "missing",
+            "evidence": "contracts before code: API/module contracts define errors"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "contracts_defined_before_code",
+            "status": "missing",
+            "evidence": "contracts before code: the contracts are defined before the code that implements them"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "no_hidden_coupling_across_boundaries",
+            "status": "missing",
+            "evidence": "red line: no hidden coupling across boundaries"
+          },
+          {
+            "section": "boundaries_and_contracts",
+            "check": "no_backdoor_paths_around_contracts",
+            "status": "missing",
+            "evidence": "red line: no backdoor paths around the contracts"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "alternatives_count_in_stated_range",
+            "status": "missing",
+            "evidence": "options: list 2-3 real alternatives \u2014 the declared alternatives list holds between two and three entries"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "all_alternatives_tradeoffs_stated",
+            "status": "missing",
+            "evidence": "options: each listed alternative carries its trade-offs (honest trade-offs, stated per alternative)"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "at_least_one_serious_alternative",
+            "status": "missing",
+            "evidence": "quality gate: at least one serious alternative considered per major decision"
+          },
+          {
+            "section": "options_and_tradeoffs",
+            "check": "boring_replaceable_tech_preferred",
+            "status": "missing",
+            "evidence": "options: prefer boring, replaceable tech"
+          },
+          {
+            "section": "adr_format",
+            "check": "adr_numbered",
+            "status": "missing",
+            "evidence": "artifacts: the ADR is numbered (docs/adr/NNNN-title)"
+          },
+          {
+            "section": "adr_format",
+            "check": "context_stated",
+            "status": "missing",
+            "evidence": "ADR format: Context is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "decision_stated",
+            "status": "missing",
+            "evidence": "ADR format: Decision is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_positive_stated",
+            "status": "missing",
+            "evidence": "ADR format: Consequences state the positives"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_negative_stated",
+            "status": "missing",
+            "evidence": "ADR format: Consequences state the negatives"
+          },
+          {
+            "section": "adr_format",
+            "check": "consequences_risks_stated",
+            "status": "missing",
+            "evidence": "ADR format: Consequences state the risks"
+          },
+          {
+            "section": "adr_format",
+            "check": "status_stated",
+            "status": "missing",
+            "evidence": "ADR format: Status is stated"
+          },
+          {
+            "section": "adr_format",
+            "check": "adr_within_one_page_max",
+            "status": "missing",
+            "evidence": "ADR format: one page max \u2014 the declared page count is at or below one page"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "reversibility_assessed",
+            "status": "missing",
+            "evidence": "reversibility: the decision's reversibility is assessed \u2014 choices that are cheap to undo are preferred"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "expensive_choices_isolated_behind_interfaces",
+            "status": "missing",
+            "evidence": "reversibility: expensive-to-reverse choices are isolated behind interfaces"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "irreversible_decisions_not_deferred",
+            "status": "missing",
+            "evidence": "red line: no 'we'll figure it out later' for irreversible decisions"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "data_flows_mapped",
+            "status": "missing",
+            "evidence": "security by design: data flows are mapped"
+          },
+          {
+            "section": "reversibility_and_security",
+            "check": "encryption_and_verification_addressed",
+            "status": "missing",
+            "evidence": "security by design: encryption/verification is addressed per the secure-build pattern"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "new_dependency_reason_stated_when_introduced",
+            "status": "missing",
+            "evidence": "no new dependency introduced"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "superseded_adrs_link_to_replacements",
+            "status": "missing",
+            "evidence": "no superseded ADRs declared"
+          },
+          {
+            "section": "lifecycle_and_dependencies",
+            "check": "superseded_adrs_not_silently_rewritten",
+            "status": "missing",
+            "evidence": "decisions live in ADRs \u2014 written once, superseded, never silently rewritten"
+          }
+        ],
+        "computed_status": null,
+        "alternatives_count": null,
+        "page_count_over_limit": null,
+        "summary": "0 pass, 0 fail, 32 missing of 32 checks across six sections.",
+        "stamp": "ARCHITECTURE DECISION RECORD\ndecision: Minimal ADR\nVERDICT: INSUFFICIENT_EVIDENCE\n  nfrs_first                       insufficient_evidence\n  boundaries_and_contracts         insufficient_evidence\n  options_and_tradeoffs            insufficient_evidence\n  adr_format                       insufficient_evidence\n  reversibility_and_security       insufficient_evidence\n  lifecycle_and_dependencies       insufficient_evidence\n0 pass, 0 fail, 32 missing of 32 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for nfrs (expected object) and adr.page_count (expected number)."
+      },
+      "input": {
+        "decision": "Malformed input",
+        "nfrs": "not-an-object",
+        "adr": {
+          "page_count": "one-page"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "nfrs",
+        "detail": "nfrs must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

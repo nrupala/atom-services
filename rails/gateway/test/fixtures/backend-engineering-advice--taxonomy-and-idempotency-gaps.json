@@ -1,0 +1,276 @@
+{
+  "name": "taxonomy-and-idempotency-gaps",
+  "manifest": {
+    "system": "billing-api",
+    "contract": {
+      "defined_before_code": true,
+      "inputs_defined": true,
+      "outputs_defined": true,
+      "errors_defined": true,
+      "versioned": true,
+      "kept_in_repo": true
+    },
+    "validation": {
+      "at_boundaries": true,
+      "rejects_bad_input_early_with_specific_errors": true,
+      "clients_trusted": false
+    },
+    "idempotency": {
+      "mutating_operation_count": 4,
+      "keys_on_mutating_operations": false,
+      "double_sends_possible": false,
+      "double_charges_possible": true,
+      "behavior_verified": true
+    },
+    "errors": {
+      "taxonomy_structured": true,
+      "taxonomy_consistent": true,
+      "categories_covered": [
+        "validation",
+        "not_found",
+        "conflict"
+      ],
+      "validation_and_error_paths_tested": true,
+      "silent_catch_all_present": false
+    },
+    "jobs": {
+      "has_async_jobs": true,
+      "retries_with_backoff_and_jitter": true,
+      "dead_letter_path_present": true,
+      "work_can_be_lost": false,
+      "status_observable": true
+    },
+    "data": {
+      "has_migrations": true,
+      "migrations_reversible": true,
+      "migrations_backed_up": false,
+      "migrations_reviewed_before_live_data": true,
+      "constraints_enforced_in_database": true,
+      "plaintext_secrets_at_rest": false,
+      "direct_to_prod_changes": false
+    },
+    "observability": {
+      "structured_logs_with_ids_and_timings": true,
+      "metrics_at_edges": true,
+      "trace_ids_propagated": true,
+      "secrets_in_logs": false,
+      "pii_in_logs": false
+    }
+  },
+  "expected": {
+    "service": "backend-engineering-advice",
+    "atom_version": "0.1.0",
+    "system": "billing-api",
+    "verdict": "NOT_PRODUCTION_READY",
+    "sections": {
+      "contract_first": "pass",
+      "boundary_validation": "pass",
+      "idempotency": "fail",
+      "error_taxonomy": "fail",
+      "jobs_and_queues": "pass",
+      "data_safety": "pass",
+      "observability": "pass"
+    },
+    "checks": [
+      {
+        "section": "contract_first",
+        "check": "contract_defined_before_code",
+        "status": "pass",
+        "evidence": "contract first: endpoints/queues are defined before code"
+      },
+      {
+        "section": "contract_first",
+        "check": "contract_inputs_defined",
+        "status": "pass",
+        "evidence": "contract first: the contract defines inputs"
+      },
+      {
+        "section": "contract_first",
+        "check": "contract_outputs_defined",
+        "status": "pass",
+        "evidence": "contract first: the contract defines outputs"
+      },
+      {
+        "section": "contract_first",
+        "check": "contract_errors_defined",
+        "status": "pass",
+        "evidence": "contract first: the contract defines errors"
+      },
+      {
+        "section": "contract_first",
+        "check": "contract_versioned",
+        "status": "pass",
+        "evidence": "quality gate: the contract is documented and versioned"
+      },
+      {
+        "section": "contract_first",
+        "check": "contracts_kept_in_repo",
+        "status": "pass",
+        "evidence": "contract first: contracts are kept in the repo"
+      },
+      {
+        "section": "boundary_validation",
+        "check": "validation_at_boundaries",
+        "status": "pass",
+        "evidence": "validate at boundaries: every boundary validates its input"
+      },
+      {
+        "section": "boundary_validation",
+        "check": "bad_input_rejected_early_with_specific_errors",
+        "status": "pass",
+        "evidence": "validate at boundaries: bad input is rejected early with specific errors"
+      },
+      {
+        "section": "boundary_validation",
+        "check": "clients_not_trusted",
+        "status": "pass",
+        "evidence": "validate at boundaries: clients are never trusted (including the caller's own frontend)"
+      },
+      {
+        "section": "idempotency",
+        "check": "idempotency_keys_on_mutating_operations",
+        "status": "fail",
+        "evidence": "idempotency: mutating operations carry idempotency keys, so retries are safe"
+      },
+      {
+        "section": "idempotency",
+        "check": "no_double_sends",
+        "status": "pass",
+        "evidence": "idempotency: retries cannot double-send"
+      },
+      {
+        "section": "idempotency",
+        "check": "no_double_charges",
+        "status": "fail",
+        "evidence": "idempotency: retries cannot double-charge"
+      },
+      {
+        "section": "idempotency",
+        "check": "retry_idempotency_behavior_verified",
+        "status": "pass",
+        "evidence": "quality gate: retry/idempotency behavior is verified"
+      },
+      {
+        "section": "error_taxonomy",
+        "check": "error_taxonomy_structured",
+        "status": "pass",
+        "evidence": "error taxonomy: errors are structured"
+      },
+      {
+        "section": "error_taxonomy",
+        "check": "error_taxonomy_consistent",
+        "status": "pass",
+        "evidence": "error taxonomy: errors are consistent across the service"
+      },
+      {
+        "section": "error_taxonomy",
+        "check": "taxonomy_covers_all_stated_categories",
+        "status": "fail",
+        "evidence": "error taxonomy: the taxonomy covers every category the skill names \u2014 validation, not-found, conflict, retryable, fatal"
+      },
+      {
+        "section": "error_taxonomy",
+        "check": "validation_and_error_paths_tested",
+        "status": "pass",
+        "evidence": "quality gate: validation and error paths are tested (not just the happy path)"
+      },
+      {
+        "section": "error_taxonomy",
+        "check": "no_silent_catch_all",
+        "status": "pass",
+        "evidence": "red line: no silent catch-all \u2014 failing loudly beats corrupting quietly"
+      },
+      {
+        "section": "jobs_and_queues",
+        "check": "job_retries_with_backoff_and_jitter",
+        "status": "pass",
+        "evidence": "jobs and queues: job retries use backoff with jitter"
+      },
+      {
+        "section": "jobs_and_queues",
+        "check": "dead_letter_path_present",
+        "status": "pass",
+        "evidence": "jobs and queues: a dead-letter path exists for failed jobs"
+      },
+      {
+        "section": "jobs_and_queues",
+        "check": "no_lost_work",
+        "status": "pass",
+        "evidence": "jobs and queues: no work is lost"
+      },
+      {
+        "section": "jobs_and_queues",
+        "check": "job_status_observable",
+        "status": "pass",
+        "evidence": "jobs and queues: job status is observable"
+      },
+      {
+        "section": "data_safety",
+        "check": "migrations_reversible_or_backed_up",
+        "status": "pass",
+        "evidence": "data: migrations are reversible or backed-up"
+      },
+      {
+        "section": "data_safety",
+        "check": "migrations_reviewed_before_live_data",
+        "status": "pass",
+        "evidence": "red line: migrations are reviewed before they run on live data"
+      },
+      {
+        "section": "data_safety",
+        "check": "constraints_enforced_in_database",
+        "status": "pass",
+        "evidence": "data: constraints are enforced in the database, not just the app"
+      },
+      {
+        "section": "data_safety",
+        "check": "no_plaintext_secrets_at_rest",
+        "status": "pass",
+        "evidence": "data: no plaintext secrets at rest"
+      },
+      {
+        "section": "data_safety",
+        "check": "no_direct_to_prod_changes",
+        "status": "pass",
+        "evidence": "red line: no direct-to-prod changes"
+      },
+      {
+        "section": "observability",
+        "check": "structured_logs_with_ids_and_timings",
+        "status": "pass",
+        "evidence": "observability: structured logs carry ids and timings"
+      },
+      {
+        "section": "observability",
+        "check": "metrics_at_edges",
+        "status": "pass",
+        "evidence": "observability: metrics are emitted at the edges"
+      },
+      {
+        "section": "observability",
+        "check": "trace_ids_propagated",
+        "status": "pass",
+        "evidence": "observability: trace ids are propagated"
+      },
+      {
+        "section": "observability",
+        "check": "no_secrets_in_logs",
+        "status": "pass",
+        "evidence": "quality gate: no secrets in logs"
+      },
+      {
+        "section": "observability",
+        "check": "no_pii_in_logs",
+        "status": "pass",
+        "evidence": "quality gate: no PII in logs"
+      }
+    ],
+    "computed_status": "outside_stated_limits_on_declared_evidence",
+    "taxonomy_categories_missing": [
+      "retryable",
+      "fatal"
+    ],
+    "mutating_operation_count": 4,
+    "summary": "29 pass, 3 fail, 0 missing of 32 checks across seven sections."
+  }
+}

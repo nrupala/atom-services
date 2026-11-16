@@ -1,0 +1,137 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "design": "Standard A2A bridge",
+        "integrations": [
+          {
+            "counterparty_type": "agent_to_agent",
+            "protocol": "acp_rest",
+            "rationale_documented": true
+          }
+        ],
+        "architecture": {
+          "single_core": true,
+          "protocol_adapters": true,
+          "business_logic_per_protocol": false
+        },
+        "gateway": {
+          "remote_or_untrusted_agents_present": false
+        },
+        "handoff": {
+          "contracts_used_for_non_trivial_coordination": true,
+          "contract_states_goal": true,
+          "contract_states_constraints": true,
+          "contract_states_acceptance_criteria": true,
+          "contract_states_report_back_location": true
+        },
+        "identity": {
+          "each_agent_own_credential": true,
+          "credentials_least_privilege": true,
+          "credentials_short_lived": true,
+          "credentials_revocable": true,
+          "shared_forever_keys_present": false
+        },
+        "discovery": {
+          "capabilities_published": true,
+          "version_published": true,
+          "negotiation_supported": true,
+          "graceful_degradation_declared": true
+        },
+        "audit": {
+          "message_log_kept": true,
+          "log_records_who_asked": true,
+          "log_records_what_ran": true,
+          "log_records_what_changed": true
+        },
+        "testing": {
+          "handshake_tests_exist": true,
+          "handshake_tests_pass": true,
+          "handshake_tests_both_directions": true,
+          "handshake_tests_per_protocol": true
+        },
+        "red_lines": {
+          "unsandboxed_third_party_agents_present": false,
+          "secrets_or_private_data_in_messages_by_default": false
+        }
+      },
+      "expect": {
+        "outcome": "DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean requirements met; protocol match valid; red lines respected. Computed spot checks: integration_count=1, protocol_status=sound_on_declared_evidence."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "design": "Broken architecture",
+        "integrations": [
+          {
+            "counterparty_type": "tools_for_models",
+            "protocol": "acp_rest",
+            "rationale_documented": true
+          }
+        ],
+        "architecture": {
+          "single_core": true,
+          "protocol_adapters": true,
+          "business_logic_per_protocol": true
+        },
+        "gateway": {
+          "remote_or_untrusted_agents_present": true,
+          "single_authenticated_broker": false,
+          "broker_authenticated": false,
+          "broker_audited": false,
+          "broker_rate_limited": false,
+          "direct_doors_to_remote_agents": true
+        },
+        "identity": {
+          "shared_forever_keys_present": true
+        }
+      },
+      "expect": {
+        "outcome": "DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "protocol_selection",
+          "bridge_architecture",
+          "gateway_and_remote_access",
+          "identity_and_credentials"
+        ],
+        "notes": "Violates protocol mapping (tools_for_models requires mcp), business logic constraint, gateway security requirements, and identity red lines."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "design": "Minimalist"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all mandatory sections; atom cannot compute verdict."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "design": "Malformed input",
+        "integrations": "not_a_list",
+        "architecture": 123
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: integrations expected list, architecture expected object."
+      }
+    }
+  ]
+}

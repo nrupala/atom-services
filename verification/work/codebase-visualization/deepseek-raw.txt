@@ -1,0 +1,103 @@
+# Independent recompute — codebase-visualization
+
+## Serialization rule (applied throughout)
+Per SERVICE.md: round half up to 6dp via `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. Comparisons compare the fixed-6dp difference to zero.
+
+---
+
+## Case 1: `full-pass` (service-alpha)
+
+### Computed check 1 — Diagram entries complete
+Entries declared: 1 (`arch-map`). Fields: name="arch-map" ✓, format="mermaid" ✓, scope="global" ✓, generation_source="cli" ✓, generated_at="2023-10-01" ✓ — all non-empty strings.
+- Complete entries = 1 → `diagrams_evaluated` = **1**. Artifact: `1`. **MATCH**
+- Check `diagram_entries_complete` = pass. Artifact: pass. **MATCH**
+
+### Computed check 2 — Diagram formats
+Every complete entry's format ∈ {mermaid, graphviz, plantuml}. "mermaid" ∈ set → pass. Artifact: pass. **MATCH**
+
+### Computed check 3 — Dependency coverage
+- modules_total = 10, modules_included = 10.
+- Equality: 10 == 10 → pass. Artifact: pass. **MATCH**
+- `computed_dependency_coverage` = 10/10 = 1.0 → floor(1.0·1e6+0.5)/1e6 = 1.000000 → **"1.000000"**. Artifact: `"1.000000"`. **MATCH**
+- `dependency_coverage_difference` = 10 − 10 = 0 → **"0.000000"**. Artifact: `"0.000000"`. **MATCH**
+
+### Computed check 4 — C4 levels
+Declared: ["context","containers","components"]. Required {context, containers, components} all present → pass. Omitted = [] → `c4_levels_not_declared` = **[]**. Artifact: `[]`. **MATCH**
+
+### Computed check 5 — Hotspot score
+- change_frequency = 5.0, complexity = 2.0 → computed = 5.0 × 2.0 = 10.0 → **"10.000000"**. Artifact: `"10.000000"`. **MATCH**
+- declared = 10.0; difference = 10.0 − 10.0 = 0 → **"0.000000"**. Artifact: `"0.000000"`. **MATCH**
+- Check `hotspot_score_matches...` = pass. Artifact: pass. **MATCH**
+
+### computed_status
+All five computed checks completed and within limits → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Verdict / summary
+All 32 checks pass → `CODEBASE_VISUALIZATION_READY`, "32 pass, 0 fail, 0 missing". Artifact: same. **MATCH**
+
+---
+
+## Case 2: `violations` (service-beta)
+
+### Computed check 1 — Diagram entries complete
+1 entry `bad-format`: name="bad-format" ✓, format="jpeg" ✓ (non-empty), scope="none" ✓, generation_source="paint" ✓, generated_at="now" ✓ — all non-empty strings (format membership is a separate verdict check, not a completeness check).
+- `diagrams_evaluated` = **1**. Artifact: `1`. **MATCH**
+- `diagram_entries_complete` = pass. Artifact: pass. **MATCH**
+
+### Computed check 2 — Diagram formats
+"jpeg" ∉ {mermaid, graphviz, plantuml} → **fail**. Artifact: fail. **MATCH**
+
+### Computed check 3 — Dependency coverage
+- modules_total = 10, modules_included = 5. 5 ≠ 10 → **fail**. Artifact: fail. **MATCH**
+- `computed_dependency_coverage` = 5/10 = 0.5 → floor(0.5·1e6+0.5)/1e6 = 500000/1e6 = **"0.500000"**. Artifact: `"0.500000"`. **MATCH**
+- `dependency_coverage_difference` = 5 − 10 = −5 → **"-5.000000"**. Artifact: `"-5.000000"`. **MATCH**
+
+### Computed check 4 — C4 levels
+Declared: ["context","containers","components"] → all present → pass. Omitted = **[]**. Artifact: `[]`. **MATCH**
+
+### Computed check 5 — Hotspot score
+- change_frequency = 2.0, complexity = 2.0 → computed = 4.0 → **"4.000000"**. Artifact: `"4.000000"`. **MATCH**
+- declared = 99.0; difference = 99.0 − 4.0 = 95.0 → **"95.000000"**. Artifact: `"95.000000"`. **MATCH**
+- Check = fail (difference ≠ 0). Artifact: fail. **MATCH**
+
+### computed_status
+At least one computed check outside limits → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Planted-failure confirmation
+The planted wrong values are: format "jpeg" (bad format), modules_included 5 vs total 10 (partial coverage), declared_hotspot_score 99 vs 2×2=4 (bad arithmetic). The three failing checks in the artifact are exactly:
+1. `diagram_formats_use_stated_diagrams_as_code_tools` (fail) — from "jpeg"
+2. `dependency_graph_covers_all_declared_modules` (fail) — from 5≠10
+3. `hotspot_score_matches_change_frequency_times_complexity` (fail) — from 99≠4
+
+All other 29 checks pass. **Exactly the three planted wrong values fail; no spurious failures.** Section rollups: diagrams_as_code fail, dependency_views fail, metrics_and_history_views fail, others pass — consistent. Summary "29 pass, 3 fail, 0 missing of 32" — 29+3+0 = 32 ✓. **MATCH**
+
+---
+
+## Summary of all computed quantities
+
+| Quantity | Case | Recomputed | Artifact | Status |
+|---|---|---|---|---|
+| diagrams_evaluated | full-pass | 1 | 1 | MATCH |
+| diagram_entries_complete | full-pass | pass | pass | MATCH |
+| diagram_formats | full-pass | pass | pass | MATCH |
+| dependency coverage check | full-pass | pass (10=10) | pass | MATCH |
+| computed_dependency_coverage | full-pass | 1.000000 | 1.000000 | MATCH |
+| dependency_coverage_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| c4_levels_not_declared | full-pass | [] | [] | MATCH |
+| computed_hotspot_score | full-pass | 10.000000 | 10.000000 | MATCH |
+| hotspot_score_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| computed_status | full-pass | within | within | MATCH |
+| diagrams_evaluated | violations | 1 | 1 | MATCH |
+| diagram_entries_complete | violations | pass | pass | MATCH |
+| diagram_formats | violations | fail | fail | MATCH |
+| dependency coverage check | violations | fail (5≠10) | fail | MATCH |
+| computed_dependency_coverage | violations | 0.500000 | 0.500000 | MATCH |
+| dependency_coverage_difference | violations | -5.000000 | -5.000000 | MATCH |
+| c4_levels_not_declared | violations | [] | [] | MATCH |
+| computed_hotspot_score | violations | 4.000000 | 4.000000 | MATCH |
+| hotspot_score_difference | violations | 95.000000 | 95.000000 | MATCH |
+| computed_status | violations | outside | outside | MATCH |
+
+Every computed quantity and every computed check reproduces exactly, and the violations case fails precisely the three checks its planted wrong values target.
+
+AGREEMENT: full

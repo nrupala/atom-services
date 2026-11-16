@@ -1,0 +1,318 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: crm-pipeline-operations
+
+=== contract.yaml ===
+service_name: crm-pipeline-operations
+display_name: Crm pipeline operations
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:crm
+binding:
+  skill: crm
+  skill_path: workspace/mymilo-build/skills/crm/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: crm_pipeline_operations
+  prefix: atm_1_crm_pipeline_operations_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Consulting pipeline follow-ups
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# CRM pipeline operations — `crm-pipeline-operations`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Run CRM with discipline — data hygiene, pipeline stages, follow-up cadences, privacy and contact rules.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Consulting pipeline follow-ups**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the CRM pipeline manifest
+
+This atom does not operate a CRM, contact anyone, or move a
+deal, and exercises no judgment of its own. The caller submits
+one JSON manifest declaring a CRM pipeline-operations artifact
+— its single-source and hygiene record, its contact-rule and
+privacy record, its declared pipeline stages with entry/exit
+criteria, its declared deal rows, its follow-up cadence and
+logging record, its reporting and forecast record, its consent
+record, its win/loss record, and its minimal-data/retention
+record — and the atom validates that artifact deterministically.
+Every field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a field
+present but false / invalid = the check fails
+(`CRM_PIPELINE_NOT_READY`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `source.single_system_maintained` | single_source_of_truth |
+| `source.contacts_carry_who_what_context_minimum` | single_source_of_truth |
+| `source.dedupe_cadence_set` | single_source_of_truth |
+| `source.stale_contacts_flagged_not_trusted` | single_source_of_truth |
+| `contact_rules.sensitivity_flags_honored` | contact_rules_and_privacy |
+| `contact_rules.sensitivity_flags_override_everything` | contact_rules_and_privacy |
+| `contact_rules.outreach_drafted_for_review_never_auto_sent` | contact_rules_and_privacy |
+| `contact_rules.nothing_personal_shared_beyond_purpose` | contact_rules_and_privacy |
+| `contact_rules.unapproved_outreach_sent` (must be `false` to pass — skill quality gate) | contact_rules_and_privacy |
+| `contact_rules.bulk_unsolicited_outreach_sent` (must be `false` to pass — skill red line) | contact_rules_and_privacy |
+| `contact_rules.personal_contacts_uploaded_to_third_parties_without_purpose_and_consent` (must be `false` to pass — skill red line) | contact_rules_and_privacy |
+| `pipeline.stages_used` (list of strings; computed, see below) | pipeline_stages_and_deals |
+| `pipeline.entry_criteria_defined_for_each_stage` | pipeline_stages_and_deals |
+| `pipeline.exit_criteria_defined_for_each_stage` | pipeline_stages_and_deals |
+| `pipeline.deals_advance_on_evidence_not_optimism` | pipeline_stages_and_deals |
+| `pipeline.stale_threshold_days` (number; caller-declared staleness window, computed, see below) | pipeline_stages_and_deals |
+| `pipeline.deals` (list of deal-row objects; computed, see below) | pipeline_stages_and_deals |
+| `pipeline.deals[].stage` (string; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].value` (number; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].age_days` (number; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].has_next_step` (boolean; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].has_next_step_date` (boolean; deal-row field) | pipeline_stages_and_deals |
+| `pipeline.deals[].open` (boolean; deal-row field) | pipeline_stages_and_deals |
+| `follow_up.cadence_scheduled` | follow_up_cadence_and_logging |
+| `follow_up.every_touch_carries_value` | follow_up_cadence_and_logging |
+| `follow_up.every_interaction_logged_with_what_said_promised_next` | follow_up_cadence_and_logging |
+| `follow_up.promises_tracked_until_delivered` | follow_up_cadence_and_logging |
+| `reporting.pipeline_reported_by_stage_and_age` | reporting_and_forecasts |
+| `reporting.conversion_rates_by_stage_reported` | reporting_and_forecasts |
+| `reporting.stuck_deal_list_maintained` | reporting_and_forecasts |
+| `reporting.stuck_deal_review_held_on_cadence` | reporting_and_forecasts |
+| `reporting.forecasts_use_honest_probabilities` | reporting_and_forecasts |
+| `consent.marketing_consent_recorded` | consent_and_comms |
+| `consent.consent_flags_current` | consent_and_comms |
+| `consent.unsubscribe_honored_instantly` | consent_and_comms |
+| `consent.segmentation_per_consent` | consent_and_comms |
+| `consent.scraped_third_party_personal_data_into_crm` (must be `false` to pass — skill method step 6) | consent_and_comms |
+| `win_loss.reasons_captured` | win_loss_discipline |
+| `win_loss.reasons_include_yours_and_theirs` | win_loss_discipline |
+| `win_loss.feeds_messaging_product_and_process_improvements` | win_loss_discipline |
+| `minimal_data.only_relationship_needed_data_collected` | minimal_data_and_retention |
+| `minimal_data.retention_for_dead_leads_defined` | minimal_data_and_retention |
+
+Five checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+rows and the caller's own declared limit — no outside threshold
+is imported:
+
+- **Pipeline stages:** the skill's method step 3 names the
+  pipeline — lead → qualified → proposal → decision → won/lost.
+  The declared `pipeline.stages_used` list therefore passes only
+  when it contains all six stated entries (`lead`, `qualified`,
+  `proposal`, `decision`, `won`, `lost`); unknown entries do not
+  count toward coverage. A missing list is missing evidence; an
+  empty list is present and fails. The output reports the
+  omitted stated entries as `pipeline_stages_not_covered` (null
+  when no list is declared). Entries are validated as strings
+  only, never enum-checked — coverage is a verdict check, not a
+  type error.
+- **Deal rows complete:** every declared deal row must carry
+  `stage` (non-empty string), `value`, `age_days`,
+  `has_next_step`, `has_next_step_date`, and `open`. A non-empty
+  list with an incomplete row is missing evidence for every
+  row-derived check (that row cannot be evaluated); an empty
+  list is present and fails — no rows exist to prove anything
+  over.
+- **Deal stages are stated stages:** every complete row's
+  `stage` must be one of the six stages the skill names.
+- **Next step + date:** the skill's quality gate is "Next-step
+  + date on every open deal". Every declared row with
+  `open = true` must therefore declare both `has_next_step` and
+  `has_next_step_date`; closed rows are not counted. The output
+  reports `open_deals_without_next_step_or_date_count`. A zero
+  open-deal count fails — no open pipeline exists to prove this
+  over.
+- **Staleness against the caller-declared window:** the skill
+  says stale contacts/deals are "flagged, not trusted" and the
+  stuck-deal list is reviewed, but it states **no day count**.
+  An open deal is therefore counted stale only when its
+  declared `age_days` exceeds the caller's own declared
+  `pipeline.stale_threshold_days` (an age exactly equal to the
+  threshold is not stale; closed deals are not counted). The
+  check passes only when the stale count is zero, and a zero
+  open-deal count fails as above. The output reports
+  `stale_deal_count` (null when the rows or the threshold cannot
+  be evaluated).
+
+The output also reports, from the complete declared rows only
+(all null when the rows cannot be evaluated, except `deal_count`
+which is the declared list length whenever a list is declared):
+`deal_count`, `open_deal_count`, `stage_distribution` (counts
+per stated stage, in stated-stage order),
+`computed_open_value_total` (sum of `value` over open rows) and
+`computed_pipeline_value_total` (sum of `value` over all rows).
+
+**Fixed serialization rule:** computed amounts are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals. Counts and the stage distribution are reported as
+plain integers (null when they cannot be computed). That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five computed checks cannot be completed).
+
+The verdict is one of `CRM_PIPELINE_READY` (all 38 checks
+pass), `CRM_PIPELINE_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across eight sections: single_source_of_truth,
+contact_rules_and_privacy, pipeline_stages_and_deals,
+follow_up_cadence_and_logging, reporting_and_forecasts,
+consent_and_comms, win_loss_discipline,
+minimal_data_and_retention.
+
+## Honest scoping
+
+This atom audits a **declared** CRM pipeline-operations
+artifact — it does not operate a CRM, contact anyone, send or
+draft outreach, move a deal, verify that a declared value is
+true, or judge whether relationships are actually well run. The
+register's named doubt for this atom — contact privacy rules
+apply — is answered by this framing: the artifact declares
+counts, deal-row facts, and process facts only; no contact's
+personal data is an input, and this core reads none. An artifact
+is ready *on the caller's declared evidence* even if its actual
+pipeline is poor. It is a completeness and consistency audit,
+**not a CRM-quality review**: it never decides whether a next
+step is meaningful, whether a follow-up touch really carried
+value, whether a forecast probability is actually honest,
+whether entry/exit criteria are well written, or whether a
+win/loss reason is insightful — those load-bearing judgments in
+the skill cannot be reduced to deterministic checks and are
+carried only as caller-declared booleans here.
+
+**Thresholds declined (named explicitly):** the skill states no
+staleness day count, so none is imposed — only the caller's own
+declared `stale_threshold_days` is applied; the skill says
+dedupe happens "on a schedule" but states no period, so no
+dedupe frequency is imposed; the skill says follow-ups are
+"scheduled" and the stuck-deal review is held "on cadence" but
+states no interval for either, so none is imposed; the skill
+calls for conversion rates by stage "(base rates!)" but states
+no target rate, and a per-stage conversion rate cannot be
+re-derived from current-stage deal rows (rows show where deals
+are, not the flow that entered and left each stage), so no
+conversion value is computed or judged — reporting them is
+checked as a declared boolean only; the skill states no
+retention period for dead leads, so only that retention is
+*defined* is checked, never its length; the skill states no
+minimum deal count, pipeline value, or open-deal value, so none
+is imposed (the zero-open-deal failure above is a proof-existence
+rule, not a size threshold); the skill states no forecast
+probability or calibration threshold, so none is imposed.
+
+Named exclusions: no operating a CRM or any other system; no
+outreach, drafting, or contact of any kind; no verification of
+any declared count, value, stage, or process claim; no
+next-step-quality, touch-value, criteria-quality,
+probability-honesty, or win/loss-insight judgment; no live
+verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Contact privacy rules apply
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

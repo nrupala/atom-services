@@ -1,0 +1,767 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: release-readiness-verdict
+
+=== contract.yaml ===
+# HAND-BUILT: built out in full for release slot #1. The generator never overwrites this file.
+service_name: release-readiness-verdict
+display_name: Release-readiness verdict
+tier: A
+status: built-locally
+atom_version: 0.1.0
+queue_position: 1
+sources:
+- knowledge-atom:#13
+binding:
+  skill: release-management
+  skill_path: workspace/mymilo-build/skills/release-management/SKILL.md
+  skill_version: '1'
+  rule: R1 — fixes land in the skill first; the atom re-deploys from the refined
+    skill and must pass regression before its version bumps. A skill refinement
+    marks this atom stale until re-verified.
+deliverable_type: VERDICT
+endpoints:
+- API
+- MCP
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/release_readiness.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  keys_reference: src/keys.py — per-atom HMAC key derivation/verification
+  tests: tests/test_release_readiness.py — 16 tests, all passing 2026-11-15
+  benchmark: src/bench.py
+keys:
+  namespace: release_readiness_verdict
+  prefix: atm_1_release_readiness_verdict_
+  issuance: Per user, per atom. Self-serve — sign up, open this atom, issue key.
+    Key = HMAC-SHA256(master_secret, email | atom_service | issued_at),
+    version-prefixed; regenerated on demand after the user authenticates, never
+    stored (record holds email, atom, issued_at, fingerprint).
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: SPEC default — the per-key rate limit is the capacity guard for open
+    public usage; tuned at build-out from measured production cost.
+pricing:
+  unit: call
+  rate: null
+  rate_status: pending
+  measured_cost:
+    verdict_ms_per_call: 0.1166
+    key_derivation_ms_per_call: 0.0122
+    llm_tokens_per_call: 0
+    network_calls_per_call: 0
+    measured: 2026-11-15, src/bench.py, 20000 iterations, build VM (shared vCPU)
+    note: Marginal compute ~zero; hosted marginal cost adds the serving
+      platform's per-request charge, unmeasurable until deployment. Prompt-rate
+      fallback = $0 (zero tokens), so steps 1 and 3 produce no rate. Step 2
+      (consensus) ran 2026-11-15 — Gemini $0.0005/call, DeepSeek $0.01/call,
+      OpenAI lane blocked (named in reviews/openai-review-STATUS.md) — two
+      inputs 20x apart, third missing = no consensus. Rate stays pending;
+      recorded input range $0.0005-$0.01/call. See reviews/README.md.
+  protocol: rails/billing.md — measured cost first, then three-model consensus,
+    then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup.
+self_use:
+  verdict: pass
+  workflow: Release gates run on every product
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: Wright — zero price, metered to the internal cost ledger (R2).
+
+
+=== SERVICE.md ===
+<!-- HAND-BUILT: built out in full for release slot #1. The generator never overwrites this file. -->
+# Release-readiness verdict — `release-readiness-verdict`
+
+**Deliverable type:** VERDICT. This atom sells one verdict — is this
+release ready, and on what evidence — never the release-management
+knowledge it is built from.
+
+**Queue position:** #1 in the approved release queue (owner,
+2026-10-18). **Tier A.** Bound to knowledge atom #13 and the
+`release-management` skill (R1).
+
+## What it delivers
+
+A caller submits a **release-evidence manifest** (below) describing a
+release they are about to ship. The atom probes the five release bars
+from knowledge atom #13 — **control, understanding, management,
+lifecycle, stability** — across 19 deterministic checks drawn from
+the bound skill's method, quality gates, and red lines, and returns
+one verdict:
+
+- `READY` — every check passes.
+- `NOT_READY` — at least one check fails (a bar is breached).
+- `INSUFFICIENT_EVIDENCE` — nothing fails, but evidence is missing;
+  the verdict names exactly which evidence.
+
+The core is deterministic: no model call, no network, same manifest →
+same verdict. That determinism is the product — a gate that gives a
+different answer on a re-run is not a gate.
+
+## Inputs — the release-evidence manifest
+
+| Field | Read by |
+|---|---|
+| `product`, `version` (semver) | control |
+| `version_bump_locations` (list; must name exactly one place) | control |
+| `tag.name` (= `v<version>`), `tag.annotated`, `tag.moved` | control |
+| `changelog.has_entry_for_version`, `changelog.unreleased_section_moved` | understanding |
+| `release_notes.present`, `release_notes.breaking_changes`, `release_notes.migration_steps` | understanding |
+| `approver` (named human), `approval.hitl_recorded` | management |
+| `rollout_plan.present` | management |
+| `rollback_plan.present`, `rollback_plan.testable` | lifecycle |
+| `health_check.window_hours` (must be 24–48) | lifecycle |
+| `artifacts.sealed`, `artifacts.checksum_manifest`, `artifacts.verified_before_announcement` | stability |
+| `tests.passing` | stability |
+
+A field **absent** = evidence missing. A field present but false /
+invalid = the bar fails. The distinction is deliberate: "you didn't
+show me" and "you showed me and it's wrong" are different verdicts.
+
+## Output — the verdict format
+
+```json
+{
+  "service": "release-readiness-verdict",
+  "atom_version": "0.1.0",
+  "product": "...", "version": "...",
+  "verdict": "READY | NOT_READY | INSUFFICIENT_EVIDENCE",
+  "bars": {"control": "pass|fail|insufficient_evidence", "...": "..."},
+  "checks": [{"bar": "...", "check": "...", "status": "pass|fail|missing", "evidence": "..."}],
+  "summary": "19 pass, 0 fail, 0 missing of 19 checks across five bars."
+}
+```
+
+Plus a human-readable stamp (`stamp()` in the implementation).
+
+## Buyer
+
+Teams and agents who ship software and need a release gate that is
+not their own optimism: CI pipelines, release managers, agent
+workflows that must not ship unsealed or un-rollback-able releases.
+We are the first buyer — our own release-gate program is the
+prototype (self-use workflow: **release gates run on every
+product**).
+
+## Endpoints (when live — none are yet)
+
+MCP tool + `POST /v1/release-readiness-verdict`, gated by this atom's
+own key (namespace `release_readiness_verdict`). Human face: the
+listing page's try-it form. Serving shape: `rails/serving.md`.
+
+## Pricing
+
+Unit: **per call**. Rate: **pending** under the pricing protocol
+(`rails/billing.md`) — measured compute is 0.1166 ms/call with zero
+tokens (see `maintenance.md`); the consensus step ran 2026-11-15 and
+split (Gemini $0.0005/call, DeepSeek $0.01/call, OpenAI lane
+blocked), which is not a consensus; and the prompt-rate fallback is
+$0 for a zero-token atom. No rate is published until the protocol
+honestly produces one. Review record: `reviews/README.md`.
+
+## Named doubt (from the register)
+
+Guardian Mesh adjacency; benches still unbuilt. This atom judges
+readiness from submitted evidence; it does not itself run Guardian
+Mesh probes — a manifest that lies produces a verdict on the lie,
+which is why the output carries the evidence per check.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "release-readiness-verdict",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 19 checks pass. Computed spot checks: 19 pass, 0 fail, 0 missing."
+      },
+      "input": {
+        "product": "milo-core",
+        "version": "1.2.3",
+        "version_bump_locations": [
+          "src/version.py"
+        ],
+        "tag": {
+          "name": "v1.2.3",
+          "annotated": true,
+          "moved": false
+        },
+        "changelog": {
+          "has_entry_for_version": true,
+          "unreleased_section_moved": true
+        },
+        "release_notes": {
+          "present": true,
+          "breaking_changes": false,
+          "migration_steps": "none"
+        },
+        "approver": "jane.doe",
+        "approval": {
+          "hitl_recorded": true
+        },
+        "rollout_plan": {
+          "present": true
+        },
+        "rollback_plan": {
+          "present": true,
+          "testable": true
+        },
+        "health_check": {
+          "window_hours": 24
+        },
+        "artifacts": {
+          "sealed": true,
+          "checksum_manifest": true,
+          "verified_before_announcement": true
+        },
+        "tests": {
+          "passing": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "release-readiness-verdict",
+        "atom_version": "0.1.0",
+        "product": "milo-core",
+        "version": "1.2.3",
+        "verdict": "READY",
+        "bars": {
+          "control": "pass",
+          "understanding": "pass",
+          "management": "pass",
+          "lifecycle": "pass",
+          "stability": "pass"
+        },
+        "checks": [
+          {
+            "bar": "control",
+            "check": "version_is_semver",
+            "status": "pass",
+            "evidence": "version='1.2.3'"
+          },
+          {
+            "bar": "control",
+            "check": "release_is_tagged",
+            "status": "pass",
+            "evidence": "tag='v1.2.3' expected v1.2.3"
+          },
+          {
+            "bar": "control",
+            "check": "tag_is_annotated",
+            "status": "pass",
+            "evidence": "annotated tag (skill: annotated tags, signed when keys exist)"
+          },
+          {
+            "bar": "control",
+            "check": "published_tag_not_moved",
+            "status": "pass",
+            "evidence": "skill red line: never move a published tag"
+          },
+          {
+            "bar": "control",
+            "check": "version_bumped_in_exactly_one_place",
+            "status": "pass",
+            "evidence": "version_bump_locations=['src/version.py']"
+          },
+          {
+            "bar": "understanding",
+            "check": "changelog_entry_for_this_version",
+            "status": "pass",
+            "evidence": "Keep-a-Changelog: entry for this version ships in the same change"
+          },
+          {
+            "bar": "understanding",
+            "check": "unreleased_section_moved_under_version",
+            "status": "pass",
+            "evidence": "[Unreleased] entries moved under the version at release"
+          },
+          {
+            "bar": "understanding",
+            "check": "release_notes_present",
+            "status": "pass",
+            "evidence": "user-facing notes: what changed, why it matters"
+          },
+          {
+            "bar": "understanding",
+            "check": "breaking_changes_have_migration_steps",
+            "status": "pass",
+            "evidence": "no breaking changes declared"
+          },
+          {
+            "bar": "management",
+            "check": "approver_named",
+            "status": "pass",
+            "evidence": "rollout plan names the approver"
+          },
+          {
+            "bar": "management",
+            "check": "human_approval_recorded",
+            "status": "pass",
+            "evidence": "skill red line: deploys stay HITL \u2014 automation prepares, humans approve"
+          },
+          {
+            "bar": "management",
+            "check": "rollout_plan_present",
+            "status": "pass",
+            "evidence": "canary/staged where feasible"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "rollback_plan_present",
+            "status": "pass",
+            "evidence": "the rollback path is written before rolling out"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "rollback_plan_testable",
+            "status": "pass",
+            "evidence": "quality gate: rollback plan exists and is testable"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "post_release_health_window_24_to_48h",
+            "status": "pass",
+            "evidence": "window_hours=24 (skill: verify health for 24\u201348h)"
+          },
+          {
+            "bar": "stability",
+            "check": "artifacts_sealed",
+            "status": "pass",
+            "evidence": "hash + sign build artifacts; manifest attached"
+          },
+          {
+            "bar": "stability",
+            "check": "checksum_manifest_present",
+            "status": "pass",
+            "evidence": "provenance manifest present"
+          },
+          {
+            "bar": "stability",
+            "check": "artifacts_verified_before_announcement",
+            "status": "pass",
+            "evidence": "quality gate: artifacts verified (checksums/signature) before announcement"
+          },
+          {
+            "bar": "stability",
+            "check": "tests_passing",
+            "status": "pass",
+            "evidence": "the release's own test evidence passes"
+          }
+        ],
+        "summary": "19 pass, 0 fail, 0 missing of 19 checks across five bars.",
+        "stamp": "RELEASE-READINESS VERDICT\nproduct: milo-core  version: 1.2.3\nVERDICT: READY\n  control        pass\n  understanding  pass\n  management     pass\n  lifecycle      pass\n  stability      pass\n19 pass, 0 fail, 0 missing of 19 checks across five bars."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "rollback_plan.testable",
+          "health_check.window_hours"
+        ],
+        "notes": "Rollback plan is not testable and health check window is outside 24-48 hour requirement."
+      },
+      "input": {
+        "product": "milo-core",
+        "version": "1.2.3",
+        "version_bump_locations": [
+          "src/version.py"
+        ],
+        "tag": {
+          "name": "v1.2.3",
+          "annotated": true,
+          "moved": false
+        },
+        "changelog": {
+          "has_entry_for_version": true,
+          "unreleased_section_moved": true
+        },
+        "release_notes": {
+          "present": true,
+          "breaking_changes": false,
+          "migration_steps": "none"
+        },
+        "approver": "jane.doe",
+        "approval": {
+          "hitl_recorded": true
+        },
+        "rollout_plan": {
+          "present": true
+        },
+        "rollback_plan": {
+          "present": true,
+          "testable": false
+        },
+        "health_check": {
+          "window_hours": 10
+        },
+        "artifacts": {
+          "sealed": true,
+          "checksum_manifest": true,
+          "verified_before_announcement": true
+        },
+        "tests": {
+          "passing": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "release-readiness-verdict",
+        "atom_version": "0.1.0",
+        "product": "milo-core",
+        "version": "1.2.3",
+        "verdict": "NOT_READY",
+        "bars": {
+          "control": "pass",
+          "understanding": "pass",
+          "management": "pass",
+          "lifecycle": "fail",
+          "stability": "pass"
+        },
+        "checks": [
+          {
+            "bar": "control",
+            "check": "version_is_semver",
+            "status": "pass",
+            "evidence": "version='1.2.3'"
+          },
+          {
+            "bar": "control",
+            "check": "release_is_tagged",
+            "status": "pass",
+            "evidence": "tag='v1.2.3' expected v1.2.3"
+          },
+          {
+            "bar": "control",
+            "check": "tag_is_annotated",
+            "status": "pass",
+            "evidence": "annotated tag (skill: annotated tags, signed when keys exist)"
+          },
+          {
+            "bar": "control",
+            "check": "published_tag_not_moved",
+            "status": "pass",
+            "evidence": "skill red line: never move a published tag"
+          },
+          {
+            "bar": "control",
+            "check": "version_bumped_in_exactly_one_place",
+            "status": "pass",
+            "evidence": "version_bump_locations=['src/version.py']"
+          },
+          {
+            "bar": "understanding",
+            "check": "changelog_entry_for_this_version",
+            "status": "pass",
+            "evidence": "Keep-a-Changelog: entry for this version ships in the same change"
+          },
+          {
+            "bar": "understanding",
+            "check": "unreleased_section_moved_under_version",
+            "status": "pass",
+            "evidence": "[Unreleased] entries moved under the version at release"
+          },
+          {
+            "bar": "understanding",
+            "check": "release_notes_present",
+            "status": "pass",
+            "evidence": "user-facing notes: what changed, why it matters"
+          },
+          {
+            "bar": "understanding",
+            "check": "breaking_changes_have_migration_steps",
+            "status": "pass",
+            "evidence": "no breaking changes declared"
+          },
+          {
+            "bar": "management",
+            "check": "approver_named",
+            "status": "pass",
+            "evidence": "rollout plan names the approver"
+          },
+          {
+            "bar": "management",
+            "check": "human_approval_recorded",
+            "status": "pass",
+            "evidence": "skill red line: deploys stay HITL \u2014 automation prepares, humans approve"
+          },
+          {
+            "bar": "management",
+            "check": "rollout_plan_present",
+            "status": "pass",
+            "evidence": "canary/staged where feasible"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "rollback_plan_present",
+            "status": "pass",
+            "evidence": "the rollback path is written before rolling out"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "rollback_plan_testable",
+            "status": "fail",
+            "evidence": "quality gate: rollback plan exists and is testable"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "post_release_health_window_24_to_48h",
+            "status": "fail",
+            "evidence": "window_hours=10 (skill: verify health for 24\u201348h)"
+          },
+          {
+            "bar": "stability",
+            "check": "artifacts_sealed",
+            "status": "pass",
+            "evidence": "hash + sign build artifacts; manifest attached"
+          },
+          {
+            "bar": "stability",
+            "check": "checksum_manifest_present",
+            "status": "pass",
+            "evidence": "provenance manifest present"
+          },
+          {
+            "bar": "stability",
+            "check": "artifacts_verified_before_announcement",
+            "status": "pass",
+            "evidence": "quality gate: artifacts verified (checksums/signature) before announcement"
+          },
+          {
+            "bar": "stability",
+            "check": "tests_passing",
+            "status": "pass",
+            "evidence": "the release's own test evidence passes"
+          }
+        ],
+        "summary": "17 pass, 2 fail, 0 missing of 19 checks across five bars.",
+        "stamp": "RELEASE-READINESS VERDICT\nproduct: milo-core  version: 1.2.3\nVERDICT: NOT_READY\n  control        pass\n  understanding  pass\n  management     pass\n  lifecycle      fail\n  stability      pass\n17 pass, 2 fail, 0 missing of 19 checks across five bars."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only product and version provided; all other required fields are absent."
+      },
+      "input": {
+        "product": "milo-core",
+        "version": "1.2.3"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "release-readiness-verdict",
+        "atom_version": "0.1.0",
+        "product": "milo-core",
+        "version": "1.2.3",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "bars": {
+          "control": "insufficient_evidence",
+          "understanding": "insufficient_evidence",
+          "management": "insufficient_evidence",
+          "lifecycle": "insufficient_evidence",
+          "stability": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "bar": "control",
+            "check": "version_is_semver",
+            "status": "pass",
+            "evidence": "version='1.2.3'"
+          },
+          {
+            "bar": "control",
+            "check": "release_is_tagged",
+            "status": "missing",
+            "evidence": "tag=None expected v1.2.3"
+          },
+          {
+            "bar": "control",
+            "check": "tag_is_annotated",
+            "status": "missing",
+            "evidence": "annotated tag (skill: annotated tags, signed when keys exist)"
+          },
+          {
+            "bar": "control",
+            "check": "published_tag_not_moved",
+            "status": "missing",
+            "evidence": "skill red line: never move a published tag"
+          },
+          {
+            "bar": "control",
+            "check": "version_bumped_in_exactly_one_place",
+            "status": "missing",
+            "evidence": "version_bump_locations=None"
+          },
+          {
+            "bar": "understanding",
+            "check": "changelog_entry_for_this_version",
+            "status": "missing",
+            "evidence": "Keep-a-Changelog: entry for this version ships in the same change"
+          },
+          {
+            "bar": "understanding",
+            "check": "unreleased_section_moved_under_version",
+            "status": "missing",
+            "evidence": "[Unreleased] entries moved under the version at release"
+          },
+          {
+            "bar": "understanding",
+            "check": "release_notes_present",
+            "status": "missing",
+            "evidence": "user-facing notes: what changed, why it matters"
+          },
+          {
+            "bar": "understanding",
+            "check": "breaking_changes_have_migration_steps",
+            "status": "missing",
+            "evidence": "no breaking changes declared"
+          },
+          {
+            "bar": "management",
+            "check": "approver_named",
+            "status": "missing",
+            "evidence": "rollout plan names the approver"
+          },
+          {
+            "bar": "management",
+            "check": "human_approval_recorded",
+            "status": "missing",
+            "evidence": "skill red line: deploys stay HITL \u2014 automation prepares, humans approve"
+          },
+          {
+            "bar": "management",
+            "check": "rollout_plan_present",
+            "status": "missing",
+            "evidence": "canary/staged where feasible"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "rollback_plan_present",
+            "status": "missing",
+            "evidence": "the rollback path is written before rolling out"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "rollback_plan_testable",
+            "status": "missing",
+            "evidence": "quality gate: rollback plan exists and is testable"
+          },
+          {
+            "bar": "lifecycle",
+            "check": "post_release_health_window_24_to_48h",
+            "status": "missing",
+            "evidence": "window_hours=None (skill: verify health for 24\u201348h)"
+          },
+          {
+            "bar": "stability",
+            "check": "artifacts_sealed",
+            "status": "missing",
+            "evidence": "hash + sign build artifacts; manifest attached"
+          },
+          {
+            "bar": "stability",
+            "check": "checksum_manifest_present",
+            "status": "missing",
+            "evidence": "provenance manifest present"
+          },
+          {
+            "bar": "stability",
+            "check": "artifacts_verified_before_announcement",
+            "status": "missing",
+            "evidence": "quality gate: artifacts verified (checksums/signature) before announcement"
+          },
+          {
+            "bar": "stability",
+            "check": "tests_passing",
+            "status": "missing",
+            "evidence": "the release's own test evidence passes"
+          }
+        ],
+        "summary": "1 pass, 0 fail, 18 missing of 19 checks across five bars.",
+        "stamp": "RELEASE-READINESS VERDICT\nproduct: milo-core  version: 1.2.3\nVERDICT: INSUFFICIENT_EVIDENCE\n  control        insufficient_evidence\n  understanding  insufficient_evidence\n  management     insufficient_evidence\n  lifecycle      insufficient_evidence\n  stability      insufficient_evidence\n1 pass, 0 fail, 18 missing of 19 checks across five bars."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input contains type violations: product is integer instead of string, version_bump_locations is string instead of list."
+      },
+      "input": {
+        "product": 123,
+        "version": "1.2.3",
+        "version_bump_locations": "not-a-list",
+        "tag": "invalid-object-type"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "product",
+        "detail": "product must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

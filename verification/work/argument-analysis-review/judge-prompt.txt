@@ -1,0 +1,917 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: argument-analysis-review
+
+=== contract.yaml ===
+service_name: argument-analysis-review
+display_name: Argument analysis review
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:critical-reasoning
+binding:
+  skill: critical-reasoning
+  skill_path: workspace/mymilo-build/skills/critical-reasoning/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+- human
+keys:
+  namespace: argument_analysis_review
+  prefix: atm_1_argument_analysis_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Claim checking in research
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Argument analysis review — `argument-analysis-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Claim checking in research**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the argument-analysis manifest
+
+The caller submits one JSON manifest: a declared argument-analysis
+record for one argument. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`ARGUMENT_ANALYSIS_DEFICIENT`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `argument` (string; carried into the verdict output, not itself checked) | — |
+| `anatomy.premises_identified` | anatomy_and_steelman |
+| `anatomy.conclusion_identified` | anatomy_and_steelman |
+| `anatomy.validity_distinguished_from_soundness` | anatomy_and_steelman |
+| `anatomy.steelman_stated` | anatomy_and_steelman |
+| `evidence.source_quality_assessed` | evidence_weighing |
+| `evidence.sample_size_considered` | evidence_weighing |
+| `evidence.confounders_considered` | evidence_weighing |
+| `evidence.replication_considered` | evidence_weighing |
+| `evidence.anecdote_treated_as_data` (must be `false` to pass) | evidence_weighing |
+| `calibration.base_rate_stated` | base_rates_and_calibration |
+| `calibration.diagnosticity_assessed` | base_rates_and_calibration |
+| `calibration.confidence_percent` (number; computed, see below) | base_rates_and_calibration |
+| `calibration.known_vs_believed_separated` | base_rates_and_calibration |
+| `stress_test.inversion_or_premortem_done` | stress_testing |
+| `stress_test.second_order_consequences_traced` | stress_testing |
+| `stress_test.change_mind_evidence_prestated` | stress_testing |
+| `screening.fallacies_screened` (list of string tokens; computed, see below) | fallacy_and_bias_screening |
+| `screening.biases_screened` (list of string tokens; computed, see below) | fallacy_and_bias_screening |
+| `razors.simplest_explanation_preferred` | razors_and_countercase |
+| `razors.malice_not_assumed_without_evidence` | razors_and_countercase |
+| `razors.chestertons_fence_respected` | razors_and_countercase |
+| `razors.map_territory_distinguished` | razors_and_countercase |
+| `countercase.key_assumption_named` | razors_and_countercase |
+| `countercase.strongest_countercase_offered` | razors_and_countercase |
+
+Three checks are computed from the declared values, using only
+what the skill itself states — no outside threshold is imported:
+
+- **Fallacy screen completeness:** the skill names nine fallacies
+  (ad hominem, straw man, false dichotomy, appeal to authority,
+  slippery slope, correlation≠causation, survivorship bias,
+  base-rate neglect, sunk cost). The declared
+  `screening.fallacies_screened` list passes only when it contains
+  all nine tokens: `ad_hominem`, `straw_man`, `false_dichotomy`,
+  `appeal_to_authority`, `slippery_slope`,
+  `correlation_as_causation`, `survivorship_bias`,
+  `base_rate_neglect`, `sunk_cost`. Extra tokens are ignored; the
+  tokens are validated as strings only, never enum-checked.
+- **Bias screen completeness:** the skill names six biases
+  (confirmation, anchoring, availability, motivated reasoning,
+  recency, overconfidence). The declared
+  `screening.biases_screened` list passes only when it contains
+  all six tokens: `confirmation`, `anchoring`, `availability`,
+  `motivated_reasoning`, `recency`, `overconfidence`.
+- **Probabilistic confidence:** the skill requires beliefs held
+  "probabilistically and calibrated — explicit confidence, not
+  binary certainty". The declared `calibration.confidence_percent`
+  therefore passes only strictly between 0 and 100; 0 and 100 are
+  binary certainty and fail. An absent value is missing evidence,
+  not a failure.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three computed checks cannot be completed), `missing_fallacies`
+and `missing_biases` (the skill-named tokens absent from each
+declared screen, in the skill's order; null when the screen list
+is not declared), and `confidence_percent` (the declared numeric
+confidence, or null).
+
+The verdict is one of `ARGUMENT_ANALYSIS_COMPLETE` (all 24 checks
+pass), `ARGUMENT_ANALYSIS_DEFICIENT` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: anatomy_and_steelman, evidence_weighing,
+base_rates_and_calibration, stress_testing,
+fallacy_and_bias_screening, razors_and_countercase.
+
+## Honest scoping
+
+This atom audits a **declared** argument-analysis record — it
+does not read the underlying argument, restate it, or verify that
+a declared step was performed well. An analysis is complete *on
+the caller's declared evidence*: a manifest that declares a
+steelman, a base rate, and complete fallacy/bias screens passes
+those checks even if the underlying reasoning was never done. It
+is a completeness audit of the record the skill requires, **not a
+judgment of the argument itself**: it never decides whether the
+conclusion is true, whether the premises are true (soundness of
+the actual argument), or whether the stated confidence is well
+calibrated against outcomes — only that the record contains what
+the skill's anatomy, evidence, stress-test, screening and razor
+steps demand.
+
+Named exclusions: no grading of prose quality (steelman strength,
+counter-case honesty, evidence appraisal are judgment, and the
+skill states no scale for grading them, so none is invented); no
+fallacy/bias vocabulary beyond the skill's own lists is required
+(extra screened tokens are accepted and ignored); no verification
+that any declared analysis step actually happened.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Overlaps critical-thinking
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "argument-analysis-review",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "ARGUMENT_ANALYSIS_COMPLETE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 24 boolean checks pass, confidence is within (0, 100), and all required tokens are present in screens."
+      },
+      "input": {
+        "argument": "All men are mortal; Socrates is a man; therefore Socrates is mortal.",
+        "anatomy": {
+          "premises_identified": true,
+          "conclusion_identified": true,
+          "validity_distinguished_from_soundness": true,
+          "steelman_stated": true
+        },
+        "evidence": {
+          "source_quality_assessed": true,
+          "sample_size_considered": true,
+          "confounders_considered": true,
+          "replication_considered": true,
+          "anecdote_treated_as_data": false
+        },
+        "calibration": {
+          "base_rate_stated": true,
+          "diagnosticity_assessed": true,
+          "confidence_percent": 75,
+          "known_vs_believed_separated": true
+        },
+        "stress_test": {
+          "inversion_or_premortem_done": true,
+          "second_order_consequences_traced": true,
+          "change_mind_evidence_prestated": true
+        },
+        "screening": {
+          "fallacies_screened": [
+            "ad_hominem",
+            "straw_man",
+            "false_dichotomy",
+            "appeal_to_authority",
+            "slippery_slope",
+            "correlation_as_causation",
+            "survivorship_bias",
+            "base_rate_neglect",
+            "sunk_cost"
+          ],
+          "biases_screened": [
+            "confirmation",
+            "anchoring",
+            "availability",
+            "motivated_reasoning",
+            "recency",
+            "overconfidence"
+          ]
+        },
+        "razors": {
+          "simplest_explanation_preferred": true,
+          "malice_not_assumed_without_evidence": true,
+          "chestertons_fence_respected": true,
+          "map_territory_distinguished": true
+        },
+        "countercase": {
+          "key_assumption_named": true,
+          "strongest_countercase_offered": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "argument-analysis-review",
+        "atom_version": "0.1.0",
+        "argument": "All men are mortal; Socrates is a man; therefore Socrates is mortal.",
+        "verdict": "ARGUMENT_ANALYSIS_COMPLETE",
+        "sections": {
+          "anatomy_and_steelman": "pass",
+          "evidence_weighing": "pass",
+          "base_rates_and_calibration": "pass",
+          "stress_testing": "pass",
+          "fallacy_and_bias_screening": "pass",
+          "razors_and_countercase": "pass"
+        },
+        "checks": [
+          {
+            "section": "anatomy_and_steelman",
+            "check": "premises_identified",
+            "status": "pass",
+            "evidence": "anatomy: the argument's premises are identified"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "conclusion_identified",
+            "status": "pass",
+            "evidence": "anatomy: the argument's conclusion is identified"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "validity_distinguished_from_soundness",
+            "status": "pass",
+            "evidence": "anatomy: validity (does the conclusion follow from the form?) is distinguished from soundness (valid and true premises)"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "steelman_stated_before_critique",
+            "status": "pass",
+            "evidence": "steelman first: the strongest version of the view under critique is stated before the critique"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "source_quality_assessed",
+            "status": "pass",
+            "evidence": "evidence: source quality is assessed"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "sample_size_considered",
+            "status": "pass",
+            "evidence": "evidence: sample size is considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "confounders_considered",
+            "status": "pass",
+            "evidence": "evidence: confounders are considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "replication_considered",
+            "status": "pass",
+            "evidence": "evidence: replication is considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "anecdote_not_treated_as_data",
+            "status": "pass",
+            "evidence": "evidence: anecdote is not data \u2014 no anecdote is treated as data"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "base_rate_stated_first",
+            "status": "pass",
+            "evidence": "base rates first: the prior / base rate is stated before the new evidence is weighed"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "diagnosticity_assessed",
+            "status": "pass",
+            "evidence": "base rates first: how diagnostic the new evidence is \u2014 how much it should move the belief \u2014 is assessed"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "confidence_probabilistic_and_explicit",
+            "status": "pass",
+            "evidence": "calibration: an explicit confidence is held probabilistically \u2014 strictly between 0 and 100 percent, not binary certainty"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "known_separated_from_believed",
+            "status": "pass",
+            "evidence": "calibration: what is known is separated from what is believed"
+          },
+          {
+            "section": "stress_testing",
+            "check": "inversion_or_premortem_run",
+            "status": "pass",
+            "evidence": "stress-test: inversion is run \u2014 how would this fail? \u2014 as a premortem"
+          },
+          {
+            "section": "stress_testing",
+            "check": "second_order_consequences_traced",
+            "status": "pass",
+            "evidence": "stress-test: second-order thinking \u2014 consequences of consequences are traced"
+          },
+          {
+            "section": "stress_testing",
+            "check": "falsifiability_change_mind_prestated",
+            "status": "pass",
+            "evidence": "falsifiability: what evidence would change the conclusion is pre-stated"
+          },
+          {
+            "section": "fallacy_and_bias_screening",
+            "check": "all_listed_fallacies_screened",
+            "status": "pass",
+            "evidence": "fallacies: the screen covers every fallacy the skill names \u2014 ad hominem, straw man, false dichotomy, appeal to authority, slippery slope, correlation as causation, survivorship bias, base-rate neglect, sunk cost"
+          },
+          {
+            "section": "fallacy_and_bias_screening",
+            "check": "all_listed_biases_screened",
+            "status": "pass",
+            "evidence": "biases: the screen covers every bias the skill names \u2014 confirmation, anchoring, availability, motivated reasoning, recency, overconfidence"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "simplest_explanation_preferred",
+            "status": "pass",
+            "evidence": "Occam: the simplest explanation that fits the facts is preferred"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "malice_not_assumed_without_evidence",
+            "status": "pass",
+            "evidence": "Hanlon: malice is not attributed to what incompetence explains, absent evidence"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "chestertons_fence_respected",
+            "status": "pass",
+            "evidence": "Chesterton's fence: why something exists is understood before it is removed"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "map_territory_distinguished",
+            "status": "pass",
+            "evidence": "map is not territory: the model is distinguished from the reality"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "key_assumption_named",
+            "status": "pass",
+            "evidence": "how to show up: the key assumption is named"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "strongest_countercase_offered",
+            "status": "pass",
+            "evidence": "how to show up: the strongest honest counter-case is offered"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "missing_fallacies": [],
+        "missing_biases": [],
+        "confidence_percent": 75,
+        "summary": "24 pass, 0 fail, 0 missing of 24 checks across six sections.",
+        "stamp": "ARGUMENT ANALYSIS REVIEW\nargument: All men are mortal; Socrates is a man; therefore Socrates is mortal.\nVERDICT: ARGUMENT_ANALYSIS_COMPLETE\n  anatomy_and_steelman             pass\n  evidence_weighing                pass\n  base_rates_and_calibration       pass\n  stress_testing                   pass\n  fallacy_and_bias_screening       pass\n  razors_and_countercase           pass\n24 pass, 0 fail, 0 missing of 24 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "ARGUMENT_ANALYSIS_DEFICIENT",
+        "http": 200,
+        "failing_checks": [
+          "evidence_weighing",
+          "base_rates_and_calibration",
+          "fallacy_and_bias_screening"
+        ],
+        "notes": "Fails due to anecdote_treated_as_data=true, confidence=100 (binary), and incomplete fallacy/bias lists."
+      },
+      "input": {
+        "argument": "Test argument",
+        "anatomy": {
+          "premises_identified": true,
+          "conclusion_identified": true,
+          "validity_distinguished_from_soundness": true,
+          "steelman_stated": true
+        },
+        "evidence": {
+          "source_quality_assessed": true,
+          "sample_size_considered": true,
+          "confounders_considered": true,
+          "replication_considered": true,
+          "anecdote_treated_as_data": true
+        },
+        "calibration": {
+          "base_rate_stated": true,
+          "diagnosticity_assessed": true,
+          "confidence_percent": 100,
+          "known_vs_believed_separated": true
+        },
+        "stress_test": {
+          "inversion_or_premortem_done": true,
+          "second_order_consequences_traced": true,
+          "change_mind_evidence_prestated": true
+        },
+        "screening": {
+          "fallacies_screened": [
+            "ad_hominem"
+          ],
+          "biases_screened": [
+            "confirmation"
+          ]
+        },
+        "razors": {
+          "simplest_explanation_preferred": true,
+          "malice_not_assumed_without_evidence": true,
+          "chestertons_fence_respected": true,
+          "map_territory_distinguished": true
+        },
+        "countercase": {
+          "key_assumption_named": true,
+          "strongest_countercase_offered": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "argument-analysis-review",
+        "atom_version": "0.1.0",
+        "argument": "Test argument",
+        "verdict": "ARGUMENT_ANALYSIS_DEFICIENT",
+        "sections": {
+          "anatomy_and_steelman": "pass",
+          "evidence_weighing": "fail",
+          "base_rates_and_calibration": "fail",
+          "stress_testing": "pass",
+          "fallacy_and_bias_screening": "fail",
+          "razors_and_countercase": "pass"
+        },
+        "checks": [
+          {
+            "section": "anatomy_and_steelman",
+            "check": "premises_identified",
+            "status": "pass",
+            "evidence": "anatomy: the argument's premises are identified"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "conclusion_identified",
+            "status": "pass",
+            "evidence": "anatomy: the argument's conclusion is identified"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "validity_distinguished_from_soundness",
+            "status": "pass",
+            "evidence": "anatomy: validity (does the conclusion follow from the form?) is distinguished from soundness (valid and true premises)"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "steelman_stated_before_critique",
+            "status": "pass",
+            "evidence": "steelman first: the strongest version of the view under critique is stated before the critique"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "source_quality_assessed",
+            "status": "pass",
+            "evidence": "evidence: source quality is assessed"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "sample_size_considered",
+            "status": "pass",
+            "evidence": "evidence: sample size is considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "confounders_considered",
+            "status": "pass",
+            "evidence": "evidence: confounders are considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "replication_considered",
+            "status": "pass",
+            "evidence": "evidence: replication is considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "anecdote_not_treated_as_data",
+            "status": "fail",
+            "evidence": "evidence: anecdote is not data \u2014 no anecdote is treated as data"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "base_rate_stated_first",
+            "status": "pass",
+            "evidence": "base rates first: the prior / base rate is stated before the new evidence is weighed"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "diagnosticity_assessed",
+            "status": "pass",
+            "evidence": "base rates first: how diagnostic the new evidence is \u2014 how much it should move the belief \u2014 is assessed"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "confidence_probabilistic_and_explicit",
+            "status": "fail",
+            "evidence": "calibration: an explicit confidence is held probabilistically \u2014 strictly between 0 and 100 percent, not binary certainty"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "known_separated_from_believed",
+            "status": "pass",
+            "evidence": "calibration: what is known is separated from what is believed"
+          },
+          {
+            "section": "stress_testing",
+            "check": "inversion_or_premortem_run",
+            "status": "pass",
+            "evidence": "stress-test: inversion is run \u2014 how would this fail? \u2014 as a premortem"
+          },
+          {
+            "section": "stress_testing",
+            "check": "second_order_consequences_traced",
+            "status": "pass",
+            "evidence": "stress-test: second-order thinking \u2014 consequences of consequences are traced"
+          },
+          {
+            "section": "stress_testing",
+            "check": "falsifiability_change_mind_prestated",
+            "status": "pass",
+            "evidence": "falsifiability: what evidence would change the conclusion is pre-stated"
+          },
+          {
+            "section": "fallacy_and_bias_screening",
+            "check": "all_listed_fallacies_screened",
+            "status": "fail",
+            "evidence": "fallacies: the screen covers every fallacy the skill names \u2014 ad hominem, straw man, false dichotomy, appeal to authority, slippery slope, correlation as causation, survivorship bias, base-rate neglect, sunk cost"
+          },
+          {
+            "section": "fallacy_and_bias_screening",
+            "check": "all_listed_biases_screened",
+            "status": "fail",
+            "evidence": "biases: the screen covers every bias the skill names \u2014 confirmation, anchoring, availability, motivated reasoning, recency, overconfidence"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "simplest_explanation_preferred",
+            "status": "pass",
+            "evidence": "Occam: the simplest explanation that fits the facts is preferred"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "malice_not_assumed_without_evidence",
+            "status": "pass",
+            "evidence": "Hanlon: malice is not attributed to what incompetence explains, absent evidence"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "chestertons_fence_respected",
+            "status": "pass",
+            "evidence": "Chesterton's fence: why something exists is understood before it is removed"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "map_territory_distinguished",
+            "status": "pass",
+            "evidence": "map is not territory: the model is distinguished from the reality"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "key_assumption_named",
+            "status": "pass",
+            "evidence": "how to show up: the key assumption is named"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "strongest_countercase_offered",
+            "status": "pass",
+            "evidence": "how to show up: the strongest honest counter-case is offered"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "missing_fallacies": [
+          "straw_man",
+          "false_dichotomy",
+          "appeal_to_authority",
+          "slippery_slope",
+          "correlation_as_causation",
+          "survivorship_bias",
+          "base_rate_neglect",
+          "sunk_cost"
+        ],
+        "missing_biases": [
+          "anchoring",
+          "availability",
+          "motivated_reasoning",
+          "recency",
+          "overconfidence"
+        ],
+        "confidence_percent": 100,
+        "summary": "20 pass, 4 fail, 0 missing of 24 checks across six sections.",
+        "stamp": "ARGUMENT ANALYSIS REVIEW\nargument: Test argument\nVERDICT: ARGUMENT_ANALYSIS_DEFICIENT\n  anatomy_and_steelman             pass\n  evidence_weighing                fail\n  base_rates_and_calibration       fail\n  stress_testing                   pass\n  fallacy_and_bias_screening       fail\n  razors_and_countercase           pass\n20 pass, 4 fail, 0 missing of 24 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, triggering INSUFFICIENT_EVIDENCE rather than a failure."
+      },
+      "input": {
+        "argument": "Minimal argument",
+        "anatomy": {
+          "premises_identified": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "argument-analysis-review",
+        "atom_version": "0.1.0",
+        "argument": "Minimal argument",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "anatomy_and_steelman": "insufficient_evidence",
+          "evidence_weighing": "insufficient_evidence",
+          "base_rates_and_calibration": "insufficient_evidence",
+          "stress_testing": "insufficient_evidence",
+          "fallacy_and_bias_screening": "insufficient_evidence",
+          "razors_and_countercase": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "anatomy_and_steelman",
+            "check": "premises_identified",
+            "status": "pass",
+            "evidence": "anatomy: the argument's premises are identified"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "conclusion_identified",
+            "status": "missing",
+            "evidence": "anatomy: the argument's conclusion is identified"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "validity_distinguished_from_soundness",
+            "status": "missing",
+            "evidence": "anatomy: validity (does the conclusion follow from the form?) is distinguished from soundness (valid and true premises)"
+          },
+          {
+            "section": "anatomy_and_steelman",
+            "check": "steelman_stated_before_critique",
+            "status": "missing",
+            "evidence": "steelman first: the strongest version of the view under critique is stated before the critique"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "source_quality_assessed",
+            "status": "missing",
+            "evidence": "evidence: source quality is assessed"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "sample_size_considered",
+            "status": "missing",
+            "evidence": "evidence: sample size is considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "confounders_considered",
+            "status": "missing",
+            "evidence": "evidence: confounders are considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "replication_considered",
+            "status": "missing",
+            "evidence": "evidence: replication is considered"
+          },
+          {
+            "section": "evidence_weighing",
+            "check": "anecdote_not_treated_as_data",
+            "status": "missing",
+            "evidence": "evidence: anecdote is not data \u2014 no anecdote is treated as data"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "base_rate_stated_first",
+            "status": "missing",
+            "evidence": "base rates first: the prior / base rate is stated before the new evidence is weighed"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "diagnosticity_assessed",
+            "status": "missing",
+            "evidence": "base rates first: how diagnostic the new evidence is \u2014 how much it should move the belief \u2014 is assessed"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "confidence_probabilistic_and_explicit",
+            "status": "missing",
+            "evidence": "calibration: an explicit confidence is held probabilistically \u2014 strictly between 0 and 100 percent, not binary certainty"
+          },
+          {
+            "section": "base_rates_and_calibration",
+            "check": "known_separated_from_believed",
+            "status": "missing",
+            "evidence": "calibration: what is known is separated from what is believed"
+          },
+          {
+            "section": "stress_testing",
+            "check": "inversion_or_premortem_run",
+            "status": "missing",
+            "evidence": "stress-test: inversion is run \u2014 how would this fail? \u2014 as a premortem"
+          },
+          {
+            "section": "stress_testing",
+            "check": "second_order_consequences_traced",
+            "status": "missing",
+            "evidence": "stress-test: second-order thinking \u2014 consequences of consequences are traced"
+          },
+          {
+            "section": "stress_testing",
+            "check": "falsifiability_change_mind_prestated",
+            "status": "missing",
+            "evidence": "falsifiability: what evidence would change the conclusion is pre-stated"
+          },
+          {
+            "section": "fallacy_and_bias_screening",
+            "check": "all_listed_fallacies_screened",
+            "status": "missing",
+            "evidence": "fallacies: the screen covers every fallacy the skill names \u2014 ad hominem, straw man, false dichotomy, appeal to authority, slippery slope, correlation as causation, survivorship bias, base-rate neglect, sunk cost"
+          },
+          {
+            "section": "fallacy_and_bias_screening",
+            "check": "all_listed_biases_screened",
+            "status": "missing",
+            "evidence": "biases: the screen covers every bias the skill names \u2014 confirmation, anchoring, availability, motivated reasoning, recency, overconfidence"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "simplest_explanation_preferred",
+            "status": "missing",
+            "evidence": "Occam: the simplest explanation that fits the facts is preferred"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "malice_not_assumed_without_evidence",
+            "status": "missing",
+            "evidence": "Hanlon: malice is not attributed to what incompetence explains, absent evidence"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "chestertons_fence_respected",
+            "status": "missing",
+            "evidence": "Chesterton's fence: why something exists is understood before it is removed"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "map_territory_distinguished",
+            "status": "missing",
+            "evidence": "map is not territory: the model is distinguished from the reality"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "key_assumption_named",
+            "status": "missing",
+            "evidence": "how to show up: the key assumption is named"
+          },
+          {
+            "section": "razors_and_countercase",
+            "check": "strongest_countercase_offered",
+            "status": "missing",
+            "evidence": "how to show up: the strongest honest counter-case is offered"
+          }
+        ],
+        "computed_status": null,
+        "missing_fallacies": null,
+        "missing_biases": null,
+        "confidence_percent": null,
+        "summary": "1 pass, 0 fail, 23 missing of 24 checks across six sections.",
+        "stamp": "ARGUMENT ANALYSIS REVIEW\nargument: Minimal argument\nVERDICT: INSUFFICIENT_EVIDENCE\n  anatomy_and_steelman             insufficient_evidence\n  evidence_weighing                insufficient_evidence\n  base_rates_and_calibration       insufficient_evidence\n  stress_testing                   insufficient_evidence\n  fallacy_and_bias_screening       insufficient_evidence\n  razors_and_countercase           insufficient_evidence\n1 pass, 0 fail, 23 missing of 24 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: string provided where boolean expected for anatomy.premises_identified."
+      },
+      "input": {
+        "argument": "Malformed input",
+        "anatomy": {
+          "premises_identified": "not_a_boolean"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "anatomy.premises_identified",
+        "detail": "anatomy.premises_identified must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

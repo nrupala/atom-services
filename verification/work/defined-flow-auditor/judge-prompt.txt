@@ -1,0 +1,819 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: defined-flow-auditor
+
+=== contract.yaml ===
+service_name: defined-flow-auditor
+display_name: Defined-flow auditor
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- knowledge-atom:#15
+binding:
+  skill: zero-trust
+  skill_path: workspace/mymilo-build/skills/zero-trust/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/defined_flow_auditor.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_defined_flow_auditor.py — 18 tests, all passing 2026-11-15
+keys:
+  namespace: defined_flow_auditor
+  prefix: atm_1_defined_flow_auditor_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: call
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Guardian Mesh audits of our systems
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Defined-flow auditor — `defined-flow-auditor`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Zero-trust security evaluation — never trust, always verify. Identity-based access, least privilege, continuous verification, NIST 800-63B alignment. Distilled from mykey and zerok-container.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one service call.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Security & privacy who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Guardian Mesh audits of our systems**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **call**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Inputs — the zero-trust evidence manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_DEFINED`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `system` (string; carried into the verdict output, not itself checked) | — |
+| `auth.every_request_authenticated` | never_trust_always_verify |
+| `auth.every_request_authorized` | never_trust_always_verify |
+| `auth.internal_traffic_trusted` (must be `false` to pass) | never_trust_always_verify |
+| `identity.access_follows_identity` | identity_based_access |
+| `identity.checked_before_access` | identity_based_access |
+| `identity.proof_method_named` | identity_based_access |
+| `privilege.minimum_access` | least_privilege |
+| `privilege.access_expires` | least_privilege |
+| `privilege.credential_exceeds_job` (must be `false` to pass) | least_privilege |
+| `segmentation.components_segmented` | micro_segmentation |
+| `segmentation.blast_radius_bounded` | micro_segmentation |
+| `segmentation.flat_network` (must be `false` to pass) | micro_segmentation |
+| `verification.sessions_expire` | continuous_verification |
+| `verification.tokens_rotate` | continuous_verification |
+| `verification.anomalies_retrigger_auth` | continuous_verification |
+| `gauntlet.server_holds_plaintext_or_keys` (must be `false` to pass) | claim_gauntlet |
+| `gauntlet.server_breach_exposes_user_data` (must be `false` to pass) | claim_gauntlet |
+| `gauntlet.trusted_components_inventoried` | claim_gauntlet |
+| `gauntlet.convenience_decisions_surfaced` | claim_gauntlet |
+| `gauntlet.backdoors_present` (gates the naming check below) | claim_gauntlet |
+| `gauntlet.backdoors_named` (required when a backdoor is present; otherwise the check passes as not applicable) | claim_gauntlet |
+| `scope.adversaries_named` | scope_and_limits |
+| `scope.out_of_scope_named` | scope_and_limits |
+| `scope.compromised_endpoint_limit_acknowledged` | scope_and_limits |
+| `scope.claims_nist_alignment` (gates the controls check below) | scope_and_limits |
+| `scope.nist_controls_named` (required when NIST alignment is claimed; otherwise the check passes as not applicable) | scope_and_limits |
+
+The verdict is one of `DEFINED` (all 24 checks pass), `NOT_DEFINED`
+(any check fails — one failure breaks the claim), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across seven sections: never_trust_always_verify,
+identity_based_access, least_privilege, micro_segmentation,
+continuous_verification, claim_gauntlet, scope_and_limits.
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Guardian Mesh capabilities are spec inputs until behaviour-proven
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "defined-flow-auditor",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DEFINED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean requirements met, including negative constraints (false) and conditional logic (backdoors/NIST)."
+      },
+      "input": {
+        "system": "production-cluster-alpha",
+        "auth": {
+          "every_request_authenticated": true,
+          "every_request_authorized": true,
+          "internal_traffic_trusted": false
+        },
+        "identity": {
+          "access_follows_identity": true,
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "privilege": {
+          "minimum_access": true,
+          "access_expires": true,
+          "credential_exceeds_job": false
+        },
+        "segmentation": {
+          "components_segmented": true,
+          "blast_radius_bounded": true,
+          "flat_network": false
+        },
+        "verification": {
+          "sessions_expire": true,
+          "tokens_rotate": true,
+          "anomalies_retrigger_auth": true
+        },
+        "gauntlet": {
+          "server_holds_plaintext_or_keys": false,
+          "server_breach_exposes_user_data": false,
+          "trusted_components_inventoried": true,
+          "convenience_decisions_surfaced": true,
+          "backdoors_present": false
+        },
+        "scope": {
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "compromised_endpoint_limit_acknowledged": true,
+          "claims_nist_alignment": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "defined-flow-auditor",
+        "atom_version": "0.1.0",
+        "system": "production-cluster-alpha",
+        "verdict": "DEFINED",
+        "sections": {
+          "never_trust_always_verify": "pass",
+          "identity_based_access": "pass",
+          "least_privilege": "pass",
+          "micro_segmentation": "pass",
+          "continuous_verification": "pass",
+          "claim_gauntlet": "pass",
+          "scope_and_limits": "pass"
+        },
+        "checks": [
+          {
+            "section": "never_trust_always_verify",
+            "check": "every_request_authenticated",
+            "status": "pass",
+            "evidence": "every request \u2014 user, device, service \u2014 is authenticated as if it came from an open network"
+          },
+          {
+            "section": "never_trust_always_verify",
+            "check": "every_request_authorized",
+            "status": "pass",
+            "evidence": "every request is authorized fresh, on identity and context"
+          },
+          {
+            "section": "never_trust_always_verify",
+            "check": "network_location_not_trusted",
+            "status": "pass",
+            "evidence": "'inside the firewall' is not an identity"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "access_follows_identity_not_network",
+            "status": "pass",
+            "evidence": "access follows the identity (user, device, workload), not the network location"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "identity_checked_before_access",
+            "status": "pass",
+            "evidence": "what identity does this system check before granting access?"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "identity_proof_method_named",
+            "status": "pass",
+            "evidence": "how is that identity proven? The proof method is named"
+          },
+          {
+            "section": "least_privilege",
+            "check": "minimum_access_per_identity",
+            "status": "pass",
+            "evidence": "every identity gets the minimum access needed"
+          },
+          {
+            "section": "least_privilege",
+            "check": "access_expires",
+            "status": "pass",
+            "evidence": "access is granted for the minimum time needed \u2014 does access expire?"
+          },
+          {
+            "section": "least_privilege",
+            "check": "credentials_scoped_to_job",
+            "status": "pass",
+            "evidence": "can this credential do more than its job requires? It must not"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "components_segmented",
+            "status": "pass",
+            "evidence": "the blast radius of a compromise is bounded"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "breach_blast_radius_bounded",
+            "status": "pass",
+            "evidence": "if this component is breached, what else falls with it? The answer is bounded, not everything"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "network_not_flat",
+            "status": "pass",
+            "evidence": "a flat network where one breach means total breach is not zero-trust"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "sessions_expire",
+            "status": "pass",
+            "evidence": "trust is re-evaluated, not granted once \u2014 sessions expire"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "tokens_rotate",
+            "status": "pass",
+            "evidence": "tokens rotate"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "anomalies_retrigger_authentication",
+            "status": "pass",
+            "evidence": "anomalous behavior re-triggers authentication"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "server_holds_no_abusable_secrets",
+            "status": "pass",
+            "evidence": "in a true zero-trust design the server holds no secrets it could abuse \u2014 no plaintext, no recoverable keys"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "server_breach_does_not_expose_user_data",
+            "status": "pass",
+            "evidence": "if breaching the server exposes user data, the trust was placed in the server"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "trusted_components_inventoried",
+            "status": "pass",
+            "evidence": "every trusted component is an attack surface \u2014 inventory them before praising the architecture"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "convenience_trust_decisions_surfaced",
+            "status": "pass",
+            "evidence": "convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "backdoors_named_explicitly",
+            "status": "pass",
+            "evidence": "no backdoor (recovery / override / escrow) declared"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "adversaries_named",
+            "status": "pass",
+            "evidence": "a system is zero-trust only against the adversaries it names"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "out_of_scope_named",
+            "status": "pass",
+            "evidence": "who is out of scope is named honestly"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "compromised_endpoint_limit_acknowledged",
+            "status": "pass",
+            "evidence": "honest limit: zero-trust does not fix a compromised endpoint"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "nist_controls_named_when_alignment_claimed",
+            "status": "pass",
+            "evidence": "no NIST alignment claimed"
+          }
+        ],
+        "summary": "24 pass, 0 fail, 0 missing of 24 checks across seven sections.",
+        "stamp": "DEFINED-FLOW AUDITOR\nsystem: production-cluster-alpha\nVERDICT: DEFINED\n  never_trust_always_verify  pass\n  identity_based_access      pass\n  least_privilege            pass\n  micro_segmentation         pass\n  continuous_verification    pass\n  claim_gauntlet             pass\n  scope_and_limits           pass\n24 pass, 0 fail, 0 missing of 24 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_DEFINED",
+        "http": 200,
+        "failing_checks": [
+          "never_trust_always_verify",
+          "least_privilege",
+          "micro_segmentation",
+          "claim_gauntlet"
+        ],
+        "notes": "Violates negative constraints: internal_traffic_trusted, credential_exceeds_job, flat_network, and gauntlet security flags."
+      },
+      "input": {
+        "system": "test-system",
+        "auth": {
+          "every_request_authenticated": true,
+          "every_request_authorized": true,
+          "internal_traffic_trusted": true
+        },
+        "identity": {
+          "access_follows_identity": true,
+          "checked_before_access": true,
+          "proof_method_named": true
+        },
+        "privilege": {
+          "minimum_access": true,
+          "access_expires": true,
+          "credential_exceeds_job": true
+        },
+        "segmentation": {
+          "components_segmented": true,
+          "blast_radius_bounded": true,
+          "flat_network": true
+        },
+        "verification": {
+          "sessions_expire": true,
+          "tokens_rotate": true,
+          "anomalies_retrigger_auth": true
+        },
+        "gauntlet": {
+          "server_holds_plaintext_or_keys": true,
+          "server_breach_exposes_user_data": true,
+          "trusted_components_inventoried": true,
+          "convenience_decisions_surfaced": true,
+          "backdoors_present": false
+        },
+        "scope": {
+          "adversaries_named": true,
+          "out_of_scope_named": true,
+          "compromised_endpoint_limit_acknowledged": true,
+          "claims_nist_alignment": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "defined-flow-auditor",
+        "atom_version": "0.1.0",
+        "system": "test-system",
+        "verdict": "NOT_DEFINED",
+        "sections": {
+          "never_trust_always_verify": "fail",
+          "identity_based_access": "pass",
+          "least_privilege": "fail",
+          "micro_segmentation": "fail",
+          "continuous_verification": "pass",
+          "claim_gauntlet": "fail",
+          "scope_and_limits": "pass"
+        },
+        "checks": [
+          {
+            "section": "never_trust_always_verify",
+            "check": "every_request_authenticated",
+            "status": "pass",
+            "evidence": "every request \u2014 user, device, service \u2014 is authenticated as if it came from an open network"
+          },
+          {
+            "section": "never_trust_always_verify",
+            "check": "every_request_authorized",
+            "status": "pass",
+            "evidence": "every request is authorized fresh, on identity and context"
+          },
+          {
+            "section": "never_trust_always_verify",
+            "check": "network_location_not_trusted",
+            "status": "fail",
+            "evidence": "'inside the firewall' is not an identity"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "access_follows_identity_not_network",
+            "status": "pass",
+            "evidence": "access follows the identity (user, device, workload), not the network location"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "identity_checked_before_access",
+            "status": "pass",
+            "evidence": "what identity does this system check before granting access?"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "identity_proof_method_named",
+            "status": "pass",
+            "evidence": "how is that identity proven? The proof method is named"
+          },
+          {
+            "section": "least_privilege",
+            "check": "minimum_access_per_identity",
+            "status": "pass",
+            "evidence": "every identity gets the minimum access needed"
+          },
+          {
+            "section": "least_privilege",
+            "check": "access_expires",
+            "status": "pass",
+            "evidence": "access is granted for the minimum time needed \u2014 does access expire?"
+          },
+          {
+            "section": "least_privilege",
+            "check": "credentials_scoped_to_job",
+            "status": "fail",
+            "evidence": "can this credential do more than its job requires? It must not"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "components_segmented",
+            "status": "pass",
+            "evidence": "the blast radius of a compromise is bounded"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "breach_blast_radius_bounded",
+            "status": "pass",
+            "evidence": "if this component is breached, what else falls with it? The answer is bounded, not everything"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "network_not_flat",
+            "status": "fail",
+            "evidence": "a flat network where one breach means total breach is not zero-trust"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "sessions_expire",
+            "status": "pass",
+            "evidence": "trust is re-evaluated, not granted once \u2014 sessions expire"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "tokens_rotate",
+            "status": "pass",
+            "evidence": "tokens rotate"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "anomalies_retrigger_authentication",
+            "status": "pass",
+            "evidence": "anomalous behavior re-triggers authentication"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "server_holds_no_abusable_secrets",
+            "status": "fail",
+            "evidence": "in a true zero-trust design the server holds no secrets it could abuse \u2014 no plaintext, no recoverable keys"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "server_breach_does_not_expose_user_data",
+            "status": "fail",
+            "evidence": "if breaching the server exposes user data, the trust was placed in the server"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "trusted_components_inventoried",
+            "status": "pass",
+            "evidence": "every trusted component is an attack surface \u2014 inventory them before praising the architecture"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "convenience_trust_decisions_surfaced",
+            "status": "pass",
+            "evidence": "convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "backdoors_named_explicitly",
+            "status": "pass",
+            "evidence": "no backdoor (recovery / override / escrow) declared"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "adversaries_named",
+            "status": "pass",
+            "evidence": "a system is zero-trust only against the adversaries it names"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "out_of_scope_named",
+            "status": "pass",
+            "evidence": "who is out of scope is named honestly"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "compromised_endpoint_limit_acknowledged",
+            "status": "pass",
+            "evidence": "honest limit: zero-trust does not fix a compromised endpoint"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "nist_controls_named_when_alignment_claimed",
+            "status": "pass",
+            "evidence": "no NIST alignment claimed"
+          }
+        ],
+        "summary": "19 pass, 5 fail, 0 missing of 24 checks across seven sections.",
+        "stamp": "DEFINED-FLOW AUDITOR\nsystem: test-system\nVERDICT: NOT_DEFINED\n  never_trust_always_verify  fail\n  identity_based_access      pass\n  least_privilege            fail\n  micro_segmentation         fail\n  continuous_verification    pass\n  claim_gauntlet             fail\n  scope_and_limits           pass\n19 pass, 5 fail, 0 missing of 24 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields missing; atom cannot complete the audit."
+      },
+      "input": {
+        "system": "minimal-test",
+        "auth": {
+          "every_request_authenticated": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "defined-flow-auditor",
+        "atom_version": "0.1.0",
+        "system": "minimal-test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "never_trust_always_verify": "insufficient_evidence",
+          "identity_based_access": "insufficient_evidence",
+          "least_privilege": "insufficient_evidence",
+          "micro_segmentation": "insufficient_evidence",
+          "continuous_verification": "insufficient_evidence",
+          "claim_gauntlet": "insufficient_evidence",
+          "scope_and_limits": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "never_trust_always_verify",
+            "check": "every_request_authenticated",
+            "status": "pass",
+            "evidence": "every request \u2014 user, device, service \u2014 is authenticated as if it came from an open network"
+          },
+          {
+            "section": "never_trust_always_verify",
+            "check": "every_request_authorized",
+            "status": "missing",
+            "evidence": "every request is authorized fresh, on identity and context"
+          },
+          {
+            "section": "never_trust_always_verify",
+            "check": "network_location_not_trusted",
+            "status": "missing",
+            "evidence": "'inside the firewall' is not an identity"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "access_follows_identity_not_network",
+            "status": "missing",
+            "evidence": "access follows the identity (user, device, workload), not the network location"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "identity_checked_before_access",
+            "status": "missing",
+            "evidence": "what identity does this system check before granting access?"
+          },
+          {
+            "section": "identity_based_access",
+            "check": "identity_proof_method_named",
+            "status": "missing",
+            "evidence": "how is that identity proven? The proof method is named"
+          },
+          {
+            "section": "least_privilege",
+            "check": "minimum_access_per_identity",
+            "status": "missing",
+            "evidence": "every identity gets the minimum access needed"
+          },
+          {
+            "section": "least_privilege",
+            "check": "access_expires",
+            "status": "missing",
+            "evidence": "access is granted for the minimum time needed \u2014 does access expire?"
+          },
+          {
+            "section": "least_privilege",
+            "check": "credentials_scoped_to_job",
+            "status": "missing",
+            "evidence": "can this credential do more than its job requires? It must not"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "components_segmented",
+            "status": "missing",
+            "evidence": "the blast radius of a compromise is bounded"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "breach_blast_radius_bounded",
+            "status": "missing",
+            "evidence": "if this component is breached, what else falls with it? The answer is bounded, not everything"
+          },
+          {
+            "section": "micro_segmentation",
+            "check": "network_not_flat",
+            "status": "missing",
+            "evidence": "a flat network where one breach means total breach is not zero-trust"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "sessions_expire",
+            "status": "missing",
+            "evidence": "trust is re-evaluated, not granted once \u2014 sessions expire"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "tokens_rotate",
+            "status": "missing",
+            "evidence": "tokens rotate"
+          },
+          {
+            "section": "continuous_verification",
+            "check": "anomalies_retrigger_authentication",
+            "status": "missing",
+            "evidence": "anomalous behavior re-triggers authentication"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "server_holds_no_abusable_secrets",
+            "status": "missing",
+            "evidence": "in a true zero-trust design the server holds no secrets it could abuse \u2014 no plaintext, no recoverable keys"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "server_breach_does_not_expose_user_data",
+            "status": "missing",
+            "evidence": "if breaching the server exposes user data, the trust was placed in the server"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "trusted_components_inventoried",
+            "status": "missing",
+            "evidence": "every trusted component is an attack surface \u2014 inventory them before praising the architecture"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "convenience_trust_decisions_surfaced",
+            "status": "missing",
+            "evidence": "convenience features (SSO passthrough, persistent sessions, silent re-auth) are trust decisions \u2014 surface each one"
+          },
+          {
+            "section": "claim_gauntlet",
+            "check": "backdoors_named_explicitly",
+            "status": "missing",
+            "evidence": "no backdoor (recovery / override / escrow) declared"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "adversaries_named",
+            "status": "missing",
+            "evidence": "a system is zero-trust only against the adversaries it names"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "out_of_scope_named",
+            "status": "missing",
+            "evidence": "who is out of scope is named honestly"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "compromised_endpoint_limit_acknowledged",
+            "status": "missing",
+            "evidence": "honest limit: zero-trust does not fix a compromised endpoint"
+          },
+          {
+            "section": "scope_and_limits",
+            "check": "nist_controls_named_when_alignment_claimed",
+            "status": "missing",
+            "evidence": "no NIST alignment claimed"
+          }
+        ],
+        "summary": "1 pass, 0 fail, 23 missing of 24 checks across seven sections.",
+        "stamp": "DEFINED-FLOW AUDITOR\nsystem: minimal-test\nVERDICT: INSUFFICIENT_EVIDENCE\n  never_trust_always_verify  insufficient_evidence\n  identity_based_access      insufficient_evidence\n  least_privilege            insufficient_evidence\n  micro_segmentation         insufficient_evidence\n  continuous_verification    insufficient_evidence\n  claim_gauntlet             insufficient_evidence\n  scope_and_limits           insufficient_evidence\n1 pass, 0 fail, 23 missing of 24 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: string provided where boolean expected for auth field."
+      },
+      "input": {
+        "system": "malformed-test",
+        "auth": {
+          "every_request_authenticated": "YES_PLEASE"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "auth.every_request_authenticated",
+        "detail": "auth.every_request_authenticated must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

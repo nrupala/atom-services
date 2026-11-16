@@ -1,0 +1,936 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: agentic-coding-practice
+
+=== contract.yaml ===
+service_name: agentic-coding-practice
+display_name: Agentic coding practice
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:agentic-coding
+binding:
+  skill: agentic-coding
+  skill_path: workspace/mymilo-build/skills/agentic-coding/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/agentic_coding_practice.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_agentic_coding_practice.py — 36 tests, all passing 2026-11-15
+keys:
+  namespace: agentic_coding_practice
+  prefix: atm_1_agentic_coding_practice_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: tokens
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Coding agent build workflows
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Agentic coding practice — `agentic-coding-practice`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Agentic coding — gets reliable work out of coding agents: tight specs, fast feedback loops, and guardrails so automated coding helps instead of creating chaos.
+
+A caller submits a declared agentic-coding practice manifest and receives one verdict back: is this declared practice reliable, on the skill's own disciplines? One unit of sale = tokens.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Coding agent build workflows**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the agentic-coding practice manifest
+
+The caller submits one JSON manifest: a declared agentic-coding
+setup / workflow. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`NOT_RELIABLE_PRACTICE`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `practice` (string; carried into the verdict output, not itself checked) | — |
+| `spec.spec_written_first` | spec_and_slicing |
+| `spec.small_vertical_slices` | spec_and_slicing |
+| `spec.diffs_reviewed` | spec_and_slicing |
+| `hooks.wired_as_guardrails` | hooks_and_events |
+| `hooks.events_and_payloads_known` | hooks_and_events |
+| `hooks.protected_paths_blocked` | hooks_and_events |
+| `hooks.formatters_auto_run` | hooks_and_events |
+| `hooks.secrets_denied` | hooks_and_events |
+| `feedback.tests_run_after_edit` | feedback_loop |
+| `feedback.tests_wired_into_hooks` | feedback_loop |
+| `feedback.linters_wired_into_hooks` | feedback_loop |
+| `guardrails.protected_paths_declared` | guardrails |
+| `guardrails.no_secrets` | guardrails |
+| `guardrails.docker_used` (must be `false` to pass — skill house rule: no Docker) | guardrails |
+| `guardrails.staging_first` | guardrails |
+| `guardrails.human_in_loop_on_irreversible` | guardrails |
+| `guardrails.autonomous_only_safe_reversible` | guardrails |
+| `guardrails.agent_run_unbounded` (must be `false` to pass — skill anti-pattern) | guardrails |
+| `context.only_what_agent_needs` | context_and_tools |
+| `context.whole_repo_dumped` (must be `false` to pass — skill anti-pattern) | context_and_tools |
+| `context.files_pulled_into_workspace` | context_and_tools |
+| `tools.mcp_tools_typed` | context_and_tools |
+| `tools.mcp_tools_narrowly_scoped` | context_and_tools |
+| `delegation.subagent_tasks_bounded` | delegation_and_access |
+| `delegation.subagent_context_narrow` | delegation_and_access |
+| `delegation.planner_worker_reviewer_pattern` | delegation_and_access |
+| `access.broad_write_access` (gates the guardrails check below) | delegation_and_access |
+| `access.guardrails_present` (required when broad write access is declared; otherwise the check passes as not applicable) | delegation_and_access |
+
+One check is conditional, following the skill's anti-pattern
+wording exactly: the skill refuses "agents with broad write
+access **and zero guardrails**" — broad write access on its own
+is not the failure. When `access.broad_write_access` is declared
+true, `access.guardrails_present` must be declared true; when no
+broad write access is declared, the check passes as not
+applicable.
+
+No check is computed from a numeric value: the skill states no
+numeric threshold, limit, count, or closed vocabulary (its hook
+lifecycle list is open — "PreToolUse, PostToolUse, etc."), so
+none is invented. Every check is a declared boolean read against
+a statement the skill itself makes.
+
+The verdict is one of `RELIABLE_PRACTICE` (all 27 checks pass),
+`NOT_RELIABLE_PRACTICE` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: spec_and_slicing, hooks_and_events,
+feedback_loop, guardrails, context_and_tools,
+delegation_and_access.
+
+Two pairs of checks cover the same skill ground twice, stated
+plainly: protected paths appear both as a hooks action
+(`hooks.protected_paths_blocked` — hooks "block edits to
+protected paths") and as a guardrail declaration
+(`guardrails.protected_paths_declared` — guardrails list
+"protected paths"); secrets appear both as a hooks action
+(`hooks.secrets_denied` — hooks "deny secrets") and as a
+guardrail (`guardrails.no_secrets` — guardrails list "no
+secrets"). That is the skill stating the same ground in its
+building-blocks list and its disciplines list, not two different
+findings. Likewise tests appear as a timing check
+(`feedback.tests_run_after_edit` — hooks "run tests after every
+edit") and as a loop-wiring check
+(`feedback.tests_wired_into_hooks` — "tests + linters wired into
+hooks").
+
+## Honest scoping
+
+This atom evaluates **declared** evidence about a coding-agent
+practice — it does not inspect a repository, read hook
+configurations, watch an agent run, review actual diffs, or
+verify that a declared practice is actually followed. A practice
+is reliable *on the caller's declared evidence*: a workflow that
+declares spec-first, hook-wired tests, and no Docker passes those
+checks even if the real workflow does something else.
+
+Named exclusions: it does not write a spec for a feature (the
+skill's example ask — generative authorship, not a checkable
+manifest), does not judge spec quality, diff quality, or code
+quality, does not name which files belong in context, and does
+not score or rank practices. The skill's named multi-agent
+examples (LocalForge's Planner -> Writer -> Reviewer -> Tester,
+the argent WASM sandbox) are examples, not requirements, so no
+check requires them; the one orchestration check reads the
+skill's general planner -> worker -> reviewer pattern. No
+threshold is checked for how small a slice is, how narrow a
+context is, or how long a bounded run may be — the skill states
+none.
+
+## Pricing
+
+Pricing unit: **tokens**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "agentic-coding-practice",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "RELIABLE_PRACTICE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 27 boolean checks are set to their passing states, including house rules (docker_used=false, agent_run_unbounded=false, whole_repo_dumped=false) and the conditional guardrails check."
+      },
+      "input": {
+        "practice": "Standardized Agentic Workflow",
+        "spec": {
+          "spec_written_first": true,
+          "small_vertical_slices": true,
+          "diffs_reviewed": true
+        },
+        "hooks": {
+          "wired_as_guardrails": true,
+          "events_and_payloads_known": true,
+          "protected_paths_blocked": true,
+          "formatters_auto_run": true,
+          "secrets_denied": true
+        },
+        "feedback": {
+          "tests_run_after_edit": true,
+          "tests_wired_into_hooks": true,
+          "linters_wired_into_hooks": true
+        },
+        "guardrails": {
+          "protected_paths_declared": true,
+          "no_secrets": true,
+          "docker_used": false,
+          "staging_first": true,
+          "human_in_loop_on_irreversible": true,
+          "autonomous_only_safe_reversible": true,
+          "agent_run_unbounded": false
+        },
+        "context": {
+          "only_what_agent_needs": true,
+          "whole_repo_dumped": false,
+          "files_pulled_into_workspace": true
+        },
+        "tools": {
+          "mcp_tools_typed": true,
+          "mcp_tools_narrowly_scoped": true
+        },
+        "delegation": {
+          "subagent_tasks_bounded": true,
+          "subagent_context_narrow": true,
+          "planner_worker_reviewer_pattern": true
+        },
+        "access": {
+          "broad_write_access": true,
+          "guardrails_present": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agentic-coding-practice",
+        "atom_version": "0.1.0",
+        "practice": "Standardized Agentic Workflow",
+        "verdict": "RELIABLE_PRACTICE",
+        "sections": {
+          "spec_and_slicing": "pass",
+          "hooks_and_events": "pass",
+          "feedback_loop": "pass",
+          "guardrails": "pass",
+          "context_and_tools": "pass",
+          "delegation_and_access": "pass"
+        },
+        "checks": [
+          {
+            "section": "spec_and_slicing",
+            "check": "spec_written_before_coding",
+            "status": "pass",
+            "evidence": "spec first: the spec is written before the coding agent builds"
+          },
+          {
+            "section": "spec_and_slicing",
+            "check": "small_vertical_slices",
+            "status": "pass",
+            "evidence": "work is split into small vertical slices"
+          },
+          {
+            "section": "spec_and_slicing",
+            "check": "diffs_reviewed_not_rubber_stamped",
+            "status": "pass",
+            "evidence": "review diffs \u2014 never rubber-stamp (anti-pattern: rubber-stamping diffs)"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "hooks_wired_as_deterministic_guardrails",
+            "status": "pass",
+            "evidence": "hooks are wired as deterministic guardrails \u2014 don't rely on the model's goodwill; wire the policy"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "hook_events_and_payloads_known",
+            "status": "pass",
+            "evidence": "events & payloads: what each hook/event carries is known, so the automation is precise, not guesswork"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "protected_path_edits_blocked_by_hooks",
+            "status": "pass",
+            "evidence": "hooks block edits to protected paths"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "formatters_auto_run_by_hooks",
+            "status": "pass",
+            "evidence": "hooks auto-run formatters"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "secrets_denied_by_hooks",
+            "status": "pass",
+            "evidence": "hooks deny secrets"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "tests_run_after_every_edit",
+            "status": "pass",
+            "evidence": "hooks run tests after every edit"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "tests_wired_into_hooks",
+            "status": "pass",
+            "evidence": "tight feedback: tests are wired into hooks so the agent gets automatic signal (anti-pattern: no automated tests in the loop)"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "linters_wired_into_hooks",
+            "status": "pass",
+            "evidence": "tight feedback: linters are wired into hooks so the agent gets automatic signal"
+          },
+          {
+            "section": "guardrails",
+            "check": "protected_paths_declared",
+            "status": "pass",
+            "evidence": "guardrails: protected paths are declared"
+          },
+          {
+            "section": "guardrails",
+            "check": "secrets_not_used",
+            "status": "pass",
+            "evidence": "guardrails: no secrets"
+          },
+          {
+            "section": "guardrails",
+            "check": "docker_not_used",
+            "status": "pass",
+            "evidence": "guardrails: no Docker (house rule)"
+          },
+          {
+            "section": "guardrails",
+            "check": "staging_first",
+            "status": "pass",
+            "evidence": "guardrails: staging-first"
+          },
+          {
+            "section": "guardrails",
+            "check": "human_in_loop_on_irreversible_actions",
+            "status": "pass",
+            "evidence": "human-in-the-loop on irreversible actions"
+          },
+          {
+            "section": "guardrails",
+            "check": "autonomous_only_on_safe_reversible_actions",
+            "status": "pass",
+            "evidence": "autonomous only on safe, reversible actions"
+          },
+          {
+            "section": "guardrails",
+            "check": "agent_run_not_unbounded",
+            "status": "pass",
+            "evidence": "anti-pattern to refuse: letting the agent run unbounded"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "context_limited_to_what_agent_needs",
+            "status": "pass",
+            "evidence": "context hygiene: give the agent only what it needs"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "whole_repo_not_dumped",
+            "status": "pass",
+            "evidence": "anti-pattern to refuse: dumping whole repos into context"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "files_pulled_into_workspace",
+            "status": "pass",
+            "evidence": "pull files into a workspace (the town-github-coding-workflow VFS pattern) rather than dumping the whole repo"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "mcp_tools_typed",
+            "status": "pass",
+            "evidence": "MCP tools: prefer typed tools over broad ones"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "mcp_tools_narrowly_scoped",
+            "status": "pass",
+            "evidence": "MCP tools: prefer narrowly-scoped tools over broad ones"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "subagent_tasks_bounded",
+            "status": "pass",
+            "evidence": "sub-agents: delegate bounded tasks to focused agents"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "subagent_context_narrow",
+            "status": "pass",
+            "evidence": "sub-agents: keep each one's context narrow"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "planner_worker_reviewer_orchestration",
+            "status": "pass",
+            "evidence": "sub-agents: orchestrate planner -> worker -> reviewer patterns"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "broad_write_access_has_guardrails",
+            "status": "pass",
+            "evidence": "anti-pattern to refuse: agents with broad write access and zero guardrails \u2014 broad write access requires guardrails"
+          }
+        ],
+        "summary": "27 pass, 0 fail, 0 missing of 27 checks across six sections.",
+        "stamp": "AGENTIC CODING PRACTICE VERDICT\npractice: Standardized Agentic Workflow\nVERDICT: RELIABLE_PRACTICE\n  spec_and_slicing                 pass\n  hooks_and_events                 pass\n  feedback_loop                    pass\n  guardrails                       pass\n  context_and_tools                pass\n  delegation_and_access            pass\n27 pass, 0 fail, 0 missing of 27 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NOT_RELIABLE_PRACTICE",
+        "http": 200,
+        "failing_checks": [
+          "guardrails.docker_used",
+          "guardrails.agent_run_unbounded",
+          "context.whole_repo_dumped",
+          "access.guardrails_present"
+        ],
+        "notes": "Violates house rules (Docker, unbounded runs, repo dumping) and the conditional guardrails requirement for broad write access."
+      },
+      "input": {
+        "practice": "Unsafe Workflow",
+        "spec": {
+          "spec_written_first": true,
+          "small_vertical_slices": true,
+          "diffs_reviewed": true
+        },
+        "hooks": {
+          "wired_as_guardrails": true,
+          "events_and_payloads_known": true,
+          "protected_paths_blocked": true,
+          "formatters_auto_run": true,
+          "secrets_denied": true
+        },
+        "feedback": {
+          "tests_run_after_edit": true,
+          "tests_wired_into_hooks": true,
+          "linters_wired_into_hooks": true
+        },
+        "guardrails": {
+          "protected_paths_declared": true,
+          "no_secrets": true,
+          "docker_used": true,
+          "staging_first": true,
+          "human_in_loop_on_irreversible": true,
+          "autonomous_only_safe_reversible": true,
+          "agent_run_unbounded": true
+        },
+        "context": {
+          "only_what_agent_needs": true,
+          "whole_repo_dumped": true,
+          "files_pulled_into_workspace": true
+        },
+        "tools": {
+          "mcp_tools_typed": true,
+          "mcp_tools_narrowly_scoped": true
+        },
+        "delegation": {
+          "subagent_tasks_bounded": true,
+          "subagent_context_narrow": true,
+          "planner_worker_reviewer_pattern": true
+        },
+        "access": {
+          "broad_write_access": true,
+          "guardrails_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agentic-coding-practice",
+        "atom_version": "0.1.0",
+        "practice": "Unsafe Workflow",
+        "verdict": "NOT_RELIABLE_PRACTICE",
+        "sections": {
+          "spec_and_slicing": "pass",
+          "hooks_and_events": "pass",
+          "feedback_loop": "pass",
+          "guardrails": "fail",
+          "context_and_tools": "fail",
+          "delegation_and_access": "fail"
+        },
+        "checks": [
+          {
+            "section": "spec_and_slicing",
+            "check": "spec_written_before_coding",
+            "status": "pass",
+            "evidence": "spec first: the spec is written before the coding agent builds"
+          },
+          {
+            "section": "spec_and_slicing",
+            "check": "small_vertical_slices",
+            "status": "pass",
+            "evidence": "work is split into small vertical slices"
+          },
+          {
+            "section": "spec_and_slicing",
+            "check": "diffs_reviewed_not_rubber_stamped",
+            "status": "pass",
+            "evidence": "review diffs \u2014 never rubber-stamp (anti-pattern: rubber-stamping diffs)"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "hooks_wired_as_deterministic_guardrails",
+            "status": "pass",
+            "evidence": "hooks are wired as deterministic guardrails \u2014 don't rely on the model's goodwill; wire the policy"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "hook_events_and_payloads_known",
+            "status": "pass",
+            "evidence": "events & payloads: what each hook/event carries is known, so the automation is precise, not guesswork"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "protected_path_edits_blocked_by_hooks",
+            "status": "pass",
+            "evidence": "hooks block edits to protected paths"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "formatters_auto_run_by_hooks",
+            "status": "pass",
+            "evidence": "hooks auto-run formatters"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "secrets_denied_by_hooks",
+            "status": "pass",
+            "evidence": "hooks deny secrets"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "tests_run_after_every_edit",
+            "status": "pass",
+            "evidence": "hooks run tests after every edit"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "tests_wired_into_hooks",
+            "status": "pass",
+            "evidence": "tight feedback: tests are wired into hooks so the agent gets automatic signal (anti-pattern: no automated tests in the loop)"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "linters_wired_into_hooks",
+            "status": "pass",
+            "evidence": "tight feedback: linters are wired into hooks so the agent gets automatic signal"
+          },
+          {
+            "section": "guardrails",
+            "check": "protected_paths_declared",
+            "status": "pass",
+            "evidence": "guardrails: protected paths are declared"
+          },
+          {
+            "section": "guardrails",
+            "check": "secrets_not_used",
+            "status": "pass",
+            "evidence": "guardrails: no secrets"
+          },
+          {
+            "section": "guardrails",
+            "check": "docker_not_used",
+            "status": "fail",
+            "evidence": "guardrails: no Docker (house rule)"
+          },
+          {
+            "section": "guardrails",
+            "check": "staging_first",
+            "status": "pass",
+            "evidence": "guardrails: staging-first"
+          },
+          {
+            "section": "guardrails",
+            "check": "human_in_loop_on_irreversible_actions",
+            "status": "pass",
+            "evidence": "human-in-the-loop on irreversible actions"
+          },
+          {
+            "section": "guardrails",
+            "check": "autonomous_only_on_safe_reversible_actions",
+            "status": "pass",
+            "evidence": "autonomous only on safe, reversible actions"
+          },
+          {
+            "section": "guardrails",
+            "check": "agent_run_not_unbounded",
+            "status": "fail",
+            "evidence": "anti-pattern to refuse: letting the agent run unbounded"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "context_limited_to_what_agent_needs",
+            "status": "pass",
+            "evidence": "context hygiene: give the agent only what it needs"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "whole_repo_not_dumped",
+            "status": "fail",
+            "evidence": "anti-pattern to refuse: dumping whole repos into context"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "files_pulled_into_workspace",
+            "status": "pass",
+            "evidence": "pull files into a workspace (the town-github-coding-workflow VFS pattern) rather than dumping the whole repo"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "mcp_tools_typed",
+            "status": "pass",
+            "evidence": "MCP tools: prefer typed tools over broad ones"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "mcp_tools_narrowly_scoped",
+            "status": "pass",
+            "evidence": "MCP tools: prefer narrowly-scoped tools over broad ones"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "subagent_tasks_bounded",
+            "status": "pass",
+            "evidence": "sub-agents: delegate bounded tasks to focused agents"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "subagent_context_narrow",
+            "status": "pass",
+            "evidence": "sub-agents: keep each one's context narrow"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "planner_worker_reviewer_orchestration",
+            "status": "pass",
+            "evidence": "sub-agents: orchestrate planner -> worker -> reviewer patterns"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "broad_write_access_has_guardrails",
+            "status": "fail",
+            "evidence": "anti-pattern to refuse: agents with broad write access and zero guardrails \u2014 broad write access requires guardrails"
+          }
+        ],
+        "summary": "23 pass, 4 fail, 0 missing of 27 checks across six sections.",
+        "stamp": "AGENTIC CODING PRACTICE VERDICT\npractice: Unsafe Workflow\nVERDICT: NOT_RELIABLE_PRACTICE\n  spec_and_slicing                 pass\n  hooks_and_events                 pass\n  feedback_loop                    pass\n  guardrails                       fail\n  context_and_tools                fail\n  delegation_and_access            fail\n23 pass, 4 fail, 0 missing of 27 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, preventing a full reliability assessment."
+      },
+      "input": {
+        "practice": "Minimalist",
+        "spec": {
+          "spec_written_first": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agentic-coding-practice",
+        "atom_version": "0.1.0",
+        "practice": "Minimalist",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "spec_and_slicing": "insufficient_evidence",
+          "hooks_and_events": "insufficient_evidence",
+          "feedback_loop": "insufficient_evidence",
+          "guardrails": "insufficient_evidence",
+          "context_and_tools": "insufficient_evidence",
+          "delegation_and_access": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "spec_and_slicing",
+            "check": "spec_written_before_coding",
+            "status": "pass",
+            "evidence": "spec first: the spec is written before the coding agent builds"
+          },
+          {
+            "section": "spec_and_slicing",
+            "check": "small_vertical_slices",
+            "status": "missing",
+            "evidence": "work is split into small vertical slices"
+          },
+          {
+            "section": "spec_and_slicing",
+            "check": "diffs_reviewed_not_rubber_stamped",
+            "status": "missing",
+            "evidence": "review diffs \u2014 never rubber-stamp (anti-pattern: rubber-stamping diffs)"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "hooks_wired_as_deterministic_guardrails",
+            "status": "missing",
+            "evidence": "hooks are wired as deterministic guardrails \u2014 don't rely on the model's goodwill; wire the policy"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "hook_events_and_payloads_known",
+            "status": "missing",
+            "evidence": "events & payloads: what each hook/event carries is known, so the automation is precise, not guesswork"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "protected_path_edits_blocked_by_hooks",
+            "status": "missing",
+            "evidence": "hooks block edits to protected paths"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "formatters_auto_run_by_hooks",
+            "status": "missing",
+            "evidence": "hooks auto-run formatters"
+          },
+          {
+            "section": "hooks_and_events",
+            "check": "secrets_denied_by_hooks",
+            "status": "missing",
+            "evidence": "hooks deny secrets"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "tests_run_after_every_edit",
+            "status": "missing",
+            "evidence": "hooks run tests after every edit"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "tests_wired_into_hooks",
+            "status": "missing",
+            "evidence": "tight feedback: tests are wired into hooks so the agent gets automatic signal (anti-pattern: no automated tests in the loop)"
+          },
+          {
+            "section": "feedback_loop",
+            "check": "linters_wired_into_hooks",
+            "status": "missing",
+            "evidence": "tight feedback: linters are wired into hooks so the agent gets automatic signal"
+          },
+          {
+            "section": "guardrails",
+            "check": "protected_paths_declared",
+            "status": "missing",
+            "evidence": "guardrails: protected paths are declared"
+          },
+          {
+            "section": "guardrails",
+            "check": "secrets_not_used",
+            "status": "missing",
+            "evidence": "guardrails: no secrets"
+          },
+          {
+            "section": "guardrails",
+            "check": "docker_not_used",
+            "status": "missing",
+            "evidence": "guardrails: no Docker (house rule)"
+          },
+          {
+            "section": "guardrails",
+            "check": "staging_first",
+            "status": "missing",
+            "evidence": "guardrails: staging-first"
+          },
+          {
+            "section": "guardrails",
+            "check": "human_in_loop_on_irreversible_actions",
+            "status": "missing",
+            "evidence": "human-in-the-loop on irreversible actions"
+          },
+          {
+            "section": "guardrails",
+            "check": "autonomous_only_on_safe_reversible_actions",
+            "status": "missing",
+            "evidence": "autonomous only on safe, reversible actions"
+          },
+          {
+            "section": "guardrails",
+            "check": "agent_run_not_unbounded",
+            "status": "missing",
+            "evidence": "anti-pattern to refuse: letting the agent run unbounded"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "context_limited_to_what_agent_needs",
+            "status": "missing",
+            "evidence": "context hygiene: give the agent only what it needs"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "whole_repo_not_dumped",
+            "status": "missing",
+            "evidence": "anti-pattern to refuse: dumping whole repos into context"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "files_pulled_into_workspace",
+            "status": "missing",
+            "evidence": "pull files into a workspace (the town-github-coding-workflow VFS pattern) rather than dumping the whole repo"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "mcp_tools_typed",
+            "status": "missing",
+            "evidence": "MCP tools: prefer typed tools over broad ones"
+          },
+          {
+            "section": "context_and_tools",
+            "check": "mcp_tools_narrowly_scoped",
+            "status": "missing",
+            "evidence": "MCP tools: prefer narrowly-scoped tools over broad ones"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "subagent_tasks_bounded",
+            "status": "missing",
+            "evidence": "sub-agents: delegate bounded tasks to focused agents"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "subagent_context_narrow",
+            "status": "missing",
+            "evidence": "sub-agents: keep each one's context narrow"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "planner_worker_reviewer_orchestration",
+            "status": "missing",
+            "evidence": "sub-agents: orchestrate planner -> worker -> reviewer patterns"
+          },
+          {
+            "section": "delegation_and_access",
+            "check": "broad_write_access_has_guardrails",
+            "status": "missing",
+            "evidence": "no broad write access declared"
+          }
+        ],
+        "summary": "1 pass, 0 fail, 26 missing of 27 checks across six sections.",
+        "stamp": "AGENTIC CODING PRACTICE VERDICT\npractice: Minimalist\nVERDICT: INSUFFICIENT_EVIDENCE\n  spec_and_slicing                 insufficient_evidence\n  hooks_and_events                 insufficient_evidence\n  feedback_loop                    insufficient_evidence\n  guardrails                       insufficient_evidence\n  context_and_tools                insufficient_evidence\n  delegation_and_access            insufficient_evidence\n1 pass, 0 fail, 26 missing of 27 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: expected boolean for spec_written_first, received string."
+      },
+      "input": {
+        "practice": "Malformed Input",
+        "spec": {
+          "spec_written_first": "YES_PLEASE"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "spec.spec_written_first",
+        "detail": "spec.spec_written_first must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

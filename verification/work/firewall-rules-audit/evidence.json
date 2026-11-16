@@ -1,0 +1,427 @@
+{
+  "atom": "firewall-rules-audit",
+  "tested_at_utc": "2026-11-15T23:59:33.075358+00:00",
+  "gateway": {
+    "base": "https://atoms.pipavia.com",
+    "version": "1.1.0",
+    "health_status": 200
+  },
+  "tester_key": {
+    "prefix": "atm_1_ac543f43d09d66",
+    "last4": "b1a2"
+  },
+  "mcp_tools_list_status": 200,
+  "mcp_tool_name": "firewall_rules_audit",
+  "mcp_tools": [
+    {
+      "name": "firewall_rules_audit",
+      "title": "Firewall rules audit",
+      "description": "Submit a firewall ruleset and management-posture manifest; get a deterministic SOUND / UNSOUND / INSUFFICIENT_EVIDENCE verdict, including rule-level checks (any-any allows, shadowed rules, broad port ranges, sensitive-service exposure, undocumented or expired temporary rules) that name the offending rules, with per-check evidence.",
+      "inputSchema": {
+        "type": "object",
+        "description": "The firewall evidence manifest, including the declared rules[] list (see the atom's SERVICE.md for the field table and rule schema).",
+        "properties": {
+          "system": {
+            "type": "string",
+            "description": "System / ruleset being audited."
+          },
+          "environment": {
+            "type": "string",
+            "description": "Environment (e.g. production)."
+          },
+          "default_policy": {
+            "type": "object",
+            "description": "Default-policy evidence (default-deny, explicit deny rule)."
+          },
+          "layers_consistent": {
+            "type": "boolean",
+            "description": "Whether enforcement layers are consistent."
+          },
+          "egress": {
+            "type": "object",
+            "description": "Egress allowlist and alerting evidence."
+          },
+          "rules": {
+            "type": "array",
+            "description": "Declared firewall rules: {id, direction, source, destination, ports, protocol, action, owner, reason, ...}."
+          },
+          "change_control": {
+            "type": "object",
+            "description": "Change-review evidence."
+          },
+          "logging": {
+            "type": "object",
+            "description": "Denial logging evidence."
+          },
+          "review": {
+            "type": "object",
+            "description": "Review cadence and rule-retirement evidence."
+          },
+          "testing": {
+            "type": "object",
+            "description": "Post-change testing evidence."
+          }
+        },
+        "additionalProperties": true
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and compliant. Computed spot check: 3 rules, 1 allow rule, 0 temporary rules. CORRECTED (tester error): added explicit deny-any rules deny-all-in/deny-all-out \u2014 atom requires an explicit default-deny rule in the rules list in addition to default_policy deny (its own test test_missing_explicit_default_deny_rule_fails)."
+      },
+      "input": {
+        "system": "production-cluster",
+        "environment": "production",
+        "default_policy": {
+          "inbound": "deny",
+          "outbound": "deny"
+        },
+        "layers_consistent": true,
+        "rules": [
+          {
+            "id": "allow-web",
+            "direction": "inbound",
+            "source": "10.0.0.0/8",
+            "destination": "10.0.0.5",
+            "port_start": 80,
+            "port_end": 80,
+            "protocol": "tcp",
+            "action": "allow",
+            "owner": "admin",
+            "reason": "web traffic",
+            "date": "2026-01-01"
+          },
+          {
+            "id": "deny-all-in",
+            "direction": "inbound",
+            "source": "any",
+            "destination": "any",
+            "port_start": 0,
+            "port_end": 65535,
+            "protocol": "any",
+            "action": "deny"
+          },
+          {
+            "id": "deny-all-out",
+            "direction": "outbound",
+            "source": "any",
+            "destination": "any",
+            "port_start": 0,
+            "port_end": 65535,
+            "protocol": "any",
+            "action": "deny"
+          }
+        ],
+        "egress": {
+          "explicit_allowlist": true,
+          "alert_on_denies": true
+        },
+        "change_control": {
+          "changes_reviewed": true,
+          "old_rules_retired_on_schedule": true
+        },
+        "logging": {
+          "denials_logged": true,
+          "rate_limited": true
+        },
+        "testing": {
+          "allowed_and_disallowed_paths_verified": true,
+          "smoke_matrix_per_service": true
+        },
+        "review": {
+          "cadence_days": 30
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"firewall-rules-audit\",\"atom_version\":\"0.1.0\",\"system\":\"production-cluster\",\"environment\":\"production\",\"verdict\":\"SOUND\",\"sections\":{\"baseline\":\"pass\",\"least_privilege\":\"pass\",\"egress\":\"pass\",\"documentation_change\":\"pass\",\"assurance\":\"pass\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"default_deny_inbound\",\"status\":\"pass\",\"evidence\":\"skill method 1: default deny, both directions \u2014 inbound starts closed\"},{\"section\":\"baseline\",\"check\":\"default_deny_outbound\",\"status\":\"pass\",\"evidence\":\"skill method 1: default deny, both directions \u2014 outbound starts closed\"},{\"section\":\"baseline\",\"check\":\"explicit_default_deny_rule_present\",\"status\":\"pass\",\"evidence\":\"explicit default-deny rule present: deny-all-in\"},{\"section\":\"baseline\",\"check\":\"layers_consistent\",\"status\":\"pass\",\"evidence\":\"skill method 4: platform layers consistent, no conflicting opens\"},{\"section\":\"least_privilege\",\"check\":\"no_any_any_allow_rules\",\"status\":\"pass\",\"evidence\":\"no any-any allow rules\"},{\"section\":\"least_privilege\",\"check\":\"no_overly_broad_port_ranges\",\"status\":\"pass\",\"evidence\":\"no allow rule spans 1000 or more ports\"},{\"section\":\"least_privilege\",\"check\":\"no_shadowed_rules\",\"status\":\"pass\",\"evidence\":\"no shadowed rules\"},{\"section\":\"least_privilege\",\"check\":\"no_direct_sensitive_exposure\",\"status\":\"pass\",\"evidence\":\"no direct exposure of databases, admin panels, or agent control planes\"},{\"section\":\"least_privilege\",\"check\":\"no_port_forwards_without_review\",\"status\":\"pass\",\"evidence\":\"no port-forward without a review (port-forwards are inventory items with reviews)\"},{\"section\":\"egress\",\"check\":\"explicit_egress_allowlist\",\"status\":\"pass\",\"evidence\":\"skill method 3: explicit egress \u2014 outbound allowlists for the services actually called\"},{\"section\":\"egress\",\"check\":\"egress_alert_on_denies\",\"status\":\"pass\",\"evidence\":\"skill method 3: alert on denies to spot misconfig and compromise\"},{\"section\":\"documentation_change\",\"check\":\"every_allow_rule_documented\",\"status\":\"pass\",\"evidence\":\"every allow entry has reason + owner + date (quality gate: every allow entry has reason + owner comment)\"},{\"section\":\"documentation_change\",\"check\":\"changes_reviewed_like_code\",\"status\":\"pass\",\"evidence\":\"skill method 6: changes reviewed like code\"},{\"section\":\"documentation_change\",\"check\":\"temporary_rules_have_ticket_and_expiry\",\"status\":\"pass\",\"evidence\":\"no temporary rule without a ticket and expiry date\"},{\"section\":\"documentation_change\",\"check\":\"old_rules_retired_on_schedule\",\"status\":\"pass\",\"evidence\":\"skill method 6: old rules retired on a schedule\"},{\"section\":\"assurance\",\"check\":\"denials_logged\",\"status\":\"pass\",\"evidence\":\"skill method 8: denials logged\"},{\"section\":\"assurance\",\"check\":\"denial_logging_rate_limited\",\"status\":\"pass\",\"evidence\":\"skill method 8: denials logged with rate-limits to avoid noise floods\"},{\"section\":\"assurance\",\"check\":\"post_change_test_allowed_and_blocked\",\"status\":\"pass\",\"evidence\":\"quality gate: post-change test \u2014 allowed path passes, disallowed fails\"},{\"section\":\"assurance\",\"check\":\"smoke_matrix_per_service\",\"status\":\"pass\",\"evidence\":\"skill method 7: keep a smoke matrix per service\"},{\"section\":\"assurance\",\"check\":\"review_cadence_within_31_days\",\"status\":\"pass\",\"evidence\":\"cadence_days=30 (skill: review top denied flows monthly; rule review performed on schedule)\"}],\"summary\":\"20 pass, 0 fail, 0 missing of 20 checks across five sections.\",\"stamp\":\"FIREWALL RULES AUDIT\\nsystem: production-cluster  environment: production\\nVERDICT: SOUND\\n  baseline             pass\\n  least_privilege      pass\\n  egress               pass\\n  documentation_change pass\\n  assurance            pass\\n20 pass, 0 fail, 0 missing of 20 checks across five sections.\"}"
+        },
+        {
+          "face": "REST-repeat",
+          "status": 200,
+          "response_text": "{\"service\":\"firewall-rules-audit\",\"atom_version\":\"0.1.0\",\"system\":\"production-cluster\",\"environment\":\"production\",\"verdict\":\"SOUND\",\"sections\":{\"baseline\":\"pass\",\"least_privilege\":\"pass\",\"egress\":\"pass\",\"documentation_change\":\"pass\",\"assurance\":\"pass\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"default_deny_inbound\",\"status\":\"pass\",\"evidence\":\"skill method 1: default deny, both directions \u2014 inbound starts closed\"},{\"section\":\"baseline\",\"check\":\"default_deny_outbound\",\"status\":\"pass\",\"evidence\":\"skill method 1: default deny, both directions \u2014 outbound starts closed\"},{\"section\":\"baseline\",\"check\":\"explicit_default_deny_rule_present\",\"status\":\"pass\",\"evidence\":\"explicit default-deny rule present: deny-all-in\"},{\"section\":\"baseline\",\"check\":\"layers_consistent\",\"status\":\"pass\",\"evidence\":\"skill method 4: platform layers consistent, no conflicting opens\"},{\"section\":\"least_privilege\",\"check\":\"no_any_any_allow_rules\",\"status\":\"pass\",\"evidence\":\"no any-any allow rules\"},{\"section\":\"least_privilege\",\"check\":\"no_overly_broad_port_ranges\",\"status\":\"pass\",\"evidence\":\"no allow rule spans 1000 or more ports\"},{\"section\":\"least_privilege\",\"check\":\"no_shadowed_rules\",\"status\":\"pass\",\"evidence\":\"no shadowed rules\"},{\"section\":\"least_privilege\",\"check\":\"no_direct_sensitive_exposure\",\"status\":\"pass\",\"evidence\":\"no direct exposure of databases, admin panels, or agent control planes\"},{\"section\":\"least_privilege\",\"check\":\"no_port_forwards_without_review\",\"status\":\"pass\",\"evidence\":\"no port-forward without a review (port-forwards are inventory items with reviews)\"},{\"section\":\"egress\",\"check\":\"explicit_egress_allowlist\",\"status\":\"pass\",\"evidence\":\"skill method 3: explicit egress \u2014 outbound allowlists for the services actually called\"},{\"section\":\"egress\",\"check\":\"egress_alert_on_denies\",\"status\":\"pass\",\"evidence\":\"skill method 3: alert on denies to spot misconfig and compromise\"},{\"section\":\"documentation_change\",\"check\":\"every_allow_rule_documented\",\"status\":\"pass\",\"evidence\":\"every allow entry has reason + owner + date (quality gate: every allow entry has reason + owner comment)\"},{\"section\":\"documentation_change\",\"check\":\"changes_reviewed_like_code\",\"status\":\"pass\",\"evidence\":\"skill method 6: changes reviewed like code\"},{\"section\":\"documentation_change\",\"check\":\"temporary_rules_have_ticket_and_expiry\",\"status\":\"pass\",\"evidence\":\"no temporary rule without a ticket and expiry date\"},{\"section\":\"documentation_change\",\"check\":\"old_rules_retired_on_schedule\",\"status\":\"pass\",\"evidence\":\"skill method 6: old rules retired on a schedule\"},{\"section\":\"assurance\",\"check\":\"denials_logged\",\"status\":\"pass\",\"evidence\":\"skill method 8: denials logged\"},{\"section\":\"assurance\",\"check\":\"denial_logging_rate_limited\",\"status\":\"pass\",\"evidence\":\"skill method 8: denials logged with rate-limits to avoid noise floods\"},{\"section\":\"assurance\",\"check\":\"post_change_test_allowed_and_blocked\",\"status\":\"pass\",\"evidence\":\"quality gate: post-change test \u2014 allowed path passes, disallowed fails\"},{\"section\":\"assurance\",\"check\":\"smoke_matrix_per_service\",\"status\":\"pass\",\"evidence\":\"skill method 7: keep a smoke matrix per service\"},{\"section\":\"assurance\",\"check\":\"review_cadence_within_31_days\",\"status\":\"pass\",\"evidence\":\"cadence_days=30 (skill: review top denied flows monthly; rule review performed on schedule)\"}],\"summary\":\"20 pass, 0 fail, 0 missing of 20 checks across five sections.\",\"stamp\":\"FIREWALL RULES AUDIT\\nsystem: production-cluster  environment: production\\nVERDICT: SOUND\\n  baseline             pass\\n  least_privilege      pass\\n  egress               pass\\n  documentation_change pass\\n  assurance            pass\\n20 pass, 0 fail, 0 missing of 20 checks across five sections.\"}"
+        },
+        {
+          "face": "MCP",
+          "status": 200,
+          "response_text": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\n  \\\"service\\\": \\\"firewall-rules-audit\\\",\\n  \\\"atom_version\\\": \\\"0.1.0\\\",\\n  \\\"system\\\": \\\"production-cluster\\\",\\n  \\\"environment\\\": \\\"production\\\",\\n  \\\"verdict\\\": \\\"SOUND\\\",\\n  \\\"sections\\\": {\\n    \\\"baseline\\\": \\\"pass\\\",\\n    \\\"least_privilege\\\": \\\"pass\\\",\\n    \\\"egress\\\": \\\"pass\\\",\\n    \\\"documentation_change\\\": \\\"pass\\\",\\n    \\\"assurance\\\": \\\"pass\\\"\\n  },\\n  \\\"checks\\\": [\\n    {\\n      \\\"section\\\": \\\"baseline\\\",\\n      \\\"check\\\": \\\"default_deny_inbound\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 1: default deny, both directions \u2014 inbound starts closed\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"baseline\\\",\\n      \\\"check\\\": \\\"default_deny_outbound\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 1: default deny, both directions \u2014 outbound starts closed\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"baseline\\\",\\n      \\\"check\\\": \\\"explicit_default_deny_rule_present\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"explicit default-deny rule present: deny-all-in\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"baseline\\\",\\n      \\\"check\\\": \\\"layers_consistent\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 4: platform layers consistent, no conflicting opens\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"least_privilege\\\",\\n      \\\"check\\\": \\\"no_any_any_allow_rules\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"no any-any allow rules\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"least_privilege\\\",\\n      \\\"check\\\": \\\"no_overly_broad_port_ranges\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"no allow rule spans 1000 or more ports\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"least_privilege\\\",\\n      \\\"check\\\": \\\"no_shadowed_rules\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"no shadowed rules\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"least_privilege\\\",\\n      \\\"check\\\": \\\"no_direct_sensitive_exposure\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"no direct exposure of databases, admin panels, or agent control planes\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"least_privilege\\\",\\n      \\\"check\\\": \\\"no_port_forwards_without_review\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"no port-forward without a review (port-forwards are inventory items with reviews)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"egress\\\",\\n      \\\"check\\\": \\\"explicit_egress_allowlist\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 3: explicit egress \u2014 outbound allowlists for the services actually called\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"egress\\\",\\n      \\\"check\\\": \\\"egress_alert_on_denies\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 3: alert on denies to spot misconfig and compromise\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"documentation_change\\\",\\n      \\\"check\\\": \\\"every_allow_rule_documented\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"every allow entry has reason + owner + date (quality gate: every allow entry has reason + owner comment)\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"documentation_change\\\",\\n      \\\"check\\\": \\\"changes_reviewed_like_code\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 6: changes reviewed like code\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"documentation_change\\\",\\n      \\\"check\\\": \\\"temporary_rules_have_ticket_and_expiry\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"no temporary rule without a ticket and expiry date\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"documentation_change\\\",\\n      \\\"check\\\": \\\"old_rules_retired_on_schedule\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 6: old rules retired on a schedule\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"assurance\\\",\\n      \\\"check\\\": \\\"denials_logged\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 8: denials logged\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"assurance\\\",\\n      \\\"check\\\": \\\"denial_logging_rate_limited\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 8: denials logged with rate-limits to avoid noise floods\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"assurance\\\",\\n      \\\"check\\\": \\\"post_change_test_allowed_and_blocked\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"quality gate: post-change test \u2014 allowed path passes, disallowed fails\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"assurance\\\",\\n      \\\"check\\\": \\\"smoke_matrix_per_service\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"skill method 7: keep a smoke matrix per service\\\"\\n    },\\n    {\\n      \\\"section\\\": \\\"assurance\\\",\\n      \\\"check\\\": \\\"review_cadence_within_31_days\\\",\\n      \\\"status\\\": \\\"pass\\\",\\n      \\\"evidence\\\": \\\"cadence_days=30 (skill: review top denied flows monthly; rule review performed on schedule)\\\"\\n    }\\n  ],\\n  \\\"summary\\\": \\\"20 pass, 0 fail, 0 missing of 20 checks across five sections.\\\",\\n  \\\"stamp\\\": \\\"FIREWALL RULES AUDIT\\\\nsystem: production-cluster  environment: production\\\\nVERDICT: SOUND\\\\n  baseline             pass\\\\n  least_privilege      pass\\\\n  egress               pass\\\\n  documentation_change pass\\\\n  assurance            pass\\\\n20 pass, 0 fail, 0 missing of 20 checks across five sections.\\\"\\n}\"}],\"structuredContent\":{\"service\":\"firewall-rules-audit\",\"atom_version\":\"0.1.0\",\"system\":\"production-cluster\",\"environment\":\"production\",\"verdict\":\"SOUND\",\"sections\":{\"baseline\":\"pass\",\"least_privilege\":\"pass\",\"egress\":\"pass\",\"documentation_change\":\"pass\",\"assurance\":\"pass\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"default_deny_inbound\",\"status\":\"pass\",\"evidence\":\"skill method 1: default deny, both directions \u2014 inbound starts closed\"},{\"section\":\"baseline\",\"check\":\"default_deny_outbound\",\"status\":\"pass\",\"evidence\":\"skill method 1: default deny, both directions \u2014 outbound starts closed\"},{\"section\":\"baseline\",\"check\":\"explicit_default_deny_rule_present\",\"status\":\"pass\",\"evidence\":\"explicit default-deny rule present: deny-all-in\"},{\"section\":\"baseline\",\"check\":\"layers_consistent\",\"status\":\"pass\",\"evidence\":\"skill method 4: platform layers consistent, no conflicting opens\"},{\"section\":\"least_privilege\",\"check\":\"no_any_any_allow_rules\",\"status\":\"pass\",\"evidence\":\"no any-any allow rules\"},{\"section\":\"least_privilege\",\"check\":\"no_overly_broad_port_ranges\",\"status\":\"pass\",\"evidence\":\"no allow rule spans 1000 or more ports\"},{\"section\":\"least_privilege\",\"check\":\"no_shadowed_rules\",\"status\":\"pass\",\"evidence\":\"no shadowed rules\"},{\"section\":\"least_privilege\",\"check\":\"no_direct_sensitive_exposure\",\"status\":\"pass\",\"evidence\":\"no direct exposure of databases, admin panels, or agent control planes\"},{\"section\":\"least_privilege\",\"check\":\"no_port_forwards_without_review\",\"status\":\"pass\",\"evidence\":\"no port-forward without a review (port-forwards are inventory items with reviews)\"},{\"section\":\"egress\",\"check\":\"explicit_egress_allowlist\",\"status\":\"pass\",\"evidence\":\"skill method 3: explicit egress \u2014 outbound allowlists for the services actually called\"},{\"section\":\"egress\",\"check\":\"egress_alert_on_denies\",\"status\":\"pass\",\"evidence\":\"skill method 3: alert on denies to spot misconfig and compromise\"},{\"section\":\"documentation_change\",\"check\":\"every_allow_rule_documented\",\"status\":\"pass\",\"evidence\":\"every allow entry has reason + owner + date (quality gate: every allow entry has reason + owner comment)\"},{\"section\":\"documentation_change\",\"check\":\"changes_reviewed_like_code\",\"status\":\"pass\",\"evidence\":\"skill method 6: changes reviewed like code\"},{\"section\":\"documentation_change\",\"check\":\"temporary_rules_have_ticket_and_expiry\",\"status\":\"pass\",\"evidence\":\"no temporary rule without a ticket and expiry date\"},{\"section\":\"documentation_change\",\"check\":\"old_rules_retired_on_schedule\",\"status\":\"pass\",\"evidence\":\"skill method 6: old rules retired on a schedule\"},{\"section\":\"assurance\",\"check\":\"denials_logged\",\"status\":\"pass\",\"evidence\":\"skill method 8: denials logged\"},{\"section\":\"assurance\",\"check\":\"denial_logging_rate_limited\",\"status\":\"pass\",\"evidence\":\"skill method 8: denials logged with rate-limits to avoid noise floods\"},{\"section\":\"assurance\",\"check\":\"post_change_test_allowed_and_blocked\",\"status\":\"pass\",\"evidence\":\"quality gate: post-change test \u2014 allowed path passes, disallowed fails\"},{\"section\":\"assurance\",\"check\":\"smoke_matrix_per_service\",\"status\":\"pass\",\"evidence\":\"skill method 7: keep a smoke matrix per service\"},{\"section\":\"assurance\",\"check\":\"review_cadence_within_31_days\",\"status\":\"pass\",\"evidence\":\"cadence_days=30 (skill: review top denied flows monthly; rule review performed on schedule)\"}],\"summary\":\"20 pass, 0 fail, 0 missing of 20 checks across five sections.\",\"stamp\":\"FIREWALL RULES AUDIT\\nsystem: production-cluster  environment: production\\nVERDICT: SOUND\\n  baseline             pass\\n  least_privilege      pass\\n  egress               pass\\n  documentation_change pass\\n  assurance            pass\\n20 pass, 0 fail, 0 missing of 20 checks across five sections.\"},\"isError\":false}}"
+        }
+      ],
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true,
+      "mcp_structured_content": {
+        "service": "firewall-rules-audit",
+        "atom_version": "0.1.0",
+        "system": "production-cluster",
+        "environment": "production",
+        "verdict": "SOUND",
+        "sections": {
+          "baseline": "pass",
+          "least_privilege": "pass",
+          "egress": "pass",
+          "documentation_change": "pass",
+          "assurance": "pass"
+        },
+        "checks": [
+          {
+            "section": "baseline",
+            "check": "default_deny_inbound",
+            "status": "pass",
+            "evidence": "skill method 1: default deny, both directions \u2014 inbound starts closed"
+          },
+          {
+            "section": "baseline",
+            "check": "default_deny_outbound",
+            "status": "pass",
+            "evidence": "skill method 1: default deny, both directions \u2014 outbound starts closed"
+          },
+          {
+            "section": "baseline",
+            "check": "explicit_default_deny_rule_present",
+            "status": "pass",
+            "evidence": "explicit default-deny rule present: deny-all-in"
+          },
+          {
+            "section": "baseline",
+            "check": "layers_consistent",
+            "status": "pass",
+            "evidence": "skill method 4: platform layers consistent, no conflicting opens"
+          },
+          {
+            "section": "least_privilege",
+            "check": "no_any_any_allow_rules",
+            "status": "pass",
+            "evidence": "no any-any allow rules"
+          },
+          {
+            "section": "least_privilege",
+            "check": "no_overly_broad_port_ranges",
+            "status": "pass",
+            "evidence": "no allow rule spans 1000 or more ports"
+          },
+          {
+            "section": "least_privilege",
+            "check": "no_shadowed_rules",
+            "status": "pass",
+            "evidence": "no shadowed rules"
+          },
+          {
+            "section": "least_privilege",
+            "check": "no_direct_sensitive_exposure",
+            "status": "pass",
+            "evidence": "no direct exposure of databases, admin panels, or agent control planes"
+          },
+          {
+            "section": "least_privilege",
+            "check": "no_port_forwards_without_review",
+            "status": "pass",
+            "evidence": "no port-forward without a review (port-forwards are inventory items with reviews)"
+          },
+          {
+            "section": "egress",
+            "check": "explicit_egress_allowlist",
+            "status": "pass",
+            "evidence": "skill method 3: explicit egress \u2014 outbound allowlists for the services actually called"
+          },
+          {
+            "section": "egress",
+            "check": "egress_alert_on_denies",
+            "status": "pass",
+            "evidence": "skill method 3: alert on denies to spot misconfig and compromise"
+          },
+          {
+            "section": "documentation_change",
+            "check": "every_allow_rule_documented",
+            "status": "pass",
+            "evidence": "every allow entry has reason + owner + date (quality gate: every allow entry has reason + owner comment)"
+          },
+          {
+            "section": "documentation_change",
+            "check": "changes_reviewed_like_code",
+            "status": "pass",
+            "evidence": "skill method 6: changes reviewed like code"
+          },
+          {
+            "section": "documentation_change",
+            "check": "temporary_rules_have_ticket_and_expiry",
+            "status": "pass",
+            "evidence": "no temporary rule without a ticket and expiry date"
+          },
+          {
+            "section": "documentation_change",
+            "check": "old_rules_retired_on_schedule",
+            "status": "pass",
+            "evidence": "skill method 6: old rules retired on a schedule"
+          },
+          {
+            "section": "assurance",
+            "check": "denials_logged",
+            "status": "pass",
+            "evidence": "skill method 8: denials logged"
+          },
+          {
+            "section": "assurance",
+            "check": "denial_logging_rate_limited",
+            "status": "pass",
+            "evidence": "skill method 8: denials logged with rate-limits to avoid noise floods"
+          },
+          {
+            "section": "assurance",
+            "check": "post_change_test_allowed_and_blocked",
+            "status": "pass",
+            "evidence": "quality gate: post-change test \u2014 allowed path passes, disallowed fails"
+          },
+          {
+            "section": "assurance",
+            "check": "smoke_matrix_per_service",
+            "status": "pass",
+            "evidence": "skill method 7: keep a smoke matrix per service"
+          },
+          {
+            "section": "assurance",
+            "check": "review_cadence_within_31_days",
+            "status": "pass",
+            "evidence": "cadence_days=30 (skill: review top denied flows monthly; rule review performed on schedule)"
+          }
+        ],
+        "summary": "20 pass, 0 fail, 0 missing of 20 checks across five sections.",
+        "stamp": "FIREWALL RULES AUDIT\nsystem: production-cluster  environment: production\nVERDICT: SOUND\n  baseline             pass\n  least_privilege      pass\n  egress               pass\n  documentation_change pass\n  assurance            pass\n20 pass, 0 fail, 0 missing of 20 checks across five sections."
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "default_deny_inbound",
+          "default_deny_outbound",
+          "no_any_any_allow_rules",
+          "explicit_egress_allowlist",
+          "egress_alert_on_denies",
+          "changes_reviewed_like_code",
+          "old_rules_retired_on_schedule",
+          "denials_logged",
+          "denial_logging_rate_limited",
+          "post_change_test_allowed_and_blocked",
+          "smoke_matrix_per_service",
+          "review_cadence_within_31_days"
+        ],
+        "notes": "Multiple policy and rule violations triggered."
+      },
+      "input": {
+        "system": "test-env",
+        "environment": "dev",
+        "default_policy": {
+          "inbound": "allow",
+          "outbound": "allow"
+        },
+        "layers_consistent": true,
+        "rules": [
+          {
+            "id": "bad-rule",
+            "direction": "inbound",
+            "source": "any",
+            "destination": "any",
+            "port_start": 0,
+            "port_end": 65535,
+            "protocol": "any",
+            "action": "allow",
+            "owner": "dev",
+            "reason": "testing",
+            "date": "2026-01-01"
+          }
+        ],
+        "egress": {
+          "explicit_allowlist": false,
+          "alert_on_denies": false
+        },
+        "change_control": {
+          "changes_reviewed": false,
+          "old_rules_retired_on_schedule": false
+        },
+        "logging": {
+          "denials_logged": false,
+          "rate_limited": false
+        },
+        "testing": {
+          "allowed_and_disallowed_paths_verified": false,
+          "smoke_matrix_per_service": false
+        },
+        "review": {
+          "cadence_days": 99
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"firewall-rules-audit\",\"atom_version\":\"0.1.0\",\"system\":\"test-env\",\"environment\":\"dev\",\"verdict\":\"UNSOUND\",\"sections\":{\"baseline\":\"fail\",\"least_privilege\":\"fail\",\"egress\":\"fail\",\"documentation_change\":\"fail\",\"assurance\":\"fail\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"default_deny_inbound\",\"status\":\"fail\",\"evidence\":\"skill method 1: default deny, both directions \u2014 inbound starts closed\"},{\"section\":\"baseline\",\"check\":\"default_deny_outbound\",\"status\":\"fail\",\"evidence\":\"skill method 1: default deny, both directions \u2014 outbound starts closed\"},{\"section\":\"baseline\",\"check\":\"explicit_default_deny_rule_present\",\"status\":\"fail\",\"evidence\":\"no explicit deny-any rule in the declared rules (missing default-deny rule)\"},{\"section\":\"baseline\",\"check\":\"layers_consistent\",\"status\":\"pass\",\"evidence\":\"skill method 4: platform layers consistent, no conflicting opens\"},{\"section\":\"least_privilege\",\"check\":\"no_any_any_allow_rules\",\"status\":\"fail\",\"evidence\":\"any-any allow rules (skill: no any-any in production, ever): bad-rule\"},{\"section\":\"least_privilege\",\"check\":\"no_overly_broad_port_ranges\",\"status\":\"fail\",\"evidence\":\"overly broad port ranges (least-privilege: scope by port): bad-rule ports 0-65535\"},{\"section\":\"least_privilege\",\"check\":\"no_shadowed_rules\",\"status\":\"pass\",\"evidence\":\"no shadowed rules\"},{\"section\":\"least_privilege\",\"check\":\"no_direct_sensitive_exposure\",\"status\":\"fail\",\"evidence\":\"directly exposed sensitive rules (skill red line: no direct exposure of databases, admin panels, or agent control planes): bad-rule\"},{\"section\":\"least_privilege\",\"check\":\"no_port_forwards_without_review\",\"status\":\"pass\",\"evidence\":\"no port-forward without a review (port-forwards are inventory items with reviews)\"},{\"section\":\"egress\",\"check\":\"explicit_egress_allowlist\",\"status\":\"fail\",\"evidence\":\"skill method 3: explicit egress \u2014 outbound allowlists for the services actually called\"},{\"section\":\"egress\",\"check\":\"egress_alert_on_denies\",\"status\":\"fail\",\"evidence\":\"skill method 3: alert on denies to spot misconfig and compromise\"},{\"section\":\"documentation_change\",\"check\":\"every_allow_rule_documented\",\"status\":\"pass\",\"evidence\":\"every allow entry has reason + owner + date (quality gate: every allow entry has reason + owner comment)\"},{\"section\":\"documentation_change\",\"check\":\"changes_reviewed_like_code\",\"status\":\"fail\",\"evidence\":\"skill method 6: changes reviewed like code\"},{\"section\":\"documentation_change\",\"check\":\"temporary_rules_have_ticket_and_expiry\",\"status\":\"pass\",\"evidence\":\"no temporary rule without a ticket and expiry date\"},{\"section\":\"documentation_change\",\"check\":\"old_rules_retired_on_schedule\",\"status\":\"fail\",\"evidence\":\"skill method 6: old rules retired on a schedule\"},{\"section\":\"assurance\",\"check\":\"denials_logged\",\"status\":\"fail\",\"evidence\":\"skill method 8: denials logged\"},{\"section\":\"assurance\",\"check\":\"denial_logging_rate_limited\",\"status\":\"fail\",\"evidence\":\"skill method 8: denials logged with rate-limits to avoid noise floods\"},{\"section\":\"assurance\",\"check\":\"post_change_test_allowed_and_blocked\",\"status\":\"fail\",\"evidence\":\"quality gate: post-change test \u2014 allowed path passes, disallowed fails\"},{\"section\":\"assurance\",\"check\":\"smoke_matrix_per_service\",\"status\":\"fail\",\"evidence\":\"skill method 7: keep a smoke matrix per service\"},{\"section\":\"assurance\",\"check\":\"review_cadence_within_31_days\",\"status\":\"fail\",\"evidence\":\"cadence_days=99 (skill: review top denied flows monthly; rule review performed on schedule)\"}],\"summary\":\"5 pass, 15 fail, 0 missing of 20 checks across five sections.\",\"stamp\":\"FIREWALL RULES AUDIT\\nsystem: test-env  environment: dev\\nVERDICT: UNSOUND\\n  baseline             fail\\n  least_privilege      fail\\n  egress               fail\\n  documentation_change fail\\n  assurance            fail\\n5 pass, 15 fail, 0 missing of 20 checks across five sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Input lacks required fields for full audit; no explicit violations found."
+      },
+      "input": {
+        "system": "minimal-audit"
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 200,
+          "response_text": "{\"service\":\"firewall-rules-audit\",\"atom_version\":\"0.1.0\",\"system\":\"minimal-audit\",\"environment\":null,\"verdict\":\"INSUFFICIENT_EVIDENCE\",\"sections\":{\"baseline\":\"insufficient_evidence\",\"least_privilege\":\"insufficient_evidence\",\"egress\":\"insufficient_evidence\",\"documentation_change\":\"insufficient_evidence\",\"assurance\":\"insufficient_evidence\"},\"checks\":[{\"section\":\"baseline\",\"check\":\"default_deny_inbound\",\"status\":\"missing\",\"evidence\":\"skill method 1: default deny, both directions \u2014 inbound starts closed\"},{\"section\":\"baseline\",\"check\":\"default_deny_outbound\",\"status\":\"missing\",\"evidence\":\"skill method 1: default deny, both directions \u2014 outbound starts closed\"},{\"section\":\"baseline\",\"check\":\"explicit_default_deny_rule_present\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"baseline\",\"check\":\"layers_consistent\",\"status\":\"missing\",\"evidence\":\"skill method 4: platform layers consistent, no conflicting opens\"},{\"section\":\"least_privilege\",\"check\":\"no_any_any_allow_rules\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"least_privilege\",\"check\":\"no_overly_broad_port_ranges\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"least_privilege\",\"check\":\"no_shadowed_rules\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"least_privilege\",\"check\":\"no_direct_sensitive_exposure\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"least_privilege\",\"check\":\"no_port_forwards_without_review\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"egress\",\"check\":\"explicit_egress_allowlist\",\"status\":\"missing\",\"evidence\":\"skill method 3: explicit egress \u2014 outbound allowlists for the services actually called\"},{\"section\":\"egress\",\"check\":\"egress_alert_on_denies\",\"status\":\"missing\",\"evidence\":\"skill method 3: alert on denies to spot misconfig and compromise\"},{\"section\":\"documentation_change\",\"check\":\"every_allow_rule_documented\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"documentation_change\",\"check\":\"changes_reviewed_like_code\",\"status\":\"missing\",\"evidence\":\"skill method 6: changes reviewed like code\"},{\"section\":\"documentation_change\",\"check\":\"temporary_rules_have_ticket_and_expiry\",\"status\":\"missing\",\"evidence\":\"rules not provided\"},{\"section\":\"documentation_change\",\"check\":\"old_rules_retired_on_schedule\",\"status\":\"missing\",\"evidence\":\"skill method 6: old rules retired on a schedule\"},{\"section\":\"assurance\",\"check\":\"denials_logged\",\"status\":\"missing\",\"evidence\":\"skill method 8: denials logged\"},{\"section\":\"assurance\",\"check\":\"denial_logging_rate_limited\",\"status\":\"missing\",\"evidence\":\"skill method 8: denials logged with rate-limits to avoid noise floods\"},{\"section\":\"assurance\",\"check\":\"post_change_test_allowed_and_blocked\",\"status\":\"missing\",\"evidence\":\"quality gate: post-change test \u2014 allowed path passes, disallowed fails\"},{\"section\":\"assurance\",\"check\":\"smoke_matrix_per_service\",\"status\":\"missing\",\"evidence\":\"skill method 7: keep a smoke matrix per service\"},{\"section\":\"assurance\",\"check\":\"review_cadence_within_31_days\",\"status\":\"missing\",\"evidence\":\"cadence_days=None (skill: review top denied flows monthly; rule review performed on schedule)\"}],\"summary\":\"0 pass, 0 fail, 20 missing of 20 checks across five sections.\",\"stamp\":\"FIREWALL RULES AUDIT\\nsystem: minimal-audit  environment: None\\nVERDICT: INSUFFICIENT_EVIDENCE\\n  baseline             insufficient_evidence\\n  least_privilege      insufficient_evidence\\n  egress               insufficient_evidence\\n  documentation_change insufficient_evidence\\n  assurance            insufficient_evidence\\n0 pass, 0 fail, 20 missing of 20 checks across five sections.\"}"
+        }
+      ]
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: cadence_days expected number, received string."
+      },
+      "input": {
+        "system": "malformed-test",
+        "review": {
+          "cadence_days": "thirty"
+        }
+      },
+      "raw_body": null,
+      "executions": [
+        {
+          "face": "REST",
+          "status": 422,
+          "response_text": "{\"ok\":false,\"error\":\"invalid_input\",\"field\":\"review.cadence_days\",\"detail\":\"review.cadence_days must be a number\"}"
+        }
+      ]
+    }
+  ]
+}

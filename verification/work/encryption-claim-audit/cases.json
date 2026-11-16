@@ -1,0 +1,163 @@
+{
+ "cases": [
+  {
+   "id": "full-pass",
+   "kind": "full-pass",
+   "input": {
+    "product": "SecureVault-v1",
+    "claims": {
+     "algorithm": "AES",
+     "mode": "GCM",
+     "key_length_bits": 256,
+     "vague_marketing_terms_used": false,
+     "end_to_end_encrypted": true,
+     "zero_knowledge": true
+    },
+    "construction": {
+     "authenticated_encryption": true,
+     "custom_crypto": false,
+     "nonce_unique_per_key": true
+    },
+    "asymmetric": {
+     "applies": true,
+     "key_exchange": "X25519",
+     "signatures": "Ed25519"
+    },
+    "key_management": {
+     "keys_from_csprng": true,
+     "keys_hardcoded": false,
+     "storage": "platform_keystore",
+     "rotation_planned": true,
+     "recovery_story_documented": true
+    },
+    "password_derivation": {
+     "applies": true,
+     "kdf": "Argon2id",
+     "salt_unique_random_per_key": true,
+     "password_used_directly_as_key": false
+    },
+    "randomness": {
+     "source": "os_csprng"
+    },
+    "coverage": {
+     "transport": {
+      "tls_version": "1.3",
+      "plaintext_fallback": false
+     },
+     "at_rest": {
+      "encrypted": true,
+      "key_stored_with_data": false
+     },
+     "in_use": {
+      "plaintext_logged": false,
+      "plaintext_in_crash_dumps": false
+     },
+     "fails_closed_on_crypto_error": true
+    },
+    "access": {
+     "server_can_read_plaintext": false,
+     "server_holds_decryption_keys": false
+    }
+   },
+   "expect": {
+    "outcome": "CLAIMS_SOUND",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "All security controls meet standard construction and consistency requirements. CORRECTED (tester error): algorithm AES (not AES-256-GCM), key_exchange X25519 (not ECDH), storage platform_keystore (not HSM), randomness.source os_csprng (not /dev/urandom), coverage.fails_closed_on_crypto_error at coverage level (not nested in in_use) \u2014 per atom's own test manifest / exact check vocabulary."
+   }
+  },
+  {
+   "id": "violations",
+   "kind": "violations",
+   "input": {
+    "product": "WeakVault-v1",
+    "claims": {
+     "algorithm": "AES-ECB",
+     "mode": "ECB",
+     "key_length_bits": 128,
+     "vague_marketing_terms_used": true,
+     "end_to_end_encrypted": false,
+     "zero_knowledge": false
+    },
+    "construction": {
+     "authenticated_encryption": false,
+     "custom_crypto": true,
+     "nonce_unique_per_key": false
+    },
+    "asymmetric": {
+     "applies": false
+    },
+    "key_management": {
+     "keys_from_csprng": false,
+     "keys_hardcoded": true,
+     "storage": "plaintext_config",
+     "rotation_planned": false,
+     "recovery_story_documented": false
+    },
+    "password_derivation": {
+     "applies": false
+    },
+    "randomness": {
+     "source": "math.random"
+    },
+    "coverage": {
+     "transport": {
+      "tls_version": "1.0",
+      "plaintext_fallback": true
+     },
+     "at_rest": {
+      "encrypted": false,
+      "key_stored_with_data": true
+     },
+     "in_use": {
+      "plaintext_logged": true,
+      "plaintext_in_crash_dumps": true,
+      "fails_closed_on_crypto_error": false
+     }
+    },
+    "access": {
+     "server_can_read_plaintext": true,
+     "server_holds_decryption_keys": true
+    }
+   },
+   "expect": {
+    "outcome": "CLAIMS_UNSOUND",
+    "http": 200,
+    "failing_checks": [
+     "standard_construction",
+     "key_management",
+     "coverage",
+     "claim_consistency"
+    ],
+    "notes": "Multiple violations including ECB mode, hardcoded keys, and server-side plaintext access."
+   }
+  },
+  {
+   "id": "sparse",
+   "kind": "sparse",
+   "input": {
+    "product": "Minimal-Audit"
+   },
+   "expect": {
+    "outcome": "INSUFFICIENT_EVIDENCE",
+    "http": 200,
+    "failing_checks": [],
+    "notes": "Missing majority of fields required for a complete audit."
+   }
+  },
+  {
+   "id": "malformed",
+   "kind": "malformed",
+   "input": {
+    "product": 12345,
+    "claims": "invalid_string_instead_of_object"
+   },
+   "expect": {
+    "outcome": null,
+    "http": 422,
+    "failing_checks": [],
+    "notes": "Input schema validation failure due to incorrect data types."
+   }
+  }
+ ]
+}

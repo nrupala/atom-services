@@ -1,0 +1,743 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: license-compliance-check
+
+=== contract.yaml ===
+service_name: license-compliance-check
+display_name: License compliance check
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:legal-licensing
+binding:
+  skill: legal-licensing
+  skill_path: workspace/mymilo-build/skills/legal-licensing/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/license_compliance_check.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_license_compliance_check.py — 16 tests, all passing 2026-11-15
+keys:
+  namespace: license_compliance_check
+  prefix: atm_1_license_compliance_check_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product release license compliance check
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# License compliance check — `license-compliance-check`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Get licensing right — license choice, NOTICE/attribution, dependency compatibility, contributor terms.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product release license compliance check**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Not legal advice; scan-based
+
+## Input manifest
+
+The caller submits one licence-evidence manifest (a JSON object). Every check reads declared manifest fields only: a field present and true/valid passes, present and false/invalid fails, and absent is reported as `missing` (evidence not provided), which yields an `INSUFFICIENT_EVIDENCE` verdict rather than a failure. Verdicts: any fail → `NON_COMPLIANT`; no fail but any missing → `INSUFFICIENT_EVIDENCE`; all pass → `COMPLIANT`.
+
+| Field | Type | Read by |
+|---|---|---|
+| `product` | string | Output/stamp only — echoed in the result; no check gates on it |
+| `distribution_model` | string | `no_copyleft_in_proprietary_binary` (fails when exactly `proprietary_binary` and any component licence is copyleft); `bundled_licenses_shipped_where_required` (triggered when one of `proprietary_binary`, `binary_distribution`, `open_binary`) |
+| `project_license` | string | `copyleft_choice_logged_as_decision` (copyleft = licence string starting `AGPL` or `GPL`, case-insensitive) |
+| `license_decision.logged` | boolean | `copyleft_choice_logged_as_decision` — required true only when `project_license` is copyleft |
+| `license_file.present` | boolean | `root_license_present` |
+| `license_file.texts_unmodified` | boolean | `license_texts_unmodified` |
+| `notice_file.present` | boolean | `notice_file_present` |
+| `source_headers.present` | boolean | `source_headers_present` |
+| `components` | array of component objects (see schema below) | `components_inventory_declared` (must be a non-empty list); licence/flag fields drive the copyleft, attribution and bundled-licence checks |
+| `dependency_scan.completed` | boolean | `dependency_scan_completed` |
+| `dependency_scan.clean` | boolean | `scan_clean_or_accepted_with_record` (passes when true, or when `accepted_with_record` is true) |
+| `dependency_scan.accepted_with_record` | boolean | `scan_clean_or_accepted_with_record` (alternative pass path; its own absence does not make the check missing) |
+| `dependency_scan.incompatible_shipped` | boolean | `no_incompatible_dependency_shipped` — must be exactly false |
+| `attribution.shipped` | boolean | `attribution_shipped_where_required` — checked only when at least one component sets `requires_attribution: true`; otherwise the check passes on the components evidence |
+| `bundled_licenses.shipped` | boolean | `bundled_licenses_shipped_where_required` — checked only when the distribution model is a binary model and at least one component sets `requires_bundled_license: true` |
+| `contributor_terms.policy` | string | `contributor_policy_chosen` — must be `DCO` or `CLA` |
+| `contributor_terms.documented_in_contributing` | boolean | `contributor_policy_documented` |
+| `contributor_terms.enforced` | boolean | `contributor_policy_enforced` |
+| `trademark.usage_rules_documented` | boolean | `trademark_usage_rules_documented` |
+| `trademark.implied_endorsement` | boolean | `no_implied_endorsement` — must be exactly false |
+| `public_claims.claims_made` | array | `public_claims_have_attestation` — the attestation field is checked only when this is a non-empty list |
+| `public_claims.attestation_present` | boolean | `public_claims_have_attestation` |
+| `client_work.is_client_work` | boolean | `client_contract_constraints_reviewed` — the review field is checked only when this is true |
+| `client_work.contract_constraints_reviewed` | boolean | `client_contract_constraints_reviewed` |
+
+### Component-list schema (`components[]`)
+
+Each entry in `components` is an object with these fields (all read by the checks above):
+
+| Component field | Type | Read by |
+|---|---|---|
+| `name` | string | `no_copyleft_in_proprietary_binary` — listed in the evidence string when the component's licence is copyleft |
+| `license` | string | `no_copyleft_in_proprietary_binary` — copyleft when the string starts with `AGPL` or `GPL` (case-insensitive, surrounding whitespace ignored) |
+| `requires_attribution` | boolean | Gates `attribution_shipped_where_required` when exactly true |
+| `requires_bundled_license` | boolean | Gates `bundled_licenses_shipped_where_required` when exactly true |
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "license-compliance-check",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "COMPLIANT",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid; no copyleft or attribution requirements triggered."
+      },
+      "input": {
+        "product": "TestApp",
+        "distribution_model": "proprietary_binary",
+        "project_license": "MIT",
+        "license_decision": {
+          "logged": false
+        },
+        "license_file": {
+          "present": true,
+          "texts_unmodified": true
+        },
+        "notice_file": {
+          "present": true
+        },
+        "source_headers": {
+          "present": true
+        },
+        "components": [
+          {
+            "name": "lib-a",
+            "license": "MIT",
+            "requires_attribution": false,
+            "requires_bundled_license": false
+          }
+        ],
+        "dependency_scan": {
+          "completed": true,
+          "clean": true,
+          "incompatible_shipped": false
+        },
+        "attribution": {
+          "shipped": true
+        },
+        "bundled_licenses": {
+          "shipped": true
+        },
+        "contributor_terms": {
+          "policy": "DCO",
+          "documented_in_contributing": true,
+          "enforced": true
+        },
+        "trademark": {
+          "usage_rules_documented": true,
+          "implied_endorsement": false
+        },
+        "public_claims": {
+          "claims_made": [],
+          "attestation_present": false
+        },
+        "client_work": {
+          "is_client_work": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "license-compliance-check",
+        "atom_version": "0.1.0",
+        "product": "TestApp",
+        "distribution_model": "proprietary_binary",
+        "verdict": "COMPLIANT",
+        "sections": {
+          "license_files": "pass",
+          "dependency_compatibility": "pass",
+          "contributor_terms": "pass",
+          "claims_and_contracts": "pass"
+        },
+        "checks": [
+          {
+            "section": "license_files",
+            "check": "root_license_present",
+            "status": "pass",
+            "evidence": "quality gate: root LICENSE present"
+          },
+          {
+            "section": "license_files",
+            "check": "notice_file_present",
+            "status": "pass",
+            "evidence": "quality gate: root LICENSE + NOTICE present"
+          },
+          {
+            "section": "license_files",
+            "check": "license_texts_unmodified",
+            "status": "pass",
+            "evidence": "skill red line: license texts kept verbatim, never edited"
+          },
+          {
+            "section": "license_files",
+            "check": "source_headers_present",
+            "status": "pass",
+            "evidence": "source headers per house convention"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "components_inventory_declared",
+            "status": "pass",
+            "evidence": "components=[{'name': 'lib-a', 'license': 'MIT', 'requires_attribution': False, 'requires_bundled_license': False}]"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "dependency_scan_completed",
+            "status": "pass",
+            "evidence": "automated license scan of dependencies"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "scan_clean_or_accepted_with_record",
+            "status": "pass",
+            "evidence": "quality gate: scan clean or consciously accepted with a record"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "no_copyleft_in_proprietary_binary",
+            "status": "pass",
+            "evidence": "copyleft_components=[] distribution_model='proprietary_binary' (skill: incompatible combinations resolved before release)"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "no_incompatible_dependency_shipped",
+            "status": "pass",
+            "evidence": "skill red line: no incompatible dependency shipped 'for now'"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "attribution_shipped_where_required",
+            "status": "pass",
+            "evidence": "no component declares an attribution requirement"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "bundled_licenses_shipped_where_required",
+            "status": "pass",
+            "evidence": "no bundled-licence requirement triggered"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_chosen",
+            "status": "pass",
+            "evidence": "policy='DCO' (skill: pick a policy \u2014 DCO sign-off or CLA)"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_documented",
+            "status": "pass",
+            "evidence": "contributor policy documented in CONTRIBUTING"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_enforced",
+            "status": "pass",
+            "evidence": "contributor policy enforced in the contribution flow"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "copyleft_choice_logged_as_decision",
+            "status": "pass",
+            "evidence": "project licence is not copyleft; no decision log required by this check"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "trademark_usage_rules_documented",
+            "status": "pass",
+            "evidence": "name/logo usage rules documented"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "no_implied_endorsement",
+            "status": "pass",
+            "evidence": "no implied endorsement"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "public_claims_have_attestation",
+            "status": "pass",
+            "evidence": "no public claims declared"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "client_contract_constraints_reviewed",
+            "status": "pass",
+            "evidence": "not declared as client work"
+          }
+        ],
+        "summary": "19 pass, 0 fail, 0 missing of 19 checks across four sections.",
+        "stamp": "LICENSE-COMPLIANCE CHECK\nproduct: TestApp  distribution_model: proprietary_binary\nVERDICT: COMPLIANT\n  license_files              pass\n  dependency_compatibility   pass\n  contributor_terms          pass\n  claims_and_contracts       pass\n19 pass, 0 fail, 0 missing of 19 checks across four sections.\nNot legal advice \u2014 counsel decides contested calls (skill red line)."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NON_COMPLIANT",
+        "http": 200,
+        "failing_checks": [
+          "copyleft_choice_logged_as_decision",
+          "no_copyleft_in_proprietary_binary",
+          "scan_clean_or_accepted_with_record",
+          "no_incompatible_dependency_shipped",
+          "attribution_shipped_where_required",
+          "bundled_licenses_shipped_where_required"
+        ],
+        "notes": "Multiple violations triggered by GPL usage in proprietary binary and missing attribution/bundled licenses."
+      },
+      "input": {
+        "product": "FailApp",
+        "distribution_model": "proprietary_binary",
+        "project_license": "GPL-3.0",
+        "license_decision": {
+          "logged": false
+        },
+        "license_file": {
+          "present": true,
+          "texts_unmodified": true
+        },
+        "notice_file": {
+          "present": true
+        },
+        "source_headers": {
+          "present": true
+        },
+        "components": [
+          {
+            "name": "gpl-lib",
+            "license": "GPL-3.0",
+            "requires_attribution": true,
+            "requires_bundled_license": true
+          }
+        ],
+        "dependency_scan": {
+          "completed": true,
+          "clean": false,
+          "incompatible_shipped": true
+        },
+        "attribution": {
+          "shipped": false
+        },
+        "bundled_licenses": {
+          "shipped": false
+        },
+        "contributor_terms": {
+          "policy": "DCO",
+          "documented_in_contributing": true,
+          "enforced": true
+        },
+        "trademark": {
+          "usage_rules_documented": true,
+          "implied_endorsement": false
+        },
+        "public_claims": {
+          "claims_made": [],
+          "attestation_present": false
+        },
+        "client_work": {
+          "is_client_work": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "license-compliance-check",
+        "atom_version": "0.1.0",
+        "product": "FailApp",
+        "distribution_model": "proprietary_binary",
+        "verdict": "NON_COMPLIANT",
+        "sections": {
+          "license_files": "pass",
+          "dependency_compatibility": "fail",
+          "contributor_terms": "pass",
+          "claims_and_contracts": "fail"
+        },
+        "checks": [
+          {
+            "section": "license_files",
+            "check": "root_license_present",
+            "status": "pass",
+            "evidence": "quality gate: root LICENSE present"
+          },
+          {
+            "section": "license_files",
+            "check": "notice_file_present",
+            "status": "pass",
+            "evidence": "quality gate: root LICENSE + NOTICE present"
+          },
+          {
+            "section": "license_files",
+            "check": "license_texts_unmodified",
+            "status": "pass",
+            "evidence": "skill red line: license texts kept verbatim, never edited"
+          },
+          {
+            "section": "license_files",
+            "check": "source_headers_present",
+            "status": "pass",
+            "evidence": "source headers per house convention"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "components_inventory_declared",
+            "status": "pass",
+            "evidence": "components=[{'name': 'gpl-lib', 'license': 'GPL-3.0', 'requires_attribution': True, 'requires_bundled_license': True}]"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "dependency_scan_completed",
+            "status": "pass",
+            "evidence": "automated license scan of dependencies"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "scan_clean_or_accepted_with_record",
+            "status": "fail",
+            "evidence": "quality gate: scan clean or consciously accepted with a record"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "no_copyleft_in_proprietary_binary",
+            "status": "fail",
+            "evidence": "copyleft_components=['gpl-lib'] distribution_model='proprietary_binary' (skill: incompatible combinations resolved before release)"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "no_incompatible_dependency_shipped",
+            "status": "fail",
+            "evidence": "skill red line: no incompatible dependency shipped 'for now'"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "attribution_shipped_where_required",
+            "status": "fail",
+            "evidence": "a component requires attribution; attribution must ship"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "bundled_licenses_shipped_where_required",
+            "status": "fail",
+            "evidence": "release hygiene: bundled third-party licenses shipped with binaries where required"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_chosen",
+            "status": "pass",
+            "evidence": "policy='DCO' (skill: pick a policy \u2014 DCO sign-off or CLA)"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_documented",
+            "status": "pass",
+            "evidence": "contributor policy documented in CONTRIBUTING"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_enforced",
+            "status": "pass",
+            "evidence": "contributor policy enforced in the contribution flow"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "copyleft_choice_logged_as_decision",
+            "status": "fail",
+            "evidence": "skill: copyleft only as a conscious product decision, logged like an ADR"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "trademark_usage_rules_documented",
+            "status": "pass",
+            "evidence": "name/logo usage rules documented"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "no_implied_endorsement",
+            "status": "pass",
+            "evidence": "no implied endorsement"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "public_claims_have_attestation",
+            "status": "pass",
+            "evidence": "no public claims declared"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "client_contract_constraints_reviewed",
+            "status": "pass",
+            "evidence": "not declared as client work"
+          }
+        ],
+        "summary": "13 pass, 6 fail, 0 missing of 19 checks across four sections.",
+        "stamp": "LICENSE-COMPLIANCE CHECK\nproduct: FailApp  distribution_model: proprietary_binary\nVERDICT: NON_COMPLIANT\n  license_files              pass\n  dependency_compatibility   fail\n  contributor_terms          pass\n  claims_and_contracts       fail\n13 pass, 6 fail, 0 missing of 19 checks across four sections.\nNot legal advice \u2014 counsel decides contested calls (skill red line)."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, triggering INSUFFICIENT_EVIDENCE verdict."
+      },
+      "input": {
+        "product": "SparseApp"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "license-compliance-check",
+        "atom_version": "0.1.0",
+        "product": "SparseApp",
+        "distribution_model": null,
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "license_files": "insufficient_evidence",
+          "dependency_compatibility": "insufficient_evidence",
+          "contributor_terms": "insufficient_evidence",
+          "claims_and_contracts": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "license_files",
+            "check": "root_license_present",
+            "status": "missing",
+            "evidence": "quality gate: root LICENSE present"
+          },
+          {
+            "section": "license_files",
+            "check": "notice_file_present",
+            "status": "missing",
+            "evidence": "quality gate: root LICENSE + NOTICE present"
+          },
+          {
+            "section": "license_files",
+            "check": "license_texts_unmodified",
+            "status": "missing",
+            "evidence": "skill red line: license texts kept verbatim, never edited"
+          },
+          {
+            "section": "license_files",
+            "check": "source_headers_present",
+            "status": "missing",
+            "evidence": "source headers per house convention"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "components_inventory_declared",
+            "status": "missing",
+            "evidence": "components=None"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "dependency_scan_completed",
+            "status": "missing",
+            "evidence": "automated license scan of dependencies"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "scan_clean_or_accepted_with_record",
+            "status": "missing",
+            "evidence": "quality gate: scan clean or consciously accepted with a record"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "no_copyleft_in_proprietary_binary",
+            "status": "missing",
+            "evidence": "copyleft_components=[] distribution_model=None (skill: incompatible combinations resolved before release)"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "no_incompatible_dependency_shipped",
+            "status": "missing",
+            "evidence": "skill red line: no incompatible dependency shipped 'for now'"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "attribution_shipped_where_required",
+            "status": "missing",
+            "evidence": "no component declares an attribution requirement"
+          },
+          {
+            "section": "dependency_compatibility",
+            "check": "bundled_licenses_shipped_where_required",
+            "status": "missing",
+            "evidence": "no bundled-licence requirement triggered"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_chosen",
+            "status": "missing",
+            "evidence": "policy=None (skill: pick a policy \u2014 DCO sign-off or CLA)"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_documented",
+            "status": "missing",
+            "evidence": "contributor policy documented in CONTRIBUTING"
+          },
+          {
+            "section": "contributor_terms",
+            "check": "contributor_policy_enforced",
+            "status": "missing",
+            "evidence": "contributor policy enforced in the contribution flow"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "copyleft_choice_logged_as_decision",
+            "status": "missing",
+            "evidence": "project licence is not copyleft; no decision log required by this check"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "trademark_usage_rules_documented",
+            "status": "missing",
+            "evidence": "name/logo usage rules documented"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "no_implied_endorsement",
+            "status": "missing",
+            "evidence": "no implied endorsement"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "public_claims_have_attestation",
+            "status": "missing",
+            "evidence": "no public claims declared"
+          },
+          {
+            "section": "claims_and_contracts",
+            "check": "client_contract_constraints_reviewed",
+            "status": "missing",
+            "evidence": "not declared as client work"
+          }
+        ],
+        "summary": "0 pass, 0 fail, 19 missing of 19 checks across four sections.",
+        "stamp": "LICENSE-COMPLIANCE CHECK\nproduct: SparseApp  distribution_model: None\nVERDICT: INSUFFICIENT_EVIDENCE\n  license_files              insufficient_evidence\n  dependency_compatibility   insufficient_evidence\n  contributor_terms          insufficient_evidence\n  claims_and_contracts       insufficient_evidence\n0 pass, 0 fail, 19 missing of 19 checks across four sections.\nNot legal advice \u2014 counsel decides contested calls (skill red line)."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input types violate schema (integer for string, string for array)."
+      },
+      "input": {
+        "product": "BadTypeApp",
+        "distribution_model": 123,
+        "components": "not-an-array"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "distribution_model",
+        "detail": "distribution_model must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

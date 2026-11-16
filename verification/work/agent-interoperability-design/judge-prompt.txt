@@ -1,0 +1,1095 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: agent-interoperability-design
+
+=== contract.yaml ===
+service_name: agent-interoperability-design
+display_name: Agent interoperability design
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:agent-interoperability
+binding:
+  skill: agent-interoperability
+  skill_path: workspace/mymilo-build/skills/agent-interoperability/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/agent_interoperability_design.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_agent_interoperability_design.py — 32 tests, all passing 2026-11-15
+keys:
+  namespace: agent_interoperability_design
+  prefix: atm_1_agent_interoperability_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Connecting agents across protocols
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Agent interoperability design — `agent-interoperability-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Work with all sorts of agents — MCP/ACP/A2A landscape, bridge patterns, handoff contracts, agent auth.
+
+A caller submits a declared agent-interoperability design manifest and receives one deterministic verdict back: is this design sound *on its declared evidence*, judged against the bound skill's own method, quality gates, and red lines? One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Connecting agents across protocols**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the interoperability design manifest
+
+The caller submits one JSON manifest: a declared design pack for one
+agent-interoperability design. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`DESIGN_NOT_SOUND`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `design` (string; carried into the verdict output, not itself checked) | — |
+| `integrations` (list of objects, see below) | protocol_selection |
+| `integrations[].counterparty_type` (string; one of `tools_for_models`, `editor_agent_session`, `agent_to_agent`, `human_or_script` — computed, see below) | protocol_selection |
+| `integrations[].protocol` (string; one of `mcp`, `acp_stdio`, `acp_rest`, `a2a`, `rest_cli_web` — computed, see below) | protocol_selection |
+| `integrations[].rationale_documented` | protocol_selection |
+| `architecture.single_core` | bridge_architecture |
+| `architecture.protocol_adapters` | bridge_architecture |
+| `architecture.business_logic_per_protocol` (must be `false` to pass — "never implement business logic per protocol") | bridge_architecture |
+| `gateway.remote_or_untrusted_agents_present` (gates the five gateway checks below) | gateway_and_remote_access |
+| `gateway.single_authenticated_broker` (required when remote/untrusted agents are present; otherwise the check passes as not applicable) | gateway_and_remote_access |
+| `gateway.broker_authenticated` (required when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `gateway.broker_audited` (required when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `gateway.broker_rate_limited` (required when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `gateway.direct_doors_to_remote_agents` (must be `false` to pass when remote/untrusted agents are present; otherwise not applicable) | gateway_and_remote_access |
+| `handoff.contracts_used_for_non_trivial_coordination` | handoff_contracts |
+| `handoff.contract_states_goal` | handoff_contracts |
+| `handoff.contract_states_constraints` | handoff_contracts |
+| `handoff.contract_states_acceptance_criteria` | handoff_contracts |
+| `handoff.contract_states_report_back_location` | handoff_contracts |
+| `identity.each_agent_own_credential` | identity_and_credentials |
+| `identity.credentials_least_privilege` | identity_and_credentials |
+| `identity.credentials_short_lived` | identity_and_credentials |
+| `identity.credentials_revocable` | identity_and_credentials |
+| `identity.shared_forever_keys_present` (must be `false` to pass — no shared "service-to-service forever" keys) | identity_and_credentials |
+| `discovery.capabilities_published` | versioning_and_discovery |
+| `discovery.version_published` | versioning_and_discovery |
+| `discovery.negotiation_supported` | versioning_and_discovery |
+| `discovery.graceful_degradation_declared` | versioning_and_discovery |
+| `audit.message_log_kept` | audit_and_provenance |
+| `audit.log_records_who_asked` | audit_and_provenance |
+| `audit.log_records_what_ran` | audit_and_provenance |
+| `audit.log_records_what_changed` | audit_and_provenance |
+| `testing.handshake_tests_exist` | handshake_testing_and_red_lines |
+| `testing.handshake_tests_pass` | handshake_testing_and_red_lines |
+| `testing.handshake_tests_both_directions` | handshake_testing_and_red_lines |
+| `testing.handshake_tests_per_protocol` | handshake_testing_and_red_lines |
+| `red_lines.unsandboxed_third_party_agents_present` (must be `false` to pass — skill red line) | handshake_testing_and_red_lines |
+| `red_lines.secrets_or_private_data_in_messages_by_default` (must be `false` to pass — skill red line) | handshake_testing_and_red_lines |
+
+One section is computed from the declared values, using only what
+the skill itself states — no outside criterion is imported:
+
+- **Protocol match (Method step 1, "pick by counterparty, not
+  fashion"):** the skill assigns protocols by counterparty class —
+  tools/resources for models → MCP (`"mcp"`); editor ↔ agent
+  sessions → Agent Client Protocol over stdio (`"acp_stdio"`);
+  agent ↔ agent runs / services → Agent Communication Protocol
+  over REST (`"acp_rest"`) or A2A (`"a2a"`); humans, scripts,
+  anything → REST/CLI/web (`"rest_cli_web"`). A declared
+  `counterparty_type` outside the skill's four classes fails the
+  vocabulary check; a declared `protocol` that is not the skill's
+  protocol for its counterparty fails the match check. A missing
+  `counterparty_type` or `protocol` on any integration is missing
+  evidence, not a failure.
+
+The output also reports the computed `protocol_status`
+(`sound_on_declared_evidence` / `not_sound_on_declared_evidence`
+/ null when either computed check cannot be completed) and
+`integration_count` — the number of declared integrations (null
+when no integration list is declared). Both are exact integers /
+fixed strings in both implementations, so the Python and
+TypeScript outputs are byte-identical.
+
+The verdict is one of `DESIGN_SOUND` (all 36 checks pass),
+`DESIGN_NOT_SOUND` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across eight sections:
+protocol_selection, bridge_architecture, gateway_and_remote_access,
+handoff_contracts, identity_and_credentials,
+versioning_and_discovery, audit_and_provenance,
+handshake_testing_and_red_lines.
+
+## Honest scoping
+
+This atom evaluates **declared** evidence about a design — it does
+not connect to any agent, speak any protocol, run a handshake test,
+inspect credentials or traffic, or verify that a declared value is
+true. A design is sound *on the caller's declared evidence*: a
+design that declares scoped, short-lived, revocable credentials
+passes those checks even if the deployed agents share a forever
+key. It is a design verdict over a manifest, **not** a live
+interoperability test or a security audit.
+
+Named exclusions: no check of *how* a protocol adapter, broker, or
+sandbox is implemented (the skill names the patterns and their
+properties, not implementations, so none are invented); no
+credential lifetime, rate-limit, or audit-retention thresholds
+(the skill states none, so none are checked — only that
+credentials are declared short-lived and the broker declared
+rate-limited); no judgment of whether MCP, ACP, or A2A is the
+"best" protocol beyond the skill's own counterparty mapping; no
+live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python oracle
+and TypeScript port built and parity-proven locally; no endpoint is
+live. Release happens one by one, by the owner's GO, per the approved
+queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "agent-interoperability-design",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean requirements met; protocol match valid; red lines respected. Computed spot checks: integration_count=1, protocol_status=sound_on_declared_evidence."
+      },
+      "input": {
+        "design": "Standard A2A bridge",
+        "integrations": [
+          {
+            "counterparty_type": "agent_to_agent",
+            "protocol": "acp_rest",
+            "rationale_documented": true
+          }
+        ],
+        "architecture": {
+          "single_core": true,
+          "protocol_adapters": true,
+          "business_logic_per_protocol": false
+        },
+        "gateway": {
+          "remote_or_untrusted_agents_present": false
+        },
+        "handoff": {
+          "contracts_used_for_non_trivial_coordination": true,
+          "contract_states_goal": true,
+          "contract_states_constraints": true,
+          "contract_states_acceptance_criteria": true,
+          "contract_states_report_back_location": true
+        },
+        "identity": {
+          "each_agent_own_credential": true,
+          "credentials_least_privilege": true,
+          "credentials_short_lived": true,
+          "credentials_revocable": true,
+          "shared_forever_keys_present": false
+        },
+        "discovery": {
+          "capabilities_published": true,
+          "version_published": true,
+          "negotiation_supported": true,
+          "graceful_degradation_declared": true
+        },
+        "audit": {
+          "message_log_kept": true,
+          "log_records_who_asked": true,
+          "log_records_what_ran": true,
+          "log_records_what_changed": true
+        },
+        "testing": {
+          "handshake_tests_exist": true,
+          "handshake_tests_pass": true,
+          "handshake_tests_both_directions": true,
+          "handshake_tests_per_protocol": true
+        },
+        "red_lines": {
+          "unsandboxed_third_party_agents_present": false,
+          "secrets_or_private_data_in_messages_by_default": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-interoperability-design",
+        "atom_version": "0.1.0",
+        "design": "Standard A2A bridge",
+        "verdict": "DESIGN_SOUND",
+        "sections": {
+          "protocol_selection": "pass",
+          "bridge_architecture": "pass",
+          "gateway_and_remote_access": "pass",
+          "handoff_contracts": "pass",
+          "identity_and_credentials": "pass",
+          "versioning_and_discovery": "pass",
+          "audit_and_provenance": "pass",
+          "handshake_testing_and_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "protocol_selection",
+            "check": "integrations_declared",
+            "status": "pass",
+            "evidence": "the design declares its integrations \u2014 protocol choice is made per integration, by counterparty"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "counterparty_types_in_skill_vocabulary",
+            "status": "pass",
+            "evidence": "Method step 1 names four counterparty classes: tools/resources for models, editor <-> agent sessions, agent <-> agent runs/services, humans/scripts/anything"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "protocols_match_counterparty_per_skill",
+            "status": "pass",
+            "evidence": "Method step 1: tools/resources for models -> MCP; editor <-> agent sessions -> ACP (stdio); agent <-> agent runs/services -> ACP (REST) or A2A; humans, scripts, anything -> REST/CLI/web"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "protocol_choice_documented_with_why_per_integration",
+            "status": "pass",
+            "evidence": "quality gate: protocol choice documented per integration + why"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "single_core_declared",
+            "status": "pass",
+            "evidence": "bridge, don't fork: one core, many protocol adapters (the multi-surface pattern)"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "protocol_adapters_declared",
+            "status": "pass",
+            "evidence": "bridge, don't fork: many protocol adapters over the one core"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "no_business_logic_per_protocol",
+            "status": "pass",
+            "evidence": "never implement business logic per protocol"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "single_authenticated_broker_in_front",
+            "status": "pass",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_authenticated",
+            "status": "pass",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_audited",
+            "status": "pass",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_rate_limited",
+            "status": "pass",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "no_direct_doors_to_remote_agents",
+            "status": "pass",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contracts_used_for_non_trivial_coordination",
+            "status": "pass",
+            "evidence": "quality gate: handoff contracts used for non-trivial coordination"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_goal",
+            "status": "pass",
+            "evidence": "every cross-agent message states the goal"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_constraints",
+            "status": "pass",
+            "evidence": "every cross-agent message states the constraints"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_acceptance_criteria",
+            "status": "pass",
+            "evidence": "every cross-agent message states the acceptance criteria"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_report_back_location",
+            "status": "pass",
+            "evidence": "every cross-agent message states the report-back location"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "each_agent_has_own_credential",
+            "status": "pass",
+            "evidence": "identity between agents: each agent has its own credential"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_least_privilege",
+            "status": "pass",
+            "evidence": "identity between agents: least privilege \u2014 credentials are scoped"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_short_lived",
+            "status": "pass",
+            "evidence": "identity between agents: credentials are short-lived"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_revocable",
+            "status": "pass",
+            "evidence": "identity between agents: credentials are revocable (quality gate: scoped + revocable)"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "no_shared_forever_keys",
+            "status": "pass",
+            "evidence": "no shared 'service-to-service forever' keys"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "capabilities_published",
+            "status": "pass",
+            "evidence": "versioning + discovery: publish capabilities (tools list, agent card, version)"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "version_published",
+            "status": "pass",
+            "evidence": "versioning + discovery: the version is published with the capabilities"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "negotiation_supported",
+            "status": "pass",
+            "evidence": "versioning + discovery: negotiate with the counterparty"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "graceful_degradation_declared",
+            "status": "pass",
+            "evidence": "degrade gracefully when the counterparty is older/newer"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "message_log_kept",
+            "status": "pass",
+            "evidence": "audit everything: a message log is kept \u2014 history is the dispute resolver"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_who_asked",
+            "status": "pass",
+            "evidence": "provenance: the log records who asked"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_what_ran",
+            "status": "pass",
+            "evidence": "provenance: the log records what ran"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_what_changed",
+            "status": "pass",
+            "evidence": "provenance: the log records what changed"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_exist",
+            "status": "pass",
+            "evidence": "test the handshake: scripted counterparty tests per protocol \u2014 not just 'it worked once in the demo' (quality gate: handshake test exists)"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_pass",
+            "status": "pass",
+            "evidence": "quality gate: the handshake test passes"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_both_directions",
+            "status": "pass",
+            "evidence": "quality gate: the handshake test passes in both directions"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_per_protocol",
+            "status": "pass",
+            "evidence": "test the handshake: scripted counterparty tests exist per protocol"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "no_unsandboxed_third_party_agents",
+            "status": "pass",
+            "evidence": "red line: no unsandboxed third-party agents hitting your systems"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "no_secrets_or_private_data_in_messages_by_default",
+            "status": "pass",
+            "evidence": "red line: no secrets or private data in agent-to-agent messages by default"
+          }
+        ],
+        "protocol_status": "sound_on_declared_evidence",
+        "integration_count": 1,
+        "summary": "36 pass, 0 fail, 0 missing of 36 checks across eight sections.",
+        "stamp": "AGENT INTEROPERABILITY DESIGN VERDICT\ndesign: Standard A2A bridge\nVERDICT: DESIGN_SOUND\n  protocol_selection               pass\n  bridge_architecture              pass\n  gateway_and_remote_access        pass\n  handoff_contracts                pass\n  identity_and_credentials         pass\n  versioning_and_discovery         pass\n  audit_and_provenance             pass\n  handshake_testing_and_red_lines  pass\n36 pass, 0 fail, 0 missing of 36 checks across eight sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "protocol_selection",
+          "bridge_architecture",
+          "gateway_and_remote_access",
+          "identity_and_credentials"
+        ],
+        "notes": "Violates protocol mapping (tools_for_models requires mcp), business logic constraint, gateway security requirements, and identity red lines."
+      },
+      "input": {
+        "design": "Broken architecture",
+        "integrations": [
+          {
+            "counterparty_type": "tools_for_models",
+            "protocol": "acp_rest",
+            "rationale_documented": true
+          }
+        ],
+        "architecture": {
+          "single_core": true,
+          "protocol_adapters": true,
+          "business_logic_per_protocol": true
+        },
+        "gateway": {
+          "remote_or_untrusted_agents_present": true,
+          "single_authenticated_broker": false,
+          "broker_authenticated": false,
+          "broker_audited": false,
+          "broker_rate_limited": false,
+          "direct_doors_to_remote_agents": true
+        },
+        "identity": {
+          "shared_forever_keys_present": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-interoperability-design",
+        "atom_version": "0.1.0",
+        "design": "Broken architecture",
+        "verdict": "DESIGN_NOT_SOUND",
+        "sections": {
+          "protocol_selection": "fail",
+          "bridge_architecture": "fail",
+          "gateway_and_remote_access": "fail",
+          "handoff_contracts": "insufficient_evidence",
+          "identity_and_credentials": "fail",
+          "versioning_and_discovery": "insufficient_evidence",
+          "audit_and_provenance": "insufficient_evidence",
+          "handshake_testing_and_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "protocol_selection",
+            "check": "integrations_declared",
+            "status": "pass",
+            "evidence": "the design declares its integrations \u2014 protocol choice is made per integration, by counterparty"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "counterparty_types_in_skill_vocabulary",
+            "status": "pass",
+            "evidence": "Method step 1 names four counterparty classes: tools/resources for models, editor <-> agent sessions, agent <-> agent runs/services, humans/scripts/anything"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "protocols_match_counterparty_per_skill",
+            "status": "fail",
+            "evidence": "Method step 1: tools/resources for models -> MCP; editor <-> agent sessions -> ACP (stdio); agent <-> agent runs/services -> ACP (REST) or A2A; humans, scripts, anything -> REST/CLI/web"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "protocol_choice_documented_with_why_per_integration",
+            "status": "pass",
+            "evidence": "quality gate: protocol choice documented per integration + why"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "single_core_declared",
+            "status": "pass",
+            "evidence": "bridge, don't fork: one core, many protocol adapters (the multi-surface pattern)"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "protocol_adapters_declared",
+            "status": "pass",
+            "evidence": "bridge, don't fork: many protocol adapters over the one core"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "no_business_logic_per_protocol",
+            "status": "fail",
+            "evidence": "never implement business logic per protocol"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "single_authenticated_broker_in_front",
+            "status": "fail",
+            "evidence": "gateway pattern for remote/untrusted agents: a single authenticated broker in front of remote paths \u2014 not N direct doors"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_authenticated",
+            "status": "fail",
+            "evidence": "the broker is authenticated (mTLS/tokens)"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_audited",
+            "status": "fail",
+            "evidence": "the broker is audited"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_rate_limited",
+            "status": "fail",
+            "evidence": "the broker is rate-limited"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "no_direct_doors_to_remote_agents",
+            "status": "fail",
+            "evidence": "gateway pattern: not N direct doors to remote agents"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contracts_used_for_non_trivial_coordination",
+            "status": "missing",
+            "evidence": "quality gate: handoff contracts used for non-trivial coordination"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_goal",
+            "status": "missing",
+            "evidence": "every cross-agent message states the goal"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_constraints",
+            "status": "missing",
+            "evidence": "every cross-agent message states the constraints"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_acceptance_criteria",
+            "status": "missing",
+            "evidence": "every cross-agent message states the acceptance criteria"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_report_back_location",
+            "status": "missing",
+            "evidence": "every cross-agent message states the report-back location"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "each_agent_has_own_credential",
+            "status": "missing",
+            "evidence": "identity between agents: each agent has its own credential"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_least_privilege",
+            "status": "missing",
+            "evidence": "identity between agents: least privilege \u2014 credentials are scoped"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_short_lived",
+            "status": "missing",
+            "evidence": "identity between agents: credentials are short-lived"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_revocable",
+            "status": "missing",
+            "evidence": "identity between agents: credentials are revocable (quality gate: scoped + revocable)"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "no_shared_forever_keys",
+            "status": "fail",
+            "evidence": "no shared 'service-to-service forever' keys"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "capabilities_published",
+            "status": "missing",
+            "evidence": "versioning + discovery: publish capabilities (tools list, agent card, version)"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "version_published",
+            "status": "missing",
+            "evidence": "versioning + discovery: the version is published with the capabilities"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "negotiation_supported",
+            "status": "missing",
+            "evidence": "versioning + discovery: negotiate with the counterparty"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "graceful_degradation_declared",
+            "status": "missing",
+            "evidence": "degrade gracefully when the counterparty is older/newer"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "message_log_kept",
+            "status": "missing",
+            "evidence": "audit everything: a message log is kept \u2014 history is the dispute resolver"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_who_asked",
+            "status": "missing",
+            "evidence": "provenance: the log records who asked"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_what_ran",
+            "status": "missing",
+            "evidence": "provenance: the log records what ran"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_what_changed",
+            "status": "missing",
+            "evidence": "provenance: the log records what changed"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_exist",
+            "status": "missing",
+            "evidence": "test the handshake: scripted counterparty tests per protocol \u2014 not just 'it worked once in the demo' (quality gate: handshake test exists)"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_pass",
+            "status": "missing",
+            "evidence": "quality gate: the handshake test passes"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_both_directions",
+            "status": "missing",
+            "evidence": "quality gate: the handshake test passes in both directions"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_per_protocol",
+            "status": "missing",
+            "evidence": "test the handshake: scripted counterparty tests exist per protocol"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "no_unsandboxed_third_party_agents",
+            "status": "missing",
+            "evidence": "red line: no unsandboxed third-party agents hitting your systems"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "no_secrets_or_private_data_in_messages_by_default",
+            "status": "missing",
+            "evidence": "red line: no secrets or private data in agent-to-agent messages by default"
+          }
+        ],
+        "protocol_status": "not_sound_on_declared_evidence",
+        "integration_count": 1,
+        "summary": "5 pass, 8 fail, 23 missing of 36 checks across eight sections.",
+        "stamp": "AGENT INTEROPERABILITY DESIGN VERDICT\ndesign: Broken architecture\nVERDICT: DESIGN_NOT_SOUND\n  protocol_selection               fail\n  bridge_architecture              fail\n  gateway_and_remote_access        fail\n  handoff_contracts                insufficient_evidence\n  identity_and_credentials         fail\n  versioning_and_discovery         insufficient_evidence\n  audit_and_provenance             insufficient_evidence\n  handshake_testing_and_red_lines  insufficient_evidence\n5 pass, 8 fail, 23 missing of 36 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all mandatory sections; atom cannot compute verdict."
+      },
+      "input": {
+        "design": "Minimalist"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "agent-interoperability-design",
+        "atom_version": "0.1.0",
+        "design": "Minimalist",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "protocol_selection": "insufficient_evidence",
+          "bridge_architecture": "insufficient_evidence",
+          "gateway_and_remote_access": "insufficient_evidence",
+          "handoff_contracts": "insufficient_evidence",
+          "identity_and_credentials": "insufficient_evidence",
+          "versioning_and_discovery": "insufficient_evidence",
+          "audit_and_provenance": "insufficient_evidence",
+          "handshake_testing_and_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "protocol_selection",
+            "check": "integrations_declared",
+            "status": "missing",
+            "evidence": "the design declares its integrations \u2014 protocol choice is made per integration, by counterparty"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "counterparty_types_in_skill_vocabulary",
+            "status": "missing",
+            "evidence": "Method step 1 names four counterparty classes: tools/resources for models, editor <-> agent sessions, agent <-> agent runs/services, humans/scripts/anything"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "protocols_match_counterparty_per_skill",
+            "status": "missing",
+            "evidence": "Method step 1: tools/resources for models -> MCP; editor <-> agent sessions -> ACP (stdio); agent <-> agent runs/services -> ACP (REST) or A2A; humans, scripts, anything -> REST/CLI/web"
+          },
+          {
+            "section": "protocol_selection",
+            "check": "protocol_choice_documented_with_why_per_integration",
+            "status": "missing",
+            "evidence": "quality gate: protocol choice documented per integration + why"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "single_core_declared",
+            "status": "missing",
+            "evidence": "bridge, don't fork: one core, many protocol adapters (the multi-surface pattern)"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "protocol_adapters_declared",
+            "status": "missing",
+            "evidence": "bridge, don't fork: many protocol adapters over the one core"
+          },
+          {
+            "section": "bridge_architecture",
+            "check": "no_business_logic_per_protocol",
+            "status": "missing",
+            "evidence": "never implement business logic per protocol"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "single_authenticated_broker_in_front",
+            "status": "missing",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_authenticated",
+            "status": "missing",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_audited",
+            "status": "missing",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "broker_rate_limited",
+            "status": "missing",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "gateway_and_remote_access",
+            "check": "no_direct_doors_to_remote_agents",
+            "status": "missing",
+            "evidence": "no remote or untrusted agents declared \u2014 the gateway pattern is not applicable"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contracts_used_for_non_trivial_coordination",
+            "status": "missing",
+            "evidence": "quality gate: handoff contracts used for non-trivial coordination"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_goal",
+            "status": "missing",
+            "evidence": "every cross-agent message states the goal"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_constraints",
+            "status": "missing",
+            "evidence": "every cross-agent message states the constraints"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_acceptance_criteria",
+            "status": "missing",
+            "evidence": "every cross-agent message states the acceptance criteria"
+          },
+          {
+            "section": "handoff_contracts",
+            "check": "contract_states_report_back_location",
+            "status": "missing",
+            "evidence": "every cross-agent message states the report-back location"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "each_agent_has_own_credential",
+            "status": "missing",
+            "evidence": "identity between agents: each agent has its own credential"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_least_privilege",
+            "status": "missing",
+            "evidence": "identity between agents: least privilege \u2014 credentials are scoped"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_short_lived",
+            "status": "missing",
+            "evidence": "identity between agents: credentials are short-lived"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "credentials_revocable",
+            "status": "missing",
+            "evidence": "identity between agents: credentials are revocable (quality gate: scoped + revocable)"
+          },
+          {
+            "section": "identity_and_credentials",
+            "check": "no_shared_forever_keys",
+            "status": "missing",
+            "evidence": "no shared 'service-to-service forever' keys"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "capabilities_published",
+            "status": "missing",
+            "evidence": "versioning + discovery: publish capabilities (tools list, agent card, version)"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "version_published",
+            "status": "missing",
+            "evidence": "versioning + discovery: the version is published with the capabilities"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "negotiation_supported",
+            "status": "missing",
+            "evidence": "versioning + discovery: negotiate with the counterparty"
+          },
+          {
+            "section": "versioning_and_discovery",
+            "check": "graceful_degradation_declared",
+            "status": "missing",
+            "evidence": "degrade gracefully when the counterparty is older/newer"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "message_log_kept",
+            "status": "missing",
+            "evidence": "audit everything: a message log is kept \u2014 history is the dispute resolver"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_who_asked",
+            "status": "missing",
+            "evidence": "provenance: the log records who asked"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_what_ran",
+            "status": "missing",
+            "evidence": "provenance: the log records what ran"
+          },
+          {
+            "section": "audit_and_provenance",
+            "check": "log_records_what_changed",
+            "status": "missing",
+            "evidence": "provenance: the log records what changed"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_exist",
+            "status": "missing",
+            "evidence": "test the handshake: scripted counterparty tests per protocol \u2014 not just 'it worked once in the demo' (quality gate: handshake test exists)"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_pass",
+            "status": "missing",
+            "evidence": "quality gate: the handshake test passes"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_both_directions",
+            "status": "missing",
+            "evidence": "quality gate: the handshake test passes in both directions"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "handshake_tests_per_protocol",
+            "status": "missing",
+            "evidence": "test the handshake: scripted counterparty tests exist per protocol"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "no_unsandboxed_third_party_agents",
+            "status": "missing",
+            "evidence": "red line: no unsandboxed third-party agents hitting your systems"
+          },
+          {
+            "section": "handshake_testing_and_red_lines",
+            "check": "no_secrets_or_private_data_in_messages_by_default",
+            "status": "missing",
+            "evidence": "red line: no secrets or private data in agent-to-agent messages by default"
+          }
+        ],
+        "protocol_status": null,
+        "integration_count": null,
+        "summary": "0 pass, 0 fail, 36 missing of 36 checks across eight sections.",
+        "stamp": "AGENT INTEROPERABILITY DESIGN VERDICT\ndesign: Minimalist\nVERDICT: INSUFFICIENT_EVIDENCE\n  protocol_selection               insufficient_evidence\n  bridge_architecture              insufficient_evidence\n  gateway_and_remote_access        insufficient_evidence\n  handoff_contracts                insufficient_evidence\n  identity_and_credentials         insufficient_evidence\n  versioning_and_discovery         insufficient_evidence\n  audit_and_provenance             insufficient_evidence\n  handshake_testing_and_red_lines  insufficient_evidence\n0 pass, 0 fail, 36 missing of 36 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: integrations expected list, architecture expected object."
+      },
+      "input": {
+        "design": "Malformed input",
+        "integrations": "not_a_list",
+        "architecture": 123
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "integrations",
+        "detail": "integrations must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

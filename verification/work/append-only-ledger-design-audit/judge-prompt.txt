@@ -1,0 +1,930 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: append-only-ledger-design-audit
+
+=== contract.yaml ===
+service_name: append-only-ledger-design-audit
+display_name: Append only ledger design audit
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:ledger-engineering
+binding:
+  skill: ledger-engineering
+  skill_path: workspace/mymilo-build/skills/ledger-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/append_only_ledger_design_audit.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_append_only_ledger_design_audit.py — 15 tests, all passing 2026-11-15
+keys:
+  namespace: append_only_ledger_design_audit
+  prefix: atm_1_append_only_ledger_design_audit_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Vault product ledger design work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Append only ledger design audit — `append-only-ledger-design-audit`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build append-only ledgers and audit trails — double-entry where money moves, immutability, reconciliation.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Vault product ledger design work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+Invariant tests make it checkable
+
+## Input manifest — field table
+
+The caller submits one JSON object. Every check reads declared fields
+below: present + valid → pass, present + invalid → fail, absent →
+missing. Verdicts: `SOUND` (all pass), `UNSOUND` (any fail),
+`INSUFFICIENT_EVIDENCE` (no fail, any missing). Output mirrors the
+template atom: `service`, `atom_version`, `ledger_name`, `version`,
+`verdict`, `sections`, `checks`, `summary`, plus `stamp()`.
+
+| Field | Type | Read by check(s) |
+|---|---|---|
+| `ledger_name` | string | echoed subject field (no check) |
+| `version` | string | echoed subject field (no check) |
+| `append_only.events_immutable` | bool (`true`) | `events_immutable` |
+| `append_only.update_on_posted_entries` | bool (`false`) | `no_update_on_posted_entries` |
+| `append_only.delete_on_posted_entries` | bool (`false`) | `no_delete_on_posted_entries` |
+| `append_only.no_mutation_paths_verified` | bool (`true`) | `no_mutation_code_paths_verified` |
+| `append_only.correction_model` | string: `reversing_entry` \| `adjusting_entry` \| `reversing_or_adjusting_entry` | `corrections_are_new_reversing_or_adjusting_entries` |
+| `append_only.corrections_reference_original` | bool (`true`) | `corrections_reference_originals` |
+| `append_only.retention_and_legal_holds` | bool (`true`) | `retention_policy_and_legal_holds` |
+| `money.moves_money` | bool | gates `double_entry_when_money_moves` (if truthy, `money.double_entry` is checked; otherwise not applicable) |
+| `money.double_entry` | bool (`true` when money moves) | `double_entry_when_money_moves` |
+| `money.transaction_sum_zero` | bool (`true`) | `per_transaction_sum_zero` |
+| `money.amount_representation` | string: `integer_minor_units` \| `exact_decimal` | `no_float_money` |
+| `money.currency_explicit_per_entry` | bool (`true`) | `currency_explicit_per_entry` |
+| `money.fx_rates_recorded_at_event_time` | bool (`true`) | `fx_rates_recorded_at_event_time` |
+| `structure.accounts_entries_transactions` | bool (`true`) | `accounts_entries_transactions_hierarchy` |
+| `structure.transactions_atomic` | bool (`true`) | `transactions_are_atomic_groups` |
+| `structure.stable_ids` | bool (`true`) | `stable_ids` |
+| `structure.event_fields` | list containing `timestamp`, `actor`, `source` | `every_event_carries_timestamp_actor_source` |
+| `derived_state.balances_are_projections` | bool (`true`) | `balances_are_derived_projections` |
+| `derived_state.projections_recomputable` | bool (`true`) | `projections_recomputable` |
+| `derived_state.checkpoint_hashes` | bool (`true`) | `checkpoint_hashes_for_tamper_evidence` |
+| `reconciliation.cadence` | non-empty string | `reconciliation_cadence_defined` |
+| `reconciliation.discrepancy_workflow_recorded` | bool (`true`) | `discrepancy_workflow_with_resolution_records` |
+| `reconciliation.unreconciled_period_closed_silently` | bool (`false`) | `no_unreconciled_period_closed_silently` |
+| `reporting.audit_queries_who_what_when_why` | bool (`true`) | `audit_queries_answer_who_what_when_why` |
+| `reporting.tax_ready_exports` | bool (`true`) | `tax_ready_exports` |
+| `security.encryption_at_rest` | bool (`true`) | `encryption_at_rest` |
+| `security.scoped_access` | bool (`true`) | `scoped_access` |
+| `recovery.restore_drill_done` | bool (`true`) | `restore_drill_done` |
+| `recovery.restore_replay_verified` | bool (`true`) | `restore_replays_log_and_verifies_invariants` |
+| `tests.balance_invariant_tests` | bool (`true`) | `balance_invariant_tests_in_suite` |
+
+Sections (29 checks): `append_only` (7), `money_discipline` (5),
+`structure_and_derivation` (7), `reconciliation_and_reporting` (5),
+`security_and_recovery` (5).
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "append-only-ledger-design-audit",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid; satisfies all 29 checks."
+      },
+      "input": {
+        "ledger_name": "Production Ledger",
+        "version": "1.0.0",
+        "append_only": {
+          "events_immutable": true,
+          "update_on_posted_entries": false,
+          "delete_on_posted_entries": false,
+          "no_mutation_paths_verified": true,
+          "correction_model": "reversing_entry",
+          "corrections_reference_original": true,
+          "retention_and_legal_holds": true
+        },
+        "money": {
+          "moves_money": true,
+          "double_entry": true,
+          "transaction_sum_zero": true,
+          "amount_representation": "integer_minor_units",
+          "currency_explicit_per_entry": true,
+          "fx_rates_recorded_at_event_time": true
+        },
+        "structure": {
+          "accounts_entries_transactions": true,
+          "transactions_atomic": true,
+          "stable_ids": true,
+          "event_fields": [
+            "timestamp",
+            "actor",
+            "source"
+          ]
+        },
+        "derived_state": {
+          "balances_are_projections": true,
+          "projections_recomputable": true,
+          "checkpoint_hashes": true
+        },
+        "reconciliation": {
+          "cadence": "daily",
+          "discrepancy_workflow_recorded": true,
+          "unreconciled_period_closed_silently": false
+        },
+        "reporting": {
+          "audit_queries_who_what_when_why": true,
+          "tax_ready_exports": true
+        },
+        "security": {
+          "encryption_at_rest": true,
+          "scoped_access": true
+        },
+        "recovery": {
+          "restore_drill_done": true,
+          "restore_replay_verified": true
+        },
+        "tests": {
+          "balance_invariant_tests": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "append-only-ledger-design-audit",
+        "atom_version": "0.1.0",
+        "ledger_name": "Production Ledger",
+        "version": "1.0.0",
+        "verdict": "SOUND",
+        "sections": {
+          "append_only": "pass",
+          "money_discipline": "pass",
+          "structure_and_derivation": "pass",
+          "reconciliation_and_reporting": "pass",
+          "security_and_recovery": "pass"
+        },
+        "checks": [
+          {
+            "section": "append_only",
+            "check": "events_immutable",
+            "status": "pass",
+            "evidence": "events are immutable (skill method 1: append-only by design)"
+          },
+          {
+            "section": "append_only",
+            "check": "no_update_on_posted_entries",
+            "status": "pass",
+            "evidence": "skill red line: never edit history \u2014 no UPDATE on posted facts"
+          },
+          {
+            "section": "append_only",
+            "check": "no_delete_on_posted_entries",
+            "status": "pass",
+            "evidence": "no DELETE on posted facts (skill method 1)"
+          },
+          {
+            "section": "append_only",
+            "check": "no_mutation_code_paths_verified",
+            "status": "pass",
+            "evidence": "quality gate: no mutation code paths on posted entries (verified)"
+          },
+          {
+            "section": "append_only",
+            "check": "corrections_are_new_reversing_or_adjusting_entries",
+            "status": "pass",
+            "evidence": "correction_model='reversing_entry' (skill: corrections are new reversing/adjusting entries)"
+          },
+          {
+            "section": "append_only",
+            "check": "corrections_reference_originals",
+            "status": "pass",
+            "evidence": "corrections reference the originals they reverse/adjust"
+          },
+          {
+            "section": "append_only",
+            "check": "retention_policy_and_legal_holds",
+            "status": "pass",
+            "evidence": "retention per policy; legal holds respected"
+          },
+          {
+            "section": "money_discipline",
+            "check": "double_entry_when_money_moves",
+            "status": "pass",
+            "evidence": "double-entry for anything monetary (skill method 2)"
+          },
+          {
+            "section": "money_discipline",
+            "check": "per_transaction_sum_zero",
+            "status": "pass",
+            "evidence": "double-entry invariant: sum = zero per transaction"
+          },
+          {
+            "section": "money_discipline",
+            "check": "no_float_money",
+            "status": "pass",
+            "evidence": "amount_representation='integer_minor_units' (skill red line: no float money \u2014 integer minor units or exact decimals)"
+          },
+          {
+            "section": "money_discipline",
+            "check": "currency_explicit_per_entry",
+            "status": "pass",
+            "evidence": "currency explicit per entry"
+          },
+          {
+            "section": "money_discipline",
+            "check": "fx_rates_recorded_at_event_time",
+            "status": "pass",
+            "evidence": "FX rates recorded at event time"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "accounts_entries_transactions_hierarchy",
+            "status": "pass",
+            "evidence": "structure: accounts -> entries -> transactions"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "transactions_are_atomic_groups",
+            "status": "pass",
+            "evidence": "transactions are atomic groups of entries"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "stable_ids",
+            "status": "pass",
+            "evidence": "stable IDs for accounts, entries and transactions"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "every_event_carries_timestamp_actor_source",
+            "status": "pass",
+            "evidence": "event_fields=['timestamp', 'actor', 'source'] (skill: every event carries timestamp, actor, source)"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "balances_are_derived_projections",
+            "status": "pass",
+            "evidence": "balances and reports are projections \u2014 never authoritative over the log"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "projections_recomputable",
+            "status": "pass",
+            "evidence": "projections are recomputable and checkpointed"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "checkpoint_hashes_for_tamper_evidence",
+            "status": "pass",
+            "evidence": "periodic checkpoint hashes for tamper evidence"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "reconciliation_cadence_defined",
+            "status": "pass",
+            "evidence": "cadence='daily' (ledger vs bank/processor/external statements on a cadence)"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "discrepancy_workflow_with_resolution_records",
+            "status": "pass",
+            "evidence": "discrepancies get a workflow: found -> investigated -> resolved with record"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "no_unreconciled_period_closed_silently",
+            "status": "pass",
+            "evidence": "skill red line: never close an unreconciled period silently"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "audit_queries_answer_who_what_when_why",
+            "status": "pass",
+            "evidence": "audit queries answer who changed what, when, why; period summaries produced"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "tax_ready_exports",
+            "status": "pass",
+            "evidence": "tax-ready exports for the accountant"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "encryption_at_rest",
+            "status": "pass",
+            "evidence": "encryption at rest"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "scoped_access",
+            "status": "pass",
+            "evidence": "scoped access"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "restore_drill_done",
+            "status": "pass",
+            "evidence": "quality gate: restore drill done; backups restore-tested"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "restore_replays_log_and_verifies_invariants",
+            "status": "pass",
+            "evidence": "restore = replay the log and verify invariants"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "balance_invariant_tests_in_suite",
+            "status": "pass",
+            "evidence": "quality gate: balance invariant tests in the suite (sums, double-entry)"
+          }
+        ],
+        "summary": "29 pass, 0 fail, 0 missing of 29 checks across five sections.",
+        "stamp": "APPEND-ONLY LEDGER DESIGN AUDIT\nledger_name: Production Ledger  version: 1.0.0\nVERDICT: SOUND\n  append_only                      pass\n  money_discipline                 pass\n  structure_and_derivation         pass\n  reconciliation_and_reporting     pass\n  security_and_recovery            pass\n29 pass, 0 fail, 0 missing of 29 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "UNSOUND",
+        "http": 200,
+        "failing_checks": [
+          "events_immutable",
+          "no_update_on_posted_entries",
+          "every_event_carries_timestamp_actor_source"
+        ],
+        "notes": "Violates immutability, update policy, and event field requirements."
+      },
+      "input": {
+        "ledger_name": "Broken Ledger",
+        "version": "0.9.0",
+        "append_only": {
+          "events_immutable": false,
+          "update_on_posted_entries": true,
+          "delete_on_posted_entries": false,
+          "no_mutation_paths_verified": true,
+          "correction_model": "reversing_entry",
+          "corrections_reference_original": true,
+          "retention_and_legal_holds": true
+        },
+        "money": {
+          "moves_money": false
+        },
+        "structure": {
+          "accounts_entries_transactions": true,
+          "transactions_atomic": true,
+          "stable_ids": true,
+          "event_fields": [
+            "timestamp",
+            "actor"
+          ]
+        },
+        "derived_state": {
+          "balances_are_projections": true,
+          "projections_recomputable": true,
+          "checkpoint_hashes": true
+        },
+        "reconciliation": {
+          "cadence": "daily",
+          "discrepancy_workflow_recorded": true,
+          "unreconciled_period_closed_silently": false
+        },
+        "reporting": {
+          "audit_queries_who_what_when_why": true,
+          "tax_ready_exports": true
+        },
+        "security": {
+          "encryption_at_rest": true,
+          "scoped_access": true
+        },
+        "recovery": {
+          "restore_drill_done": true,
+          "restore_replay_verified": true
+        },
+        "tests": {
+          "balance_invariant_tests": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "append-only-ledger-design-audit",
+        "atom_version": "0.1.0",
+        "ledger_name": "Broken Ledger",
+        "version": "0.9.0",
+        "verdict": "UNSOUND",
+        "sections": {
+          "append_only": "fail",
+          "money_discipline": "insufficient_evidence",
+          "structure_and_derivation": "fail",
+          "reconciliation_and_reporting": "pass",
+          "security_and_recovery": "pass"
+        },
+        "checks": [
+          {
+            "section": "append_only",
+            "check": "events_immutable",
+            "status": "fail",
+            "evidence": "events are immutable (skill method 1: append-only by design)"
+          },
+          {
+            "section": "append_only",
+            "check": "no_update_on_posted_entries",
+            "status": "fail",
+            "evidence": "skill red line: never edit history \u2014 no UPDATE on posted facts"
+          },
+          {
+            "section": "append_only",
+            "check": "no_delete_on_posted_entries",
+            "status": "pass",
+            "evidence": "no DELETE on posted facts (skill method 1)"
+          },
+          {
+            "section": "append_only",
+            "check": "no_mutation_code_paths_verified",
+            "status": "pass",
+            "evidence": "quality gate: no mutation code paths on posted entries (verified)"
+          },
+          {
+            "section": "append_only",
+            "check": "corrections_are_new_reversing_or_adjusting_entries",
+            "status": "pass",
+            "evidence": "correction_model='reversing_entry' (skill: corrections are new reversing/adjusting entries)"
+          },
+          {
+            "section": "append_only",
+            "check": "corrections_reference_originals",
+            "status": "pass",
+            "evidence": "corrections reference the originals they reverse/adjust"
+          },
+          {
+            "section": "append_only",
+            "check": "retention_policy_and_legal_holds",
+            "status": "pass",
+            "evidence": "retention per policy; legal holds respected"
+          },
+          {
+            "section": "money_discipline",
+            "check": "double_entry_when_money_moves",
+            "status": "pass",
+            "evidence": "no monetary movement declared"
+          },
+          {
+            "section": "money_discipline",
+            "check": "per_transaction_sum_zero",
+            "status": "missing",
+            "evidence": "double-entry invariant: sum = zero per transaction"
+          },
+          {
+            "section": "money_discipline",
+            "check": "no_float_money",
+            "status": "missing",
+            "evidence": "amount_representation=None (skill red line: no float money \u2014 integer minor units or exact decimals)"
+          },
+          {
+            "section": "money_discipline",
+            "check": "currency_explicit_per_entry",
+            "status": "missing",
+            "evidence": "currency explicit per entry"
+          },
+          {
+            "section": "money_discipline",
+            "check": "fx_rates_recorded_at_event_time",
+            "status": "missing",
+            "evidence": "FX rates recorded at event time"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "accounts_entries_transactions_hierarchy",
+            "status": "pass",
+            "evidence": "structure: accounts -> entries -> transactions"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "transactions_are_atomic_groups",
+            "status": "pass",
+            "evidence": "transactions are atomic groups of entries"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "stable_ids",
+            "status": "pass",
+            "evidence": "stable IDs for accounts, entries and transactions"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "every_event_carries_timestamp_actor_source",
+            "status": "fail",
+            "evidence": "event_fields=['timestamp', 'actor'] (skill: every event carries timestamp, actor, source)"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "balances_are_derived_projections",
+            "status": "pass",
+            "evidence": "balances and reports are projections \u2014 never authoritative over the log"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "projections_recomputable",
+            "status": "pass",
+            "evidence": "projections are recomputable and checkpointed"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "checkpoint_hashes_for_tamper_evidence",
+            "status": "pass",
+            "evidence": "periodic checkpoint hashes for tamper evidence"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "reconciliation_cadence_defined",
+            "status": "pass",
+            "evidence": "cadence='daily' (ledger vs bank/processor/external statements on a cadence)"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "discrepancy_workflow_with_resolution_records",
+            "status": "pass",
+            "evidence": "discrepancies get a workflow: found -> investigated -> resolved with record"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "no_unreconciled_period_closed_silently",
+            "status": "pass",
+            "evidence": "skill red line: never close an unreconciled period silently"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "audit_queries_answer_who_what_when_why",
+            "status": "pass",
+            "evidence": "audit queries answer who changed what, when, why; period summaries produced"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "tax_ready_exports",
+            "status": "pass",
+            "evidence": "tax-ready exports for the accountant"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "encryption_at_rest",
+            "status": "pass",
+            "evidence": "encryption at rest"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "scoped_access",
+            "status": "pass",
+            "evidence": "scoped access"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "restore_drill_done",
+            "status": "pass",
+            "evidence": "quality gate: restore drill done; backups restore-tested"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "restore_replays_log_and_verifies_invariants",
+            "status": "pass",
+            "evidence": "restore = replay the log and verify invariants"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "balance_invariant_tests_in_suite",
+            "status": "pass",
+            "evidence": "quality gate: balance invariant tests in the suite (sums, double-entry)"
+          }
+        ],
+        "summary": "22 pass, 3 fail, 4 missing of 29 checks across five sections.",
+        "stamp": "APPEND-ONLY LEDGER DESIGN AUDIT\nledger_name: Broken Ledger  version: 0.9.0\nVERDICT: UNSOUND\n  append_only                      fail\n  money_discipline                 insufficient_evidence\n  structure_and_derivation         fail\n  reconciliation_and_reporting     pass\n  security_and_recovery            pass\n22 pass, 3 fail, 4 missing of 29 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing almost all required fields for audit."
+      },
+      "input": {
+        "ledger_name": "Minimal Ledger",
+        "version": "0.0.1"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "append-only-ledger-design-audit",
+        "atom_version": "0.1.0",
+        "ledger_name": "Minimal Ledger",
+        "version": "0.0.1",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "append_only": "insufficient_evidence",
+          "money_discipline": "insufficient_evidence",
+          "structure_and_derivation": "insufficient_evidence",
+          "reconciliation_and_reporting": "insufficient_evidence",
+          "security_and_recovery": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "append_only",
+            "check": "events_immutable",
+            "status": "missing",
+            "evidence": "events are immutable (skill method 1: append-only by design)"
+          },
+          {
+            "section": "append_only",
+            "check": "no_update_on_posted_entries",
+            "status": "missing",
+            "evidence": "skill red line: never edit history \u2014 no UPDATE on posted facts"
+          },
+          {
+            "section": "append_only",
+            "check": "no_delete_on_posted_entries",
+            "status": "missing",
+            "evidence": "no DELETE on posted facts (skill method 1)"
+          },
+          {
+            "section": "append_only",
+            "check": "no_mutation_code_paths_verified",
+            "status": "missing",
+            "evidence": "quality gate: no mutation code paths on posted entries (verified)"
+          },
+          {
+            "section": "append_only",
+            "check": "corrections_are_new_reversing_or_adjusting_entries",
+            "status": "missing",
+            "evidence": "correction_model=None (skill: corrections are new reversing/adjusting entries)"
+          },
+          {
+            "section": "append_only",
+            "check": "corrections_reference_originals",
+            "status": "missing",
+            "evidence": "corrections reference the originals they reverse/adjust"
+          },
+          {
+            "section": "append_only",
+            "check": "retention_policy_and_legal_holds",
+            "status": "missing",
+            "evidence": "retention per policy; legal holds respected"
+          },
+          {
+            "section": "money_discipline",
+            "check": "double_entry_when_money_moves",
+            "status": "missing",
+            "evidence": "no monetary movement declared"
+          },
+          {
+            "section": "money_discipline",
+            "check": "per_transaction_sum_zero",
+            "status": "missing",
+            "evidence": "double-entry invariant: sum = zero per transaction"
+          },
+          {
+            "section": "money_discipline",
+            "check": "no_float_money",
+            "status": "missing",
+            "evidence": "amount_representation=None (skill red line: no float money \u2014 integer minor units or exact decimals)"
+          },
+          {
+            "section": "money_discipline",
+            "check": "currency_explicit_per_entry",
+            "status": "missing",
+            "evidence": "currency explicit per entry"
+          },
+          {
+            "section": "money_discipline",
+            "check": "fx_rates_recorded_at_event_time",
+            "status": "missing",
+            "evidence": "FX rates recorded at event time"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "accounts_entries_transactions_hierarchy",
+            "status": "missing",
+            "evidence": "structure: accounts -> entries -> transactions"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "transactions_are_atomic_groups",
+            "status": "missing",
+            "evidence": "transactions are atomic groups of entries"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "stable_ids",
+            "status": "missing",
+            "evidence": "stable IDs for accounts, entries and transactions"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "every_event_carries_timestamp_actor_source",
+            "status": "missing",
+            "evidence": "event_fields=None (skill: every event carries timestamp, actor, source)"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "balances_are_derived_projections",
+            "status": "missing",
+            "evidence": "balances and reports are projections \u2014 never authoritative over the log"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "projections_recomputable",
+            "status": "missing",
+            "evidence": "projections are recomputable and checkpointed"
+          },
+          {
+            "section": "structure_and_derivation",
+            "check": "checkpoint_hashes_for_tamper_evidence",
+            "status": "missing",
+            "evidence": "periodic checkpoint hashes for tamper evidence"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "reconciliation_cadence_defined",
+            "status": "missing",
+            "evidence": "cadence=None (ledger vs bank/processor/external statements on a cadence)"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "discrepancy_workflow_with_resolution_records",
+            "status": "missing",
+            "evidence": "discrepancies get a workflow: found -> investigated -> resolved with record"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "no_unreconciled_period_closed_silently",
+            "status": "missing",
+            "evidence": "skill red line: never close an unreconciled period silently"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "audit_queries_answer_who_what_when_why",
+            "status": "missing",
+            "evidence": "audit queries answer who changed what, when, why; period summaries produced"
+          },
+          {
+            "section": "reconciliation_and_reporting",
+            "check": "tax_ready_exports",
+            "status": "missing",
+            "evidence": "tax-ready exports for the accountant"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "encryption_at_rest",
+            "status": "missing",
+            "evidence": "encryption at rest"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "scoped_access",
+            "status": "missing",
+            "evidence": "scoped access"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "restore_drill_done",
+            "status": "missing",
+            "evidence": "quality gate: restore drill done; backups restore-tested"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "restore_replays_log_and_verifies_invariants",
+            "status": "missing",
+            "evidence": "restore = replay the log and verify invariants"
+          },
+          {
+            "section": "security_and_recovery",
+            "check": "balance_invariant_tests_in_suite",
+            "status": "missing",
+            "evidence": "quality gate: balance invariant tests in the suite (sums, double-entry)"
+          }
+        ],
+        "summary": "0 pass, 0 fail, 29 missing of 29 checks across five sections.",
+        "stamp": "APPEND-ONLY LEDGER DESIGN AUDIT\nledger_name: Minimal Ledger  version: 0.0.1\nVERDICT: INSUFFICIENT_EVIDENCE\n  append_only                      insufficient_evidence\n  money_discipline                 insufficient_evidence\n  structure_and_derivation         insufficient_evidence\n  reconciliation_and_reporting     insufficient_evidence\n  security_and_recovery            insufficient_evidence\n0 pass, 0 fail, 29 missing of 29 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: append_only field provided as string instead of object."
+      },
+      "input": {
+        "ledger_name": "Malformed Ledger",
+        "version": "1.0.0",
+        "append_only": "should_be_an_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "append_only",
+        "detail": "append_only must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

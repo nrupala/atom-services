@@ -1,0 +1,1410 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: database-design-review
+
+=== contract.yaml ===
+service_name: database-design-review
+display_name: Database design review
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:database-sme
+binding:
+  skill: database-sme
+  skill_path: workspace/mymilo-build/skills/database-sme/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+keys:
+  namespace: database_design_review
+  prefix: atm_1_database_design_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product schema design work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Database design review — `database-design-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Designs data models and picks the right database for how the data is actually used — because schema mistakes are the most expensive to undo.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product schema design work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the database-design manifest
+
+The caller submits one JSON manifest: a declared database design
+record for one system. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`DATABASE_DESIGN_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `design` (string; carried into the verdict output, not itself checked) | — |
+| `store_selection.access_patterns_mapped` | schema_and_normalization |
+| `store_selection.store_chosen_from_access_patterns` | schema_and_normalization |
+| `store_selection.relational_default_or_fit_justified` | schema_and_normalization |
+| `tables` (list of table-row objects, each `{name, primary_key, constraints_declared}` — see the three entry fields below; computed, see below) | schema_and_normalization |
+| `tables[].name` (string; names the row in the computed `tables_without_*` outputs) | schema_and_normalization |
+| `tables[].primary_key` (string; must be a non-empty string for the row to pass the computed primary-key check — an absent field is missing evidence, an empty string fails) | schema_and_normalization |
+| `tables[].constraints_declared` | schema_and_normalization |
+| `normalization.normalized_to_3nf` | schema_and_normalization |
+| `normalization.denormalized` (gates the denormalization-reason check below) | schema_and_normalization |
+| `normalization.denormalization_reasons_documented` (required when denormalization is declared; otherwise the check passes as not applicable) | schema_and_normalization |
+| `query_patterns` (list of query-pattern objects, each `{name, table, supporting_index}` — see the three entry fields below; computed, see below) | indexing_and_performance |
+| `query_patterns[].name` (string; names the pattern in the computed `uncovered_query_patterns` output) | indexing_and_performance |
+| `query_patterns[].table` (string; a supporting index matches only on the same declared table) | indexing_and_performance |
+| `query_patterns[].supporting_index` (string; must name a declared index on the same table for the pattern to pass the computed matching check — an absent field is missing evidence) | indexing_and_performance |
+| `indexes` (list of index objects, each `{name, table, columns}` — see the three entry fields below; computed, see below) | indexing_and_performance |
+| `indexes[].name` (string; the name a query pattern's `supporting_index` must equal to match) | indexing_and_performance |
+| `indexes[].table` (string; must equal the query pattern's declared table to match) | indexing_and_performance |
+| `indexes[].columns` (list of strings; must be present and non-empty for the index row to pass the computed columns check) | indexing_and_performance |
+| `indexing.composite_column_order_equality_then_range` | indexing_and_performance |
+| `indexing.covering_indexes_for_hot_queries` | indexing_and_performance |
+| `indexing.write_cost_considered` | indexing_and_performance |
+| `indexing.explain_analyze_before_and_after` | indexing_and_performance |
+| `performance.measured_first` | indexing_and_performance |
+| `performance.n_plus_one_queries_addressed` | indexing_and_performance |
+| `performance.keyset_pagination_for_large_sets` | indexing_and_performance |
+| `performance.offset_pagination_at_scale_present` (must be `false` to pass — skill anti-pattern) | indexing_and_performance |
+| `performance.connection_pooling_declared` | indexing_and_performance |
+| `performance.bounded_result_sets` | indexing_and_performance |
+| `performance.cache_deliberate_with_honest_invalidation` | indexing_and_performance |
+| `integrity.constraints_enforce_invariants` | integrity_transactions_and_security |
+| `integrity.appropriate_types_used` | integrity_transactions_and_security |
+| `integrity.money_stored_as_float` (must be `false` to pass — skill anti-pattern) | integrity_transactions_and_security |
+| `transactions.isolation_level_and_anomalies_known` | integrity_transactions_and_security |
+| `transactions.transactions_kept_short` | integrity_transactions_and_security |
+| `transactions.writes_idempotent_where_retries_possible` | integrity_transactions_and_security |
+| `transactions.distributed_store_used` (gates the trade-off check below) | integrity_transactions_and_security |
+| `transactions.consistency_availability_tradeoff_explicit` (required when a distributed store is declared in use; otherwise the check passes as not applicable) | integrity_transactions_and_security |
+| `security.parametrized_queries_only` | integrity_transactions_and_security |
+| `security.string_concatenated_sql_present` (must be `false` to pass — skill anti-pattern) | integrity_transactions_and_security |
+| `security.least_privilege_users_per_service` | integrity_transactions_and_security |
+| `security.shared_superuser_present` (must be `false` to pass) | integrity_transactions_and_security |
+| `security.encryption_at_rest` | integrity_transactions_and_security |
+| `migrations.forward_only` | migrations_and_backups |
+| `migrations.past_migrations_edited` (must be `false` to pass — skill anti-pattern) | migrations_and_backups |
+| `migrations.expand_contract_pattern_used` | migrations_and_backups |
+| `migrations.big_bang_schema_swap_present` (must be `false` to pass) | migrations_and_backups |
+| `backups.backups_scheduled` | migrations_and_backups |
+| `backups.restores_tested_on_schedule` | migrations_and_backups |
+| `backups.untested_backup_trusted` (must be `false` to pass — skill anti-pattern) | migrations_and_backups |
+
+Six checks are computed from the declared rows, using only the
+consistency of the declared record itself — no outside threshold
+is imported:
+
+- **Tables declared:** the declared `tables` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Primary key per table:** every declared table row must name
+  a primary key (a non-empty `primary_key` string). A row with
+  the field absent is missing evidence; a row naming an empty
+  string fails.
+- **Constraints per table:** every declared table row must
+  declare `constraints_declared: true`. A row with the field
+  absent is missing evidence.
+- **Query patterns and indexes declared:** the declared
+  `query_patterns` and `indexes` lists each pass only when
+  present and non-empty.
+- **Columns per index:** every declared index row must declare
+  a present, non-empty `columns` list of strings. A row with
+  the field absent is missing evidence.
+- **Matching index per query pattern:** every declared query
+  pattern must name a supporting index that is actually
+  declared — an index matches only when its `name` equals the
+  pattern's `supporting_index` **and** its declared `table`
+  equals the pattern's declared `table`. A pattern with
+  `supporting_index` or `table` absent is missing evidence.
+
+Two check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Denormalization reasons:** the skill binds its documentation
+  rule to deliberate denormalization ("denormalize deliberately
+  for hot read paths, and document why").
+  `denormalization_reasons_documented` is therefore required only
+  when `normalization.denormalized` is declared `true`; when no
+  denormalization is declared, the check passes as not applicable.
+- **Consistency/availability trade-off:** the skill binds its
+  explicitness rule to distributed stores ("Be explicit about
+  the consistency vs availability trade-off for distributed
+  stores"). `consistency_availability_tradeoff_explicit` is
+  therefore required only when
+  `transactions.distributed_store_used` is declared `true`; when
+  no distributed store is declared, the check passes as not
+  applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the six primary computed checks above cannot be completed),
+`tables_count`, `query_patterns_count` and `indexes_count` (the
+declared list lengths, or null when the list is not declared —
+counts are reported as integers, exactly), the row-name lists
+`tables_without_primary_key`,
+`tables_without_constraints_declared` and
+`uncovered_query_patterns` (null when the underlying list — or,
+for uncovered patterns, either list — is not declared; a query
+pattern whose `supporting_index` field is absent is missing
+evidence and does not appear in `uncovered_query_patterns`), and
+the two coverage ratios `primary_key_coverage` (tables naming a
+primary key ÷ declared tables) and
+`query_pattern_index_coverage` (patterns with a matching
+declared index ÷ declared patterns).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly four decimal places, produced in both
+implementations by the same rule — round half up to 4dp,
+`floor(v * 10000 + 0.5) / 10000`, then format with exactly four
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty (and, for query
+pattern coverage, when the indexes list is absent). That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric threshold — no table count, index
+count, or coverage percentage, no transaction duration for
+"short", no backup frequency or restore cadence, and no set size
+for "large sets" — so no numeric threshold check is invented.
+Quantities are computed and reported; the only bar on the
+computed rows is completeness over the caller's own declared
+rows (every declared table, every declared query pattern),
+exactly as stated above. Declined thresholds, named: a minimum
+or maximum table/index count; a coverage percentage below
+completeness; a numeric transaction-length limit; a numeric
+backup/restore schedule; a numeric large-set pagination size;
+an isolation-level vocabulary (the skill requires the level and
+its anomalies be *known*, and names no allowed values, so only
+that attestation is checked).
+
+The verdict is one of `DATABASE_DESIGN_SOUND` (all 42 checks
+pass), `DATABASE_DESIGN_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across four sections: schema_and_normalization,
+indexing_and_performance, integrity_transactions_and_security,
+migrations_and_backups.
+
+## Honest scoping
+
+This atom audits a **declared** database design record — it
+designs no schema, chooses no store, runs no database, reads no
+migration files or query plans, and does not verify that a
+declared control actually works. A design is sound *on the
+caller's declared evidence*: a manifest that declares 3NF,
+matching indexes, and tested restores passes those checks even
+if the real schema does none of it. It is a completeness and
+consistency audit of the record the skill requires, **not a
+database design service or a performance certification**: it
+never judges whether the chosen store is actually right for the
+workload, whether the normalization is truly 3NF, whether an
+index will actually be used by the planner, or whether the
+declared types are correct in the real DDL — only that the
+record contains what the skill's sections and anti-patterns
+demand, and that its declared rows are internally consistent.
+
+Named exclusions: no numeric thresholds (see the declined list
+above); no check that normalization is genuinely 3NF beyond the
+declaration; no EXPLAIN/ANALYZE plan inspection — only that
+running it before and after is declared; no store-type
+vocabulary is imposed (the skill requires the choice follow the
+access patterns, and names relational/document/KV/graph/embedded
+only as fits, so only the fit attestation is checked); the
+skill's two product-shaped rules are not reduced to checks —
+embedded (SQLite) for local-first / sovereign apps and
+client-side encryption for zero-knowledge products bind only
+when the product has that shape, and the record declares no
+local-first or zero-knowledge flag to gate them on, so they are
+excluded rather than force-fit (general encryption at rest *is*
+checked); cache design beyond the deliberate/invalidation-honest
+attestation; no live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "database-design-review",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DATABASE_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 42 checks pass. Correct nesting per SERVICE.md: integrity holds only constraints/types/money; transactions and security are separate sections. Gated checks (denormalization reasons, consistency/availability tradeoff) pass as not applicable because denormalized=false and distributed_store_used=false.",
+        "computed_spot_checks": {
+          "tables_count": 1,
+          "query_patterns_count": 1,
+          "indexes_count": 1,
+          "primary_key_coverage": "1.0000",
+          "query_pattern_index_coverage": "1.0000",
+          "tables_without_primary_key": [],
+          "tables_without_constraints_declared": [],
+          "uncovered_query_patterns": [],
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "design": "User profile system",
+        "store_selection": {
+          "access_patterns_mapped": true,
+          "store_chosen_from_access_patterns": true,
+          "relational_default_or_fit_justified": true
+        },
+        "tables": [
+          {
+            "name": "users",
+            "primary_key": "id",
+            "constraints_declared": true
+          }
+        ],
+        "normalization": {
+          "normalized_to_3nf": true,
+          "denormalized": false,
+          "denormalization_reasons_documented": false
+        },
+        "query_patterns": [
+          {
+            "name": "get_user",
+            "table": "users",
+            "supporting_index": "idx_users_id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_users_id",
+            "table": "users",
+            "columns": [
+              "id"
+            ]
+          }
+        ],
+        "indexing": {
+          "composite_column_order_equality_then_range": true,
+          "covering_indexes_for_hot_queries": true,
+          "write_cost_considered": true,
+          "explain_analyze_before_and_after": true
+        },
+        "performance": {
+          "measured_first": true,
+          "n_plus_one_queries_addressed": true,
+          "keyset_pagination_for_large_sets": true,
+          "offset_pagination_at_scale_present": false,
+          "connection_pooling_declared": true,
+          "bounded_result_sets": true,
+          "cache_deliberate_with_honest_invalidation": true
+        },
+        "integrity": {
+          "constraints_enforce_invariants": true,
+          "appropriate_types_used": true,
+          "money_stored_as_float": false
+        },
+        "transactions": {
+          "isolation_level_and_anomalies_known": true,
+          "transactions_kept_short": true,
+          "writes_idempotent_where_retries_possible": true,
+          "distributed_store_used": false,
+          "consistency_availability_tradeoff_explicit": false
+        },
+        "security": {
+          "parametrized_queries_only": true,
+          "string_concatenated_sql_present": false,
+          "least_privilege_users_per_service": true,
+          "shared_superuser_present": false,
+          "encryption_at_rest": true
+        },
+        "migrations": {
+          "forward_only": true,
+          "past_migrations_edited": false,
+          "expand_contract_pattern_used": true,
+          "big_bang_schema_swap_present": false
+        },
+        "backups": {
+          "backups_scheduled": true,
+          "restores_tested_on_schedule": true,
+          "untested_backup_trusted": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "database-design-review",
+        "atom_version": "0.1.0",
+        "design": "User profile system",
+        "verdict": "DATABASE_DESIGN_SOUND",
+        "sections": {
+          "schema_and_normalization": "pass",
+          "indexing_and_performance": "pass",
+          "integrity_transactions_and_security": "pass",
+          "migrations_and_backups": "pass"
+        },
+        "checks": [
+          {
+            "section": "schema_and_normalization",
+            "check": "access_patterns_mapped_before_store_choice",
+            "status": "pass",
+            "evidence": "choosing a store: the access patterns \u2014 reads vs writes, query shapes, consistency needs \u2014 are mapped before a store is chosen"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "store_chosen_from_access_patterns",
+            "status": "pass",
+            "evidence": "choosing a store: the store is picked for how the data is actually used \u2014 the declared access patterns, not the hype"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "relational_default_or_fit_justified",
+            "status": "pass",
+            "evidence": "choosing a store: relational is the default for anything with relationships and integrity needs, and any document/KV/graph choice is justified by the access pattern genuinely fitting"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "tables_declared",
+            "status": "pass",
+            "evidence": "relational design: the declared design record names its tables \u2014 the tables list is present and non-empty"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "every_table_has_primary_key_named",
+            "status": "pass",
+            "evidence": "relational design: every declared table row names a primary key"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "every_table_declares_constraints",
+            "status": "pass",
+            "evidence": "relational design: every declared table row declares its constraints \u2014 NOT NULL, UNIQUE, FK, CHECK \u2014 so the database enforces invariants"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "normalized_to_3nf_declared",
+            "status": "pass",
+            "evidence": "relational design: the design is normalized to 3NF first"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "denormalization_reasons_documented_when_denormalized",
+            "status": "pass",
+            "evidence": "no denormalization declared"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "query_patterns_declared",
+            "status": "pass",
+            "evidence": "indexing: the declared design record names its query patterns \u2014 the query patterns list is present and non-empty"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "indexes_declared",
+            "status": "pass",
+            "evidence": "indexing: the declared design record names its indexes \u2014 the indexes list is present and non-empty"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "every_index_declares_columns",
+            "status": "pass",
+            "evidence": "indexing: every declared index row declares its columns"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "every_query_pattern_has_matching_index",
+            "status": "pass",
+            "evidence": "indexing: every declared query pattern names a supporting index that is declared, on the same table \u2014 indexes are for the actual query patterns"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "composite_index_column_order_equality_then_range",
+            "status": "pass",
+            "evidence": "indexing: composite index column order matters \u2014 equality columns first, then range"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "covering_indexes_for_hot_queries",
+            "status": "pass",
+            "evidence": "indexing: covering indexes are aimed for on hot queries"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "index_write_cost_considered",
+            "status": "pass",
+            "evidence": "indexing: the write cost is considered \u2014 every index taxes writes"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "explain_analyze_before_and_after",
+            "status": "pass",
+            "evidence": "indexing: EXPLAIN / ANALYZE is run before and after \u2014 measure, don't guess"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "performance_measured_first",
+            "status": "pass",
+            "evidence": "performance: measure first"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "n_plus_one_queries_addressed",
+            "status": "pass",
+            "evidence": "performance: N+1 queries are killed"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "keyset_pagination_for_large_sets",
+            "status": "pass",
+            "evidence": "performance: keyset (cursor) pagination is preferred for large sets"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "no_offset_pagination_at_scale",
+            "status": "pass",
+            "evidence": "anti-pattern: no OFFSET pagination at scale"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "connection_pooling_declared",
+            "status": "pass",
+            "evidence": "performance: connection pooling is declared"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "bounded_result_sets",
+            "status": "pass",
+            "evidence": "performance: result sets are bounded"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "cache_deliberate_and_invalidation_honest",
+            "status": "pass",
+            "evidence": "performance: caching is deliberate and invalidation is honest"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "constraints_enforce_invariants",
+            "status": "pass",
+            "evidence": "relational design: constraints are data integrity \u2014 NOT NULL, UNIQUE, FK, CHECK \u2014 and the database enforces invariants"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "appropriate_types_used",
+            "status": "pass",
+            "evidence": "relational design: the right types are used \u2014 timestamps with time zone, numeric for money, enums/lookup tables for categories"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "money_not_stored_as_float",
+            "status": "pass",
+            "evidence": "anti-pattern: money is not stored as float"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "isolation_level_and_anomalies_known",
+            "status": "pass",
+            "evidence": "transactions & consistency: the isolation level and what anomalies it permits are known"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "transactions_kept_short",
+            "status": "pass",
+            "evidence": "transactions & consistency: transactions are kept short"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "writes_idempotent_where_retries_possible",
+            "status": "pass",
+            "evidence": "transactions & consistency: writes are designed to be idempotent where retries are possible"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "consistency_availability_tradeoff_explicit_when_distributed",
+            "status": "pass",
+            "evidence": "no distributed store declared in use"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "parametrized_queries_only",
+            "status": "pass",
+            "evidence": "security: parametrized queries only \u2014 user input is never concatenated"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "no_string_concatenated_sql",
+            "status": "pass",
+            "evidence": "anti-pattern: no string-concatenated SQL"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "least_privilege_users_per_service",
+            "status": "pass",
+            "evidence": "security: least-privilege database users per service"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "no_shared_superuser",
+            "status": "pass",
+            "evidence": "security: no shared superuser"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "encryption_at_rest_declared",
+            "status": "pass",
+            "evidence": "security: encryption at rest is declared"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "migrations_forward_only",
+            "status": "pass",
+            "evidence": "migrations: migrations are forward-only"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "no_past_migrations_edited",
+            "status": "pass",
+            "evidence": "migrations / anti-pattern: past migrations are never edited \u2014 reversal is a new migration"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "expand_contract_pattern_used",
+            "status": "pass",
+            "evidence": "migrations: backward-compatible deploys use expand/contract \u2014 add new, backfill, switch reads, stop writes to old, drop old"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "no_big_bang_schema_swap",
+            "status": "pass",
+            "evidence": "migrations: no big-bang schema swaps against live traffic"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "backups_scheduled",
+            "status": "pass",
+            "evidence": "backups: backups are scheduled"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "restores_tested_on_schedule",
+            "status": "pass",
+            "evidence": "backups: restores are tested on a schedule \u2014 a backup you haven't restored is a hope, not a backup"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "untested_backup_not_trusted",
+            "status": "pass",
+            "evidence": "anti-pattern: an untested backup is not trusted"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "tables_count": 1,
+        "tables_without_primary_key": [],
+        "tables_without_constraints_declared": [],
+        "primary_key_coverage": "1.0000",
+        "query_patterns_count": 1,
+        "indexes_count": 1,
+        "uncovered_query_patterns": [],
+        "query_pattern_index_coverage": "1.0000",
+        "summary": "42 pass, 0 fail, 0 missing of 42 checks across four sections.",
+        "stamp": "DATABASE DESIGN REVIEW\ndesign: User profile system\nVERDICT: DATABASE_DESIGN_SOUND\n  schema_and_normalization             pass\n  indexing_and_performance             pass\n  integrity_transactions_and_security  pass\n  migrations_and_backups               pass\n42 pass, 0 fail, 0 missing of 42 checks across four sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DATABASE_DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_table_has_primary_key_named",
+          "every_table_declares_constraints",
+          "no_offset_pagination_at_scale",
+          "money_not_stored_as_float",
+          "no_string_concatenated_sql",
+          "no_shared_superuser",
+          "no_past_migrations_edited",
+          "untested_backup_not_trusted"
+        ],
+        "notes": "Full manifest carrying exactly the 8 planted violations; all other fields pass as in full-pass.",
+        "computed_spot_checks": {
+          "tables_count": 1,
+          "query_patterns_count": 1,
+          "indexes_count": 1,
+          "primary_key_coverage": "0.0000",
+          "query_pattern_index_coverage": "1.0000",
+          "tables_without_primary_key": [
+            "users"
+          ],
+          "tables_without_constraints_declared": [
+            "users"
+          ],
+          "uncovered_query_patterns": [],
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "design": "User profile system",
+        "store_selection": {
+          "access_patterns_mapped": true,
+          "store_chosen_from_access_patterns": true,
+          "relational_default_or_fit_justified": true
+        },
+        "tables": [
+          {
+            "name": "users",
+            "primary_key": "",
+            "constraints_declared": false
+          }
+        ],
+        "normalization": {
+          "normalized_to_3nf": true,
+          "denormalized": false,
+          "denormalization_reasons_documented": false
+        },
+        "query_patterns": [
+          {
+            "name": "get_user",
+            "table": "users",
+            "supporting_index": "idx_users_id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_users_id",
+            "table": "users",
+            "columns": [
+              "id"
+            ]
+          }
+        ],
+        "indexing": {
+          "composite_column_order_equality_then_range": true,
+          "covering_indexes_for_hot_queries": true,
+          "write_cost_considered": true,
+          "explain_analyze_before_and_after": true
+        },
+        "performance": {
+          "measured_first": true,
+          "n_plus_one_queries_addressed": true,
+          "keyset_pagination_for_large_sets": true,
+          "offset_pagination_at_scale_present": true,
+          "connection_pooling_declared": true,
+          "bounded_result_sets": true,
+          "cache_deliberate_with_honest_invalidation": true
+        },
+        "integrity": {
+          "constraints_enforce_invariants": true,
+          "appropriate_types_used": true,
+          "money_stored_as_float": true
+        },
+        "transactions": {
+          "isolation_level_and_anomalies_known": true,
+          "transactions_kept_short": true,
+          "writes_idempotent_where_retries_possible": true,
+          "distributed_store_used": false,
+          "consistency_availability_tradeoff_explicit": false
+        },
+        "security": {
+          "parametrized_queries_only": true,
+          "string_concatenated_sql_present": true,
+          "least_privilege_users_per_service": true,
+          "shared_superuser_present": true,
+          "encryption_at_rest": true
+        },
+        "migrations": {
+          "forward_only": true,
+          "past_migrations_edited": true,
+          "expand_contract_pattern_used": true,
+          "big_bang_schema_swap_present": false
+        },
+        "backups": {
+          "backups_scheduled": true,
+          "restores_tested_on_schedule": true,
+          "untested_backup_trusted": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "database-design-review",
+        "atom_version": "0.1.0",
+        "design": "User profile system",
+        "verdict": "DATABASE_DESIGN_NOT_SOUND",
+        "sections": {
+          "schema_and_normalization": "fail",
+          "indexing_and_performance": "fail",
+          "integrity_transactions_and_security": "fail",
+          "migrations_and_backups": "fail"
+        },
+        "checks": [
+          {
+            "section": "schema_and_normalization",
+            "check": "access_patterns_mapped_before_store_choice",
+            "status": "pass",
+            "evidence": "choosing a store: the access patterns \u2014 reads vs writes, query shapes, consistency needs \u2014 are mapped before a store is chosen"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "store_chosen_from_access_patterns",
+            "status": "pass",
+            "evidence": "choosing a store: the store is picked for how the data is actually used \u2014 the declared access patterns, not the hype"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "relational_default_or_fit_justified",
+            "status": "pass",
+            "evidence": "choosing a store: relational is the default for anything with relationships and integrity needs, and any document/KV/graph choice is justified by the access pattern genuinely fitting"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "tables_declared",
+            "status": "pass",
+            "evidence": "relational design: the declared design record names its tables \u2014 the tables list is present and non-empty"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "every_table_has_primary_key_named",
+            "status": "fail",
+            "evidence": "relational design: every declared table row names a primary key"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "every_table_declares_constraints",
+            "status": "fail",
+            "evidence": "relational design: every declared table row declares its constraints \u2014 NOT NULL, UNIQUE, FK, CHECK \u2014 so the database enforces invariants"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "normalized_to_3nf_declared",
+            "status": "pass",
+            "evidence": "relational design: the design is normalized to 3NF first"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "denormalization_reasons_documented_when_denormalized",
+            "status": "pass",
+            "evidence": "no denormalization declared"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "query_patterns_declared",
+            "status": "pass",
+            "evidence": "indexing: the declared design record names its query patterns \u2014 the query patterns list is present and non-empty"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "indexes_declared",
+            "status": "pass",
+            "evidence": "indexing: the declared design record names its indexes \u2014 the indexes list is present and non-empty"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "every_index_declares_columns",
+            "status": "pass",
+            "evidence": "indexing: every declared index row declares its columns"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "every_query_pattern_has_matching_index",
+            "status": "pass",
+            "evidence": "indexing: every declared query pattern names a supporting index that is declared, on the same table \u2014 indexes are for the actual query patterns"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "composite_index_column_order_equality_then_range",
+            "status": "pass",
+            "evidence": "indexing: composite index column order matters \u2014 equality columns first, then range"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "covering_indexes_for_hot_queries",
+            "status": "pass",
+            "evidence": "indexing: covering indexes are aimed for on hot queries"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "index_write_cost_considered",
+            "status": "pass",
+            "evidence": "indexing: the write cost is considered \u2014 every index taxes writes"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "explain_analyze_before_and_after",
+            "status": "pass",
+            "evidence": "indexing: EXPLAIN / ANALYZE is run before and after \u2014 measure, don't guess"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "performance_measured_first",
+            "status": "pass",
+            "evidence": "performance: measure first"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "n_plus_one_queries_addressed",
+            "status": "pass",
+            "evidence": "performance: N+1 queries are killed"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "keyset_pagination_for_large_sets",
+            "status": "pass",
+            "evidence": "performance: keyset (cursor) pagination is preferred for large sets"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "no_offset_pagination_at_scale",
+            "status": "fail",
+            "evidence": "anti-pattern: no OFFSET pagination at scale"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "connection_pooling_declared",
+            "status": "pass",
+            "evidence": "performance: connection pooling is declared"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "bounded_result_sets",
+            "status": "pass",
+            "evidence": "performance: result sets are bounded"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "cache_deliberate_and_invalidation_honest",
+            "status": "pass",
+            "evidence": "performance: caching is deliberate and invalidation is honest"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "constraints_enforce_invariants",
+            "status": "pass",
+            "evidence": "relational design: constraints are data integrity \u2014 NOT NULL, UNIQUE, FK, CHECK \u2014 and the database enforces invariants"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "appropriate_types_used",
+            "status": "pass",
+            "evidence": "relational design: the right types are used \u2014 timestamps with time zone, numeric for money, enums/lookup tables for categories"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "money_not_stored_as_float",
+            "status": "fail",
+            "evidence": "anti-pattern: money is not stored as float"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "isolation_level_and_anomalies_known",
+            "status": "pass",
+            "evidence": "transactions & consistency: the isolation level and what anomalies it permits are known"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "transactions_kept_short",
+            "status": "pass",
+            "evidence": "transactions & consistency: transactions are kept short"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "writes_idempotent_where_retries_possible",
+            "status": "pass",
+            "evidence": "transactions & consistency: writes are designed to be idempotent where retries are possible"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "consistency_availability_tradeoff_explicit_when_distributed",
+            "status": "pass",
+            "evidence": "no distributed store declared in use"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "parametrized_queries_only",
+            "status": "pass",
+            "evidence": "security: parametrized queries only \u2014 user input is never concatenated"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "no_string_concatenated_sql",
+            "status": "fail",
+            "evidence": "anti-pattern: no string-concatenated SQL"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "least_privilege_users_per_service",
+            "status": "pass",
+            "evidence": "security: least-privilege database users per service"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "no_shared_superuser",
+            "status": "fail",
+            "evidence": "security: no shared superuser"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "encryption_at_rest_declared",
+            "status": "pass",
+            "evidence": "security: encryption at rest is declared"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "migrations_forward_only",
+            "status": "pass",
+            "evidence": "migrations: migrations are forward-only"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "no_past_migrations_edited",
+            "status": "fail",
+            "evidence": "migrations / anti-pattern: past migrations are never edited \u2014 reversal is a new migration"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "expand_contract_pattern_used",
+            "status": "pass",
+            "evidence": "migrations: backward-compatible deploys use expand/contract \u2014 add new, backfill, switch reads, stop writes to old, drop old"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "no_big_bang_schema_swap",
+            "status": "pass",
+            "evidence": "migrations: no big-bang schema swaps against live traffic"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "backups_scheduled",
+            "status": "pass",
+            "evidence": "backups: backups are scheduled"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "restores_tested_on_schedule",
+            "status": "pass",
+            "evidence": "backups: restores are tested on a schedule \u2014 a backup you haven't restored is a hope, not a backup"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "untested_backup_not_trusted",
+            "status": "fail",
+            "evidence": "anti-pattern: an untested backup is not trusted"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "tables_count": 1,
+        "tables_without_primary_key": [
+          "users"
+        ],
+        "tables_without_constraints_declared": [
+          "users"
+        ],
+        "primary_key_coverage": "0.0000",
+        "query_patterns_count": 1,
+        "indexes_count": 1,
+        "uncovered_query_patterns": [],
+        "query_pattern_index_coverage": "1.0000",
+        "summary": "34 pass, 8 fail, 0 missing of 42 checks across four sections.",
+        "stamp": "DATABASE DESIGN REVIEW\ndesign: User profile system\nVERDICT: DATABASE_DESIGN_NOT_SOUND\n  schema_and_normalization             fail\n  indexing_and_performance             fail\n  integrity_transactions_and_security  fail\n  migrations_and_backups               fail\n34 pass, 8 fail, 0 missing of 42 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only the design string present; all checks missing evidence."
+      },
+      "input": {
+        "design": "Minimal design"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "database-design-review",
+        "atom_version": "0.1.0",
+        "design": "Minimal design",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "schema_and_normalization": "insufficient_evidence",
+          "indexing_and_performance": "insufficient_evidence",
+          "integrity_transactions_and_security": "insufficient_evidence",
+          "migrations_and_backups": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "schema_and_normalization",
+            "check": "access_patterns_mapped_before_store_choice",
+            "status": "missing",
+            "evidence": "choosing a store: the access patterns \u2014 reads vs writes, query shapes, consistency needs \u2014 are mapped before a store is chosen"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "store_chosen_from_access_patterns",
+            "status": "missing",
+            "evidence": "choosing a store: the store is picked for how the data is actually used \u2014 the declared access patterns, not the hype"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "relational_default_or_fit_justified",
+            "status": "missing",
+            "evidence": "choosing a store: relational is the default for anything with relationships and integrity needs, and any document/KV/graph choice is justified by the access pattern genuinely fitting"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "tables_declared",
+            "status": "missing",
+            "evidence": "relational design: the declared design record names its tables \u2014 the tables list is present and non-empty"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "every_table_has_primary_key_named",
+            "status": "missing",
+            "evidence": "relational design: every declared table row names a primary key"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "every_table_declares_constraints",
+            "status": "missing",
+            "evidence": "relational design: every declared table row declares its constraints \u2014 NOT NULL, UNIQUE, FK, CHECK \u2014 so the database enforces invariants"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "normalized_to_3nf_declared",
+            "status": "missing",
+            "evidence": "relational design: the design is normalized to 3NF first"
+          },
+          {
+            "section": "schema_and_normalization",
+            "check": "denormalization_reasons_documented_when_denormalized",
+            "status": "missing",
+            "evidence": "no denormalization declared"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "query_patterns_declared",
+            "status": "missing",
+            "evidence": "indexing: the declared design record names its query patterns \u2014 the query patterns list is present and non-empty"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "indexes_declared",
+            "status": "missing",
+            "evidence": "indexing: the declared design record names its indexes \u2014 the indexes list is present and non-empty"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "every_index_declares_columns",
+            "status": "missing",
+            "evidence": "indexing: every declared index row declares its columns"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "every_query_pattern_has_matching_index",
+            "status": "missing",
+            "evidence": "indexing: every declared query pattern names a supporting index that is declared, on the same table \u2014 indexes are for the actual query patterns"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "composite_index_column_order_equality_then_range",
+            "status": "missing",
+            "evidence": "indexing: composite index column order matters \u2014 equality columns first, then range"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "covering_indexes_for_hot_queries",
+            "status": "missing",
+            "evidence": "indexing: covering indexes are aimed for on hot queries"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "index_write_cost_considered",
+            "status": "missing",
+            "evidence": "indexing: the write cost is considered \u2014 every index taxes writes"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "explain_analyze_before_and_after",
+            "status": "missing",
+            "evidence": "indexing: EXPLAIN / ANALYZE is run before and after \u2014 measure, don't guess"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "performance_measured_first",
+            "status": "missing",
+            "evidence": "performance: measure first"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "n_plus_one_queries_addressed",
+            "status": "missing",
+            "evidence": "performance: N+1 queries are killed"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "keyset_pagination_for_large_sets",
+            "status": "missing",
+            "evidence": "performance: keyset (cursor) pagination is preferred for large sets"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "no_offset_pagination_at_scale",
+            "status": "missing",
+            "evidence": "anti-pattern: no OFFSET pagination at scale"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "connection_pooling_declared",
+            "status": "missing",
+            "evidence": "performance: connection pooling is declared"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "bounded_result_sets",
+            "status": "missing",
+            "evidence": "performance: result sets are bounded"
+          },
+          {
+            "section": "indexing_and_performance",
+            "check": "cache_deliberate_and_invalidation_honest",
+            "status": "missing",
+            "evidence": "performance: caching is deliberate and invalidation is honest"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "constraints_enforce_invariants",
+            "status": "missing",
+            "evidence": "relational design: constraints are data integrity \u2014 NOT NULL, UNIQUE, FK, CHECK \u2014 and the database enforces invariants"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "appropriate_types_used",
+            "status": "missing",
+            "evidence": "relational design: the right types are used \u2014 timestamps with time zone, numeric for money, enums/lookup tables for categories"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "money_not_stored_as_float",
+            "status": "missing",
+            "evidence": "anti-pattern: money is not stored as float"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "isolation_level_and_anomalies_known",
+            "status": "missing",
+            "evidence": "transactions & consistency: the isolation level and what anomalies it permits are known"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "transactions_kept_short",
+            "status": "missing",
+            "evidence": "transactions & consistency: transactions are kept short"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "writes_idempotent_where_retries_possible",
+            "status": "missing",
+            "evidence": "transactions & consistency: writes are designed to be idempotent where retries are possible"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "consistency_availability_tradeoff_explicit_when_distributed",
+            "status": "missing",
+            "evidence": "no distributed store declared in use"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "parametrized_queries_only",
+            "status": "missing",
+            "evidence": "security: parametrized queries only \u2014 user input is never concatenated"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "no_string_concatenated_sql",
+            "status": "missing",
+            "evidence": "anti-pattern: no string-concatenated SQL"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "least_privilege_users_per_service",
+            "status": "missing",
+            "evidence": "security: least-privilege database users per service"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "no_shared_superuser",
+            "status": "missing",
+            "evidence": "security: no shared superuser"
+          },
+          {
+            "section": "integrity_transactions_and_security",
+            "check": "encryption_at_rest_declared",
+            "status": "missing",
+            "evidence": "security: encryption at rest is declared"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "migrations_forward_only",
+            "status": "missing",
+            "evidence": "migrations: migrations are forward-only"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "no_past_migrations_edited",
+            "status": "missing",
+            "evidence": "migrations / anti-pattern: past migrations are never edited \u2014 reversal is a new migration"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "expand_contract_pattern_used",
+            "status": "missing",
+            "evidence": "migrations: backward-compatible deploys use expand/contract \u2014 add new, backfill, switch reads, stop writes to old, drop old"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "no_big_bang_schema_swap",
+            "status": "missing",
+            "evidence": "migrations: no big-bang schema swaps against live traffic"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "backups_scheduled",
+            "status": "missing",
+            "evidence": "backups: backups are scheduled"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "restores_tested_on_schedule",
+            "status": "missing",
+            "evidence": "backups: restores are tested on a schedule \u2014 a backup you haven't restored is a hope, not a backup"
+          },
+          {
+            "section": "migrations_and_backups",
+            "check": "untested_backup_not_trusted",
+            "status": "missing",
+            "evidence": "anti-pattern: an untested backup is not trusted"
+          }
+        ],
+        "computed_status": null,
+        "tables_count": null,
+        "tables_without_primary_key": null,
+        "tables_without_constraints_declared": null,
+        "primary_key_coverage": null,
+        "query_patterns_count": null,
+        "indexes_count": null,
+        "uncovered_query_patterns": null,
+        "query_pattern_index_coverage": null,
+        "summary": "0 pass, 0 fail, 42 missing of 42 checks across four sections.",
+        "stamp": "DATABASE DESIGN REVIEW\ndesign: Minimal design\nVERDICT: INSUFFICIENT_EVIDENCE\n  schema_and_normalization             insufficient_evidence\n  indexing_and_performance             insufficient_evidence\n  integrity_transactions_and_security  insufficient_evidence\n  migrations_and_backups               insufficient_evidence\n0 pass, 0 fail, 42 missing of 42 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Exactly one type violation: normalization.normalized_to_3nf is a string where a boolean is required (documented typed field)."
+      },
+      "input": {
+        "normalization": {
+          "normalized_to_3nf": "should_be_boolean"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "normalization.normalized_to_3nf",
+        "detail": "normalization.normalized_to_3nf must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

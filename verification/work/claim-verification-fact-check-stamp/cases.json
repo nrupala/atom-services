@@ -1,0 +1,152 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "document": "The company grew by 5% in Q3.",
+        "process": {
+          "claims_extracted": true,
+          "units_and_dates_checked": true,
+          "counter_case_considered": true,
+          "evidence_published_inline": true,
+          "methodology_visible_for_big_claims": true,
+          "corrections_policy_published": true,
+          "versions_retained": true,
+          "silent_edits_made": false
+        },
+        "claims": [
+          {
+            "id": "c1",
+            "material": true,
+            "label": "verified",
+            "independent_sources": 2,
+            "primary_source": true,
+            "sources_archived": true,
+            "source_metadata_recorded": true,
+            "independence_checked": true,
+            "has_numbers": true,
+            "math_rechecked": true,
+            "language_weakest_supported": true
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "STAMPED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 16 checks pass; computed_spot_checks: claims_total=1, material_claims=1, verified_claims=1"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "document": "Data is false.",
+        "process": {
+          "claims_extracted": true,
+          "units_and_dates_checked": true,
+          "counter_case_considered": true,
+          "evidence_published_inline": true,
+          "methodology_visible_for_big_claims": true,
+          "corrections_policy_published": true,
+          "versions_retained": true,
+          "silent_edits_made": true
+        },
+        "claims": [
+          {
+            "id": "c2",
+            "material": true,
+            "label": "verified",
+            "independent_sources": 0,
+            "primary_source": false,
+            "sources_archived": false,
+            "source_metadata_recorded": true,
+            "independence_checked": true,
+            "has_numbers": true,
+            "math_rechecked": false,
+            "language_weakest_supported": true
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "NOT_STAMPED",
+        "http": 200,
+        "failing_checks": [
+          "publication_and_corrections",
+          "triangulation",
+          "source_ladder",
+          "compute_rechecks"
+        ],
+        "notes": "Violates silent_edits_made, triangulation requirements, archiving, and math_rechecked."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "document": "Minimal content."
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing process and claims fields result in insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "document": "Valid string",
+        "process": "should_be_an_object",
+        "claims": "should_be_a_list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for process and claims fields."
+      }
+    },
+    {
+      "id": "primary-source-string",
+      "kind": "malformed",
+      "input": {
+        "document": "The company grew by 5% in Q3.",
+        "process": {
+          "claims_extracted": true,
+          "units_and_dates_checked": true,
+          "counter_case_considered": true,
+          "evidence_published_inline": true,
+          "methodology_visible_for_big_claims": true,
+          "corrections_policy_published": true,
+          "versions_retained": true,
+          "silent_edits_made": false
+        },
+        "claims": [
+          {
+            "id": "c1",
+            "material": true,
+            "label": "verified",
+            "independent_sources": 2,
+            "primary_source": "nasa.gov",
+            "sources_archived": true,
+            "source_metadata_recorded": true,
+            "independence_checked": true,
+            "has_numbers": true,
+            "math_rechecked": true,
+            "language_weakest_supported": true
+          }
+        ]
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "field": "claims[0].primary_source",
+        "failing_checks": [],
+        "notes": "primary_source is declared boolean in SERVICE.md; a string must be rejected 422 naming the field."
+      }
+    }
+  ]
+}

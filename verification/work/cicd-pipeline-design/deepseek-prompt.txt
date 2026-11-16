@@ -1,0 +1,927 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: cicd-pipeline-design
+
+=== contract.yaml ===
+service_name: cicd-pipeline-design
+display_name: Cicd pipeline design
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:ci-cd-pipeline
+binding:
+  skill: ci-cd-pipeline
+  skill_path: workspace/mymilo-build/skills/ci-cd-pipeline/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: cicd_pipeline_design
+  prefix: atm_1_cicd_pipeline_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Repo pipeline setup work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# CI/CD pipeline design — `cicd-pipeline-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build CI/CD that earns its keep — fail-fast stages, caching, gated releases, artifact provenance, minutes budget aware.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Repo pipeline setup work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the cicd-pipeline-design manifest
+
+This atom does not design a CI/CD pipeline and exercises no
+DevOps judgment. The caller submits one JSON manifest declaring
+a pipeline artifact — its declared stage list with per-stage
+minutes and a declared total, its determinism and pinning
+record, its caching and secrets record, its minutes budget
+record, its provenance record, and its deploy and gate record —
+and the atom validates that artifact deterministically. Every
+field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a field
+present but false / invalid = the check fails
+(`CICD_PIPELINE_NOT_READY`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `entity` (string; carried into the verdict output, not itself checked) | — |
+| `pipeline.stages` (list of stage entries; absent / not a list / empty = all three computed stage checks missing) | stages_and_fail_fast |
+| `pipeline.stages[].name` (string; must be non-empty for the entry to be complete; the entry names are the stage-sequence vocabulary — see the computed checks) | stages_and_fail_fast |
+| `pipeline.stages[].minutes` (number; declared per-stage minutes, summed by the computed total check) | stages_and_fail_fast |
+| `pipeline.declared_total_minutes` (number; computed, see below) | stages_and_fail_fast |
+| `pipeline.fails_fast` | stages_and_fail_fast |
+| `pipeline.reports_first_real_cause` | stages_and_fail_fast |
+| `pipeline.is_primary_green_gate` | stages_and_fail_fast |
+| `determinism.lockfile_enforced_installs` | determinism_and_pinning |
+| `determinism.tool_versions_pinned` | determinism_and_pinning |
+| `determinism.byte_exact_checkouts_where_hashes_matter` | determinism_and_pinning |
+| `determinism.same_commit_same_artifact_verified` | determinism_and_pinning |
+| `determinism.third_party_actions_pinned` | determinism_and_pinning |
+| `determinism.unpinned_third_party_actions_present` (must be `false` to pass — skill red line) | determinism_and_pinning |
+| `caching.dependency_cache_keyed_on_lockfile` | caching_and_secrets |
+| `caching.build_cache_keyed_on_lockfile` | caching_and_secrets |
+| `caching.secrets_cached` (must be `false` to pass — skill method step 3) | caching_and_secrets |
+| `caching.test_fixtures_cached` (must be `false` to pass — skill method step 3) | caching_and_secrets |
+| `secrets.from_secret_store_only` | caching_and_secrets |
+| `secrets.masked_in_logs` | caching_and_secrets |
+| `secrets.in_artifacts` (must be `false` to pass — skill method step 4) | caching_and_secrets |
+| `secrets.error_output_scrubbed` | caching_and_secrets |
+| `secrets.appeared_in_logs_or_artifacts` (must be `false` to pass — skill quality gate) | caching_and_secrets |
+| `budget.estimated_minutes_per_run` (number; computed, see below) | budget_awareness |
+| `budget.runs_per_month` (number; computed, see below) | budget_awareness |
+| `budget.declared_monthly_minutes` (number; computed, see below) | budget_awareness |
+| `budget.monthly_minutes_budget` (number; the caller's own declared budget, computed, see below) | budget_awareness |
+| `budget.workflows_minimal_where_constrained` | budget_awareness |
+| `budget.heavy_builds_on_owned_hardware` | budget_awareness |
+| `budget.duplicates_primary_gate` (must be `false` to pass — skill method step 5) | budget_awareness |
+| `provenance.checksums_published` | provenance_and_signing |
+| `provenance.releases_signed` | provenance_and_signing |
+| `provenance.build_outputs_retained` | provenance_and_signing |
+| `provenance.manifest_hashes_retained` | provenance_and_signing |
+| `provenance.release_artifacts_carry_hash_and_signature` | provenance_and_signing |
+| `deploys.hitl_approval_required` | deploys_and_gates |
+| `deploys.rollback_path_present` | deploys_and_gates |
+| `deploys.direct_to_prod_from_laptop` (must be `false` to pass — skill method step 7) | deploys_and_gates |
+| `gates.disabled_to_unblock_merge` (must be `false` to pass — skill red line) | deploys_and_gates |
+| `gates.overrides_logged_with_reason` | deploys_and_gates |
+
+Five checks are computed from the declared values, using only
+what the skill itself states plus the arithmetic of the declared
+numbers — no outside threshold is imported:
+
+- **Stage entries:** every declared `pipeline.stages` entry
+  must carry a non-empty `name` string and numeric `minutes`.
+  A missing or empty list is missing evidence; an incomplete
+  entry makes the entries check missing, and makes the sequence
+  check missing when the entry carries no usable name, or the
+  total check missing when it carries no usable minutes. The
+  output reports `stages_evaluated` (the count of complete
+  stage entries).
+- **Stage sequence:** the skill's method step 1 states the
+  stages — "lint → typecheck → test → build → package/sign →
+  publish. Cheapest first; fail fast". The declared stage names
+  (with `package_sign` as the manifest spelling of
+  "package/sign") therefore pass only when they equal that
+  stated sequence exactly, in that order; extra, missing,
+  renamed or reordered stages fail. Entries are validated as
+  strings only, never enum-checked — sequence coverage is a
+  verdict check, not a type error. The output reports the
+  stated stages absent from the declared names as
+  `stated_stages_not_declared` (null when no stage list is
+  declared, or when a stage entry carries no usable name).
+- **Stage minutes total:** the declared
+  `pipeline.declared_total_minutes` passes only when it equals
+  the sum of the declared per-stage `minutes`. The output
+  reports `computed_total_minutes` and
+  `total_minutes_difference` (declared minus computed, null
+  when either cannot be computed).
+- **Monthly minutes:** the declared
+  `budget.declared_monthly_minutes` passes only when it equals
+  `budget.estimated_minutes_per_run` × `budget.runs_per_month`.
+  The output reports `computed_monthly_minutes` and
+  `monthly_minutes_difference` (declared minus computed, null
+  when either cannot be computed).
+- **Monthly minutes vs the caller's own budget:** the
+  re-derived monthly minutes pass only when they do not exceed
+  `budget.monthly_minutes_budget` — the budget the caller
+  itself declares. The skill says pipelines must be "minutes
+  budget aware" but states no budget number, so **no budget is
+  imposed** — only the caller's own declared budget is
+  compared. The output reports `budget_headroom_minutes`
+  (declared budget minus re-derived monthly minutes, null when
+  either cannot be computed).
+
+**Fixed serialization rule:** computed amounts are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; computed comparisons compare the fixed-6dp difference
+to zero. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five computed checks cannot be completed).
+
+The verdict is one of `CICD_PIPELINE_READY` (all 36 checks
+pass), `CICD_PIPELINE_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: stages_and_fail_fast,
+determinism_and_pinning, caching_and_secrets, budget_awareness,
+provenance_and_signing, deploys_and_gates.
+
+## Honest scoping
+
+This atom audits a **declared** pipeline artifact — it does not
+design the pipeline, write workflow files, run the pipeline,
+verify that a declared value is true, or judge whether the
+gates catch real problems. An artifact is ready *on the
+caller's declared evidence* even if its underlying pipeline is
+slow, flaky or fragile. It is a completeness and consistency
+audit, **not a pipeline review**: it never decides whether the
+stage set is right for the caller's stack beyond the skill's
+own stated sequence, whether the declared minutes are accurate
+(only that the declared totals are arithmetically consistent),
+or whether a cache is effective (only that it is keyed as the
+skill states and holds nothing the skill forbids).
+
+**Thresholds declined — named explicitly.** The skill states
+no number for any of the following, so this atom imposes none
+and any future threshold must come from a skill refinement
+first (binding rule R1):
+
+- no maximum pipeline duration, per-stage duration limit, or
+  monthly minutes budget (only the caller-declared
+  `monthly_minutes_budget` is compared, and only the declared
+  totals' arithmetic is re-derived);
+- no minimum cache hit rate or cache size (the skill requires
+  lockfile keying and forbids caching secrets and test
+  fixtures; effectiveness is not scored);
+- no mandated checksum algorithm, signature scheme, or signing
+  tool (the skill requires checksums and signed releases; it
+  names the `secure-build-pattern` but states no algorithm);
+- no stage count beyond the skill's own stated sequence, and
+  no required ordering beyond that sequence;
+- no rollback time limit, approval count beyond HITL approval
+  being required, or build-output retention period (the skill
+  requires a rollback path, HITL approval and kept outputs; it
+  states no times, counts or periods);
+- no flakiness rate, retry count, or failure-rate threshold
+  (the skill requires fail-fast behaviour and first-cause
+  reporting; it states no rates).
+
+Named exclusions: no production of pipeline configs or gate
+reports; no verification of any declared stage, cache, secret
+handling or signature against a live repository or CI system;
+no judgment of test quality (what runs inside the `test` stage
+is the `testing-strategy` skill's surface, not this one's); no
+live verification of any declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "entity": "service-alpha",
+      "pipeline": {
+        "stages": [
+          {
+            "name": "lint",
+            "minutes": 1.0
+          },
+          {
+            "name": "typecheck",
+            "minutes": 2.0
+          },
+          {
+            "name": "test",
+            "minutes": 5.0
+          },
+          {
+            "name": "build",
+            "minutes": 3.0
+          },
+          {
+            "name": "package_sign",
+            "minutes": 1.0
+          },
+          {
+            "name": "publish",
+            "minutes": 1.0
+          }
+        ],
+        "declared_total_minutes": 13.0,
+        "fails_fast": true,
+        "reports_first_real_cause": true,
+        "is_primary_green_gate": true
+      },
+      "determinism": {
+        "lockfile_enforced_installs": true,
+        "tool_versions_pinned": true,
+        "byte_exact_checkouts_where_hashes_matter": true,
+        "same_commit_same_artifact_verified": true,
+        "third_party_actions_pinned": true,
+        "unpinned_third_party_actions_present": false
+      },
+      "caching": {
+        "dependency_cache_keyed_on_lockfile": true,
+        "build_cache_keyed_on_lockfile": true,
+        "secrets_cached": false,
+        "test_fixtures_cached": false
+      },
+      "secrets": {
+        "from_secret_store_only": true,
+        "masked_in_logs": true,
+        "in_artifacts": false,
+        "error_output_scrubbed": true,
+        "appeared_in_logs_or_artifacts": false
+      },
+      "budget": {
+        "estimated_minutes_per_run": 13.0,
+        "runs_per_month": 100,
+        "declared_monthly_minutes": 1300.0,
+        "monthly_minutes_budget": 2000.0,
+        "workflows_minimal_where_constrained": true,
+        "heavy_builds_on_owned_hardware": true,
+        "duplicates_primary_gate": false
+      },
+      "provenance": {
+        "checksums_published": true,
+        "releases_signed": true,
+        "build_outputs_retained": true,
+        "manifest_hashes_retained": true,
+        "release_artifacts_carry_hash_and_signature": true
+      },
+      "deploys": {
+        "hitl_approval_required": true,
+        "rollback_path_present": true,
+        "direct_to_prod_from_laptop": false
+      },
+      "gates": {
+        "disabled_to_unblock_merge": false,
+        "overrides_logged_with_reason": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "cicd-pipeline-design",
+      "atom_version": "0.1.0",
+      "entity": "service-alpha",
+      "verdict": "CICD_PIPELINE_READY",
+      "sections": {
+        "stages_and_fail_fast": "pass",
+        "determinism_and_pinning": "pass",
+        "caching_and_secrets": "pass",
+        "budget_awareness": "pass",
+        "provenance_and_signing": "pass",
+        "deploys_and_gates": "pass"
+      },
+      "checks": [
+        {
+          "section": "stages_and_fail_fast",
+          "check": "stage_entries_complete",
+          "status": "pass",
+          "evidence": "every stage entry carries a non-empty name and numeric minutes"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "stage_order_matches_stated_sequence",
+          "status": "pass",
+          "evidence": "method step 1: the declared stage names equal the stated sequence in order \u2014 lint, typecheck, test, build, package/sign, publish (cheapest first)"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "total_minutes_matches_sum_of_stage_minutes",
+          "status": "pass",
+          "evidence": "the declared total pipeline minutes equal the sum of the declared per-stage minutes"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "pipeline_fails_fast",
+          "status": "pass",
+          "evidence": "quality gate: the pipeline fails fast \u2014 the cheapest stages run first and stop the run on the first failure"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "first_real_cause_reported",
+          "status": "pass",
+          "evidence": "quality gate: the pipeline reports the first real cause of a failure"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "pipeline_is_primary_green_gate",
+          "status": "pass",
+          "evidence": "the pipeline is the primary green gate \u2014 humans approve deploys, the pipeline gates the merge"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "lockfile_enforced_installs",
+          "status": "pass",
+          "evidence": "method step 2: installs are lockfile-enforced (frozen-lockfile)"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "tool_versions_pinned",
+          "status": "pass",
+          "evidence": "method step 2: tool versions are pinned"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "byte_exact_checkouts_where_hashes_matter",
+          "status": "pass",
+          "evidence": "method step 2: checkouts are byte-exact where hashes matter"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "same_commit_produces_same_artifact",
+          "status": "pass",
+          "evidence": "quality gate: the same commit produces the same artifact \u2014 determinism is verified, not assumed"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "third_party_actions_pinned",
+          "status": "pass",
+          "evidence": "red line: third-party actions are pinned to versions"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "no_unpinned_third_party_actions",
+          "status": "pass",
+          "evidence": "red line: no unpinned third-party actions are present in the pipeline"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "dependency_cache_keyed_on_lockfile",
+          "status": "pass",
+          "evidence": "method step 3: the dependency cache is keyed on the lockfile"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "build_cache_keyed_on_lockfile",
+          "status": "pass",
+          "evidence": "method step 3: the build cache is keyed on the lockfile"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_not_cached",
+          "status": "pass",
+          "evidence": "method step 3: secrets are never cached"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "test_fixtures_not_cached",
+          "status": "pass",
+          "evidence": "method step 3: test fixtures are never cached"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_from_secret_store_only",
+          "status": "pass",
+          "evidence": "method step 4: secrets come from the secret store only"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_masked_in_logs",
+          "status": "pass",
+          "evidence": "method step 4: secrets are masked in logs"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_never_in_artifacts",
+          "status": "pass",
+          "evidence": "method step 4: secrets never appear in artifacts"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "error_output_scrubbed",
+          "status": "pass",
+          "evidence": "method step 4: error output is scrubbed of secrets"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "no_secret_appeared_in_logs_or_artifacts",
+          "status": "pass",
+          "evidence": "quality gate: no secret ever appears in logs or artifacts"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "monthly_minutes_matches_per_run_times_runs",
+          "status": "pass",
+          "evidence": "method step 5: the declared monthly minutes equal the declared estimated minutes per run multiplied by the declared runs per month"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "monthly_minutes_within_declared_budget",
+          "status": "pass",
+          "evidence": "method step 5: the re-derived monthly minutes do not exceed the monthly minutes budget the caller itself declares (the skill states no budget number, so none is imposed here)"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "workflows_minimal_where_minutes_constrained",
+          "status": "pass",
+          "evidence": "method step 5: workflows are kept minimal where minutes are constrained"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "heavy_builds_on_owned_hardware",
+          "status": "pass",
+          "evidence": "method step 5: heavy builds run on owned hardware"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "pipeline_does_not_duplicate_primary_gate",
+          "status": "pass",
+          "evidence": "method step 5: the pipeline does not duplicate the primary gate"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "artifact_checksums_published",
+          "status": "pass",
+          "evidence": "method step 6: artifacts are published with checksums"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "releases_signed",
+          "status": "pass",
+          "evidence": "method step 6: releases are signed"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "build_outputs_retained",
+          "status": "pass",
+          "evidence": "method step 6: build outputs are kept"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "manifest_hashes_retained",
+          "status": "pass",
+          "evidence": "method step 6: manifest hashes are kept alongside the build outputs"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "release_artifacts_carry_hash_and_signature",
+          "status": "pass",
+          "evidence": "quality gate: release artifacts carry hash + signature"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "hitl_approval_for_deploys",
+          "status": "pass",
+          "evidence": "method step 7: deploys require HITL approval \u2014 humans approve deploys"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "rollback_path_present",
+          "status": "pass",
+          "evidence": "method step 7: a rollback path always exists"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "never_direct_to_prod_from_laptop",
+          "status": "pass",
+          "evidence": "method step 7: never direct-to-prod from a laptop"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "gates_not_disabled_to_unblock_merge",
+          "status": "pass",
+          "evidence": "red line: gates are not disabled to unblock a merge"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "gate_overrides_logged_with_reason",
+          "status": "pass",
+          "evidence": "red line: a conscious gate override is logged with its reason"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "stages_evaluated": 6,
+      "computed_total_minutes": "13.000000",
+      "total_minutes_difference": "0.000000",
+      "stated_stages_not_declared": [],
+      "computed_monthly_minutes": "1300.000000",
+      "monthly_minutes_difference": "0.000000",
+      "budget_headroom_minutes": "700.000000",
+      "summary": "36 pass, 0 fail, 0 missing of 36 checks across six sections.",
+      "stamp": "CI/CD PIPELINE DESIGN\nentity: service-alpha\nVERDICT: CICD_PIPELINE_READY\n  stages_and_fail_fast         pass\n  determinism_and_pinning      pass\n  caching_and_secrets          pass\n  budget_awareness             pass\n  provenance_and_signing       pass\n  deploys_and_gates            pass\n36 pass, 0 fail, 0 missing of 36 checks across six sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "entity": "service-alpha",
+      "pipeline": {
+        "stages": [
+          {
+            "name": "lint",
+            "minutes": 1.0
+          },
+          {
+            "name": "typecheck",
+            "minutes": 2.0
+          },
+          {
+            "name": "test",
+            "minutes": 5.0
+          },
+          {
+            "name": "build",
+            "minutes": 3.0
+          },
+          {
+            "name": "package_sign",
+            "minutes": 1.0
+          },
+          {
+            "name": "publish",
+            "minutes": 1.0
+          }
+        ],
+        "declared_total_minutes": 5.0,
+        "fails_fast": true,
+        "reports_first_real_cause": true,
+        "is_primary_green_gate": true
+      },
+      "determinism": {
+        "lockfile_enforced_installs": true,
+        "tool_versions_pinned": true,
+        "byte_exact_checkouts_where_hashes_matter": true,
+        "same_commit_same_artifact_verified": true,
+        "third_party_actions_pinned": true,
+        "unpinned_third_party_actions_present": true
+      },
+      "caching": {
+        "dependency_cache_keyed_on_lockfile": true,
+        "build_cache_keyed_on_lockfile": true,
+        "secrets_cached": true,
+        "test_fixtures_cached": false
+      },
+      "secrets": {
+        "from_secret_store_only": true,
+        "masked_in_logs": true,
+        "in_artifacts": true,
+        "error_output_scrubbed": true,
+        "appeared_in_logs_or_artifacts": true
+      },
+      "budget": {
+        "estimated_minutes_per_run": 10.0,
+        "runs_per_month": 10,
+        "declared_monthly_minutes": 50.0,
+        "monthly_minutes_budget": 20.0,
+        "workflows_minimal_where_constrained": true,
+        "heavy_builds_on_owned_hardware": true,
+        "duplicates_primary_gate": true
+      },
+      "provenance": {
+        "checksums_published": true,
+        "releases_signed": true,
+        "build_outputs_retained": true,
+        "manifest_hashes_retained": true,
+        "release_artifacts_carry_hash_and_signature": true
+      },
+      "deploys": {
+        "hitl_approval_required": true,
+        "rollback_path_present": true,
+        "direct_to_prod_from_laptop": true
+      },
+      "gates": {
+        "disabled_to_unblock_merge": true,
+        "overrides_logged_with_reason": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "cicd-pipeline-design",
+      "atom_version": "0.1.0",
+      "entity": "service-alpha",
+      "verdict": "CICD_PIPELINE_NOT_READY",
+      "sections": {
+        "stages_and_fail_fast": "fail",
+        "determinism_and_pinning": "fail",
+        "caching_and_secrets": "fail",
+        "budget_awareness": "fail",
+        "provenance_and_signing": "pass",
+        "deploys_and_gates": "fail"
+      },
+      "checks": [
+        {
+          "section": "stages_and_fail_fast",
+          "check": "stage_entries_complete",
+          "status": "pass",
+          "evidence": "every stage entry carries a non-empty name and numeric minutes"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "stage_order_matches_stated_sequence",
+          "status": "pass",
+          "evidence": "method step 1: the declared stage names equal the stated sequence in order \u2014 lint, typecheck, test, build, package/sign, publish (cheapest first)"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "total_minutes_matches_sum_of_stage_minutes",
+          "status": "fail",
+          "evidence": "the declared total pipeline minutes equal the sum of the declared per-stage minutes"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "pipeline_fails_fast",
+          "status": "pass",
+          "evidence": "quality gate: the pipeline fails fast \u2014 the cheapest stages run first and stop the run on the first failure"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "first_real_cause_reported",
+          "status": "pass",
+          "evidence": "quality gate: the pipeline reports the first real cause of a failure"
+        },
+        {
+          "section": "stages_and_fail_fast",
+          "check": "pipeline_is_primary_green_gate",
+          "status": "pass",
+          "evidence": "the pipeline is the primary green gate \u2014 humans approve deploys, the pipeline gates the merge"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "lockfile_enforced_installs",
+          "status": "pass",
+          "evidence": "method step 2: installs are lockfile-enforced (frozen-lockfile)"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "tool_versions_pinned",
+          "status": "pass",
+          "evidence": "method step 2: tool versions are pinned"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "byte_exact_checkouts_where_hashes_matter",
+          "status": "pass",
+          "evidence": "method step 2: checkouts are byte-exact where hashes matter"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "same_commit_produces_same_artifact",
+          "status": "pass",
+          "evidence": "quality gate: the same commit produces the same artifact \u2014 determinism is verified, not assumed"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "third_party_actions_pinned",
+          "status": "pass",
+          "evidence": "red line: third-party actions are pinned to versions"
+        },
+        {
+          "section": "determinism_and_pinning",
+          "check": "no_unpinned_third_party_actions",
+          "status": "fail",
+          "evidence": "red line: no unpinned third-party actions are present in the pipeline"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "dependency_cache_keyed_on_lockfile",
+          "status": "pass",
+          "evidence": "method step 3: the dependency cache is keyed on the lockfile"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "build_cache_keyed_on_lockfile",
+          "status": "pass",
+          "evidence": "method step 3: the build cache is keyed on the lockfile"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_not_cached",
+          "status": "fail",
+          "evidence": "method step 3: secrets are never cached"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "test_fixtures_not_cached",
+          "status": "pass",
+          "evidence": "method step 3: test fixtures are never cached"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_from_secret_store_only",
+          "status": "pass",
+          "evidence": "method step 4: secrets come from the secret store only"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_masked_in_logs",
+          "status": "pass",
+          "evidence": "method step 4: secrets are masked in logs"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "secrets_never_in_artifacts",
+          "status": "fail",
+          "evidence": "method step 4: secrets never appear in artifacts"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "error_output_scrubbed",
+          "status": "pass",
+          "evidence": "method step 4: error output is scrubbed of secrets"
+        },
+        {
+          "section": "caching_and_secrets",
+          "check": "no_secret_appeared_in_logs_or_artifacts",
+          "status": "fail",
+          "evidence": "quality gate: no secret ever appears in logs or artifacts"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "monthly_minutes_matches_per_run_times_runs",
+          "status": "fail",
+          "evidence": "method step 5: the declared monthly minutes equal the declared estimated minutes per run multiplied by the declared runs per month"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "monthly_minutes_within_declared_budget",
+          "status": "fail",
+          "evidence": "method step 5: the re-derived monthly minutes do not exceed the monthly minutes budget the caller itself declares (the skill states no budget number, so none is imposed here)"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "workflows_minimal_where_minutes_constrained",
+          "status": "pass",
+          "evidence": "method step 5: workflows are kept minimal where minutes are constrained"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "heavy_builds_on_owned_hardware",
+          "status": "pass",
+          "evidence": "method step 5: heavy builds run on owned hardware"
+        },
+        {
+          "section": "budget_awareness",
+          "check": "pipeline_does_not_duplicate_primary_gate",
+          "status": "fail",
+          "evidence": "method step 5: the pipeline does not duplicate the primary gate"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "artifact_checksums_published",
+          "status": "pass",
+          "evidence": "method step 6: artifacts are published with checksums"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "releases_signed",
+          "status": "pass",
+          "evidence": "method step 6: releases are signed"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "build_outputs_retained",
+          "status": "pass",
+          "evidence": "method step 6: build outputs are kept"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "manifest_hashes_retained",
+          "status": "pass",
+          "evidence": "method step 6: manifest hashes are kept alongside the build outputs"
+        },
+        {
+          "section": "provenance_and_signing",
+          "check": "release_artifacts_carry_hash_and_signature",
+          "status": "pass",
+          "evidence": "quality gate: release artifacts carry hash + signature"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "hitl_approval_for_deploys",
+          "status": "pass",
+          "evidence": "method step 7: deploys require HITL approval \u2014 humans approve deploys"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "rollback_path_present",
+          "status": "pass",
+          "evidence": "method step 7: a rollback path always exists"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "never_direct_to_prod_from_laptop",
+          "status": "fail",
+          "evidence": "method step 7: never direct-to-prod from a laptop"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "gates_not_disabled_to_unblock_merge",
+          "status": "fail",
+          "evidence": "red line: gates are not disabled to unblock a merge"
+        },
+        {
+          "section": "deploys_and_gates",
+          "check": "gate_overrides_logged_with_reason",
+          "status": "pass",
+          "evidence": "red line: a conscious gate override is logged with its reason"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "stages_evaluated": 6,
+      "computed_total_minutes": "13.000000",
+      "total_minutes_difference": "-8.000000",
+      "stated_stages_not_declared": [],
+      "computed_monthly_minutes": "100.000000",
+      "monthly_minutes_difference": "-50.000000",
+      "budget_headroom_minutes": "-80.000000",
+      "summary": "26 pass, 10 fail, 0 missing of 36 checks across six sections.",
+      "stamp": "CI/CD PIPELINE DESIGN\nentity: service-alpha\nVERDICT: CICD_PIPELINE_NOT_READY\n  stages_and_fail_fast         fail\n  determinism_and_pinning      fail\n  caching_and_secrets          fail\n  budget_awareness             fail\n  provenance_and_signing       pass\n  deploys_and_gates            fail\n26 pass, 10 fail, 0 missing of 36 checks across six sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

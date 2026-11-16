@@ -1,0 +1,93 @@
+# Independent recompute — cpp-engineering-review
+
+## Computed quantities defined by SERVICE.md
+
+SERVICE.md marks exactly two checks as computed, plus the derived `computed_status`, plus the two reported fields `warning_count` and `forbidden_constructs_found`. I recompute each from the case inputs.
+
+### Case 1: `full-pass` (PR-123)
+
+**Computed check A — Zero warnings.**
+Rule: passes only when `tooling.warning_count` equals 0; absent = missing evidence.
+Input: `tooling.warning_count = 0`.
+Arithmetic: `0 == 0` → **pass**.
+
+**Computed check B — Forbidden constructs.**
+Rule: passes only when `raii.forbidden_constructs` contains none of `{raw_owning_pointer, manual_new, manual_delete}`; unknown entries ignored; empty list present and passes.
+Input: `forbidden_constructs = []`.
+Set intersection with the three stated entries: `[] ∩ {raw_owning_pointer, manual_new, manual_delete} = ∅` → **pass**.
+
+**`forbidden_constructs_found`** — stated entries found, in skill-stated order (`raw_owning_pointer`, `manual_new`, `manual_delete`):
+- raw_owning_pointer? not in `[]` → no
+- manual_new? no
+- manual_delete? no
+→ `[]`. Serialization: list of strings, no float arithmetic. **Artifact: `[]` → MATCH.**
+
+**`warning_count`** — reported as JSON number exactly as declared: `0`. **Artifact: `0` → MATCH.**
+
+**`computed_status`** — both computed checks completed and both pass → `within_stated_limits_on_declared_evidence`. **Artifact: same → MATCH.**
+
+**Verdict / summary.** Count the 34 checks in the artifact: 5 (raii) + 4 (value) + 3 (smart) + 5 (stl) + 6 (exceptions) + 5 (tooling) + 4 (sanitizers) + 2 (safety) = 34. All statuses `pass`. → 34 pass, 0 fail, 0 missing. Verdict `REVIEW_SOUND`. **Artifact: "34 pass, 0 fail, 0 missing of 34 checks", REVIEW_SOUND → MATCH.**
+
+### Case 2: `violations` (PR-124)
+
+**Computed check A — Zero warnings.**
+Input: `tooling.warning_count = 5`.
+Arithmetic: `5 == 0` → false → **fail**.
+
+**Computed check B — Forbidden constructs.**
+Input: `forbidden_constructs = ["manual_new"]`.
+Intersection with `{raw_owning_pointer, manual_new, manual_delete}` = `{manual_new}` → non-empty → **fail**.
+
+**`forbidden_constructs_found`** — in stated order:
+- raw_owning_pointer? no
+- manual_new? yes → include
+- manual_delete? no
+→ `["manual_new"]`. **Artifact: `["manual_new"]` → MATCH.**
+
+**`warning_count`** — declared `5`, reported as-is. **Artifact: `5` → MATCH.**
+
+**`computed_status`** — both computed checks completed; at least one outside stated limits → `outside_stated_limits_on_declared_evidence`. **Artifact: same → MATCH.**
+
+**Confirm the failing checks are exactly the planted wrong values.**
+
+Planted wrong values in the input:
+1. `raii.manual_new_delete_in_new_code = true` (must be false to pass) → drives check `no_manual_new_delete_in_new_code` → **fail**.
+2. `raii.forbidden_constructs = ["manual_new"]` → drives computed check `no_forbidden_constructs_present` → **fail**.
+3. `tooling.warning_count = 5` → drives computed check `zero_warnings_maintained` → **fail**.
+
+All other declared values are the passing values (all `true` where required, `false` where required, empty/clean elsewhere). So expected fails = exactly these 3 checks, in sections `raii_and_ownership` (2 fails) and `tooling_and_warnings` (1 fail).
+
+Artifact's failing checks:
+- `raii_and_ownership / no_manual_new_delete_in_new_code` — fail ✓
+- `raii_and_ownership / no_forbidden_constructs_present` — fail ✓
+- `tooling_and_warnings / zero_warnings_maintained` — fail ✓
+
+No other check is `fail`. → **Exactly the three planted values fail. MATCH.**
+
+**Section rollup.** `raii_and_ownership` has a fail → fail; `tooling_and_warnings` has a fail → fail; all other six sections all-pass → pass. **Artifact sections: raii fail, tooling fail, rest pass → MATCH.**
+
+**Verdict / summary.** 34 total − 3 fail = 31 pass, 0 missing. Verdict `REVIEW_DEFICIENT`. **Artifact: "31 pass, 3 fail, 0 missing of 34 checks", REVIEW_DEFICIENT → MATCH.**
+
+## Serialization rule check
+No floating-point arithmetic anywhere; `warning_count` emitted as the declared JSON number (`0`, `5`); `forbidden_constructs_found` emitted as string list in fixed order (`[]`, `["manual_new"]`). No fixed-decimal conversion arises. Consistent with SERVICE.md. MATCH.
+
+## Summary of all computed quantities
+
+| Quantity | Case | Recomputed | Artifact | Result |
+|---|---|---|---|---|
+| zero_warnings check | full-pass | pass (0==0) | pass | MATCH |
+| forbidden_constructs check | full-pass | pass (∅) | pass | MATCH |
+| warning_count | full-pass | 0 | 0 | MATCH |
+| forbidden_constructs_found | full-pass | [] | [] | MATCH |
+| computed_status | full-pass | within_stated_limits | within_stated_limits | MATCH |
+| zero_warnings check | violations | fail (5≠0) | fail | MATCH |
+| forbidden_constructs check | violations | fail ({manual_new}) | fail | MATCH |
+| warning_count | violations | 5 | 5 | MATCH |
+| forbidden_constructs_found | violations | ["manual_new"] | ["manual_new"] | MATCH |
+| computed_status | violations | outside_stated_limits | outside_stated_limits | MATCH |
+| fail set | violations | {no_manual_new_delete, no_forbidden_constructs, zero_warnings} | same 3 | MATCH |
+| verdict/summary | both | SOUND 34/0/0; DEFICIENT 31/3/0 | same | MATCH |
+
+Every computed quantity and headline value recomputes to the artifact's value; the violations case fails exactly the three checks its planted wrong values should fail.
+
+AGREEMENT: full

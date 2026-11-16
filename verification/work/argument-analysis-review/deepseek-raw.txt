@@ -1,0 +1,136 @@
+# Independent recompute — argument-analysis-review
+
+## Rules I apply (from SERVICE.md, restated as arithmetic)
+
+**24 checks total**, grouped in six sections. Each check is pass/fail/missing:
+- field **absent** → missing (`INSUFFICIENT_EVIDENCE`)
+- field present but false/invalid → fail (`ARGUMENT_ANALYSIS_DEFICIENT`)
+- field present and true/valid → pass
+
+Section status = pass if all its checks pass; fail if any fails; missing if none fail but some missing.
+
+**Three computed checks:**
+
+1. **Fallacy completeness.** Required set F = {ad_hominem, straw_man, false_dichotomy, appeal_to_authority, slippery_slope, correlation_as_causation, survivorship_bias, base_rate_neglect, sunk_cost} — |F| = 9. Pass iff F ⊆ declared list. `missing_fallacies` = F \ declared, in skill order.
+2. **Bias completeness.** Required set B = {confirmation, anchoring, availability, motivated_reasoning, recency, overconfidence} — |B| = 6. Pass iff B ⊆ declared list. `missing_biases` = B \ declared, in skill order.
+3. **Confidence.** Pass iff 0 < confidence_percent < 100 (strict). Absent → missing.
+
+**computed_status:** `within_stated_limits_on_declared_evidence` if all three computed checks pass; `outside_stated_limits_on_declared_evidence` if any fails; null if any cannot be completed (missing).
+
+**Verdict:** COMPLETE if 24 pass; DEFICIENT if any fail; INSUFFICIENT_EVIDENCE if none fail but some missing.
+
+**Summary string:** `"<p> pass, <f> fail, <m> missing of 24 checks across six sections."` with p+f+m = 24.
+
+---
+
+## Case 1 — `full-pass`
+
+### Section-by-section check count
+
+- **anatomy_and_steelman** (4 checks): premises_identified=T, conclusion_identified=T, validity_distinguished_from_soundness=T, steelman_stated=T → 4 pass, 0 fail, 0 missing.
+- **evidence_weighing** (5 checks): source_quality_assessed=T, sample_size_considered=T, confounders_considered=T, replication_considered=T, anecdote_treated_as_data=F → check `anecdote_not_treated_as_data` passes (must be false to pass) → 5 pass.
+- **base_rates_and_calibration** (4 checks): base_rate_stated=T, diagnosticity_assessed=T, confidence_percent=75 (0<75<100 → pass), known_vs_believed_separated=T → 4 pass.
+- **stress_testing** (3 checks): all T → 3 pass.
+- **fallacy_and_bias_screening** (2 checks): see computed below → 2 pass.
+- **razors_and_countercase** (6 checks): 4 razors T + key_assumption_named=T + strongest_countercase_offered=T → 6 pass.
+
+Total: 4+5+4+3+2+6 = **24 checks**. Pass = 24, fail = 0, missing = 0.
+
+### Computed check 1 — Fallacy completeness
+Declared list = all nine tokens exactly. F \ declared = ∅. **Pass.** `missing_fallacies` = `[]`.
+
+### Computed check 2 — Bias completeness
+Declared list = all six tokens exactly. B \ declared = ∅. **Pass.** `missing_biases` = `[]`.
+
+### Computed check 3 — Confidence
+75: 0 < 75 < 100 → **pass**. `confidence_percent` = 75.
+
+### computed_status
+All three computed checks pass → `within_stated_limits_on_declared_evidence`.
+
+### Verdict
+24 pass, 0 fail, 0 missing → `ARGUMENT_ANALYSIS_COMPLETE`.
+
+### Summary string
+`"24 pass, 0 fail, 0 missing of 24 checks across six sections."`
+
+### Comparison with artifact
+
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| verdict | ARGUMENT_ANALYSIS_COMPLETE | ARGUMENT_ANALYSIS_COMPLETE | MATCH |
+| all six section statuses | pass | pass | MATCH |
+| computed_status | within_stated_limits_on_declared_evidence | within_stated_limits_on_declared_evidence | MATCH |
+| missing_fallacies | [] | [] | MATCH |
+| missing_biases | [] | [] | MATCH |
+| confidence_percent | 75 | 75 | MATCH |
+| summary | "24 pass, 0 fail, 0 missing of 24 checks across six sections." | same | MATCH |
+| per-check statuses (24) | all pass | all pass | MATCH |
+
+---
+
+## Case 2 — `violations`
+
+### Section-by-section check count
+
+- **anatomy_and_steelman** (4): all T → 4 pass.
+- **evidence_weighing** (5): source_quality=T, sample_size=T, confounders=T, replication=T, **anecdote_treated_as_data=T** → check `anecdote_not_treated_as_data` **fails** (must be false). → 4 pass, 1 fail.
+- **base_rates_and_calibration** (4): base_rate=T, diagnosticity=T, **confidence_percent=100** → 0<100<100 is false → **fail**; known_vs_believed=T. → 3 pass, 1 fail.
+- **stress_testing** (3): all T → 3 pass.
+- **fallacy_and_bias_screening** (2): see computed below → 2 fail.
+- **razors_and_countercase** (6): all T → 6 pass.
+
+Total: 4+5+4+3+2+6 = **24 checks**. Pass = 4+4+3+3+0+6 = **20**; fail = 0+1+1+0+2+0 = **4**; missing = 0.
+
+### Computed check 1 — Fallacy completeness
+Declared = {ad_hominem}. F \ declared = {straw_man, false_dichotomy, appeal_to_authority, slippery_slope, correlation_as_causation, survivorship_bias, base_rate_neglect, sunk_cost} — **8 missing**. **Fail.**
+
+### Computed check 2 — Bias completeness
+Declared = {confirmation}. B \ declared = {anchoring, availability, motivated_reasoning, recency, overconfidence} — **5 missing**. **Fail.**
+
+### Computed check 3 — Confidence
+100: 0 < 100 < 100 is false → **fail**. `confidence_percent` = 100.
+
+### computed_status
+At least one computed check fails → `outside_stated_limits_on_declared_evidence`.
+
+### Verdict
+4 fails present → `ARGUMENT_ANALYSIS_DEFICIENT`.
+
+### Summary string
+`"20 pass, 4 fail, 0 missing of 24 checks across six sections."`
+
+### Planted-wrong-value confirmation
+The planted wrong values are: `anecdote_treated_as_data=true`, `confidence_percent=100`, and truncated screening lists. The checks that fail are exactly:
+1. `evidence_weighing / anecdote_not_treated_as_data` — caused by `anecdote_treated_as_data=true`. ✓
+2. `base_rates_and_calibration / confidence_probabilistic_and_explicit` — caused by `confidence_percent=100`. ✓
+3. `fallacy_and_bias_screening / all_listed_fallacies_screened` — caused by 8 missing fallacy tokens. ✓
+4. `fallacy_and_bias_screening / all_listed_biases_screened` — caused by 5 missing bias tokens. ✓
+
+No other check fails; all other declared fields are true/valid. **Confirmed: the four failing checks are exactly the ones the planted wrong values should fail.**
+
+### Comparison with artifact
+
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| verdict | ARGUMENT_ANALYSIS_DEFICIENT | ARGUMENT_ANALYSIS_DEFICIENT | MATCH |
+| anatomy_and_steelman | pass | pass | MATCH |
+| evidence_weighing | fail | fail | MATCH |
+| base_rates_and_calibration | fail | fail | MATCH |
+| stress_testing | pass | pass | MATCH |
+| fallacy_and_bias_screening | fail | fail | MATCH |
+| razors_and_countercase | pass | pass | MATCH |
+| computed_status | outside_stated_limits_on_declared_evidence | outside_stated_limits_on_declared_evidence | MATCH |
+| missing_fallacies | [straw_man, false_dichotomy, appeal_to_authority, slippery_slope, correlation_as_causation, survivorship_bias, base_rate_neglect, sunk_cost] | same (8, skill order) | MATCH |
+| missing_biases | [anchoring, availability, motivated_reasoning, recency, overconfidence] | same (5, skill order) | MATCH |
+| confidence_percent | 100 | 100 | MATCH |
+| summary | "20 pass, 4 fail, 0 missing of 24 checks across six sections." | same | MATCH |
+| per-check statuses (24) | 20 pass / 4 fail | 20 pass / 4 fail | MATCH |
+
+---
+
+## Conclusion
+
+Every computed quantity in both recorded cases — section statuses, the three computed checks, `computed_status`, `missing_fallacies`, `missing_biases`, `confidence_percent`, the verdict, and the summary counts — recomputes to exactly the artifact's values. The violations case's four failing checks are precisely the ones the planted wrong values should fail.
+
+AGREEMENT: full

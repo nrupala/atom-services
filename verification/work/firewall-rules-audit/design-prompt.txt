@@ -1,0 +1,177 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: firewall-rules-audit
+
+=== contract.yaml ===
+service_name: firewall-rules-audit
+display_name: Firewall rules audit
+tier: A
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:firewall-engineering
+binding:
+  skill: firewall-engineering
+  skill_path: workspace/mymilo-build/skills/firewall-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/firewall_rules_audit.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_firewall_rules_audit.py — 17 tests, all passing 2026-11-15
+keys:
+  namespace: firewall_rules_audit
+  prefix: atm_1_firewall_rules_audit_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product release-gate firewall audit
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: true
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Firewall rules audit — `firewall-rules-audit`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Design firewalls that hold — default deny, least-privilege rules, explicit egress, tested and reviewed.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Security & privacy who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product release-gate firewall audit**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier A · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+
+## Input manifest
+
+The caller submits ONE JSON object. Every field below is read by at least one check; an absent field is `missing` evidence (never a fail), a present-but-invalid field is a fail. Verdicts: `SOUND` (all pass) / `UNSOUND` (any fail) / `INSUFFICIENT_EVIDENCE` (no fail, some missing). Sections: `baseline`, `least_privilege`, `egress`, `documentation_change`, `assurance` — 20 checks in total.
+
+| Field | Type | Read by |
+|---|---|---|
+| `system` | string | echoed in the output as the audited subject |
+| `environment` | string | echoed in the output (e.g. `production`) |
+| `default_policy.inbound` | string (`deny`/`allow`) | `default_deny_inbound` — must be `deny` |
+| `default_policy.outbound` | string (`deny`/`allow`) | `default_deny_outbound` — must be `deny` |
+| `layers_consistent` | boolean | `layers_consistent` — platform layers consistent, no conflicting opens |
+| `rules` | array of rule objects (schema below) | all rule-level checks: `explicit_default_deny_rule_present`, `no_any_any_allow_rules`, `no_overly_broad_port_ranges` (allow span ≥ 1000 ports), `no_shadowed_rules`, `no_direct_sensitive_exposure`, `no_port_forwards_without_review`, `every_allow_rule_documented`, `temporary_rules_have_ticket_and_expiry` |
+| `egress.explicit_allowlist` | boolean | `explicit_egress_allowlist` |
+| `egress.alert_on_denies` | boolean | `egress_alert_on_denies` |
+| `change_control.changes_reviewed` | boolean | `changes_reviewed_like_code` |
+| `change_control.old_rules_retired_on_schedule` | boolean | `old_rules_retired_on_schedule` |
+| `logging.denials_logged` | boolean | `denials_logged` |
+| `logging.rate_limited` | boolean | `denial_logging_rate_limited` |
+| `testing.allowed_and_disallowed_paths_verified` | boolean | `post_change_test_allowed_and_blocked` |
+| `testing.smoke_matrix_per_service` | boolean | `smoke_matrix_per_service` |
+| `review.cadence_days` | number | `review_cadence_within_31_days` — must be 1–31 (monthly review) |
+
+### Rule object schema (`rules[]`)
+
+| Field | Type | Meaning / use |
+|---|---|---|
+| `id` | string | rule name used in evidence strings (fallback: `rule[<index>]`) |
+| `direction` | string | `inbound` or `outbound` |
+| `source` | string | address/CIDR, or `any` / `*` / `0.0.0.0/0` / `::/0` / `internet` for any |
+| `destination` | string | address/CIDR, or any-value as above |
+| `port_start` | integer | first destination port; if `port_start`/`port_end` are not both integers the rule is treated as covering ports 0–65535 |
+| `port_end` | integer | last destination port |
+| `protocol` | string | e.g. `tcp`, `udp`, or `any`/`all`/`*`; absent means `any` for shadowing |
+| `action` | string | `allow` or `deny` |
+| `owner` | string | required (with `reason` and `date`) on every allow rule |
+| `reason` | string | why the allow exists — required on every allow rule |
+| `date` | string | date of the rule comment — required on every allow rule |
+| `service` | string | destination service tag; sensitive tags (database/db/mysql/postgres/mssql/mongodb/redis/elasticsearch/admin/control-plane/agent-control-plane/docker, and ports 1433, 2375, 2376, 3306, 5432, 6379, 9200, 27017) trigger the direct-exposure red line when allowed inbound from any |
+| `temporary` | boolean | if `true`, `ticket` and `expiry_date` are both required |
+| `ticket` | string | ticket id for a temporary rule |
+| `expiry_date` | string | expiry date for a temporary rule |
+| `port_forward` | boolean | if `true`, `reviewed` must be `true` |
+| `reviewed` | boolean | the port-forward's inventory review |
+
+Shadowing is computed deterministically: a later rule is shadowed when an earlier rule in the same direction covers its source and destination (any-value, exact match, or IPv4 CIDR containment), covers its port range, and covers its protocol.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

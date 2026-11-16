@@ -1,0 +1,115 @@
+# Independent recompute — cash-flow-forecast
+
+## Serialization rule (applied throughout)
+`round_half_up_6dp(v) = floor(v * 1000000 + 0.5) / 1000000`, then formatted with exactly six decimals. Comparisons compare the fixed-6dp difference to zero.
+
+---
+
+## CASE 1: `full-pass`
+
+### Weekly closing balances (13 buckets)
+Opening = 1000.0. Each week: inflows 500, outflows 200 → net +300/week.
+
+- W1: 1000 + (500−200) = 1000 + 300 = **1300** ✓ (declared 1300)
+- W2: 1000 + 2·300 = **1600** ✓
+- W3: 1000 + 3·300 = **1900** ✓
+- W4: 1000 + 4·300 = **2200** ✓
+- W5: 1000 + 5·300 = **2500** ✓
+- W6: 1000 + 6·300 = **2800** ✓
+- W7: 1000 + 7·300 = **3100** ✓
+- W8: 1000 + 8·300 = **3400** ✓
+- W9: 1000 + 9·300 = **3700** ✓
+- W10: 1000 + 10·300 = **4000** ✓
+- W11: 1000 + 11·300 = **4300** ✓
+- W12: 1000 + 12·300 = **4600** ✓
+- W13: 1000 + 13·300 = 1000 + 3900 = **4900** ✓ (declared 4900)
+
+All 13 match → `weekly_closing_balances_match_rederived` = **pass**. `weeks_evaluated` = 13.
+
+- `computed_final_balance` = round6(4900) = **"4900.000000"** — artifact: `"4900.000000"` → **MATCH**
+- `final_balance_difference` = declared_final − computed = 4900 − 4900 = 0 → **"0.000000"** — artifact: `"0.000000"` → **MATCH**
+
+### Reserve target
+`target_months × monthly_fixed_costs` = 2.0 × 100.0 = **200.0**
+- `computed_reserve_target` = **"200.000000"** — artifact: `"200.000000"` → **MATCH**
+- `reserve_target_difference` = declared 200.0 − 200.0 = 0 → **"0.000000"** — artifact: `"0.000000"` → **MATCH**
+- Check `reserve_target_amount_matches_months_times_fixed_costs` = **pass** (diff 0).
+
+### Runway
+burn = 100.0 > 0 (positive, valid). cash/burn = 1000.0 / 100.0 = **10.0**
+- `computed_runway_months` = **"10.000000"** — artifact: `"10.000000"` → **MATCH**
+- `runway_difference` = declared 10.0 − 10.0 = 0 → **"0.000000"** — artifact: `"0.000000"` → **MATCH**
+- Check `runway_matches_cash_divided_by_burn` = **pass**.
+
+### Stress coverage
+Stated cases: `revenue_minus_20_percent`, `collections_plus_30_days_late`, `surprise_capex`. Declared list contains all three → omitted = none.
+- `stress_cases_not_run` = **[]** — artifact: `[]` → **MATCH**
+- Check `stress_cases_cover_stated_cases` = **pass**.
+
+### Coverage / entries
+13 buckets, each with non-empty label + numeric inflows/outflows/closing_balance → `forecast_covers_thirteen_weeks` = **pass**, `forecast_week_entries_complete` = **pass**.
+
+### Verdict
+All 30 checks pass (5 flows + 5 forecast + 7 reserves/runway + 7 WC/levers + 3 stress + 3 reporting = 30). No fails, no missing.
+- `computed_status` = **within_stated_limits_on_declared_evidence** — artifact matches → **MATCH**
+- `verdict` = **CASH_FLOW_FORECAST_READY** — artifact matches → **MATCH**
+- `summary` = "30 pass, 0 fail, 0 missing of 30" — artifact matches → **MATCH**
+
+**Case 1: all computed quantities MATCH.**
+
+---
+
+## CASE 2: `violations`
+
+Same inputs except: W13 closing = 9999.0; declared_target_amount = 500.0; declared_runway_months = 5.0; stress cases = only `revenue_minus_20_percent`; `committed_against_unlanded_receivables` = true.
+
+### Weekly closing balances
+W1–W12 identical to Case 1 (all correct: 1300…4600). W13 re-derived = 1000 + 13·300 = **4900**, but declared = **9999** → mismatch → `weekly_closing_balances_match_rederived` = **fail**. ✓ (artifact: fail)
+
+- `computed_final_balance` = round6(4900) = **"4900.000000"** — artifact: `"4900.000000"` → **MATCH**
+- `final_balance_difference` = declared_final − computed = 9999 − 4900 = **5099** → round6 = **"5099.000000"** — artifact: `"5099.000000"` → **MATCH**
+- `weeks_evaluated` = 13 (all entries complete) — artifact: 13 → **MATCH**
+
+### Reserve target
+computed = 2.0 × 100.0 = **200.0**
+- `computed_reserve_target` = **"200.000000"** — artifact: `"200.000000"` → **MATCH**
+- `reserve_target_difference` = declared 500.0 − 200.0 = **300.0** → **"300.000000"** — artifact: `"300.000000"` → **MATCH**
+- Check = **fail** (diff ≠ 0). ✓ (artifact: fail)
+
+### Runway
+computed = 1000.0 / 100.0 = **10.0**
+- `computed_runway_months` = **"10.000000"** — artifact: `"10.000000"` → **MATCH**
+- `runway_difference` = declared 5.0 − 10.0 = **−5.0** → **"-5.000000"** — artifact: `"-5.000000"` → **MATCH**
+- Check = **fail** (diff ≠ 0). ✓ (artifact: fail)
+
+### Stress coverage
+Declared = [`revenue_minus_20_percent`]. Missing stated entries = `collections_plus_30_days_late`, `surprise_capex`.
+- `stress_cases_not_run` = **["collections_plus_30_days_late", "surprise_capex"]** — artifact matches (same order) → **MATCH**
+- Check `stress_cases_cover_stated_cases` = **fail**. ✓ (artifact: fail)
+
+### Red-line check
+`committed_against_unlanded_receivables` = true → `no_commitments_against_unlanded_receivables` = **fail**. ✓ (artifact: fail)
+
+### Verdict
+Failing checks: weekly_closing_balances_match_rederived, reserve_target_amount_matches_months_times_fixed_costs, runway_matches_cash_divided_by_burn, stress_cases_cover_stated_cases, no_commitments_against_unlanded_receivables = **5 fails**. All other 25 pass, 0 missing.
+- `computed_status` = **outside_stated_limits_on_declared_evidence** — artifact matches → **MATCH**
+- `verdict` = **CASH_FLOW_FORECAST_NOT_READY** — artifact matches → **MATCH**
+- `summary` = "25 pass, 5 fail, 0 missing of 30" — artifact matches → **MATCH**
+
+### Confirm the failing checks are exactly the planted ones
+Planted wrong values and the checks they should trip:
+1. W13 closing 9999 → `weekly_closing_balances_match_rederived` ✓ (only this forecast check; entries/coverage still pass since W13 is complete and count is 13)
+2. declared_target_amount 500 → `reserve_target_amount_matches_months_times_fixed_costs` ✓
+3. declared_runway_months 5 → `runway_matches_cash_divided_by_burn` ✓
+4. stress list missing 2 cases → `stress_cases_cover_stated_cases` ✓
+5. committed_against_unlanded_receivables true → `no_commitments_against_unlanded_receivables` ✓
+
+Exactly 5 fails, matching the 5 planted wrong values. No spurious extra fails, no planted value that failed to trip its check. Section rollups (thirteen_week_forecast fail, reserves_and_runway fail, stress_tests fail, reporting_and_commitments fail; flows_and_lags pass, working_capital_and_levers pass) are consistent with the per-check statuses.
+
+**Case 2: all computed quantities MATCH; failing checks are exactly the planted ones.**
+
+---
+
+Every computed quantity in both cases recomputes to the artifact's recorded value under the fixed-6dp rule, and the violations case fails exactly the five checks its planted wrong values target.
+
+AGREEMENT: full
