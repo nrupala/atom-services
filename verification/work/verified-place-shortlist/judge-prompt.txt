@@ -1,0 +1,1805 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: verified-place-shortlist
+
+=== contract.yaml ===
+service_name: verified-place-shortlist
+display_name: Verified place shortlist
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:place-discovery
+binding:
+  skill: place-discovery
+  skill_path: workspace/mymilo-build/skills/place-discovery/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: verified_place_shortlist
+  prefix: atm_1_verified_place_shortlist_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: query
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Family outing travel place shortlists
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Verified place shortlist — `verified-place-shortlist`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Find and compare real places — with verified address, hours, and rating signals matched to your constraints.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one query. In this atom's deterministic form, the caller submits a **declared place-shortlist record** and receives the shortlist audit verdict as the deliverable: the atom searches for no place, verifies no address, hour or rating against the world, recommends no place and ranks nothing (see Honest scoping). **The "verified" in this atom's name refers to the caller's declared verification discipline — the record's declared evidence that verification was performed — and never to any verification by this atom. This atom fetches nothing live and verifies no real-world fact; any reading of the name as a claim of live verification by the atom is wrong, and this line is the correction.**
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Everyday life who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Family outing travel place shortlists**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the verified place shortlist manifest
+
+The caller submits one JSON manifest: a declared place-shortlist
+record for one shortlist, made from the shortlist as actually
+prepared. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`VERIFIED_PLACE_SHORTLIST_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `shortlist_title` (string; carried into the verdict output, not itself checked) | — |
+| `constraints.constraints_declared` (boolean) | constraints_and_criteria |
+| `constraints.area_declared` (boolean) | constraints_and_criteria |
+| `constraints.visit_timing_declared` (boolean) | constraints_and_criteria |
+| `constraints.budget_constraint_declared` (boolean) | constraints_and_criteria |
+| `constraints.noise_constraint_declared` (boolean) | constraints_and_criteria |
+| `constraints.parking_constraint_declared` (boolean) | constraints_and_criteria |
+| `constraints.accessibility_needs_declared` (boolean) | constraints_and_criteria |
+| `constraints.candidates_searched_within_declared_constraints` (boolean) | constraints_and_criteria |
+| `constraints.only_real_named_results_kept` (boolean) | constraints_and_criteria |
+| `criteria` (list of criterion-row objects, each with the entry fields below; computed, see below) | constraints_and_criteria, rating_signals_and_fit |
+| `criteria[].criterion_id` (string; must be unique per row) | constraints_and_criteria |
+| `criteria[].criterion_name` (non-empty string) | constraints_and_criteria |
+| `places` (list of place-row objects, each with the entry fields below; computed, see below) | place_rows_and_verification_evidence, rating_signals_and_fit, ranking_winner_and_backup, freshness_uncertainty_and_alternatives |
+| `places[].place_id` (string; must be unique per row) | place_rows_and_verification_evidence |
+| `places[].place_name` (non-empty string) | place_rows_and_verification_evidence |
+| `places[].address` (non-empty string; must be unique per row, computed) | place_rows_and_verification_evidence |
+| `places[].address_verified_from_listing` (boolean; must be `true` per row) | place_rows_and_verification_evidence |
+| `places[].existence_confirmed` (boolean; must be `true` per row) | place_rows_and_verification_evidence |
+| `places[].hours_status` (string; one of `same_day_verified`, `flagged_unverified`) | place_rows_and_verification_evidence |
+| `places[].verification_method` (non-empty string) | place_rows_and_verification_evidence |
+| `places[].verification_date` (non-empty string) | place_rows_and_verification_evidence |
+| `places[].rating` (number; must be non-negative) | rating_signals_and_fit |
+| `places[].review_count` (number; must be positive) | rating_signals_and_fit |
+| `places[].recent_complaints_noted` (boolean; must be `true` per row) | rating_signals_and_fit |
+| `places[].photo_checked` (boolean; must be `true` per row) | rating_signals_and_fit |
+| `places[].criterion_ids_met` (list of strings; computed — must name exactly the declared criteria, see below) | rating_signals_and_fit |
+| `places[].special_hours_noted_where_shown` (boolean; must be `true` per row) | freshness_uncertainty_and_alternatives |
+| `evaluation.rating_signals_read_critically` (boolean) | rating_signals_and_fit |
+| `evaluation.fit_checked_beyond_rating` (boolean) | rating_signals_and_fit |
+| `ranking.ranking_recorded` (boolean) | ranking_winner_and_backup |
+| `ranking.ranking_based_on_declared_criteria` (boolean) | ranking_winner_and_backup |
+| `ranking.winner_place_id` (string; computed — must name a declared place, see below) | ranking_winner_and_backup |
+| `ranking.winner_rationale_recorded` (boolean) | ranking_winner_and_backup |
+| `ranking.winner_drawback_recorded` (boolean) | ranking_winner_and_backup |
+| `ranking.winner_map_ready_address_declared` (boolean) | ranking_winner_and_backup |
+| `ranking.winner_hours_recorded` (boolean) | ranking_winner_and_backup |
+| `ranking.winner_booking_or_queue_warning_recorded` (boolean) | ranking_winner_and_backup |
+| `ranking.timing_matters` (boolean; gates the backup check below) | ranking_winner_and_backup |
+| `ranking.backup_place_id` (string; computed where timing matters — must name a declared place other than the winner, see below) | ranking_winner_and_backup |
+| `handling.hours_flagged_unverified_when_not_same_day_confirmed` (boolean) | freshness_uncertainty_and_alternatives |
+| `handling.listings_checked_for_staleness_duplication_and_closure` (boolean) | freshness_uncertainty_and_alternatives |
+| `handling.stale_duplicate_or_closed_listings_flagged` (boolean) | freshness_uncertainty_and_alternatives |
+| `handling.no_unconfirmed_place_used_to_fill_gap` (boolean) | freshness_uncertainty_and_alternatives |
+| `handling.original_area_has_no_verified_options` (boolean; gates the nearest-area check below) | freshness_uncertainty_and_alternatives |
+| `handling.nearest_verified_area_offered` (boolean; required when the gate above is declared `true`; otherwise the check passes as not applicable) | freshness_uncertainty_and_alternatives |
+| `red_lines.invented_address_hours_rating_or_photo_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.stale_hours_presented_as_current_fact_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.place_breaking_stated_constraint_recommended_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.ranking_by_rating_alone_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.unverified_listing_passed_as_confirmed_open_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Twenty-two checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Criteria declared:** the declared `criteria` list passes
+  when it is present and names at least one criterion. An
+  absent list is missing evidence; an empty list fails — it
+  declares no criteria at all.
+- **Criterion ids unique:** no declared `criterion_id` may
+  appear on more than one row. A row with `criterion_id`
+  absent is missing evidence for this check.
+- **Criterion name per criterion:** every declared criterion
+  row declares a non-empty `criterion_name`, named in
+  `verified_place_criteria_without_name` when empty.
+- **Places declared:** the declared `places` list passes when
+  it is present and names at least two places. An absent list
+  is missing evidence; a list of fewer than two fails — a
+  shortlist ranked against its criteria with a backup kept is
+  comparative by its own framing, and one row ranks nothing
+  and backs nothing up.
+- **Place ids unique:** no declared `place_id` may appear on
+  more than one row.
+- **Place name per place:** every declared place row declares
+  a non-empty `place_name`, named in
+  `verified_places_without_name` when empty.
+- **Address per place:** every declared place row declares a
+  non-empty `address`, named in `verified_places_without_address`
+  when empty.
+- **Addresses unique:** no declared `address` may appear on
+  more than one row — a duplicated address is the
+  duplicate-listing signal the skill says to flag, not repeat;
+  duplicates are named in `duplicate_verified_place_addresses`.
+- **Address verified per place:** every declared place row
+  declares `address_verified_from_listing` true — its address
+  was verified from the listing itself, on the caller's
+  declared evidence.
+- **Existence confirmed per place:** every declared place row
+  declares `existence_confirmed` true.
+- **Hours status recognised:** every declared place's
+  `hours_status` is one of `same_day_verified`,
+  `flagged_unverified` — the two states the skill's hours gate
+  works with. Any other value fails and is named in
+  `verified_places_with_unrecognised_hours_status`.
+- **Verification method per place:** every declared place row
+  declares a non-empty `verification_method`, named in
+  `verified_places_without_verification_method` when empty.
+- **Verification date per place:** every declared place row
+  declares a non-empty `verification_date` — the declared
+  freshness of its evidence — named in
+  `verified_places_without_verification_date` when empty.
+- **Rating per place:** every declared place declares a
+  non-negative `rating`. A row with the field absent is
+  missing evidence; a negative rating fails and is named in
+  `verified_places_with_invalid_rating`. No rating scale is
+  imposed and no rating is judged good or bad — see the
+  declined thresholds.
+- **Review count per place:** every declared place declares a
+  positive `review_count`. A count of zero declares no review
+  volume at all — internal consistency of the declared
+  evidence, not an imported volume bar; any positive count
+  passes. Offenders are named in
+  `verified_places_with_invalid_review_count`.
+- **Recent complaints noted per place:** every declared place
+  row declares `recent_complaints_noted` true — what its
+  recent reviews actually complain about was noted.
+- **Photo checked per place:** every declared place row
+  declares `photo_checked` true.
+- **Criterion mapping per place:** every declared place row
+  declares its `criterion_ids_met` list. A row with the field
+  absent is missing evidence.
+- **Criterion mapping names only declared criteria:** every
+  declared place's mapping names no criterion other than a
+  declared one; offenders are named in
+  `verified_places_with_extra_criterion_ids`.
+- **Every place meets every declared criterion:** every
+  declared place's mapping covers every declared criterion,
+  exactly the skill's gate — the shortlist respects every
+  constraint stated, and no shortlisted place breaks one.
+  Offenders are named in
+  `verified_places_not_meeting_all_declared_criteria`.
+- **Winner resolves:** the declared `ranking.winner_place_id`
+  names one of the declared places. An absent winner id, or a
+  record with the places list absent, is missing evidence; an
+  id naming no declared place fails. The atom checks **only**
+  that the reference resolves — it never checks that the
+  winner is the best, highest-rated or top-ranked place.
+- **Special hours noted per place:** every declared place row
+  declares `special_hours_noted_where_shown` true — holiday
+  or special hours were noted where shown for the day in
+  question.
+
+Two further checks are gated on the record's own declared
+gate fields, following the skill's own conditional scope —
+when a gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target is
+required:
+
+- **Backup resolves and differs where timing matters:** the
+  declared backup is required only where
+  `ranking.timing_matters` is declared `true` (the skill:
+  keep one backup option in case the winner is closed or full
+  on arrival, where timing matters). When the gate is `true`,
+  `ranking.backup_place_id` must name a declared place other
+  than the winner; an absent backup id is missing evidence
+  and an id naming no declared place, or the winner itself,
+  fails.
+- **Nearest verified area offered where no verified
+  options:** the nearest-area offer is required only where
+  `handling.original_area_has_no_verified_options` is
+  declared `true` (the skill: offer the nearest area that
+  does have verified options instead of widening silently).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twenty-two primary computed checks above cannot be
+completed), `verified_places_count` and
+`verified_place_criteria_count` (the declared list lengths, or
+null when a list is not declared — counts are reported as
+integers, exactly), the duplicate lists
+`duplicate_verified_place_ids`,
+`duplicate_verified_place_criterion_ids` and
+`duplicate_verified_place_addresses`, the row-name lists named
+in the computed checks above,
+`verified_places_total_review_count` (the sum of the declared
+review counts), and the ratios
+`place_address_verification_ratio` (places declaring their
+address verified from the listing ÷ declared places),
+`place_hours_same_day_verified_ratio` (places whose hours
+status is `same_day_verified` ÷ declared places),
+`place_criterion_coverage_ratio` (places meeting every
+declared criterion ÷ declared places) and
+`place_rating_evidence_ratio` (places declaring both a rating
+and a review count ÷ declared places). **Fixed serialization
+rule:** computed quantities and ratios are reported as strings
+with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals. A ratio is null when its denominator list is
+absent or empty (the criterion-coverage ratio is also null
+when the criteria list is not declared). That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are constraint fit, declared verification discipline and
+honest flagging, not bars the atom can set. Quantities are
+computed and reported; the only bars on the computed rows are
+completeness, exact set coverage and reference resolution over
+the caller's own declared rows, exactly as stated above.
+Declined thresholds, named: a minimum rating or star bar (a
+declared rating is evidence, never judged good or bad); a
+minimum review count beyond existence (any positive count
+passes — no volume bar such as 50 or 100 reviews is set); a
+maximum age for a verification date, or any check that a
+declared verification date is recent, today, or the visit day
+(dates are caller-declared strings, reported as declared —
+the atom has no clock and verifies no date against the
+world); a budget or price ceiling (no price is even a field
+of this record); a distance, travel-time or area-radius bar;
+a place-count maximum, or a criterion-count bar beyond at
+least one criterion and at least two places; a conformity bar
+against any places provider, listing source or map service
+(the record declares its own verification method — no
+provider is prescribed); any judgment that the declared
+winner is the right, best or highest-rated place (only that
+its reference resolves and its declared winner record is
+complete).
+
+The verdict is one of `VERIFIED_PLACE_SHORTLIST_SOUND` (all
+51 checks pass), `VERIFIED_PLACE_SHORTLIST_NOT_SOUND` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across six sections:
+constraints_and_criteria, place_rows_and_verification_evidence,
+rating_signals_and_fit, ranking_winner_and_backup,
+freshness_uncertainty_and_alternatives, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `sourced-visual-reference-search` (a
+declared visual-reference search record — image results with
+their source pages, depiction context and licensing),
+`single-living-trip-itinerary` (one trip's living itinerary
+record — flights, stays, ground transport and activities in
+idea / held / booked states, with declared totals and
+conflict flags), and `home-shortlist-carrying-cost-comparison`
+(a home-purchase shortlist's carrying-cost comparison). This
+atom shares **zero checks** with any of them (verified
+mechanically by enumerating `evaluate({})` check names from
+every atom oracle in `services/*/src/*.py` and comparing —
+zero overlap): every check here is a place-shortlist question
+— declared visit constraints (area, timing, budget, noise,
+parking, accessibility) and shortlist criteria, per-place
+declared verification evidence (address verified from the
+listing itself, hours status same-day-verified or
+flagged-unverified, verification method and verification
+date, rating with review volume and recent complaints, photo
+checked), every shortlisted place meeting every declared
+criterion, a declared winner that resolves with its honest
+drawback, map-ready address and booking / queue warning, a
+backup that resolves and differs where timing matters, and
+stale / duplicate / closed listing flagging. The boundary is:
+one visit place shortlist here; an image reference set, a
+whole trip itinerary, and a home-buying cost comparison there.
+
+## Honest scoping
+
+This atom reviews a **declared** place-shortlist record — it
+searches for no place, fetches no listing, opens no map,
+verifies no address, hour, rating or photo against the world,
+and recommends, chooses, ranks and books nothing. A shortlist
+is sound *on the caller's declared evidence*: a record that
+declares its addresses verified, its hours same-day checked
+and its criteria met passes those checks even if the real
+shortlist did none of it. It is a completeness and consistency
+audit of the shortlist record the skill requires, **not a
+place search, a live verification, a recommendation, or a
+guarantee that any place exists, is open, or is as described**:
+it never judges whether a declared address is real, whether
+declared hours are correct, whether a declared rating is
+fair, or whether the declared winner should be visited — only
+that the record contains what the skill's method and red
+lines demand, and that its declared rows are internally
+consistent. The scaffold's named doubt, "commodity local
+search", is resolved exactly here: the live search is the
+commodity, and it is **not** what this atom sells — the atom
+sells the audit of the declared record's verification
+discipline, and performs no search at all.
+
+Named exclusions and non-reducible parts (excluded by name,
+never performed): searching live for places (any places API,
+search engine or map lookup); verifying any address, opening
+hour, rating, review, photo or business existence against the
+world; claiming — in the verdict, the stamp, or anywhere else
+— that this atom verified a place (the honesty line in What
+it delivers is a red line of this atom, not a disclaimer);
+recommending or choosing a place for the caller; ranking
+places as the atom's own output (checking a **declared**
+winner and backup's references is audit, not advice);
+booking, reserving or queuing for any place; judging that the
+declared winner is the best, highest-rated or top-ranked
+place; and providing navigation or directions — each is
+EXCLUDED by name from this atom, which audits only the
+declared record. Boundary case, named: a shortlist with
+genuinely only one verified place in its area cannot pass
+this record format's places-declared check (the format
+requires at least two compared places with a backup kept —
+such a shortlist is outside this atom's computed reach, not
+failed on its merits; its record's honest move under the
+skill is the nearest-verified-area declaration, which this
+atom does check where declared).
+
+## U-13 regulatory screen
+
+Screen classification: **(a) — screen-No outright.** Keyword
+screen: the bound skill and this record name places,
+addresses, opening hours and ratings — no regulated subject
+(securities / financial advice, health, legal, engineering
+practice, psychology) is the atom's output, and no place
+category handled by this record is itself a regulated
+activity: the record is about cafes, shops, services and
+attractions as visit options. Substance screen: this atom's
+output could not itself read as regulated professional advice
+in any case — it audits a caller-**declared** shortlist record
+for completeness and internal consistency only (constraints
+and criteria declarations, per-row declared verification
+evidence recomputed over the declared rows, criterion
+coverage, winner / backup reference resolution, freshness and
+uncertainty declarations, and the skill's red lines refused);
+every output is a pass / fail / missing verdict on the record
+or a quantity recomputed from the caller's own declared rows.
+It performs no live search or verification, makes no
+recommendation, and states no fact about any real place, so
+there is no advice-shaped output for a flag-with-controls
+class to attach to; the one real hazard — a caller reading
+"verified" as this atom's own live verification — is closed
+by the honesty line in What it delivers, which is a red line
+of the atom, not a control on a regulated output. This is
+therefore class (a), not the census flag-with-controls class
+and not the genuinely-open personal-financial-snapshot class
+(no personal position of any kind is handled). No deploy
+happens on this atom without the owner's explicit per-unit
+ruling in any case.
+
+## Pricing
+
+Pricing unit: **query**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "verified-place-shortlist",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "VERIFIED_PLACE_SHORTLIST_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: verified_places_count=2, verified_place_criteria_count=1, verified_places_total_review_count=15, place_address_verification_ratio=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "verified_places_count": 2,
+          "verified_place_criteria_count": 1,
+          "duplicate_verified_place_ids": [],
+          "duplicate_verified_place_criterion_ids": [],
+          "duplicate_verified_place_addresses": [],
+          "verified_places_without_name": [],
+          "verified_places_without_address": [],
+          "verified_places_with_unrecognised_hours_status": [],
+          "verified_places_without_verification_method": [],
+          "verified_places_without_verification_date": [],
+          "verified_places_with_invalid_rating": [],
+          "verified_places_with_invalid_review_count": [],
+          "verified_place_criteria_without_name": [],
+          "verified_places_not_meeting_all_declared_criteria": [],
+          "verified_places_with_extra_criterion_ids": [],
+          "verified_places_total_review_count": "15.000000",
+          "place_address_verification_ratio": "1.000000",
+          "place_hours_same_day_verified_ratio": "1.000000",
+          "place_criterion_coverage_ratio": "1.000000",
+          "place_rating_evidence_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "shortlist_title": "Family Outing",
+        "constraints": {
+          "constraints_declared": true,
+          "area_declared": true,
+          "visit_timing_declared": true,
+          "budget_constraint_declared": true,
+          "noise_constraint_declared": true,
+          "parking_constraint_declared": true,
+          "accessibility_needs_declared": true,
+          "candidates_searched_within_declared_constraints": true,
+          "only_real_named_results_kept": true
+        },
+        "criteria": [
+          {
+            "criterion_id": "c1",
+            "criterion_name": "Quiet"
+          }
+        ],
+        "places": [
+          {
+            "place_id": "p1",
+            "place_name": "Cafe A",
+            "address": "123 Maple St",
+            "address_verified_from_listing": true,
+            "existence_confirmed": true,
+            "hours_status": "same_day_verified",
+            "verification_method": "Phone",
+            "verification_date": "2023-10-01",
+            "rating": 4.5,
+            "review_count": 10,
+            "recent_complaints_noted": true,
+            "photo_checked": true,
+            "criterion_ids_met": [
+              "c1"
+            ],
+            "special_hours_noted_where_shown": true
+          },
+          {
+            "place_id": "p2",
+            "place_name": "Cafe B",
+            "address": "456 Oak St",
+            "address_verified_from_listing": true,
+            "existence_confirmed": true,
+            "hours_status": "same_day_verified",
+            "verification_method": "Phone",
+            "verification_date": "2023-10-01",
+            "rating": 4.0,
+            "review_count": 5,
+            "recent_complaints_noted": true,
+            "photo_checked": true,
+            "criterion_ids_met": [
+              "c1"
+            ],
+            "special_hours_noted_where_shown": true
+          }
+        ],
+        "evaluation": {
+          "rating_signals_read_critically": true,
+          "fit_checked_beyond_rating": true
+        },
+        "ranking": {
+          "ranking_recorded": true,
+          "ranking_based_on_declared_criteria": true,
+          "winner_place_id": "p1",
+          "winner_rationale_recorded": true,
+          "winner_drawback_recorded": true,
+          "winner_map_ready_address_declared": true,
+          "winner_hours_recorded": true,
+          "winner_booking_or_queue_warning_recorded": true,
+          "timing_matters": true,
+          "backup_place_id": "p2"
+        },
+        "handling": {
+          "hours_flagged_unverified_when_not_same_day_confirmed": true,
+          "listings_checked_for_staleness_duplication_and_closure": true,
+          "stale_duplicate_or_closed_listings_flagged": true,
+          "no_unconfirmed_place_used_to_fill_gap": true,
+          "original_area_has_no_verified_options": false
+        },
+        "red_lines": {
+          "invented_address_hours_rating_or_photo_present": false,
+          "stale_hours_presented_as_current_fact_present": false,
+          "place_breaking_stated_constraint_recommended_present": false,
+          "ranking_by_rating_alone_present": false,
+          "unverified_listing_passed_as_confirmed_open_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "verified-place-shortlist",
+        "atom_version": "0.1.0",
+        "shortlist_title": "Family Outing",
+        "verdict": "VERIFIED_PLACE_SHORTLIST_SOUND",
+        "sections": {
+          "constraints_and_criteria": "pass",
+          "place_rows_and_verification_evidence": "pass",
+          "rating_signals_and_fit": "pass",
+          "ranking_winner_and_backup": "pass",
+          "freshness_uncertainty_and_alternatives": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_constraints_declared",
+            "status": "pass",
+            "evidence": "constraints: the shortlist record declares the constraints it worked to, written down first"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_area_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the area constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_visit_timing_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the visit timing \u2014 the day and time the places must be open for \u2014 is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_budget_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the budget constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_noise_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the noise constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_parking_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the parking constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_accessibility_needs_declared",
+            "status": "pass",
+            "evidence": "constraints: the accessibility needs are declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_candidates_searched_within_constraints",
+            "status": "pass",
+            "evidence": "search discipline: candidate places were searched for inside the declared constraints"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_only_real_named_results_kept",
+            "status": "pass",
+            "evidence": "search discipline: only real, named results were kept as candidates"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_criteria_list_declared",
+            "status": "pass",
+            "evidence": "criteria: the declared record names its shortlist criteria \u2014 the list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no criteria at all"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "every_verified_place_criterion_id_unique",
+            "status": "pass",
+            "evidence": "criteria: no declared criterion_id is owned by more than one row"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "every_verified_place_criterion_name_declared",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-empty criterion name"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "verified_place_shortlist_places_list_declared",
+            "status": "pass",
+            "evidence": "places: the declared record names its shortlisted places \u2014 the list is present and names at least two places; an absent list is missing evidence and a list of fewer than two declares no shortlist to rank and no backup to keep"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_id_unique",
+            "status": "pass",
+            "evidence": "places: no declared place_id is owned by more than one row"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_name_declared",
+            "status": "pass",
+            "evidence": "places: every declared place declares a non-empty place name \u2014 every recommended place is a real, named result"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_declared",
+            "status": "pass",
+            "evidence": "places: every declared place declares a non-empty address"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_unique",
+            "status": "pass",
+            "evidence": "places: no declared address is shared by more than one row \u2014 a duplicated address is the duplicate-listing signal the record must flag, not repeat"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_verified_from_listing",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place declares its address verified from the listing itself"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_existence_confirmed",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place declares its existence confirmed \u2014 no gap is filled with a place whose existence was not confirmed"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_hours_status_recognised",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place's hours status is one of same_day_verified, flagged_unverified \u2014 hours are same-day verified or explicitly flagged unverified, with no third state"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_verification_method_declared",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place declares a non-empty verification method \u2014 how its evidence was verified is part of the record"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_verification_date_declared",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place declares a non-empty verification date \u2014 the freshness of its evidence is part of the record"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "verified_place_shortlist_rating_signals_read_critically",
+            "status": "pass",
+            "evidence": "rating signals: the rating signals were read critically, not taken as a star number alone"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "verified_place_shortlist_fit_checked_beyond_rating",
+            "status": "pass",
+            "evidence": "rating signals: fit against the declared constraints was checked beyond the rating"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_rating_declared",
+            "status": "pass",
+            "evidence": "rating signals: every declared place declares a non-negative rating value"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_review_count_positive",
+            "status": "pass",
+            "evidence": "rating signals: every declared place declares a positive review count \u2014 rating signals carry review volume, and a count of zero declares no volume at all"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_recent_complaints_noted",
+            "status": "pass",
+            "evidence": "rating signals: every declared place declares what its recent reviews actually complain about noted"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_photo_checked",
+            "status": "pass",
+            "evidence": "photo evidence: every declared place declares its photo evidence checked, to judge space, seating and condition"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_criterion_mapping_declared",
+            "status": "pass",
+            "evidence": "criterion mapping: every declared place declares its criterion mapping \u2014 the declared criteria it meets"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_criterion_mapping_names_only_declared_criteria",
+            "status": "pass",
+            "evidence": "criterion mapping: every declared place's criterion mapping names only declared criteria \u2014 no other criterion, and none twice in the coverage check below"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_meets_all_declared_criteria",
+            "status": "pass",
+            "evidence": "criterion coverage: every declared place meets every declared criterion \u2014 the shortlist respects every constraint stated, and no shortlisted place breaks one"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_ranking_recorded",
+            "status": "pass",
+            "evidence": "ranking: the shortlist record records a ranking of its declared places"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_ranking_based_on_declared_criteria",
+            "status": "pass",
+            "evidence": "ranking: the recorded ranking is based on the declared criteria and constraints, not on rating alone"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_rationale_recorded",
+            "status": "pass",
+            "evidence": "winner: the record records why the declared winner wins"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_drawback_recorded",
+            "status": "pass",
+            "evidence": "winner: one honest drawback for the top pick is recorded"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_map_ready_address_declared",
+            "status": "pass",
+            "evidence": "winner: the winner's address is declared in map-ready form"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_hours_recorded",
+            "status": "pass",
+            "evidence": "winner: the winner's hours for the day in question are recorded, or flagged unverified in its row"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_booking_or_queue_warning_recorded",
+            "status": "pass",
+            "evidence": "winner: any booking or queue warning for the winner is recorded"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_resolves_to_declared_place",
+            "status": "pass",
+            "evidence": "winner: the declared winner place id names one of the declared places \u2014 the atom checks only that the reference resolves; it never checks that the winner is the best or highest-rated place"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_backup_resolves_and_differs_where_timing_matters",
+            "status": "pass",
+            "evidence": "backup: where timing matters, the declared backup place id names a declared place other than the winner \u2014 one backup option is kept in case the winner is closed or full"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_hours_flagged_unverified_when_not_same_day_confirmed",
+            "status": "pass",
+            "evidence": "freshness: hours that could not be confirmed for the same day are flagged unverified"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_listings_checked_for_staleness_duplication_and_closure",
+            "status": "pass",
+            "evidence": "freshness: the listings were checked for staleness, duplication and possible closure"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_stale_duplicate_or_closed_listings_flagged",
+            "status": "pass",
+            "evidence": "freshness: any listing that looks stale, duplicated or possibly closed is flagged as such in the record"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_no_unconfirmed_place_used_to_fill_gap",
+            "status": "pass",
+            "evidence": "uncertainty: no gap in the shortlist was filled with a place whose existence was not confirmed"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_nearest_verified_area_offered_where_no_verified_options",
+            "status": "pass",
+            "evidence": "the original area is not declared to have no verified options"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "every_verified_place_special_hours_noted_where_shown",
+            "status": "pass",
+            "evidence": "freshness: every declared place declares holiday or special hours noted where shown for the day in question"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_invented_address_hours_rating_or_photo",
+            "status": "pass",
+            "evidence": "red line: no invented address, opening hour, rating or photo description is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_stale_hours_presented_as_current_fact",
+            "status": "pass",
+            "evidence": "red line: no stale hours are presented as current fact in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_place_breaking_stated_constraint_recommended",
+            "status": "pass",
+            "evidence": "red line: no place that breaks a stated constraint is recommended in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_ranking_by_rating_alone",
+            "status": "pass",
+            "evidence": "red line: no ranking by rating alone, without checking fit and review volume, is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_unverified_listing_passed_as_confirmed_open",
+            "status": "pass",
+            "evidence": "red line: no unverified listing is passed off as a confirmed open business in the record"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "verified_places_count": 2,
+        "verified_place_criteria_count": 1,
+        "duplicate_verified_place_ids": [],
+        "duplicate_verified_place_criterion_ids": [],
+        "duplicate_verified_place_addresses": [],
+        "verified_places_without_name": [],
+        "verified_places_without_address": [],
+        "verified_places_with_unrecognised_hours_status": [],
+        "verified_places_without_verification_method": [],
+        "verified_places_without_verification_date": [],
+        "verified_places_with_invalid_rating": [],
+        "verified_places_with_invalid_review_count": [],
+        "verified_place_criteria_without_name": [],
+        "verified_places_not_meeting_all_declared_criteria": [],
+        "verified_places_with_extra_criterion_ids": [],
+        "verified_places_total_review_count": "15.000000",
+        "place_address_verification_ratio": "1.000000",
+        "place_hours_same_day_verified_ratio": "1.000000",
+        "place_criterion_coverage_ratio": "1.000000",
+        "place_rating_evidence_ratio": "1.000000",
+        "summary": "51 pass, 0 fail, 0 missing of 51 checks across six sections.",
+        "stamp": "VERIFIED PLACE SHORTLIST\nshortlist_title: Family Outing\nVERDICT: VERIFIED_PLACE_SHORTLIST_SOUND\n  constraints_and_criteria                     pass\n  place_rows_and_verification_evidence         pass\n  rating_signals_and_fit                       pass\n  ranking_winner_and_backup                    pass\n  freshness_uncertainty_and_alternatives       pass\n  red_lines                                    pass\n51 pass, 0 fail, 0 missing of 51 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "VERIFIED_PLACE_SHORTLIST_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_verified_place_name_declared",
+          "every_verified_place_address_verified_from_listing",
+          "every_verified_place_review_count_positive",
+          "verified_place_shortlist_free_of_invented_address_hours_rating_or_photo"
+        ],
+        "notes": "Fails due to explicit false verification flag and red line violation.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "verified_places_count": 2,
+          "verified_place_criteria_count": 1,
+          "duplicate_verified_place_ids": [],
+          "duplicate_verified_place_criterion_ids": [],
+          "duplicate_verified_place_addresses": [],
+          "verified_places_without_name": [
+            "p1"
+          ],
+          "verified_places_without_address": [],
+          "verified_places_with_unrecognised_hours_status": [],
+          "verified_places_without_verification_method": [],
+          "verified_places_without_verification_date": [],
+          "verified_places_with_invalid_rating": [],
+          "verified_places_with_invalid_review_count": [
+            "p2"
+          ],
+          "verified_place_criteria_without_name": [],
+          "verified_places_not_meeting_all_declared_criteria": [],
+          "verified_places_with_extra_criterion_ids": [],
+          "verified_places_total_review_count": "10.000000",
+          "place_address_verification_ratio": "0.500000",
+          "place_hours_same_day_verified_ratio": "1.000000",
+          "place_criterion_coverage_ratio": "1.000000",
+          "place_rating_evidence_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "shortlist_title": "Family Outing",
+        "constraints": {
+          "constraints_declared": true,
+          "area_declared": true,
+          "visit_timing_declared": true,
+          "budget_constraint_declared": true,
+          "noise_constraint_declared": true,
+          "parking_constraint_declared": true,
+          "accessibility_needs_declared": true,
+          "candidates_searched_within_declared_constraints": true,
+          "only_real_named_results_kept": true
+        },
+        "criteria": [
+          {
+            "criterion_id": "c1",
+            "criterion_name": "Quiet"
+          }
+        ],
+        "places": [
+          {
+            "place_id": "p1",
+            "place_name": "",
+            "address": "123 Maple St",
+            "address_verified_from_listing": false,
+            "existence_confirmed": true,
+            "hours_status": "same_day_verified",
+            "verification_method": "Phone",
+            "verification_date": "2023-10-01",
+            "rating": 4.5,
+            "review_count": 10,
+            "recent_complaints_noted": true,
+            "photo_checked": true,
+            "criterion_ids_met": [
+              "c1"
+            ],
+            "special_hours_noted_where_shown": true
+          },
+          {
+            "place_id": "p2",
+            "place_name": "Cafe B",
+            "address": "456 Oak St",
+            "address_verified_from_listing": true,
+            "existence_confirmed": true,
+            "hours_status": "same_day_verified",
+            "verification_method": "Phone",
+            "verification_date": "2023-10-01",
+            "rating": 4.0,
+            "review_count": 0,
+            "recent_complaints_noted": true,
+            "photo_checked": true,
+            "criterion_ids_met": [
+              "c1"
+            ],
+            "special_hours_noted_where_shown": true
+          }
+        ],
+        "evaluation": {
+          "rating_signals_read_critically": true,
+          "fit_checked_beyond_rating": true
+        },
+        "ranking": {
+          "ranking_recorded": true,
+          "ranking_based_on_declared_criteria": true,
+          "winner_place_id": "p1",
+          "winner_rationale_recorded": true,
+          "winner_drawback_recorded": true,
+          "winner_map_ready_address_declared": true,
+          "winner_hours_recorded": true,
+          "winner_booking_or_queue_warning_recorded": true,
+          "timing_matters": true,
+          "backup_place_id": "p2"
+        },
+        "handling": {
+          "hours_flagged_unverified_when_not_same_day_confirmed": true,
+          "listings_checked_for_staleness_duplication_and_closure": true,
+          "stale_duplicate_or_closed_listings_flagged": true,
+          "no_unconfirmed_place_used_to_fill_gap": true,
+          "original_area_has_no_verified_options": false
+        },
+        "red_lines": {
+          "invented_address_hours_rating_or_photo_present": true,
+          "stale_hours_presented_as_current_fact_present": false,
+          "place_breaking_stated_constraint_recommended_present": false,
+          "ranking_by_rating_alone_present": false,
+          "unverified_listing_passed_as_confirmed_open_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "verified-place-shortlist",
+        "atom_version": "0.1.0",
+        "shortlist_title": "Family Outing",
+        "verdict": "VERIFIED_PLACE_SHORTLIST_NOT_SOUND",
+        "sections": {
+          "constraints_and_criteria": "pass",
+          "place_rows_and_verification_evidence": "fail",
+          "rating_signals_and_fit": "fail",
+          "ranking_winner_and_backup": "pass",
+          "freshness_uncertainty_and_alternatives": "pass",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_constraints_declared",
+            "status": "pass",
+            "evidence": "constraints: the shortlist record declares the constraints it worked to, written down first"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_area_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the area constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_visit_timing_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the visit timing \u2014 the day and time the places must be open for \u2014 is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_budget_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the budget constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_noise_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the noise constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_parking_constraint_declared",
+            "status": "pass",
+            "evidence": "constraints: the parking constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_accessibility_needs_declared",
+            "status": "pass",
+            "evidence": "constraints: the accessibility needs are declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_candidates_searched_within_constraints",
+            "status": "pass",
+            "evidence": "search discipline: candidate places were searched for inside the declared constraints"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_only_real_named_results_kept",
+            "status": "pass",
+            "evidence": "search discipline: only real, named results were kept as candidates"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_criteria_list_declared",
+            "status": "pass",
+            "evidence": "criteria: the declared record names its shortlist criteria \u2014 the list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no criteria at all"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "every_verified_place_criterion_id_unique",
+            "status": "pass",
+            "evidence": "criteria: no declared criterion_id is owned by more than one row"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "every_verified_place_criterion_name_declared",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-empty criterion name"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "verified_place_shortlist_places_list_declared",
+            "status": "pass",
+            "evidence": "places: the declared record names its shortlisted places \u2014 the list is present and names at least two places; an absent list is missing evidence and a list of fewer than two declares no shortlist to rank and no backup to keep"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_id_unique",
+            "status": "pass",
+            "evidence": "places: no declared place_id is owned by more than one row"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_name_declared",
+            "status": "fail",
+            "evidence": "places: every declared place declares a non-empty place name \u2014 every recommended place is a real, named result"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_declared",
+            "status": "pass",
+            "evidence": "places: every declared place declares a non-empty address"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_unique",
+            "status": "pass",
+            "evidence": "places: no declared address is shared by more than one row \u2014 a duplicated address is the duplicate-listing signal the record must flag, not repeat"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_verified_from_listing",
+            "status": "fail",
+            "evidence": "verification evidence: every declared place declares its address verified from the listing itself"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_existence_confirmed",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place declares its existence confirmed \u2014 no gap is filled with a place whose existence was not confirmed"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_hours_status_recognised",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place's hours status is one of same_day_verified, flagged_unverified \u2014 hours are same-day verified or explicitly flagged unverified, with no third state"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_verification_method_declared",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place declares a non-empty verification method \u2014 how its evidence was verified is part of the record"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_verification_date_declared",
+            "status": "pass",
+            "evidence": "verification evidence: every declared place declares a non-empty verification date \u2014 the freshness of its evidence is part of the record"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "verified_place_shortlist_rating_signals_read_critically",
+            "status": "pass",
+            "evidence": "rating signals: the rating signals were read critically, not taken as a star number alone"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "verified_place_shortlist_fit_checked_beyond_rating",
+            "status": "pass",
+            "evidence": "rating signals: fit against the declared constraints was checked beyond the rating"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_rating_declared",
+            "status": "pass",
+            "evidence": "rating signals: every declared place declares a non-negative rating value"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_review_count_positive",
+            "status": "fail",
+            "evidence": "rating signals: every declared place declares a positive review count \u2014 rating signals carry review volume, and a count of zero declares no volume at all"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_recent_complaints_noted",
+            "status": "pass",
+            "evidence": "rating signals: every declared place declares what its recent reviews actually complain about noted"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_photo_checked",
+            "status": "pass",
+            "evidence": "photo evidence: every declared place declares its photo evidence checked, to judge space, seating and condition"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_criterion_mapping_declared",
+            "status": "pass",
+            "evidence": "criterion mapping: every declared place declares its criterion mapping \u2014 the declared criteria it meets"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_criterion_mapping_names_only_declared_criteria",
+            "status": "pass",
+            "evidence": "criterion mapping: every declared place's criterion mapping names only declared criteria \u2014 no other criterion, and none twice in the coverage check below"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_meets_all_declared_criteria",
+            "status": "pass",
+            "evidence": "criterion coverage: every declared place meets every declared criterion \u2014 the shortlist respects every constraint stated, and no shortlisted place breaks one"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_ranking_recorded",
+            "status": "pass",
+            "evidence": "ranking: the shortlist record records a ranking of its declared places"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_ranking_based_on_declared_criteria",
+            "status": "pass",
+            "evidence": "ranking: the recorded ranking is based on the declared criteria and constraints, not on rating alone"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_rationale_recorded",
+            "status": "pass",
+            "evidence": "winner: the record records why the declared winner wins"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_drawback_recorded",
+            "status": "pass",
+            "evidence": "winner: one honest drawback for the top pick is recorded"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_map_ready_address_declared",
+            "status": "pass",
+            "evidence": "winner: the winner's address is declared in map-ready form"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_hours_recorded",
+            "status": "pass",
+            "evidence": "winner: the winner's hours for the day in question are recorded, or flagged unverified in its row"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_booking_or_queue_warning_recorded",
+            "status": "pass",
+            "evidence": "winner: any booking or queue warning for the winner is recorded"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_resolves_to_declared_place",
+            "status": "pass",
+            "evidence": "winner: the declared winner place id names one of the declared places \u2014 the atom checks only that the reference resolves; it never checks that the winner is the best or highest-rated place"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_backup_resolves_and_differs_where_timing_matters",
+            "status": "pass",
+            "evidence": "backup: where timing matters, the declared backup place id names a declared place other than the winner \u2014 one backup option is kept in case the winner is closed or full"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_hours_flagged_unverified_when_not_same_day_confirmed",
+            "status": "pass",
+            "evidence": "freshness: hours that could not be confirmed for the same day are flagged unverified"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_listings_checked_for_staleness_duplication_and_closure",
+            "status": "pass",
+            "evidence": "freshness: the listings were checked for staleness, duplication and possible closure"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_stale_duplicate_or_closed_listings_flagged",
+            "status": "pass",
+            "evidence": "freshness: any listing that looks stale, duplicated or possibly closed is flagged as such in the record"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_no_unconfirmed_place_used_to_fill_gap",
+            "status": "pass",
+            "evidence": "uncertainty: no gap in the shortlist was filled with a place whose existence was not confirmed"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_nearest_verified_area_offered_where_no_verified_options",
+            "status": "pass",
+            "evidence": "the original area is not declared to have no verified options"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "every_verified_place_special_hours_noted_where_shown",
+            "status": "pass",
+            "evidence": "freshness: every declared place declares holiday or special hours noted where shown for the day in question"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_invented_address_hours_rating_or_photo",
+            "status": "fail",
+            "evidence": "red line: no invented address, opening hour, rating or photo description is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_stale_hours_presented_as_current_fact",
+            "status": "pass",
+            "evidence": "red line: no stale hours are presented as current fact in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_place_breaking_stated_constraint_recommended",
+            "status": "pass",
+            "evidence": "red line: no place that breaks a stated constraint is recommended in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_ranking_by_rating_alone",
+            "status": "pass",
+            "evidence": "red line: no ranking by rating alone, without checking fit and review volume, is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_unverified_listing_passed_as_confirmed_open",
+            "status": "pass",
+            "evidence": "red line: no unverified listing is passed off as a confirmed open business in the record"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "verified_places_count": 2,
+        "verified_place_criteria_count": 1,
+        "duplicate_verified_place_ids": [],
+        "duplicate_verified_place_criterion_ids": [],
+        "duplicate_verified_place_addresses": [],
+        "verified_places_without_name": [
+          "p1"
+        ],
+        "verified_places_without_address": [],
+        "verified_places_with_unrecognised_hours_status": [],
+        "verified_places_without_verification_method": [],
+        "verified_places_without_verification_date": [],
+        "verified_places_with_invalid_rating": [],
+        "verified_places_with_invalid_review_count": [
+          "p2"
+        ],
+        "verified_place_criteria_without_name": [],
+        "verified_places_not_meeting_all_declared_criteria": [],
+        "verified_places_with_extra_criterion_ids": [],
+        "verified_places_total_review_count": "10.000000",
+        "place_address_verification_ratio": "0.500000",
+        "place_hours_same_day_verified_ratio": "1.000000",
+        "place_criterion_coverage_ratio": "1.000000",
+        "place_rating_evidence_ratio": "1.000000",
+        "summary": "47 pass, 4 fail, 0 missing of 51 checks across six sections.",
+        "stamp": "VERIFIED PLACE SHORTLIST\nshortlist_title: Family Outing\nVERDICT: VERIFIED_PLACE_SHORTLIST_NOT_SOUND\n  constraints_and_criteria                     pass\n  place_rows_and_verification_evidence         fail\n  rating_signals_and_fit                       fail\n  ranking_winner_and_backup                    pass\n  freshness_uncertainty_and_alternatives       pass\n  red_lines                                    fail\n47 pass, 4 fail, 0 missing of 51 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required criteria and places lists."
+      },
+      "input": {
+        "shortlist_title": "Empty"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "verified-place-shortlist",
+        "atom_version": "0.1.0",
+        "shortlist_title": "Empty",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "constraints_and_criteria": "insufficient_evidence",
+          "place_rows_and_verification_evidence": "insufficient_evidence",
+          "rating_signals_and_fit": "insufficient_evidence",
+          "ranking_winner_and_backup": "insufficient_evidence",
+          "freshness_uncertainty_and_alternatives": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_constraints_declared",
+            "status": "missing",
+            "evidence": "constraints: the shortlist record declares the constraints it worked to, written down first"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_area_constraint_declared",
+            "status": "missing",
+            "evidence": "constraints: the area constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_visit_timing_constraint_declared",
+            "status": "missing",
+            "evidence": "constraints: the visit timing \u2014 the day and time the places must be open for \u2014 is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_budget_constraint_declared",
+            "status": "missing",
+            "evidence": "constraints: the budget constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_noise_constraint_declared",
+            "status": "missing",
+            "evidence": "constraints: the noise constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_parking_constraint_declared",
+            "status": "missing",
+            "evidence": "constraints: the parking constraint is declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_accessibility_needs_declared",
+            "status": "missing",
+            "evidence": "constraints: the accessibility needs are declared"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_candidates_searched_within_constraints",
+            "status": "missing",
+            "evidence": "search discipline: candidate places were searched for inside the declared constraints"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_only_real_named_results_kept",
+            "status": "missing",
+            "evidence": "search discipline: only real, named results were kept as candidates"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "verified_place_shortlist_criteria_list_declared",
+            "status": "missing",
+            "evidence": "criteria: the declared record names its shortlist criteria \u2014 the list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no criteria at all"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "every_verified_place_criterion_id_unique",
+            "status": "missing",
+            "evidence": "criteria: no declared criterion_id is owned by more than one row"
+          },
+          {
+            "section": "constraints_and_criteria",
+            "check": "every_verified_place_criterion_name_declared",
+            "status": "missing",
+            "evidence": "criteria: every declared criterion declares a non-empty criterion name"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "verified_place_shortlist_places_list_declared",
+            "status": "missing",
+            "evidence": "places: the declared record names its shortlisted places \u2014 the list is present and names at least two places; an absent list is missing evidence and a list of fewer than two declares no shortlist to rank and no backup to keep"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_id_unique",
+            "status": "missing",
+            "evidence": "places: no declared place_id is owned by more than one row"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_name_declared",
+            "status": "missing",
+            "evidence": "places: every declared place declares a non-empty place name \u2014 every recommended place is a real, named result"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_declared",
+            "status": "missing",
+            "evidence": "places: every declared place declares a non-empty address"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_unique",
+            "status": "missing",
+            "evidence": "places: no declared address is shared by more than one row \u2014 a duplicated address is the duplicate-listing signal the record must flag, not repeat"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_address_verified_from_listing",
+            "status": "missing",
+            "evidence": "verification evidence: every declared place declares its address verified from the listing itself"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_existence_confirmed",
+            "status": "missing",
+            "evidence": "verification evidence: every declared place declares its existence confirmed \u2014 no gap is filled with a place whose existence was not confirmed"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_hours_status_recognised",
+            "status": "missing",
+            "evidence": "verification evidence: every declared place's hours status is one of same_day_verified, flagged_unverified \u2014 hours are same-day verified or explicitly flagged unverified, with no third state"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_verification_method_declared",
+            "status": "missing",
+            "evidence": "verification evidence: every declared place declares a non-empty verification method \u2014 how its evidence was verified is part of the record"
+          },
+          {
+            "section": "place_rows_and_verification_evidence",
+            "check": "every_verified_place_verification_date_declared",
+            "status": "missing",
+            "evidence": "verification evidence: every declared place declares a non-empty verification date \u2014 the freshness of its evidence is part of the record"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "verified_place_shortlist_rating_signals_read_critically",
+            "status": "missing",
+            "evidence": "rating signals: the rating signals were read critically, not taken as a star number alone"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "verified_place_shortlist_fit_checked_beyond_rating",
+            "status": "missing",
+            "evidence": "rating signals: fit against the declared constraints was checked beyond the rating"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_rating_declared",
+            "status": "missing",
+            "evidence": "rating signals: every declared place declares a non-negative rating value"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_review_count_positive",
+            "status": "missing",
+            "evidence": "rating signals: every declared place declares a positive review count \u2014 rating signals carry review volume, and a count of zero declares no volume at all"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_recent_complaints_noted",
+            "status": "missing",
+            "evidence": "rating signals: every declared place declares what its recent reviews actually complain about noted"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_photo_checked",
+            "status": "missing",
+            "evidence": "photo evidence: every declared place declares its photo evidence checked, to judge space, seating and condition"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_criterion_mapping_declared",
+            "status": "missing",
+            "evidence": "criterion mapping: every declared place declares its criterion mapping \u2014 the declared criteria it meets"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_criterion_mapping_names_only_declared_criteria",
+            "status": "missing",
+            "evidence": "criterion mapping: every declared place's criterion mapping names only declared criteria \u2014 no other criterion, and none twice in the coverage check below"
+          },
+          {
+            "section": "rating_signals_and_fit",
+            "check": "every_verified_place_meets_all_declared_criteria",
+            "status": "missing",
+            "evidence": "criterion coverage: every declared place meets every declared criterion \u2014 the shortlist respects every constraint stated, and no shortlisted place breaks one"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_ranking_recorded",
+            "status": "missing",
+            "evidence": "ranking: the shortlist record records a ranking of its declared places"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_ranking_based_on_declared_criteria",
+            "status": "missing",
+            "evidence": "ranking: the recorded ranking is based on the declared criteria and constraints, not on rating alone"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_rationale_recorded",
+            "status": "missing",
+            "evidence": "winner: the record records why the declared winner wins"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_drawback_recorded",
+            "status": "missing",
+            "evidence": "winner: one honest drawback for the top pick is recorded"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_map_ready_address_declared",
+            "status": "missing",
+            "evidence": "winner: the winner's address is declared in map-ready form"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_hours_recorded",
+            "status": "missing",
+            "evidence": "winner: the winner's hours for the day in question are recorded, or flagged unverified in its row"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_booking_or_queue_warning_recorded",
+            "status": "missing",
+            "evidence": "winner: any booking or queue warning for the winner is recorded"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_winner_resolves_to_declared_place",
+            "status": "missing",
+            "evidence": "winner: the declared winner place id names one of the declared places \u2014 the atom checks only that the reference resolves; it never checks that the winner is the best or highest-rated place"
+          },
+          {
+            "section": "ranking_winner_and_backup",
+            "check": "verified_place_shortlist_backup_resolves_and_differs_where_timing_matters",
+            "status": "missing",
+            "evidence": "timing does not matter for this visit"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_hours_flagged_unverified_when_not_same_day_confirmed",
+            "status": "missing",
+            "evidence": "freshness: hours that could not be confirmed for the same day are flagged unverified"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_listings_checked_for_staleness_duplication_and_closure",
+            "status": "missing",
+            "evidence": "freshness: the listings were checked for staleness, duplication and possible closure"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_stale_duplicate_or_closed_listings_flagged",
+            "status": "missing",
+            "evidence": "freshness: any listing that looks stale, duplicated or possibly closed is flagged as such in the record"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_no_unconfirmed_place_used_to_fill_gap",
+            "status": "missing",
+            "evidence": "uncertainty: no gap in the shortlist was filled with a place whose existence was not confirmed"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "verified_place_shortlist_nearest_verified_area_offered_where_no_verified_options",
+            "status": "missing",
+            "evidence": "the original area is not declared to have no verified options"
+          },
+          {
+            "section": "freshness_uncertainty_and_alternatives",
+            "check": "every_verified_place_special_hours_noted_where_shown",
+            "status": "missing",
+            "evidence": "freshness: every declared place declares holiday or special hours noted where shown for the day in question"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_invented_address_hours_rating_or_photo",
+            "status": "missing",
+            "evidence": "red line: no invented address, opening hour, rating or photo description is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_stale_hours_presented_as_current_fact",
+            "status": "missing",
+            "evidence": "red line: no stale hours are presented as current fact in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_place_breaking_stated_constraint_recommended",
+            "status": "missing",
+            "evidence": "red line: no place that breaks a stated constraint is recommended in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_ranking_by_rating_alone",
+            "status": "missing",
+            "evidence": "red line: no ranking by rating alone, without checking fit and review volume, is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "verified_place_shortlist_free_of_unverified_listing_passed_as_confirmed_open",
+            "status": "missing",
+            "evidence": "red line: no unverified listing is passed off as a confirmed open business in the record"
+          }
+        ],
+        "computed_status": null,
+        "verified_places_count": null,
+        "verified_place_criteria_count": null,
+        "duplicate_verified_place_ids": null,
+        "duplicate_verified_place_criterion_ids": null,
+        "duplicate_verified_place_addresses": null,
+        "verified_places_without_name": null,
+        "verified_places_without_address": null,
+        "verified_places_with_unrecognised_hours_status": null,
+        "verified_places_without_verification_method": null,
+        "verified_places_without_verification_date": null,
+        "verified_places_with_invalid_rating": null,
+        "verified_places_with_invalid_review_count": null,
+        "verified_place_criteria_without_name": null,
+        "verified_places_not_meeting_all_declared_criteria": null,
+        "verified_places_with_extra_criterion_ids": null,
+        "verified_places_total_review_count": null,
+        "place_address_verification_ratio": null,
+        "place_hours_same_day_verified_ratio": null,
+        "place_criterion_coverage_ratio": null,
+        "place_rating_evidence_ratio": null,
+        "summary": "0 pass, 0 fail, 51 missing of 51 checks across six sections.",
+        "stamp": "VERIFIED PLACE SHORTLIST\nshortlist_title: Empty\nVERDICT: INSUFFICIENT_EVIDENCE\n  constraints_and_criteria                     insufficient_evidence\n  place_rows_and_verification_evidence         insufficient_evidence\n  rating_signals_and_fit                       insufficient_evidence\n  ranking_winner_and_backup                    insufficient_evidence\n  freshness_uncertainty_and_alternatives       insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 51 missing of 51 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on criteria field."
+      },
+      "input": {
+        "criteria": "not-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "criteria",
+        "detail": "criteria must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

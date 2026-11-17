@@ -1,0 +1,197 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "pack_title": "Standard Procurement Audit",
+        "spec": {
+          "spec_written_before_quotes": true,
+          "spec_includes_functional_requirements": true,
+          "spec_includes_compliance_requirements": true,
+          "spec_includes_interface_requirements": true
+        },
+        "sourcing": {
+          "quotes_comparable_same_scope_declared": true,
+          "single_source_used": false
+        },
+        "evaluation_setup": {
+          "criteria_set_before_scoring": true,
+          "tco_evaluation_documented": true,
+          "tco_includes_acquisition_cost": true,
+          "tco_includes_operations_cost": true,
+          "tco_includes_spares_cost": true,
+          "tco_includes_support_cost": true,
+          "tco_includes_switching_cost": true,
+          "evidence_basis_recorded": true,
+          "evaluation_applied_consistently_across_vendors": true
+        },
+        "vendors": [
+          {
+            "vendor_id": "v1",
+            "vendor_name": "Vendor A",
+            "evidence_note": "Strong performance",
+            "scores": [
+              {
+                "criterion_id": "c1",
+                "score": 10.0
+              }
+            ],
+            "weighted_total_declared": 10.0
+          },
+          {
+            "vendor_id": "v2",
+            "vendor_name": "Vendor B",
+            "evidence_note": "Good performance",
+            "scores": [
+              {
+                "criterion_id": "c1",
+                "score": 8.0
+              }
+            ],
+            "weighted_total_declared": 8.0
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "c1",
+            "criterion_name": "Quality",
+            "weight": 1.0
+          }
+        ],
+        "contract": {
+          "exclusions_reviewed": true,
+          "payment_terms_reviewed": true,
+          "penalties_reviewed": true,
+          "warranty_reviewed": true,
+          "price_escalation_clauses_reviewed": true,
+          "binding_terms_reviewed": true
+        },
+        "po_discipline": {
+          "po_issued_before_delivery": true,
+          "changes_via_change_order_declared": true,
+          "verbal_commitments_papered_same_day_declared": true,
+          "po_references_spec_declared": true
+        },
+        "three_way_match": {
+          "match_performed_before_payment_declared": true,
+          "discrepancies_resolved_before_payment_declared": true,
+          "inspection_against_spec_on_arrival_declared": true,
+          "receipt_verification_before_payment_declared": true,
+          "purchase_order_total_declared": 100.0,
+          "invoice_total_declared": 100.0
+        },
+        "purchase_order_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0,
+            "unit_price": 10.0,
+            "line_total_declared": 100.0
+          }
+        ],
+        "receipt_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0
+          }
+        ],
+        "invoice_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0,
+            "unit_price": 10.0,
+            "line_total_declared": 100.0
+          }
+        ],
+        "vendor_records": {
+          "vendor_terms_recorded": true,
+          "vendor_contacts_recorded": true,
+          "performance_log_maintained": true,
+          "performance_log_covers_on_time_quality_responsiveness": true,
+          "annual_review_cadence_set": true,
+          "two_viable_sources_for_critical_items_declared": true,
+          "banking_detail_changes_verified_via_known_contacts": true,
+          "segregation_of_duties_declared": true,
+          "gifts_conflict_policy_respected_declared": true
+        },
+        "red_lines": {
+          "po_less_purchase_above_threshold_present": false,
+          "payment_without_delivery_confirmation_present": false,
+          "payment_before_three_way_match_present": false,
+          "silent_bank_detail_change_present": false
+        }
+      },
+      "expect": {
+        "outcome": "VENDOR_EVALUATION_AND_MATCH_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: [purchase_order_total: 100.000000, invoice_total: 100.000000]"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "vendors": [
+          {
+            "vendor_id": "v1",
+            "vendor_name": "A",
+            "evidence_note": "N",
+            "scores": [],
+            "weighted_total_declared": 0.0
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "c1",
+            "criterion_name": "C",
+            "weight": 1.0
+          }
+        ],
+        "purchase_order_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0,
+            "unit_price": 5.0,
+            "line_total_declared": 999.0
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "VENDOR_EVALUATION_AND_MATCH_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "purchase_order_lines_with_line_total_mismatch",
+          "vendor_evaluation_vendors_with_incomplete_or_extra_scores"
+        ],
+        "notes": "Input contains arithmetic mismatch in PO lines and incomplete vendor scoring."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "pack_title": "Incomplete Record"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required fields for evaluation."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "pack_title": 12345
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input pack_title expected string, received number."
+      }
+    }
+  ]
+}

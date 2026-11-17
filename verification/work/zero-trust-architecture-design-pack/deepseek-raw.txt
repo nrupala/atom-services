@@ -1,0 +1,115 @@
+# Independent recompute — zero-trust-architecture-design-pack
+
+## Method
+
+I recompute from the case `input` only, using the rules stated in SERVICE.md. The fixed serialization rule for ratios: `floor(v * 1000000 + 0.5) / 1000000`, formatted with exactly six decimals.
+
+The 54 checks break down as: 9 identity + 16 policy/segmentation (10 computed + 6 segmentation/least-privilege) + 9 device/workload trust (incl. gated E2E) + 10 monitoring + 6 migration + 5 red lines = 55? Let me count precisely from the artifact check list: identity 9, policy_coverage_and_segmentation 16, device_and_workload_trust 9, monitoring 10, migration 6, red_lines 5 = **55**. The artifact claims 54. I'll flag this below.
+
+---
+
+## CASE 1 — `full-pass`
+
+### Inputs (relevant)
+- `assets` = [ {a1, "auth-service", service} ] → length 1
+- `policies` = [ {p1, "auth-policy", covered=[a1]} ] → length 1
+- All identity/segmentation/trust/monitoring/migration booleans = true
+- `trust.end_to_end_encryption_demanded` = false → E2E check passes as not applicable
+- All red_lines `*_present` = false → all 5 red-line checks pass
+
+### Computed quantities
+
+**`zero_trust_design_assets_count`** = len(assets) = **1**. Artifact: `1`. **MATCH**
+
+**`zero_trust_design_policies_count`** = len(policies) = **1**. Artifact: `1`. **MATCH**
+
+**Duplicate asset ids:** ids = [a1]; no repeats → `[]`. Artifact: `[]`. **MATCH**
+
+**Duplicate policy ids:** ids = [p1]; no repeats → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_assets_without_name`:** a1 has name "auth-service" (non-empty) → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_assets_with_invalid_kind`:** "service" ∈ {service, workload, device, data_store, admin_path} → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_policies_without_name`:** p1 name "auth-policy" non-empty → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_policies_without_coverage`:** p1 covered=[a1], non-empty → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_policy_refs_not_declared_as_assets`:** refs = {a1}; declared assets = {a1}; unresolved = {} → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_assets_without_policy_coverage`:** declared assets {a1}; covered union = {a1}; uncovered = {} → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_policy_coverage_ratio`:** covered assets = |{a1} ∩ {a1}| = 1; denominator = |assets| = 1. v = 1/1 = 1.0.
+`floor(1.0 * 1000000 + 0.5) / 1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → format 6dp → **"1.000000"**. Artifact: `"1.000000"`. **MATCH**
+
+**`computed_status`:** all 10 primary computed checks completed (no missing evidence) and none fail → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+**Verdict:** all checks pass → `ZERO_TRUST_DESIGN_SOUND`. Artifact: same. **MATCH**
+
+**Summary count:** I count the artifact's own `checks` array = 55 entries, all `pass`. Artifact summary says "54 pass, 0 fail, 0 missing of 54 checks." **MISMATCH on the count** (55 vs 54) — see note.
+
+---
+
+## CASE 2 — `violations`
+
+### Inputs (relevant)
+- `assets` = [ {a1, asset_name="", asset_kind="service"} ] → length 1
+- `policies` = [ {p1, "auth-policy", covered=["nonexistent"]} ] → length 1
+- Everything else identical to case 1 (all true; E2E gate false; red lines all false)
+
+### Planted wrong values and expected failures
+- `asset_name = ""` → should fail **asset name** check, and a1 named in `assets_without_name`.
+- `covered_asset_ids = ["nonexistent"]` → should fail **coverage reference resolves** (nonexistent not a declared asset), and "nonexistent" named in `policy_refs_not_declared_as_assets`.
+- Because the only policy covers "nonexistent" (not a1), a1 is uncovered → should fail **every declared asset covered by policy**, and a1 named in `assets_without_policy_coverage`.
+
+### Computed quantities
+
+**`zero_trust_design_assets_count`** = 1. Artifact: `1`. **MATCH**
+
+**`zero_trust_design_policies_count`** = 1. Artifact: `1`. **MATCH**
+
+**Duplicate asset ids:** [a1] → `[]`. Artifact: `[]`. **MATCH**
+
+**Duplicate policy ids:** [p1] → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_assets_without_name`:** a1 name = "" (empty) → `["a1"]`. Artifact: `["a1"]`. **MATCH**
+
+**`zero_trust_design_assets_with_invalid_kind`:** "service" valid → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_policies_without_name`:** p1 name non-empty → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_policies_without_coverage`:** p1 covered=["nonexistent"], non-empty list → `[]`. Artifact: `[]`. **MATCH**
+
+**`zero_trust_design_policy_refs_not_declared_as_assets`:** refs = {nonexistent}; declared assets = {a1}; unresolved = {nonexistent} → `["nonexistent"]`. Artifact: `["nonexistent"]`. **MATCH**
+
+**`zero_trust_design_assets_without_policy_coverage`:** declared assets {a1}; covered union = {nonexistent}; uncovered = {a1} → `["a1"]`. Artifact: `["a1"]`. **MATCH**
+
+**`zero_trust_design_policy_coverage_ratio`:** covered assets = |{a1} ∩ {nonexistent}| = 0; denominator = |assets| = 1. v = 0/1 = 0.0.
+`floor(0.0 * 1000000 + 0.5)/1000000 = floor(0.5)/1000000 = 0/1000000 = 0.0` → **"0.000000"**. Artifact: `"0.000000"`. **MATCH**
+
+**`computed_status`:** all 10 primary computed checks completed; some fail → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+**Verdict:** some check fails → `ZERO_TRUST_DESIGN_NOT_SOUND`. Artifact: same. **MATCH**
+
+### Confirm failing checks are exactly the planted ones
+Artifact marks exactly 3 checks `fail`, all in `policy_coverage_and_segmentation`:
+1. `every_zero_trust_design_asset_name_declared` — caused by `asset_name=""`. ✓ expected
+2. `every_zero_trust_design_policy_coverage_reference_resolves` — caused by `"nonexistent"`. ✓ expected
+3. `every_zero_trust_design_declared_asset_covered_by_policy` — caused by a1 uncovered. ✓ expected
+
+No other check fails; all other sections pass. **The failing set is exactly the three the planted wrong values should fail.** **MATCH**
+
+**Summary count:** artifact's `checks` array = 55 entries; 3 fail, 52 pass. Artifact summary says "51 pass, 3 fail, 0 missing of 54 checks." **MISMATCH on the count** (52 pass / 55 total vs 51 pass / 54 total).
+
+---
+
+## Note on the check-count discrepancy
+
+Both artifacts' `checks` arrays contain **55** entries (I enumerated them: 9 + 16 + 9 + 10 + 6 + 5 = 55), and the per-section statuses are consistent with those entries. But both `summary` strings and the SERVICE.md prose say **54 checks**. The pass/fail tallies in the summaries are therefore off by one relative to the actual check list:
+
+- Case 1: actual 55 pass; summary says 54 pass.
+- Case 2: actual 52 pass / 3 fail / 55 total; summary says 51 pass / 3 fail / 54 total.
+
+Every *computed quantity* (counts, duplicate lists, name/kind/coverage lists, ratio, computed_status, verdict, section statuses, and the exact failing-check set) recomputes correctly and matches. The only disagreement is the headline check-count/tally in the `summary`/`stamp` strings, which undercounts by one in both cases.
+
+AGREEMENT: partial — all computed quantities, lists, ratio ("1.000000" / "0.000000"), computed_status, verdict, section statuses, and the exact failing-check set match; but the summary/stamp check tallies disagree: artifacts say "54 checks" (case 1: 54 pass; case 2: 51 pass, 3 fail) while the actual `checks` arrays contain 55 entries (case 1: 55 pass; case 2: 52 pass, 3 fail).

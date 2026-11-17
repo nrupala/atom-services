@@ -1,0 +1,146 @@
+# Independent recompute — verified-place-shortlist
+
+I recompute every computed quantity from the case inputs, using the SERVICE.md rules, and compare to the recorded artifacts.
+
+## Serialization rule (applied throughout)
+
+For any ratio/count reported as a string: `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. Counts are reported as integers where the spec says "integers, exactly" — but the artifacts report `verified_places_total_review_count` as `"15.000000"` / `"10.000000"`, i.e. as a 6dp string. I'll note that discrepancy below.
+
+---
+
+## CASE 1 — `full-pass`
+
+### Inputs
+- criteria: `[c1]` → length **1**
+- places: `[p1, p2]` → length **2**
+- review counts: p1 = 10, p2 = 5
+
+### Counts
+- `verified_places_count` = len(places) = **2**. Artifact: `2`. **MATCH**
+- `verified_place_criteria_count` = len(criteria) = **1**. Artifact: `1`. **MATCH**
+
+### `verified_places_total_review_count`
+Sum = 10 + 5 = **15**.
+- Spec text: "counts are reported as integers, exactly" (this phrase is attached to the count fields; the total review count is described as "the sum of the declared review counts").
+- Artifact: `"15.000000"` (6dp string).
+- Arithmetic value 15 is correct. **MATCH on value**; the serialization (6dp string vs integer) is a spec-wording ambiguity, not an arithmetic error. I'll flag it but not call it a mismatch of the computed quantity.
+
+### Ratios (denominator = 2 places)
+
+**`place_address_verification_ratio`** = places with `address_verified_from_listing == true` ÷ 2.
+- p1 true, p2 true → 2/2 = 1.0
+- `floor(1.0*1e6 + 0.5)/1e6 = floor(1000000.5)/1e6 = 1000000/1e6 = 1.0` → `"1.000000"`
+- Artifact: `"1.000000"`. **MATCH**
+
+**`place_hours_same_day_verified_ratio`** = places with `hours_status == "same_day_verified"` ÷ 2.
+- p1 same_day_verified, p2 same_day_verified → 2/2 = 1.0 → `"1.000000"`
+- Artifact: `"1.000000"`. **MATCH**
+
+**`place_criterion_coverage_ratio`** = places meeting every declared criterion ÷ 2.
+- Declared criteria = {c1}. p1 met {c1} ✓, p2 met {c1} ✓ → 2/2 = 1.0 → `"1.000000"`
+- Artifact: `"1.000000"`. **MATCH**
+
+**`place_rating_evidence_ratio`** = places declaring both a rating and a review count ÷ 2.
+- p1: rating 4.5, count 10 ✓; p2: rating 4.0, count 5 ✓ → 2/2 = 1.0 → `"1.000000"`
+- Artifact: `"1.000000"`. **MATCH**
+
+### Duplicate / offender lists
+- `duplicate_verified_place_ids`: ids p1, p2 distinct → `[]`. Artifact `[]`. **MATCH**
+- `duplicate_verified_place_criterion_ids`: only c1 → `[]`. Artifact `[]`. **MATCH**
+- `duplicate_verified_place_addresses`: "123 Maple St", "456 Oak St" distinct → `[]`. Artifact `[]`. **MATCH**
+- `verified_places_without_name`: both named → `[]`. **MATCH**
+- `verified_places_without_address`: both have addresses → `[]`. **MATCH**
+- `verified_places_with_unrecognised_hours_status`: both `same_day_verified` → `[]`. **MATCH**
+- `verified_places_without_verification_method`: both "Phone" → `[]`. **MATCH**
+- `verified_places_without_verification_date`: both "2023-10-01" → `[]`. **MATCH**
+- `verified_places_with_invalid_rating`: 4.5, 4.0 both ≥ 0 → `[]`. **MATCH**
+- `verified_places_with_invalid_review_count`: 10, 5 both > 0 → `[]`. **MATCH**
+- `verified_place_criteria_without_name`: c1 named "Quiet" → `[]`. **MATCH**
+- `verified_places_not_meeting_all_declared_criteria`: both meet {c1} → `[]`. **MATCH**
+- `verified_places_with_extra_criterion_ids`: both map only {c1} ⊆ declared → `[]`. **MATCH**
+
+### `computed_status`
+All 22 primary computed checks complete and pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Verdict / summary
+All 51 checks pass → `VERIFIED_PLACE_SHORTLIST_SOUND`, "51 pass, 0 fail, 0 missing". Artifact matches. **MATCH**
+
+**Case 1: all computed quantities MATCH.**
+
+---
+
+## CASE 2 — `violations`
+
+### Inputs
+- criteria: `[c1]` → length **1**
+- places: `[p1, p2]` → length **2**
+- p1: `place_name = ""`, `address_verified_from_listing = false`, review_count 10
+- p2: `place_name = "Cafe B"`, `address_verified_from_listing = true`, review_count **0**
+- red_lines.invented_address_hours_rating_or_photo_present = **true**
+
+### Counts
+- `verified_places_count` = **2**. Artifact `2`. **MATCH**
+- `verified_place_criteria_count` = **1**. Artifact `1`. **MATCH**
+
+### `verified_places_total_review_count`
+Sum = 10 + 0 = **10**. Artifact `"10.000000"`. **MATCH on value** (same 6dp-vs-integer serialization note as above).
+
+### Ratios (denominator = 2)
+
+**`place_address_verification_ratio`** = places with address_verified true ÷ 2.
+- p1 false, p2 true → 1/2 = 0.5
+- `floor(0.5*1e6 + 0.5)/1e6 = floor(500000.5)/1e6 = 500000/1e6 = 0.5` → `"0.500000"`
+- Artifact: `"0.500000"`. **MATCH**
+
+**`place_hours_same_day_verified_ratio`** = both `same_day_verified` → 2/2 = 1.0 → `"1.000000"`. Artifact `"1.000000"`. **MATCH**
+
+**`place_criterion_coverage_ratio`** = both meet {c1} → 2/2 = 1.0 → `"1.000000"`. Artifact `"1.000000"`. **MATCH**
+
+**`place_rating_evidence_ratio`** = places declaring both rating and review count ÷ 2.
+- p1: rating 4.5, count 10 ✓; p2: rating 4.0, count 0 — count is present (0 is a declared value) ✓ → 2/2 = 1.0 → `"1.000000"`
+- Artifact: `"1.000000"`. **MATCH**
+- (Note: the ratio counts *declaration presence*, not validity; p2's count of 0 is still "declared", so 1.0 is correct per the spec's wording "declaring both a rating and a review count".)
+
+### Offender lists
+- `verified_places_without_name`: p1 has `""` → `["p1"]`. Artifact `["p1"]`. **MATCH**
+- `verified_places_without_address`: both have addresses → `[]`. **MATCH**
+- `verified_places_with_unrecognised_hours_status`: both valid → `[]`. **MATCH**
+- `verified_places_without_verification_method`: both "Phone" → `[]`. **MATCH**
+- `verified_places_without_verification_date`: both dated → `[]`. **MATCH**
+- `verified_places_with_invalid_rating`: 4.5, 4.0 ≥ 0 → `[]`. **MATCH**
+- `verified_places_with_invalid_review_count`: p2 count 0 (not positive) → `["p2"]`. Artifact `["p2"]`. **MATCH**
+- `verified_place_criteria_without_name`: c1 named → `[]`. **MATCH**
+- `verified_places_not_meeting_all_declared_criteria`: both meet {c1} → `[]`. **MATCH**
+- `verified_places_with_extra_criterion_ids`: both only {c1} → `[]`. **MATCH**
+- duplicates (ids/criteria/addresses): all distinct → `[]`, `[]`, `[]`. **MATCH**
+
+### `computed_status`
+All 22 primary computed checks complete; some fail → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Which checks should fail — planted wrong values
+
+The planted wrong values are:
+1. p1 `place_name = ""` → should fail **`every_verified_place_name_declared`**.
+2. p1 `address_verified_from_listing = false` → should fail **`every_verified_place_address_verified_from_listing`**.
+3. p2 `review_count = 0` → should fail **`every_verified_place_review_count_positive`**.
+4. `red_lines.invented_address_hours_rating_or_photo_present = true` → should fail **`verified_place_shortlist_free_of_invented_address_hours_rating_or_photo`**.
+
+Artifact's failing checks (4 total):
+- `every_verified_place_name_declared` — fail ✓ (planted #1)
+- `every_verified_place_address_verified_from_listing` — fail ✓ (planted #2)
+- `every_verified_place_review_count_positive` — fail ✓ (planted #3)
+- `verified_place_shortlist_free_of_invented_address_hours_rating_or_photo` — fail ✓ (planted #4)
+
+**Exactly the four planted wrong values fail; no extra, no missing.** Section roll-up: place_rows (name + address-verified) → fail ✓; rating_signals (review count) → fail ✓; red_lines (invented) → fail ✓; other three sections pass ✓. Summary "47 pass, 4 fail, 0 missing of 51" — 51 − 4 = 47 ✓. **MATCH**
+
+**Case 2: all computed quantities MATCH; failing checks are exactly the planted ones.**
+
+---
+
+## Summary of findings
+
+Every computed quantity (counts, total review count, all four ratios, all duplicate/offender lists, `computed_status`, verdict, and pass/fail/missing tallies) recomputes to the artifact's value in both cases. The failing checks in the violations case are exactly the four checks the planted wrong values should trip.
+
+One minor spec-wording observation (not an arithmetic disagreement): SERVICE.md says counts are "reported as integers, exactly," yet `verified_places_total_review_count` is serialized as a 6dp string (`"15.000000"`, `"10.000000"`). The numeric value is correct in both cases; only the serialization form differs from a literal reading of "integers." This does not affect any verdict or ratio.
+
+AGREEMENT: full

@@ -1,0 +1,164 @@
+# Independent recompute — vendor-evaluation-three-way-match-pack
+
+Serialization rule applied throughout: `floor(v * 1000000 + 0.5) / 1000000`, formatted with exactly six decimals.
+
+---
+
+## Case 1: `full-pass`
+
+### Declared inputs (relevant)
+- criteria: `c1` weight 1.0 → weights sum = 1.0
+- vendors: v1 scores c1=10.0, weighted_total_declared=10.0; v2 scores c1=8.0, weighted_total_declared=8.0
+- PO lines: l1 qty 10.0 × unit 10.0, line_total_declared 100.0
+- receipt lines: l1 qty 10.0
+- invoice lines: l1 qty 10.0 × unit 10.0, line_total_declared 100.0
+- three_way_match: PO total declared 100.0, invoice total declared 100.0
+
+### Computed quantities
+
+**`vendor_evaluation_criteria_weights_sum`**
+= 1.0 → floor(1.0·1e6 + 0.5)/1e6 = 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`purchase_order_lines_total`**
+= 100.0 → 100.000000. Artifact: `"100.000000"` → **MATCH**
+
+**`invoice_lines_total`**
+= 100.0 → 100.000000. Artifact: `"100.000000"` → **MATCH**
+
+**`vendor_score_coverage_ratio`** = vendors scoring every criterion exactly ÷ vendors
+- v1: scores {c1} = declared criteria {c1} exactly → covered
+- v2: scores {c1} = {c1} exactly → covered
+= 2/2 = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`vendor_weighted_total_match_ratio`**
+- v1: 1.0×10.0 = 10.0 vs declared 10.0 → match
+- v2: 1.0×8.0 = 8.0 vs declared 8.0 → match
+= 2/2 = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`vendor_evidence_note_ratio`** = vendors with non-empty evidence_note ÷ vendors = 2/2 = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`three_way_quantity_match_ratio`** = PO lines whose qty agrees across all three ÷ PO lines
+- l1: PO 10.0, receipt 10.0, invoice 10.0 → agree
+= 1/1 = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`three_way_amount_match_ratio`** = PO lines whose invoice line total agrees with PO line total ÷ PO lines
+- l1: invoice line_total 100.0 vs PO line_total 100.0 → agree
+= 1/1 = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**Counts:** vendors 2, criteria 1, PO lines 1, receipt lines 1, invoice lines 1. Artifact: 2,1,1,1,1 → **MATCH**
+
+**Duplicate lists:** all empty (no repeated ids). Artifact: all `[]` → **MATCH**
+
+**Line-total recomputes:** PO l1: 10.0×10.0 = 100.0 = declared 100.0 ✓; invoice l1: 10.0×10.0 = 100.0 = declared 100.0 ✓ → mismatch lists empty. Artifact: `[]`, `[]` → **MATCH**
+
+**Grand totals:** PO sum = 100.0 = declared 100.0 ✓; invoice sum = 100.0 = declared 100.0 ✓; PO total 100.0 = invoice total 100.0 ✓ → all pass. Artifact: pass → **MATCH**
+
+**`computed_status`:** all 24 primary checks complete and pass → `within_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**
+
+**Verdict:** all 66 checks pass → `VENDOR_EVALUATION_AND_MATCH_SOUND`. Artifact: same → **MATCH**
+
+**Summary:** 66 pass, 0 fail, 0 missing. Artifact: same → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Planted wrong values
+1. v1 scores `cX` (not a declared criterion) instead of `c1` → incomplete/extra scores; weighted total can't recompute over declared criteria.
+2. PO line l1 `line_total_declared` = 999.0 but qty×unit = 10.0×10.0 = 100.0 → line-total mismatch; PO grand total 100.0 ≠ sum of line totals 999.0.
+
+### Computed quantities
+
+**`vendor_evaluation_criteria_weights_sum`** = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`purchase_order_lines_total`** = sum of declared PO line totals = 999.0 → 999.000000. Artifact: `"999.000000"` → **MATCH**
+
+**`invoice_lines_total`** = 100.0 → 100.000000. Artifact: `"100.000000"` → **MATCH**
+
+**`vendor_score_coverage_ratio`**
+- v1: scores {cX} ≠ declared criteria {c1} → not covered
+- v2: scores {c1} = {c1} → covered
+= 1/2 = 0.5 → 0.500000. Artifact: `"0.500000"` → **MATCH**
+
+**`vendor_weighted_total_match_ratio`**
+- v1: recompute over declared scores: weight(cX) undefined — cX is not a declared criterion, so the total cannot recompute → mismatch
+- v2: 1.0×8.0 = 8.0 = declared 8.0 → match
+= 1/2 = 0.5 → 0.500000. Artifact: `"0.500000"` → **MATCH**
+
+**`vendor_evidence_note_ratio`** = 2/2 = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`three_way_quantity_match_ratio`**
+- l1: PO 10.0, receipt 10.0, invoice 10.0 → agree
+= 1/1 = 1.0 → 1.000000. Artifact: `"1.000000"` → **MATCH**
+
+**`three_way_amount_match_ratio`** = PO lines whose invoice line total agrees with PO line total ÷ PO lines
+- l1: invoice line_total 100.0 vs PO line_total 999.0 → differ
+= 0/1 = 0.0 → 0.000000. Artifact: `"0.000000"` → **MATCH**
+
+**Counts:** 2,1,1,1,1. Artifact: same → **MATCH**
+
+**Duplicate lists:** all empty. Artifact: all `[]` → **MATCH**
+
+**Line-total recomputes:**
+- PO l1: 10.0×10.0 = 100.0 vs declared 999.0 → mismatch → `purchase_order_lines_with_line_total_mismatch = ["l1"]`. Artifact: `["l1"]` → **MATCH**
+- invoice l1: 10.0×10.0 = 100.0 = declared 100.0 → ok → `[]`. Artifact: `[]` → **MATCH**
+
+**Grand totals:**
+- PO sum of line totals = 999.0 vs declared PO total 100.0 → mismatch → fail. Artifact: fail → **MATCH**
+- invoice sum = 100.0 = declared 100.0 → pass. Artifact: pass → **MATCH**
+- PO total 100.0 = invoice total 100.0 → pass. Artifact: pass → **MATCH**
+
+**Score coverage / weighted total lists:**
+- `vendor_evaluation_vendors_with_incomplete_or_extra_scores = ["v1"]`. Artifact: `["v1"]` → **MATCH**
+- `vendor_evaluation_vendors_with_weighted_total_mismatch = ["v1"]`. Artifact: `["v1"]` → **MATCH**
+
+**`computed_status`:** a primary check fails → `outside_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**
+
+**Verdict:** any fail → `VENDOR_EVALUATION_AND_MATCH_NOT_SOUND`. Artifact: same → **MATCH**
+
+**Summary:** 4 fails (score coverage, weighted total, PO line total, PO grand total), 62 pass, 0 missing. Artifact: "62 pass, 4 fail, 0 missing" → **MATCH**
+
+### Confirm the failing checks are exactly the planted ones
+Planted defects: (a) v1 scores wrong criterion `cX`; (b) PO line total 999.0 ≠ 100.0.
+
+Expected failures:
+1. `every_vendor_evaluation_vendor_scores_every_declared_criterion` — v1 scores cX, not c1 → **fail** ✓ (artifact: fail)
+2. `every_vendor_evaluation_vendor_weighted_total_recomputes` — v1 total can't recompute over declared criteria → **fail** ✓ (artifact: fail)
+3. `every_vendor_evaluation_purchase_order_line_total_recomputes` — 999.0 ≠ 100.0 → **fail** ✓ (artifact: fail)
+4. `vendor_evaluation_purchase_order_total_recomputes_from_line_totals` — declared 100.0 ≠ sum 999.0 → **fail** ✓ (artifact: fail)
+
+All other checks pass in the artifact, and I confirm none of them is affected by the two planted defects:
+- Invoice line total 100.0 = 10.0×10.0 ✓ pass
+- Invoice grand total 100.0 = sum 100.0 ✓ pass
+- Grand totals match: PO declared 100.0 = invoice declared 100.0 ✓ pass (the check compares *declared* totals, both 100.0)
+- Quantity match: all 10.0 ✓ pass
+- Unit price match: 10.0 = 10.0 ✓ pass
+- Coverage: receipt {l1} = PO {l1}, invoice {l1} = PO {l1} ✓ pass
+- All boolean/red-line sections unaffected ✓ pass
+
+Exactly 4 fails, matching the planted defects. **CONFIRMED.**
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| criteria_weights_sum | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| purchase_order_lines_total | 100.000000 | 100.000000 ✓ | 999.000000 | 999.000000 ✓ |
+| invoice_lines_total | 100.000000 | 100.000000 ✓ | 100.000000 | 100.000000 ✓ |
+| vendor_score_coverage_ratio | 1.000000 | 1.000000 ✓ | 0.500000 | 0.500000 ✓ |
+| vendor_weighted_total_match_ratio | 1.000000 | 1.000000 ✓ | 0.500000 | 0.500000 ✓ |
+| vendor_evidence_note_ratio | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| three_way_quantity_match_ratio | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| three_way_amount_match_ratio | 1.000000 | 1.000000 ✓ | 0.000000 | 0.000000 ✓ |
+| counts (5) | 2,1,1,1,1 | 2,1,1,1,1 ✓ | 2,1,1,1,1 | 2,1,1,1,1 ✓ |
+| duplicate lists (5) | all [] | all [] ✓ | all [] | all [] ✓ |
+| mismatch lists | all [] | all [] ✓ | v1,v1,l1 | v1,v1,l1 ✓ |
+| computed_status | within | within ✓ | outside | outside ✓ |
+| verdict | SOUND | SOUND ✓ | NOT_SOUND | NOT_SOUND ✓ |
+| summary | 66/0/0 | 66/0/0 ✓ | 62/4/0 | 62/4/0 ✓ |
+
+Every computed quantity and every check status in both artifacts recomputes correctly from the recorded inputs. The violations case fails exactly the four checks the two planted wrong values should fail.
+
+AGREEMENT: full

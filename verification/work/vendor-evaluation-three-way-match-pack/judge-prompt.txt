@@ -1,0 +1,2274 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: vendor-evaluation-three-way-match-pack
+
+=== contract.yaml ===
+service_name: vendor-evaluation-three-way-match-pack
+display_name: Vendor evaluation three way match pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:procurement-vendor-management
+binding:
+  skill: procurement-vendor-management
+  skill_path: workspace/mymilo-build/skills/procurement-vendor-management/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: EVALUATION
+endpoints:
+- agent
+- human
+keys:
+  namespace: vendor_evaluation_three_way_match_pack
+  prefix: atm_1_vendor_evaluation_three_way_match_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: EE and software vendor purchases
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Vendor evaluation three way match pack — `vendor-evaluation-three-way-match-pack`
+
+**Deliverable type:** EVALUATION. This atom sells the evaluation it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Procure well — specs, sourcing, vendor evaluation, PO discipline, 3-way match, performance reviews.
+
+A caller submits the inputs the bound skill works on and receives one evaluation back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared vendor evaluation and three-way match record** and receives the record audit verdict as the evaluation: the atom fetches nothing, contacts no vendor, approves no payment and gives no procurement advice (see Honest scoping).
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this evaluation on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **EE and software vendor purchases**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the vendor evaluation three-way match manifest
+
+The caller submits one JSON manifest: a declared vendor
+evaluation and three-way match record for one purchase, made
+from the procurement record as actually kept. Every field
+below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a
+field present but false / invalid = the check fails
+(`VENDOR_EVALUATION_AND_MATCH_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `pack_title` (string; carried into the verdict output, not itself checked) | — |
+| `spec.spec_written_before_quotes` (boolean) | spec_and_sourcing |
+| `spec.spec_includes_functional_requirements` (boolean) | spec_and_sourcing |
+| `spec.spec_includes_compliance_requirements` (boolean) | spec_and_sourcing |
+| `spec.spec_includes_interface_requirements` (boolean) | spec_and_sourcing |
+| `sourcing.quotes_comparable_same_scope_declared` (boolean) | spec_and_sourcing |
+| `sourcing.single_source_used` (boolean; gates the justification check below) | spec_and_sourcing |
+| `sourcing.single_source_justification_recorded` (boolean; required when a single-source purchase is declared used; otherwise the check passes as not applicable) | spec_and_sourcing |
+| `evaluation_setup.criteria_set_before_scoring` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.tco_evaluation_documented` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.tco_includes_acquisition_cost` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.tco_includes_operations_cost` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.tco_includes_spares_cost` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.tco_includes_support_cost` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.tco_includes_switching_cost` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.evidence_basis_recorded` (boolean) | vendor_evaluation_and_total_cost |
+| `evaluation_setup.evaluation_applied_consistently_across_vendors` (boolean) | vendor_evaluation_and_total_cost |
+| `vendors` (list of vendor-row objects, each with the entry fields below; computed, see below) | vendor_evaluation_and_total_cost |
+| `vendors[].vendor_id` (string; must be unique per row) | vendor_evaluation_and_total_cost |
+| `vendors[].vendor_name` (non-empty string) | vendor_evaluation_and_total_cost |
+| `vendors[].evidence_note` (non-empty string) | vendor_evaluation_and_total_cost |
+| `vendors[].scores` (list of score-row objects, each with the entry fields below; computed, see below) | vendor_evaluation_and_total_cost |
+| `vendors[].scores[].criterion_id` (string; computed — must name a declared criterion, see below) | vendor_evaluation_and_total_cost |
+| `vendors[].scores[].score` (number) | vendor_evaluation_and_total_cost |
+| `vendors[].weighted_total_declared` (number; computed — must recompute from the declared weights and scores, see below) | vendor_evaluation_and_total_cost |
+| `criteria` (list of criterion-row objects, each with the entry fields below; computed, see below) | vendor_evaluation_and_total_cost |
+| `criteria[].criterion_id` (string; must be unique per row) | vendor_evaluation_and_total_cost |
+| `criteria[].criterion_name` (non-empty string) | vendor_evaluation_and_total_cost |
+| `criteria[].weight` (number; must be non-negative) | vendor_evaluation_and_total_cost |
+| `contract.exclusions_reviewed` (boolean) | contract_and_terms |
+| `contract.payment_terms_reviewed` (boolean) | contract_and_terms |
+| `contract.penalties_reviewed` (boolean) | contract_and_terms |
+| `contract.warranty_reviewed` (boolean) | contract_and_terms |
+| `contract.price_escalation_clauses_reviewed` (boolean) | contract_and_terms |
+| `contract.binding_terms_reviewed` (boolean) | contract_and_terms |
+| `po_discipline.po_issued_before_delivery` (boolean) | purchase_order_discipline |
+| `po_discipline.changes_via_change_order_declared` (boolean) | purchase_order_discipline |
+| `po_discipline.verbal_commitments_papered_same_day_declared` (boolean) | purchase_order_discipline |
+| `po_discipline.po_references_spec_declared` (boolean) | purchase_order_discipline |
+| `three_way_match.match_performed_before_payment_declared` (boolean) | three_way_match |
+| `three_way_match.discrepancies_resolved_before_payment_declared` (boolean) | three_way_match |
+| `three_way_match.inspection_against_spec_on_arrival_declared` (boolean) | three_way_match |
+| `three_way_match.receipt_verification_before_payment_declared` (boolean) | three_way_match |
+| `three_way_match.purchase_order_total_declared` (number; computed — must recompute from the declared purchase-order line totals and agree with the declared invoice total, see below) | three_way_match |
+| `three_way_match.invoice_total_declared` (number; computed — must recompute from the declared invoice line totals, see below) | three_way_match |
+| `purchase_order_lines` (list of purchase-order line-row objects, each with the entry fields below; computed, see below) | three_way_match |
+| `purchase_order_lines[].line_id` (string; must be unique per row within the set) | three_way_match |
+| `purchase_order_lines[].quantity` (number) | three_way_match |
+| `purchase_order_lines[].unit_price` (number) | three_way_match |
+| `purchase_order_lines[].line_total_declared` (number; computed — must recompute as declared quantity × declared unit price, see below) | three_way_match |
+| `receipt_lines` (list of goods-receipt line-row objects, each with the entry fields below; computed, see below) | three_way_match |
+| `receipt_lines[].line_id` (string; must be unique per row within the set) | three_way_match |
+| `receipt_lines[].quantity` (number) | three_way_match |
+| `invoice_lines` (list of invoice line-row objects, each with the entry fields below; computed, see below) | three_way_match |
+| `invoice_lines[].line_id` (string; must be unique per row within the set) | three_way_match |
+| `invoice_lines[].quantity` (number) | three_way_match |
+| `invoice_lines[].unit_price` (number) | three_way_match |
+| `invoice_lines[].line_total_declared` (number; computed — must recompute as declared quantity × declared unit price, see below) | three_way_match |
+| `vendor_records.vendor_terms_recorded` (boolean) | vendor_records_and_performance |
+| `vendor_records.vendor_contacts_recorded` (boolean) | vendor_records_and_performance |
+| `vendor_records.performance_log_maintained` (boolean) | vendor_records_and_performance |
+| `vendor_records.performance_log_covers_on_time_quality_responsiveness` (boolean) | vendor_records_and_performance |
+| `vendor_records.annual_review_cadence_set` (boolean) | vendor_records_and_performance |
+| `vendor_records.two_viable_sources_for_critical_items_declared` (boolean) | vendor_records_and_performance |
+| `vendor_records.banking_detail_changes_verified_via_known_contacts` (boolean) | vendor_records_and_performance |
+| `vendor_records.segregation_of_duties_declared` (boolean) | vendor_records_and_performance |
+| `vendor_records.gifts_conflict_policy_respected_declared` (boolean) | vendor_records_and_performance |
+| `red_lines.po_less_purchase_above_threshold_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.payment_without_delivery_confirmation_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.payment_before_three_way_match_present` (boolean; must be `false` to pass — skill quality gate) | red_lines |
+| `red_lines.silent_bank_detail_change_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Twenty-four checks are computed from the declared rows,
+using only the skill's own stated rules plus the consistency
+of the declared record itself — no outside threshold is
+imported:
+
+- **Vendors declared:** the declared `vendors` list passes
+  when it is present and names at least two vendors. An
+  absent list is missing evidence; a list of fewer than two
+  fails — an evaluation that selects between vendors is
+  comparative by its own framing, and one row compares
+  nothing.
+- **Vendor ids unique:** no declared `vendor_id` may appear
+  on more than one row. A row with `vendor_id` absent is
+  missing evidence for this check.
+- **Vendor name per vendor:** every declared vendor row
+  declares a non-empty `vendor_name`. A row with the field
+  absent is missing evidence; a row declaring an empty name
+  fails and is named in
+  `vendor_evaluation_vendors_without_name`.
+- **Evidence note per vendor:** every declared vendor row
+  declares a non-empty `evidence_note`. A row with the field
+  absent is missing evidence; a row declaring an empty note
+  fails and is named in
+  `vendor_evaluation_vendors_without_evidence_note`.
+- **Criteria declared:** the declared `criteria` list passes
+  when it is present and names at least one criterion. An
+  absent list is missing evidence; an empty list fails — it
+  declares no evaluation at all.
+- **Criterion ids unique:** no declared `criterion_id` may
+  appear on more than one criterion row.
+- **Criterion name per criterion:** every declared criterion
+  row declares a non-empty `criterion_name`, named in
+  `vendor_evaluation_criteria_without_name` when empty.
+- **Criterion weights non-negative:** every declared
+  criterion declares a non-negative `weight`. A row with the
+  field absent is missing evidence; a negative weight fails
+  and is named in
+  `vendor_evaluation_criteria_with_invalid_weight`.
+- **Criterion weights sum positive:** the declared weights
+  sum to a positive total (reported as
+  `vendor_evaluation_criteria_weights_sum`). An evaluation
+  whose weights sum to zero scores nothing — internal
+  consistency of the declared rows, not an imported target;
+  the skill states no weight-sum target such as 1 or 100, so
+  none is checked.
+- **Every vendor scores every declared criterion:** every
+  declared vendor's `scores` list names every declared
+  criterion and no other criterion, exactly once. A vendor
+  with `scores` absent, or a criterion row without a
+  `criterion_id`, is missing evidence; a vendor scoring
+  incompletely, extra, or twice fails and is named in
+  `vendor_evaluation_vendors_with_incomplete_or_extra_scores`.
+- **Every vendor's weighted total recomputes:** every
+  declared vendor's `weighted_total_declared` recomputes as
+  sum(declared weight × declared score) over its declared
+  scores, compared on the fixed 6dp serialization below. A
+  vendor with the total or its scores absent is missing
+  evidence; a mismatch fails and is named in
+  `vendor_evaluation_vendors_with_weighted_total_mismatch`.
+- **Purchase-order lines declared:** the declared
+  `purchase_order_lines` list passes when it is present and
+  names at least one line. An absent list is missing
+  evidence; an empty list fails — it declares no purchase at
+  all.
+- **Line ids unique per document set:** no declared
+  `line_id` may appear on more than one row within the
+  purchase-order set, the receipt set, or the invoice set
+  (three checks, one per set).
+- **Purchase-order line totals recompute:** every declared
+  purchase-order line's `line_total_declared` recomputes as
+  declared quantity × declared unit price, compared on the
+  fixed 6dp serialization below. A line with any of the three
+  fields absent is missing evidence; a mismatch fails and is
+  named in `purchase_order_lines_with_line_total_mismatch`.
+- **Invoice line totals recompute:** the same recomputation
+  over the declared invoice lines, named in
+  `invoice_lines_with_line_total_mismatch` when a line fails.
+- **Receipt lines cover the purchase order exactly:** the
+  declared receipt line ids are exactly the declared
+  purchase-order line ids — none missing
+  (`purchase_order_line_ids_missing_from_receipt`), none
+  extra (`receipt_line_ids_not_on_purchase_order`), none
+  duplicated (`duplicate_receipt_line_ids`). Either list
+  absent, or a row without a `line_id`, is missing evidence.
+- **Invoice lines cover the purchase order exactly:** the
+  same exact-coverage rule for the declared invoice line ids
+  against the declared purchase-order line ids
+  (`purchase_order_line_ids_missing_from_invoice`,
+  `invoice_line_ids_not_on_purchase_order`,
+  `duplicate_invoice_line_ids`).
+- **Quantities match across the three documents:** for every
+  declared line, the declared quantity agrees across the
+  purchase order, the receipt and the invoice. A line named
+  on both sides whose quantities differ fails and is named
+  in `three_way_lines_with_quantity_mismatch`; coverage
+  failures (a line missing from a document) fail this check
+  through the coverage lists above.
+- **Unit prices match from purchase order to invoice:** for
+  every declared line, the declared invoice unit price
+  agrees with the declared purchase-order unit price, named
+  in `three_way_lines_with_unit_price_mismatch` when a line
+  differs.
+- **Purchase-order grand total recomputes:** the declared
+  `three_way_match.purchase_order_total_declared` recomputes
+  as the sum of the declared purchase-order line totals. An
+  absent grand total or line list is missing evidence; a
+  mismatch fails.
+- **Invoice grand total recomputes:** the same recomputation
+  for `three_way_match.invoice_total_declared` over the
+  declared invoice line totals.
+- **Grand totals match:** the declared purchase-order grand
+  total and the declared invoice grand total agree with each
+  other, compared on the fixed 6dp serialization below. The
+  atom checks **only** that the declared totals agree — it
+  never states that the invoice should be paid (see Honest
+  scoping).
+
+One further check is gated on the record's own declared gate
+field, following the skill's own conditional scope — when the
+gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **Single-source justification:** a single-source decision
+  is justified in writing only where
+  `sourcing.single_source_used` is declared `true` (the
+  skill: single-source decisions justified in writing).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twenty-four primary computed checks above cannot be
+completed), `vendor_evaluation_vendors_count`,
+`vendor_evaluation_criteria_count`,
+`purchase_order_lines_count`, `receipt_lines_count` and
+`invoice_lines_count` (the declared list lengths, or null
+when a list is not declared — counts are reported as
+integers, exactly), the duplicate-id lists
+`duplicate_vendor_evaluation_vendor_ids`,
+`duplicate_vendor_evaluation_criterion_ids`,
+`duplicate_purchase_order_line_ids`,
+`duplicate_receipt_line_ids` and
+`duplicate_invoice_line_ids`, the row-name and mismatch lists
+named in the computed checks above,
+`vendor_evaluation_criteria_weights_sum` (the sum of the
+declared criterion weights), `purchase_order_lines_total`
+and `invoice_lines_total` (the sums of each set's declared
+line totals), and the ratios `vendor_score_coverage_ratio`
+(vendors scoring every declared criterion exactly ÷ declared
+vendors), `vendor_weighted_total_match_ratio` (vendors whose
+declared weighted total recomputes ÷ declared vendors),
+`vendor_evidence_note_ratio` (vendors with a recorded
+evidence note ÷ declared vendors),
+`three_way_quantity_match_ratio` (purchase-order lines whose
+declared quantity agrees across all three documents ÷
+declared purchase-order lines) and
+`three_way_amount_match_ratio` (purchase-order lines whose
+declared invoice line total agrees with the declared
+purchase-order line total ÷ declared purchase-order lines).
+**Fixed serialization rule:** computed quantities and ratios
+are reported as strings with exactly six decimal places,
+produced in both implementations by the same rule — round
+half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`, then
+format with exactly six decimals. Declared amounts are
+compared only through that fixed serialization, so money
+arithmetic is exact at the declared precision. A ratio is
+null when its denominator list is absent or empty (the
+score-coverage and weighted-total ratios are also null when
+the criteria list is not declared; the quantity-match ratio
+is also null when any of the three document lists is not
+declared). That fixed serialization is what makes the Python
+and TypeScript outputs byte-identical.
+
+The skill states no numeric procurement threshold the atom
+may set — its demands are spec, comparability, total-cost
+weighing, PO discipline and matched payment, not bars the
+atom can set. Quantities are computed and reported; the only
+bars on the computed rows are exact recomputation and
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a spend threshold
+amount for the PO-less red line or for material spend (the
+record declares whether the red line is present; the atom
+sets no currency amount); a minimum quote count as a counted
+bar, including importing the skill's three-quote discipline
+as a number the atom counts to (comparability and
+single-source justification are checked as declarations, not
+as a counted quote bar); a price ceiling, a total-cost
+ceiling, or any judgment that a declared price is too high;
+a score scale of the atom's own (scores are caller-declared
+numbers, checked only for coverage and arithmetic — no scale
+is imposed and no score is judged good or bad); a minimum
+winning margin between vendors, or any check that the
+winning vendor scored highest (the record declares no winner
+to this atom at all — checking one would be the atom
+choosing, and it is declined by name); a tolerance band on
+the three-way match (quantities, prices and totals must
+agree exactly at the declared 6dp precision — a tolerance
+would be the atom deciding which discrepancies may be paid,
+which is payment judgment, not audit); a vendor-count
+maximum, or a criterion-count bar beyond at least one
+criterion and at least two vendors; any judgment that the
+chosen vendor is right, good or advisable (only that its
+declared evaluation record contains what the skill
+requires).
+
+The verdict is one of `VENDOR_EVALUATION_AND_MATCH_SOUND`
+(all 66 checks pass),
+`VENDOR_EVALUATION_AND_MATCH_NOT_SOUND` (any check fails),
+or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: spec_and_sourcing (6
+checks), vendor_evaluation_and_total_cost (20),
+contract_and_terms (6), purchase_order_discipline (4),
+three_way_match (17), vendor_records_and_performance (9),
+red_lines (4).
+
+## Distinct ground
+
+The nearest siblings are `structured-decision-making` (a
+general decision process — frame, options, criteria,
+evaluate, commit and review for any decision),
+`cost-estimate-preparation` (estimating a cost honestly —
+classes, methods, ranges, escalation, and learning from
+estimate vs actual), `budget-design-review` (running budgets
+that hold — cycles, owners, zero-based vs incremental,
+variance reviews, rolling forecasts) and
+`append-only-ledger-design-audit` (designing append-only
+ledgers and audit trails — double-entry where money moves,
+immutability, reconciliation). This atom shares **zero
+checks** with any of them (verified mechanically by grepping
+every check name in this atom's oracle across
+`services/*/src/*.py` — zero collisions): every check here
+is a procurement-record question — spec written before
+quotes with functional / compliance / interface
+requirements, comparable same-scope sourcing with a
+single-source justification gate, vendor rows scored against
+procurement criteria set before scoring with acquisition /
+operations / spares / support / switching total-cost
+components weighed and declared weighted totals recomputed,
+contract care for a vendor agreement (exclusions, payment
+terms, penalties, warranty, escalation, binding terms),
+PO-before-delivery discipline with change orders and
+same-day papering of verbal commitments, the three-way match
+recomputed line by line across the declared purchase-order,
+goods-receipt and invoice rows (coverage, quantities, unit
+prices, line totals and grand totals), vendor performance
+records with fraud hygiene, and the procurement red lines
+refused. The boundary is: one vendor evaluation and
+payment-match record here; a general decision process, a
+cost estimate, a budget, and a ledger design there.
+
+## Honest scoping
+
+This atom reviews a **declared** vendor evaluation and
+three-way match record — it fetches no quote, verifies no
+delivery, contacts no vendor, and approves no payment. A
+record is sound *on the caller's declared evidence*: a
+record that declares its spec written, its vendors scored
+and its three documents matched passes those checks even if
+the real purchase did none of it. It is a completeness and
+consistency audit of the procurement record the skill
+requires, **not a vendor recommendation, a payment approval,
+or a guarantee that the purchase was sound**: it never
+judges whether a declared score is fair, whether the
+evidence note actually supports the vendor, whether the
+goods were really received, or whether the invoice should
+be paid — only that the record contains what the skill's
+method and red lines demand, and that its declared rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (excluded by name,
+never performed): sourcing or finding vendors; selecting,
+recommending or ranking a vendor for the caller; negotiating
+terms with a vendor; contacting a vendor in any way; placing
+or issuing a purchase order; receiving or inspecting goods;
+paying an invoice; approving a payment — a matched record is
+an audit verdict on declared rows, never a pay / do-not-pay
+instruction; verifying banking details or any vendor fact
+against the world; and giving procurement, purchasing or
+spending advice of any kind — each is EXCLUDED by name from
+this atom, which audits only the declared record. Boundary
+case, named: a purchase with genuinely only one vendor ever
+considered cannot pass this record format's vendors-declared
+check (the format requires at least two compared vendors —
+such a purchase is outside this atom's computed reach, not
+failed on its merits; its single-source justification is
+still checked as a declaration when declared).
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO, flag-with-controls
+(census class).** Keyword screen: the bound skill and this
+record name invoices, payments, purchase orders and banking
+details — finance-adjacent subjects — so the screen was
+applied strictly. Substance screen: this atom's output could
+not itself read as regulated professional advice **while the
+controls below hold** — it audits a caller-**declared**
+business procurement record for completeness and internal
+consistency only (spec / sourcing / contract / PO-discipline
+declarations, vendor and criteria rows with declared weighted
+totals recomputed over the declared rows, the three-way match
+recomputed line by line over the declared purchase-order,
+receipt and invoice rows, vendor-record and fraud-hygiene
+declarations, and the procurement red lines refused); every
+output is a pass / fail / missing verdict on the record or a
+quantity recomputed from the caller's own declared rows.
+Named controls: (1) it produces **no recommendation and no
+payment decision** — the skill's sourcing, selecting,
+negotiating, contacting, ordering, receiving and paying steps
+are excluded by name in Honest scoping above; the atom never
+names a vendor the caller should use and never states that
+an invoice should or should not be paid; a matched record is
+not a payment approval and the grand-totals check states
+that boundary in its own evidence text; (2) it sets **no
+threshold** on any amount (see the declined list) — no spend
+bar, no price ceiling, no match tolerance — so no output
+grades a purchase as financially good or bad; (3) it handles
+**no personal financial position of any kind** — no person's
+net worth, income, cash flow, holdings or personal accounts
+appear in this record; the amounts are a business's declared
+purchase-order and invoice rows for a procurement audit.
+That is exactly what distinguishes this atom from the
+genuinely-open personal-financial-snapshot class: that atom's
+shape is a snapshot of a *person's* finances, whose verdict
+could read as personal financial advice about that person's
+position; this atom's shape is a *business's* procurement
+record, and its verdict reads only as an audit of whether
+that record is complete and arithmetically consistent. The
+adjacency is nonetheless real (invoice amounts and banking-
+detail hygiene are finance-adjacent, and a naive version of
+this atom that approved payments could read as a financial
+control decision), so this is the census flag-with-controls
+class, not class (a). No deploy happens on this atom without
+the owner's explicit per-unit ruling in any case.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "vendor-evaluation-three-way-match-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "VENDOR_EVALUATION_AND_MATCH_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: [purchase_order_total: 100.000000, invoice_total: 100.000000]",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "vendor_evaluation_vendors_count": 2,
+          "vendor_evaluation_criteria_count": 1,
+          "purchase_order_lines_count": 1,
+          "receipt_lines_count": 1,
+          "invoice_lines_count": 1,
+          "duplicate_vendor_evaluation_vendor_ids": [],
+          "duplicate_vendor_evaluation_criterion_ids": [],
+          "duplicate_purchase_order_line_ids": [],
+          "duplicate_receipt_line_ids": [],
+          "duplicate_invoice_line_ids": [],
+          "vendor_evaluation_vendors_without_name": [],
+          "vendor_evaluation_vendors_without_evidence_note": [],
+          "vendor_evaluation_criteria_without_name": [],
+          "vendor_evaluation_criteria_with_invalid_weight": [],
+          "vendor_evaluation_vendors_with_incomplete_or_extra_scores": [],
+          "vendor_evaluation_vendors_with_weighted_total_mismatch": [],
+          "purchase_order_lines_with_line_total_mismatch": [],
+          "invoice_lines_with_line_total_mismatch": [],
+          "purchase_order_line_ids_missing_from_receipt": [],
+          "receipt_line_ids_not_on_purchase_order": [],
+          "purchase_order_line_ids_missing_from_invoice": [],
+          "invoice_line_ids_not_on_purchase_order": [],
+          "three_way_lines_with_quantity_mismatch": [],
+          "three_way_lines_with_unit_price_mismatch": [],
+          "vendor_evaluation_criteria_weights_sum": "1.000000",
+          "purchase_order_lines_total": "100.000000",
+          "invoice_lines_total": "100.000000",
+          "vendor_score_coverage_ratio": "1.000000",
+          "vendor_weighted_total_match_ratio": "1.000000",
+          "vendor_evidence_note_ratio": "1.000000",
+          "three_way_quantity_match_ratio": "1.000000",
+          "three_way_amount_match_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "pack_title": "Standard Procurement Audit",
+        "spec": {
+          "spec_written_before_quotes": true,
+          "spec_includes_functional_requirements": true,
+          "spec_includes_compliance_requirements": true,
+          "spec_includes_interface_requirements": true
+        },
+        "sourcing": {
+          "quotes_comparable_same_scope_declared": true,
+          "single_source_used": false
+        },
+        "evaluation_setup": {
+          "criteria_set_before_scoring": true,
+          "tco_evaluation_documented": true,
+          "tco_includes_acquisition_cost": true,
+          "tco_includes_operations_cost": true,
+          "tco_includes_spares_cost": true,
+          "tco_includes_support_cost": true,
+          "tco_includes_switching_cost": true,
+          "evidence_basis_recorded": true,
+          "evaluation_applied_consistently_across_vendors": true
+        },
+        "vendors": [
+          {
+            "vendor_id": "v1",
+            "vendor_name": "Vendor A",
+            "evidence_note": "Strong performance",
+            "scores": [
+              {
+                "criterion_id": "c1",
+                "score": 10.0
+              }
+            ],
+            "weighted_total_declared": 10.0
+          },
+          {
+            "vendor_id": "v2",
+            "vendor_name": "Vendor B",
+            "evidence_note": "Good performance",
+            "scores": [
+              {
+                "criterion_id": "c1",
+                "score": 8.0
+              }
+            ],
+            "weighted_total_declared": 8.0
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "c1",
+            "criterion_name": "Quality",
+            "weight": 1.0
+          }
+        ],
+        "contract": {
+          "exclusions_reviewed": true,
+          "payment_terms_reviewed": true,
+          "penalties_reviewed": true,
+          "warranty_reviewed": true,
+          "price_escalation_clauses_reviewed": true,
+          "binding_terms_reviewed": true
+        },
+        "po_discipline": {
+          "po_issued_before_delivery": true,
+          "changes_via_change_order_declared": true,
+          "verbal_commitments_papered_same_day_declared": true,
+          "po_references_spec_declared": true
+        },
+        "three_way_match": {
+          "match_performed_before_payment_declared": true,
+          "discrepancies_resolved_before_payment_declared": true,
+          "inspection_against_spec_on_arrival_declared": true,
+          "receipt_verification_before_payment_declared": true,
+          "purchase_order_total_declared": 100.0,
+          "invoice_total_declared": 100.0
+        },
+        "purchase_order_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0,
+            "unit_price": 10.0,
+            "line_total_declared": 100.0
+          }
+        ],
+        "receipt_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0
+          }
+        ],
+        "invoice_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0,
+            "unit_price": 10.0,
+            "line_total_declared": 100.0
+          }
+        ],
+        "vendor_records": {
+          "vendor_terms_recorded": true,
+          "vendor_contacts_recorded": true,
+          "performance_log_maintained": true,
+          "performance_log_covers_on_time_quality_responsiveness": true,
+          "annual_review_cadence_set": true,
+          "two_viable_sources_for_critical_items_declared": true,
+          "banking_detail_changes_verified_via_known_contacts": true,
+          "segregation_of_duties_declared": true,
+          "gifts_conflict_policy_respected_declared": true
+        },
+        "red_lines": {
+          "po_less_purchase_above_threshold_present": false,
+          "payment_without_delivery_confirmation_present": false,
+          "payment_before_three_way_match_present": false,
+          "silent_bank_detail_change_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "vendor-evaluation-three-way-match-pack",
+        "atom_version": "0.1.0",
+        "pack_title": "Standard Procurement Audit",
+        "verdict": "VENDOR_EVALUATION_AND_MATCH_SOUND",
+        "sections": {
+          "spec_and_sourcing": "pass",
+          "vendor_evaluation_and_total_cost": "pass",
+          "contract_and_terms": "pass",
+          "purchase_order_discipline": "pass",
+          "three_way_match": "pass",
+          "vendor_records_and_performance": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_written_before_quotes",
+            "status": "pass",
+            "evidence": "spec: a written specification existed before quotes were sought \u2014 buy to spec, not to brochure"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_functional_requirements",
+            "status": "pass",
+            "evidence": "spec: the specification includes the functional requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_compliance_requirements",
+            "status": "pass",
+            "evidence": "spec: the specification includes the compliance requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_interface_requirements",
+            "status": "pass",
+            "evidence": "spec: the specification includes the interface requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_quotes_comparable_same_scope_declared",
+            "status": "pass",
+            "evidence": "sourcing: the quotes obtained are declared comparable \u2014 same scope, quantities, delivery, terms and warranty"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_single_source_justification_recorded_where_single_source_used",
+            "status": "pass",
+            "evidence": "no single-source purchase declared used"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_set_before_scoring",
+            "status": "pass",
+            "evidence": "evaluation: the weighted criteria were set BEFORE scoring"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_evaluation_documented",
+            "status": "pass",
+            "evidence": "total cost: the total-cost-of-ownership evaluation is documented \u2014 total cost, not price"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_acquisition_cost",
+            "status": "pass",
+            "evidence": "total cost: acquisition cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_operations_cost",
+            "status": "pass",
+            "evidence": "total cost: operations cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_spares_cost",
+            "status": "pass",
+            "evidence": "total cost: spares cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_support_cost",
+            "status": "pass",
+            "evidence": "total cost: support cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_switching_cost",
+            "status": "pass",
+            "evidence": "total cost: switching cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_evidence_basis_recorded",
+            "status": "pass",
+            "evidence": "evaluation: the evidence basis for the vendor evaluation is recorded"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_applied_consistently_across_vendors",
+            "status": "pass",
+            "evidence": "evaluation: the same criteria and evidence basis were applied consistently across all vendors"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_vendors_list_declared",
+            "status": "pass",
+            "evidence": "vendors: the declared record names its evaluated vendors \u2014 the list is present and names at least two vendors; an absent list is missing evidence and a list of fewer than two declares no comparison at all"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_id_unique",
+            "status": "pass",
+            "evidence": "vendors: no declared vendor_id is owned by more than one row"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_name_declared",
+            "status": "pass",
+            "evidence": "vendors: every declared vendor declares a non-empty vendor name"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_evidence_note_declared",
+            "status": "pass",
+            "evidence": "vendors: every declared vendor declares a non-empty evidence note"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_list_declared",
+            "status": "pass",
+            "evidence": "criteria: the declared record names its evaluation criteria \u2014 the list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no evaluation at all"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_id_unique",
+            "status": "pass",
+            "evidence": "criteria: no declared criterion_id is owned by more than one row"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_name_declared",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-empty criterion name"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_weight_non_negative",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-negative weight"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_weights_sum_positive",
+            "status": "pass",
+            "evidence": "criteria: the declared criterion weights sum to a positive total \u2014 an evaluation whose weights sum to zero scores nothing"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_scores_every_declared_criterion",
+            "status": "pass",
+            "evidence": "scores: every declared vendor scores every declared criterion and no other criterion, exactly once"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_weighted_total_recomputes",
+            "status": "pass",
+            "evidence": "scores: every declared vendor's declared weighted total recomputes exactly as the sum of declared weight times declared score over its declared scores"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_exclusions_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the quote and contract exclusions were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_payment_terms_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the payment terms were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_penalties_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the penalties were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_warranty_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the warranty was read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_price_escalation_clauses_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the price-escalation clauses were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_binding_terms_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the binding terms were reviewed \u2014 binding terms get review"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_issued_before_delivery",
+            "status": "pass",
+            "evidence": "PO discipline: the purchase order was issued before delivery"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_changes_via_change_order_declared",
+            "status": "pass",
+            "evidence": "PO discipline: changes to the purchase order were made via change order"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_verbal_commitments_papered_same_day_declared",
+            "status": "pass",
+            "evidence": "PO discipline: no verbal commitments stand unpapered \u2014 any verbal commitment was papered the same day"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_references_spec_declared",
+            "status": "pass",
+            "evidence": "PO discipline: the purchase order references the written specification it buys to"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_match_performed_before_payment_declared",
+            "status": "pass",
+            "evidence": "3-way match: the three-way match (PO \u2194 receipt/inspection \u2194 invoice) was performed before payment"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_discrepancies_resolved_before_payment_declared",
+            "status": "pass",
+            "evidence": "3-way match: discrepancies were resolved first, before payment"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_inspection_against_spec_on_arrival_declared",
+            "status": "pass",
+            "evidence": "receipt: the delivery was inspected against spec on arrival, not after install"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_receipt_verification_before_payment_declared",
+            "status": "pass",
+            "evidence": "receipt: receipt verification stands before payment \u2014 nothing is paid without receipt verification"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_purchase_order_lines_declared",
+            "status": "pass",
+            "evidence": "purchase order lines: the declared record names its purchase-order lines \u2014 the list is present and names at least one line; an absent list is missing evidence and an empty list declares no purchase at all"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_purchase_order_line_id_unique",
+            "status": "pass",
+            "evidence": "purchase order lines: no declared line_id is owned by more than one purchase-order row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_receipt_line_id_unique",
+            "status": "pass",
+            "evidence": "receipt lines: no declared line_id is owned by more than one receipt row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_invoice_line_id_unique",
+            "status": "pass",
+            "evidence": "invoice lines: no declared line_id is owned by more than one invoice row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_purchase_order_line_total_recomputes",
+            "status": "pass",
+            "evidence": "purchase order lines: every declared purchase-order line total recomputes exactly as declared quantity times declared unit price"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_invoice_line_total_recomputes",
+            "status": "pass",
+            "evidence": "invoice lines: every declared invoice line total recomputes exactly as declared quantity times declared unit price"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_receipt_lines_cover_purchase_order_lines_exactly",
+            "status": "pass",
+            "evidence": "3-way match: the declared receipt line ids are exactly the declared purchase-order line ids \u2014 none missing, none extra, none duplicated"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_invoice_lines_cover_purchase_order_lines_exactly",
+            "status": "pass",
+            "evidence": "3-way match: the declared invoice line ids are exactly the declared purchase-order line ids \u2014 none missing, none extra, none duplicated"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_three_way_line_quantity_matches_across_documents",
+            "status": "pass",
+            "evidence": "3-way match: for every declared line, the declared quantity agrees across purchase order, receipt and invoice"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_three_way_line_unit_price_matches_po_to_invoice",
+            "status": "pass",
+            "evidence": "3-way match: for every declared line, the declared unit price on the invoice agrees with the declared unit price on the purchase order"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_purchase_order_total_recomputes_from_line_totals",
+            "status": "pass",
+            "evidence": "purchase order total: the declared purchase-order grand total recomputes exactly as the sum of the declared purchase-order line totals"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_invoice_total_recomputes_from_line_totals",
+            "status": "pass",
+            "evidence": "invoice total: the declared invoice grand total recomputes exactly as the sum of the declared invoice line totals"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_grand_totals_match",
+            "status": "pass",
+            "evidence": "3-way match: the declared purchase-order grand total and the declared invoice grand total agree \u2014 the atom checks only that the declared totals agree; it approves no payment"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_vendor_terms_recorded",
+            "status": "pass",
+            "evidence": "vendor records: the vendor's terms are kept on record"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_vendor_contacts_recorded",
+            "status": "pass",
+            "evidence": "vendor records: the vendor's contacts are kept on record"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_performance_log_maintained",
+            "status": "pass",
+            "evidence": "vendor records: a vendor performance log is maintained"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_performance_log_covers_on_time_quality_responsiveness",
+            "status": "pass",
+            "evidence": "vendor records: the performance log covers on-time delivery, quality and responsiveness"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_annual_review_cadence_set",
+            "status": "pass",
+            "evidence": "vendor records: an annual vendor review cadence is set"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_two_viable_sources_for_critical_items_declared",
+            "status": "pass",
+            "evidence": "vendor records: two viable sources are kept for critical items where feasible, as declared"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_banking_detail_changes_verified_via_known_contacts",
+            "status": "pass",
+            "evidence": "fraud hygiene: banking-detail changes are verified via known contacts \u2014 never through email links"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_segregation_of_duties_declared",
+            "status": "pass",
+            "evidence": "fraud hygiene: segregation of duties is in place where possible, as declared"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_gifts_conflict_policy_respected_declared",
+            "status": "pass",
+            "evidence": "fraud hygiene: the gifts and conflict-of-interest policy is respected, as declared"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_po_less_purchase_above_threshold",
+            "status": "pass",
+            "evidence": "red line: no PO-less purchase above threshold is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_payment_without_delivery_confirmation",
+            "status": "pass",
+            "evidence": "red line: no payment without delivery confirmation is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_payment_before_three_way_match",
+            "status": "pass",
+            "evidence": "red line: no payment made before the three-way match is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_silent_bank_detail_change",
+            "status": "pass",
+            "evidence": "red line: no silent bank-detail change is present in the record \u2014 bank-detail changes are verified through known channels always"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "vendor_evaluation_vendors_count": 2,
+        "vendor_evaluation_criteria_count": 1,
+        "purchase_order_lines_count": 1,
+        "receipt_lines_count": 1,
+        "invoice_lines_count": 1,
+        "duplicate_vendor_evaluation_vendor_ids": [],
+        "duplicate_vendor_evaluation_criterion_ids": [],
+        "duplicate_purchase_order_line_ids": [],
+        "duplicate_receipt_line_ids": [],
+        "duplicate_invoice_line_ids": [],
+        "vendor_evaluation_vendors_without_name": [],
+        "vendor_evaluation_vendors_without_evidence_note": [],
+        "vendor_evaluation_criteria_without_name": [],
+        "vendor_evaluation_criteria_with_invalid_weight": [],
+        "vendor_evaluation_vendors_with_incomplete_or_extra_scores": [],
+        "vendor_evaluation_vendors_with_weighted_total_mismatch": [],
+        "purchase_order_lines_with_line_total_mismatch": [],
+        "invoice_lines_with_line_total_mismatch": [],
+        "purchase_order_line_ids_missing_from_receipt": [],
+        "receipt_line_ids_not_on_purchase_order": [],
+        "purchase_order_line_ids_missing_from_invoice": [],
+        "invoice_line_ids_not_on_purchase_order": [],
+        "three_way_lines_with_quantity_mismatch": [],
+        "three_way_lines_with_unit_price_mismatch": [],
+        "vendor_evaluation_criteria_weights_sum": "1.000000",
+        "purchase_order_lines_total": "100.000000",
+        "invoice_lines_total": "100.000000",
+        "vendor_score_coverage_ratio": "1.000000",
+        "vendor_weighted_total_match_ratio": "1.000000",
+        "vendor_evidence_note_ratio": "1.000000",
+        "three_way_quantity_match_ratio": "1.000000",
+        "three_way_amount_match_ratio": "1.000000",
+        "summary": "66 pass, 0 fail, 0 missing of 66 checks across seven sections.",
+        "stamp": "VENDOR EVALUATION THREE WAY MATCH PACK\npack_title: Standard Procurement Audit\nVERDICT: VENDOR_EVALUATION_AND_MATCH_SOUND\n  spec_and_sourcing                            pass\n  vendor_evaluation_and_total_cost             pass\n  contract_and_terms                           pass\n  purchase_order_discipline                    pass\n  three_way_match                              pass\n  vendor_records_and_performance               pass\n  red_lines                                    pass\n66 pass, 0 fail, 0 missing of 66 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "VENDOR_EVALUATION_AND_MATCH_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_vendor_evaluation_vendor_scores_every_declared_criterion",
+          "every_vendor_evaluation_vendor_weighted_total_recomputes",
+          "every_vendor_evaluation_purchase_order_line_total_recomputes",
+          "vendor_evaluation_purchase_order_total_recomputes_from_line_totals"
+        ],
+        "notes": "Deep copy of full-pass with two planted value mutations: vendors[0].scores[0].criterion_id='cX' and purchase_order_lines[0].line_total_declared=999.0; oracle failing set is exactly those 4 checks.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "vendor_evaluation_vendors_count": 2,
+          "vendor_evaluation_criteria_count": 1,
+          "purchase_order_lines_count": 1,
+          "receipt_lines_count": 1,
+          "invoice_lines_count": 1,
+          "duplicate_vendor_evaluation_vendor_ids": [],
+          "duplicate_vendor_evaluation_criterion_ids": [],
+          "duplicate_purchase_order_line_ids": [],
+          "duplicate_receipt_line_ids": [],
+          "duplicate_invoice_line_ids": [],
+          "vendor_evaluation_vendors_without_name": [],
+          "vendor_evaluation_vendors_without_evidence_note": [],
+          "vendor_evaluation_criteria_without_name": [],
+          "vendor_evaluation_criteria_with_invalid_weight": [],
+          "vendor_evaluation_vendors_with_incomplete_or_extra_scores": [
+            "v1"
+          ],
+          "vendor_evaluation_vendors_with_weighted_total_mismatch": [
+            "v1"
+          ],
+          "purchase_order_lines_with_line_total_mismatch": [
+            "l1"
+          ],
+          "invoice_lines_with_line_total_mismatch": [],
+          "purchase_order_line_ids_missing_from_receipt": [],
+          "receipt_line_ids_not_on_purchase_order": [],
+          "purchase_order_line_ids_missing_from_invoice": [],
+          "invoice_line_ids_not_on_purchase_order": [],
+          "three_way_lines_with_quantity_mismatch": [],
+          "three_way_lines_with_unit_price_mismatch": [],
+          "vendor_evaluation_criteria_weights_sum": "1.000000",
+          "purchase_order_lines_total": "999.000000",
+          "invoice_lines_total": "100.000000",
+          "vendor_score_coverage_ratio": "0.500000",
+          "vendor_weighted_total_match_ratio": "0.500000",
+          "vendor_evidence_note_ratio": "1.000000",
+          "three_way_quantity_match_ratio": "1.000000",
+          "three_way_amount_match_ratio": "0.000000"
+        }
+      },
+      "input": {
+        "pack_title": "Standard Procurement Audit",
+        "spec": {
+          "spec_written_before_quotes": true,
+          "spec_includes_functional_requirements": true,
+          "spec_includes_compliance_requirements": true,
+          "spec_includes_interface_requirements": true
+        },
+        "sourcing": {
+          "quotes_comparable_same_scope_declared": true,
+          "single_source_used": false
+        },
+        "evaluation_setup": {
+          "criteria_set_before_scoring": true,
+          "tco_evaluation_documented": true,
+          "tco_includes_acquisition_cost": true,
+          "tco_includes_operations_cost": true,
+          "tco_includes_spares_cost": true,
+          "tco_includes_support_cost": true,
+          "tco_includes_switching_cost": true,
+          "evidence_basis_recorded": true,
+          "evaluation_applied_consistently_across_vendors": true
+        },
+        "vendors": [
+          {
+            "vendor_id": "v1",
+            "vendor_name": "Vendor A",
+            "evidence_note": "Strong performance",
+            "scores": [
+              {
+                "criterion_id": "cX",
+                "score": 10.0
+              }
+            ],
+            "weighted_total_declared": 10.0
+          },
+          {
+            "vendor_id": "v2",
+            "vendor_name": "Vendor B",
+            "evidence_note": "Good performance",
+            "scores": [
+              {
+                "criterion_id": "c1",
+                "score": 8.0
+              }
+            ],
+            "weighted_total_declared": 8.0
+          }
+        ],
+        "criteria": [
+          {
+            "criterion_id": "c1",
+            "criterion_name": "Quality",
+            "weight": 1.0
+          }
+        ],
+        "contract": {
+          "exclusions_reviewed": true,
+          "payment_terms_reviewed": true,
+          "penalties_reviewed": true,
+          "warranty_reviewed": true,
+          "price_escalation_clauses_reviewed": true,
+          "binding_terms_reviewed": true
+        },
+        "po_discipline": {
+          "po_issued_before_delivery": true,
+          "changes_via_change_order_declared": true,
+          "verbal_commitments_papered_same_day_declared": true,
+          "po_references_spec_declared": true
+        },
+        "three_way_match": {
+          "match_performed_before_payment_declared": true,
+          "discrepancies_resolved_before_payment_declared": true,
+          "inspection_against_spec_on_arrival_declared": true,
+          "receipt_verification_before_payment_declared": true,
+          "purchase_order_total_declared": 100.0,
+          "invoice_total_declared": 100.0
+        },
+        "purchase_order_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0,
+            "unit_price": 10.0,
+            "line_total_declared": 999.0
+          }
+        ],
+        "receipt_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0
+          }
+        ],
+        "invoice_lines": [
+          {
+            "line_id": "l1",
+            "quantity": 10.0,
+            "unit_price": 10.0,
+            "line_total_declared": 100.0
+          }
+        ],
+        "vendor_records": {
+          "vendor_terms_recorded": true,
+          "vendor_contacts_recorded": true,
+          "performance_log_maintained": true,
+          "performance_log_covers_on_time_quality_responsiveness": true,
+          "annual_review_cadence_set": true,
+          "two_viable_sources_for_critical_items_declared": true,
+          "banking_detail_changes_verified_via_known_contacts": true,
+          "segregation_of_duties_declared": true,
+          "gifts_conflict_policy_respected_declared": true
+        },
+        "red_lines": {
+          "po_less_purchase_above_threshold_present": false,
+          "payment_without_delivery_confirmation_present": false,
+          "payment_before_three_way_match_present": false,
+          "silent_bank_detail_change_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "vendor-evaluation-three-way-match-pack",
+        "atom_version": "0.1.0",
+        "pack_title": "Standard Procurement Audit",
+        "verdict": "VENDOR_EVALUATION_AND_MATCH_NOT_SOUND",
+        "sections": {
+          "spec_and_sourcing": "pass",
+          "vendor_evaluation_and_total_cost": "fail",
+          "contract_and_terms": "pass",
+          "purchase_order_discipline": "pass",
+          "three_way_match": "fail",
+          "vendor_records_and_performance": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_written_before_quotes",
+            "status": "pass",
+            "evidence": "spec: a written specification existed before quotes were sought \u2014 buy to spec, not to brochure"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_functional_requirements",
+            "status": "pass",
+            "evidence": "spec: the specification includes the functional requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_compliance_requirements",
+            "status": "pass",
+            "evidence": "spec: the specification includes the compliance requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_interface_requirements",
+            "status": "pass",
+            "evidence": "spec: the specification includes the interface requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_quotes_comparable_same_scope_declared",
+            "status": "pass",
+            "evidence": "sourcing: the quotes obtained are declared comparable \u2014 same scope, quantities, delivery, terms and warranty"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_single_source_justification_recorded_where_single_source_used",
+            "status": "pass",
+            "evidence": "no single-source purchase declared used"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_set_before_scoring",
+            "status": "pass",
+            "evidence": "evaluation: the weighted criteria were set BEFORE scoring"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_evaluation_documented",
+            "status": "pass",
+            "evidence": "total cost: the total-cost-of-ownership evaluation is documented \u2014 total cost, not price"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_acquisition_cost",
+            "status": "pass",
+            "evidence": "total cost: acquisition cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_operations_cost",
+            "status": "pass",
+            "evidence": "total cost: operations cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_spares_cost",
+            "status": "pass",
+            "evidence": "total cost: spares cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_support_cost",
+            "status": "pass",
+            "evidence": "total cost: support cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_switching_cost",
+            "status": "pass",
+            "evidence": "total cost: switching cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_evidence_basis_recorded",
+            "status": "pass",
+            "evidence": "evaluation: the evidence basis for the vendor evaluation is recorded"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_applied_consistently_across_vendors",
+            "status": "pass",
+            "evidence": "evaluation: the same criteria and evidence basis were applied consistently across all vendors"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_vendors_list_declared",
+            "status": "pass",
+            "evidence": "vendors: the declared record names its evaluated vendors \u2014 the list is present and names at least two vendors; an absent list is missing evidence and a list of fewer than two declares no comparison at all"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_id_unique",
+            "status": "pass",
+            "evidence": "vendors: no declared vendor_id is owned by more than one row"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_name_declared",
+            "status": "pass",
+            "evidence": "vendors: every declared vendor declares a non-empty vendor name"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_evidence_note_declared",
+            "status": "pass",
+            "evidence": "vendors: every declared vendor declares a non-empty evidence note"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_list_declared",
+            "status": "pass",
+            "evidence": "criteria: the declared record names its evaluation criteria \u2014 the list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no evaluation at all"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_id_unique",
+            "status": "pass",
+            "evidence": "criteria: no declared criterion_id is owned by more than one row"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_name_declared",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-empty criterion name"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_weight_non_negative",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-negative weight"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_weights_sum_positive",
+            "status": "pass",
+            "evidence": "criteria: the declared criterion weights sum to a positive total \u2014 an evaluation whose weights sum to zero scores nothing"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_scores_every_declared_criterion",
+            "status": "fail",
+            "evidence": "scores: every declared vendor scores every declared criterion and no other criterion, exactly once"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_weighted_total_recomputes",
+            "status": "fail",
+            "evidence": "scores: every declared vendor's declared weighted total recomputes exactly as the sum of declared weight times declared score over its declared scores"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_exclusions_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the quote and contract exclusions were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_payment_terms_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the payment terms were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_penalties_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the penalties were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_warranty_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the warranty was read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_price_escalation_clauses_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the price-escalation clauses were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_binding_terms_reviewed",
+            "status": "pass",
+            "evidence": "contract care: the binding terms were reviewed \u2014 binding terms get review"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_issued_before_delivery",
+            "status": "pass",
+            "evidence": "PO discipline: the purchase order was issued before delivery"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_changes_via_change_order_declared",
+            "status": "pass",
+            "evidence": "PO discipline: changes to the purchase order were made via change order"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_verbal_commitments_papered_same_day_declared",
+            "status": "pass",
+            "evidence": "PO discipline: no verbal commitments stand unpapered \u2014 any verbal commitment was papered the same day"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_references_spec_declared",
+            "status": "pass",
+            "evidence": "PO discipline: the purchase order references the written specification it buys to"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_match_performed_before_payment_declared",
+            "status": "pass",
+            "evidence": "3-way match: the three-way match (PO \u2194 receipt/inspection \u2194 invoice) was performed before payment"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_discrepancies_resolved_before_payment_declared",
+            "status": "pass",
+            "evidence": "3-way match: discrepancies were resolved first, before payment"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_inspection_against_spec_on_arrival_declared",
+            "status": "pass",
+            "evidence": "receipt: the delivery was inspected against spec on arrival, not after install"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_receipt_verification_before_payment_declared",
+            "status": "pass",
+            "evidence": "receipt: receipt verification stands before payment \u2014 nothing is paid without receipt verification"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_purchase_order_lines_declared",
+            "status": "pass",
+            "evidence": "purchase order lines: the declared record names its purchase-order lines \u2014 the list is present and names at least one line; an absent list is missing evidence and an empty list declares no purchase at all"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_purchase_order_line_id_unique",
+            "status": "pass",
+            "evidence": "purchase order lines: no declared line_id is owned by more than one purchase-order row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_receipt_line_id_unique",
+            "status": "pass",
+            "evidence": "receipt lines: no declared line_id is owned by more than one receipt row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_invoice_line_id_unique",
+            "status": "pass",
+            "evidence": "invoice lines: no declared line_id is owned by more than one invoice row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_purchase_order_line_total_recomputes",
+            "status": "fail",
+            "evidence": "purchase order lines: every declared purchase-order line total recomputes exactly as declared quantity times declared unit price"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_invoice_line_total_recomputes",
+            "status": "pass",
+            "evidence": "invoice lines: every declared invoice line total recomputes exactly as declared quantity times declared unit price"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_receipt_lines_cover_purchase_order_lines_exactly",
+            "status": "pass",
+            "evidence": "3-way match: the declared receipt line ids are exactly the declared purchase-order line ids \u2014 none missing, none extra, none duplicated"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_invoice_lines_cover_purchase_order_lines_exactly",
+            "status": "pass",
+            "evidence": "3-way match: the declared invoice line ids are exactly the declared purchase-order line ids \u2014 none missing, none extra, none duplicated"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_three_way_line_quantity_matches_across_documents",
+            "status": "pass",
+            "evidence": "3-way match: for every declared line, the declared quantity agrees across purchase order, receipt and invoice"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_three_way_line_unit_price_matches_po_to_invoice",
+            "status": "pass",
+            "evidence": "3-way match: for every declared line, the declared unit price on the invoice agrees with the declared unit price on the purchase order"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_purchase_order_total_recomputes_from_line_totals",
+            "status": "fail",
+            "evidence": "purchase order total: the declared purchase-order grand total recomputes exactly as the sum of the declared purchase-order line totals"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_invoice_total_recomputes_from_line_totals",
+            "status": "pass",
+            "evidence": "invoice total: the declared invoice grand total recomputes exactly as the sum of the declared invoice line totals"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_grand_totals_match",
+            "status": "pass",
+            "evidence": "3-way match: the declared purchase-order grand total and the declared invoice grand total agree \u2014 the atom checks only that the declared totals agree; it approves no payment"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_vendor_terms_recorded",
+            "status": "pass",
+            "evidence": "vendor records: the vendor's terms are kept on record"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_vendor_contacts_recorded",
+            "status": "pass",
+            "evidence": "vendor records: the vendor's contacts are kept on record"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_performance_log_maintained",
+            "status": "pass",
+            "evidence": "vendor records: a vendor performance log is maintained"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_performance_log_covers_on_time_quality_responsiveness",
+            "status": "pass",
+            "evidence": "vendor records: the performance log covers on-time delivery, quality and responsiveness"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_annual_review_cadence_set",
+            "status": "pass",
+            "evidence": "vendor records: an annual vendor review cadence is set"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_two_viable_sources_for_critical_items_declared",
+            "status": "pass",
+            "evidence": "vendor records: two viable sources are kept for critical items where feasible, as declared"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_banking_detail_changes_verified_via_known_contacts",
+            "status": "pass",
+            "evidence": "fraud hygiene: banking-detail changes are verified via known contacts \u2014 never through email links"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_segregation_of_duties_declared",
+            "status": "pass",
+            "evidence": "fraud hygiene: segregation of duties is in place where possible, as declared"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_gifts_conflict_policy_respected_declared",
+            "status": "pass",
+            "evidence": "fraud hygiene: the gifts and conflict-of-interest policy is respected, as declared"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_po_less_purchase_above_threshold",
+            "status": "pass",
+            "evidence": "red line: no PO-less purchase above threshold is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_payment_without_delivery_confirmation",
+            "status": "pass",
+            "evidence": "red line: no payment without delivery confirmation is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_payment_before_three_way_match",
+            "status": "pass",
+            "evidence": "red line: no payment made before the three-way match is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_silent_bank_detail_change",
+            "status": "pass",
+            "evidence": "red line: no silent bank-detail change is present in the record \u2014 bank-detail changes are verified through known channels always"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "vendor_evaluation_vendors_count": 2,
+        "vendor_evaluation_criteria_count": 1,
+        "purchase_order_lines_count": 1,
+        "receipt_lines_count": 1,
+        "invoice_lines_count": 1,
+        "duplicate_vendor_evaluation_vendor_ids": [],
+        "duplicate_vendor_evaluation_criterion_ids": [],
+        "duplicate_purchase_order_line_ids": [],
+        "duplicate_receipt_line_ids": [],
+        "duplicate_invoice_line_ids": [],
+        "vendor_evaluation_vendors_without_name": [],
+        "vendor_evaluation_vendors_without_evidence_note": [],
+        "vendor_evaluation_criteria_without_name": [],
+        "vendor_evaluation_criteria_with_invalid_weight": [],
+        "vendor_evaluation_vendors_with_incomplete_or_extra_scores": [
+          "v1"
+        ],
+        "vendor_evaluation_vendors_with_weighted_total_mismatch": [
+          "v1"
+        ],
+        "purchase_order_lines_with_line_total_mismatch": [
+          "l1"
+        ],
+        "invoice_lines_with_line_total_mismatch": [],
+        "purchase_order_line_ids_missing_from_receipt": [],
+        "receipt_line_ids_not_on_purchase_order": [],
+        "purchase_order_line_ids_missing_from_invoice": [],
+        "invoice_line_ids_not_on_purchase_order": [],
+        "three_way_lines_with_quantity_mismatch": [],
+        "three_way_lines_with_unit_price_mismatch": [],
+        "vendor_evaluation_criteria_weights_sum": "1.000000",
+        "purchase_order_lines_total": "999.000000",
+        "invoice_lines_total": "100.000000",
+        "vendor_score_coverage_ratio": "0.500000",
+        "vendor_weighted_total_match_ratio": "0.500000",
+        "vendor_evidence_note_ratio": "1.000000",
+        "three_way_quantity_match_ratio": "1.000000",
+        "three_way_amount_match_ratio": "0.000000",
+        "summary": "62 pass, 4 fail, 0 missing of 66 checks across seven sections.",
+        "stamp": "VENDOR EVALUATION THREE WAY MATCH PACK\npack_title: Standard Procurement Audit\nVERDICT: VENDOR_EVALUATION_AND_MATCH_NOT_SOUND\n  spec_and_sourcing                            pass\n  vendor_evaluation_and_total_cost             fail\n  contract_and_terms                           pass\n  purchase_order_discipline                    pass\n  three_way_match                              fail\n  vendor_records_and_performance               pass\n  red_lines                                    pass\n62 pass, 4 fail, 0 missing of 66 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required fields for evaluation."
+      },
+      "input": {
+        "pack_title": "Incomplete Record"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "vendor-evaluation-three-way-match-pack",
+        "atom_version": "0.1.0",
+        "pack_title": "Incomplete Record",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "spec_and_sourcing": "insufficient_evidence",
+          "vendor_evaluation_and_total_cost": "insufficient_evidence",
+          "contract_and_terms": "insufficient_evidence",
+          "purchase_order_discipline": "insufficient_evidence",
+          "three_way_match": "insufficient_evidence",
+          "vendor_records_and_performance": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_written_before_quotes",
+            "status": "missing",
+            "evidence": "spec: a written specification existed before quotes were sought \u2014 buy to spec, not to brochure"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_functional_requirements",
+            "status": "missing",
+            "evidence": "spec: the specification includes the functional requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_compliance_requirements",
+            "status": "missing",
+            "evidence": "spec: the specification includes the compliance requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_spec_includes_interface_requirements",
+            "status": "missing",
+            "evidence": "spec: the specification includes the interface requirements"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_quotes_comparable_same_scope_declared",
+            "status": "missing",
+            "evidence": "sourcing: the quotes obtained are declared comparable \u2014 same scope, quantities, delivery, terms and warranty"
+          },
+          {
+            "section": "spec_and_sourcing",
+            "check": "vendor_evaluation_single_source_justification_recorded_where_single_source_used",
+            "status": "missing",
+            "evidence": "no single-source purchase declared used"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_set_before_scoring",
+            "status": "missing",
+            "evidence": "evaluation: the weighted criteria were set BEFORE scoring"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_evaluation_documented",
+            "status": "missing",
+            "evidence": "total cost: the total-cost-of-ownership evaluation is documented \u2014 total cost, not price"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_acquisition_cost",
+            "status": "missing",
+            "evidence": "total cost: acquisition cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_operations_cost",
+            "status": "missing",
+            "evidence": "total cost: operations cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_spares_cost",
+            "status": "missing",
+            "evidence": "total cost: spares cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_support_cost",
+            "status": "missing",
+            "evidence": "total cost: support cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_tco_includes_switching_cost",
+            "status": "missing",
+            "evidence": "total cost: switching cost is included in the total-cost evaluation"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_evidence_basis_recorded",
+            "status": "missing",
+            "evidence": "evaluation: the evidence basis for the vendor evaluation is recorded"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_applied_consistently_across_vendors",
+            "status": "missing",
+            "evidence": "evaluation: the same criteria and evidence basis were applied consistently across all vendors"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_vendors_list_declared",
+            "status": "missing",
+            "evidence": "vendors: the declared record names its evaluated vendors \u2014 the list is present and names at least two vendors; an absent list is missing evidence and a list of fewer than two declares no comparison at all"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_id_unique",
+            "status": "missing",
+            "evidence": "vendors: no declared vendor_id is owned by more than one row"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_name_declared",
+            "status": "missing",
+            "evidence": "vendors: every declared vendor declares a non-empty vendor name"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_evidence_note_declared",
+            "status": "missing",
+            "evidence": "vendors: every declared vendor declares a non-empty evidence note"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_list_declared",
+            "status": "missing",
+            "evidence": "criteria: the declared record names its evaluation criteria \u2014 the list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no evaluation at all"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_id_unique",
+            "status": "missing",
+            "evidence": "criteria: no declared criterion_id is owned by more than one row"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_name_declared",
+            "status": "missing",
+            "evidence": "criteria: every declared criterion declares a non-empty criterion name"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_criterion_weight_non_negative",
+            "status": "missing",
+            "evidence": "criteria: every declared criterion declares a non-negative weight"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "vendor_evaluation_criteria_weights_sum_positive",
+            "status": "missing",
+            "evidence": "criteria: the declared criterion weights sum to a positive total \u2014 an evaluation whose weights sum to zero scores nothing"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_scores_every_declared_criterion",
+            "status": "missing",
+            "evidence": "scores: every declared vendor scores every declared criterion and no other criterion, exactly once"
+          },
+          {
+            "section": "vendor_evaluation_and_total_cost",
+            "check": "every_vendor_evaluation_vendor_weighted_total_recomputes",
+            "status": "missing",
+            "evidence": "scores: every declared vendor's declared weighted total recomputes exactly as the sum of declared weight times declared score over its declared scores"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_exclusions_reviewed",
+            "status": "missing",
+            "evidence": "contract care: the quote and contract exclusions were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_payment_terms_reviewed",
+            "status": "missing",
+            "evidence": "contract care: the payment terms were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_penalties_reviewed",
+            "status": "missing",
+            "evidence": "contract care: the penalties were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_warranty_reviewed",
+            "status": "missing",
+            "evidence": "contract care: the warranty was read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_price_escalation_clauses_reviewed",
+            "status": "missing",
+            "evidence": "contract care: the price-escalation clauses were read and reviewed"
+          },
+          {
+            "section": "contract_and_terms",
+            "check": "vendor_evaluation_contract_binding_terms_reviewed",
+            "status": "missing",
+            "evidence": "contract care: the binding terms were reviewed \u2014 binding terms get review"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_issued_before_delivery",
+            "status": "missing",
+            "evidence": "PO discipline: the purchase order was issued before delivery"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_changes_via_change_order_declared",
+            "status": "missing",
+            "evidence": "PO discipline: changes to the purchase order were made via change order"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_verbal_commitments_papered_same_day_declared",
+            "status": "missing",
+            "evidence": "PO discipline: no verbal commitments stand unpapered \u2014 any verbal commitment was papered the same day"
+          },
+          {
+            "section": "purchase_order_discipline",
+            "check": "vendor_evaluation_po_references_spec_declared",
+            "status": "missing",
+            "evidence": "PO discipline: the purchase order references the written specification it buys to"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_match_performed_before_payment_declared",
+            "status": "missing",
+            "evidence": "3-way match: the three-way match (PO \u2194 receipt/inspection \u2194 invoice) was performed before payment"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_discrepancies_resolved_before_payment_declared",
+            "status": "missing",
+            "evidence": "3-way match: discrepancies were resolved first, before payment"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_inspection_against_spec_on_arrival_declared",
+            "status": "missing",
+            "evidence": "receipt: the delivery was inspected against spec on arrival, not after install"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_receipt_verification_before_payment_declared",
+            "status": "missing",
+            "evidence": "receipt: receipt verification stands before payment \u2014 nothing is paid without receipt verification"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_purchase_order_lines_declared",
+            "status": "missing",
+            "evidence": "purchase order lines: the declared record names its purchase-order lines \u2014 the list is present and names at least one line; an absent list is missing evidence and an empty list declares no purchase at all"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_purchase_order_line_id_unique",
+            "status": "missing",
+            "evidence": "purchase order lines: no declared line_id is owned by more than one purchase-order row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_receipt_line_id_unique",
+            "status": "missing",
+            "evidence": "receipt lines: no declared line_id is owned by more than one receipt row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_invoice_line_id_unique",
+            "status": "missing",
+            "evidence": "invoice lines: no declared line_id is owned by more than one invoice row"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_purchase_order_line_total_recomputes",
+            "status": "missing",
+            "evidence": "purchase order lines: every declared purchase-order line total recomputes exactly as declared quantity times declared unit price"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_invoice_line_total_recomputes",
+            "status": "missing",
+            "evidence": "invoice lines: every declared invoice line total recomputes exactly as declared quantity times declared unit price"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_receipt_lines_cover_purchase_order_lines_exactly",
+            "status": "missing",
+            "evidence": "3-way match: the declared receipt line ids are exactly the declared purchase-order line ids \u2014 none missing, none extra, none duplicated"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_invoice_lines_cover_purchase_order_lines_exactly",
+            "status": "missing",
+            "evidence": "3-way match: the declared invoice line ids are exactly the declared purchase-order line ids \u2014 none missing, none extra, none duplicated"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_three_way_line_quantity_matches_across_documents",
+            "status": "missing",
+            "evidence": "3-way match: for every declared line, the declared quantity agrees across purchase order, receipt and invoice"
+          },
+          {
+            "section": "three_way_match",
+            "check": "every_vendor_evaluation_three_way_line_unit_price_matches_po_to_invoice",
+            "status": "missing",
+            "evidence": "3-way match: for every declared line, the declared unit price on the invoice agrees with the declared unit price on the purchase order"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_purchase_order_total_recomputes_from_line_totals",
+            "status": "missing",
+            "evidence": "purchase order total: the declared purchase-order grand total recomputes exactly as the sum of the declared purchase-order line totals"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_invoice_total_recomputes_from_line_totals",
+            "status": "missing",
+            "evidence": "invoice total: the declared invoice grand total recomputes exactly as the sum of the declared invoice line totals"
+          },
+          {
+            "section": "three_way_match",
+            "check": "vendor_evaluation_three_way_grand_totals_match",
+            "status": "missing",
+            "evidence": "3-way match: the declared purchase-order grand total and the declared invoice grand total agree \u2014 the atom checks only that the declared totals agree; it approves no payment"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_vendor_terms_recorded",
+            "status": "missing",
+            "evidence": "vendor records: the vendor's terms are kept on record"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_vendor_contacts_recorded",
+            "status": "missing",
+            "evidence": "vendor records: the vendor's contacts are kept on record"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_performance_log_maintained",
+            "status": "missing",
+            "evidence": "vendor records: a vendor performance log is maintained"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_performance_log_covers_on_time_quality_responsiveness",
+            "status": "missing",
+            "evidence": "vendor records: the performance log covers on-time delivery, quality and responsiveness"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_annual_review_cadence_set",
+            "status": "missing",
+            "evidence": "vendor records: an annual vendor review cadence is set"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_two_viable_sources_for_critical_items_declared",
+            "status": "missing",
+            "evidence": "vendor records: two viable sources are kept for critical items where feasible, as declared"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_banking_detail_changes_verified_via_known_contacts",
+            "status": "missing",
+            "evidence": "fraud hygiene: banking-detail changes are verified via known contacts \u2014 never through email links"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_segregation_of_duties_declared",
+            "status": "missing",
+            "evidence": "fraud hygiene: segregation of duties is in place where possible, as declared"
+          },
+          {
+            "section": "vendor_records_and_performance",
+            "check": "vendor_evaluation_gifts_conflict_policy_respected_declared",
+            "status": "missing",
+            "evidence": "fraud hygiene: the gifts and conflict-of-interest policy is respected, as declared"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_po_less_purchase_above_threshold",
+            "status": "missing",
+            "evidence": "red line: no PO-less purchase above threshold is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_payment_without_delivery_confirmation",
+            "status": "missing",
+            "evidence": "red line: no payment without delivery confirmation is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_payment_before_three_way_match",
+            "status": "missing",
+            "evidence": "red line: no payment made before the three-way match is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "vendor_evaluation_free_of_silent_bank_detail_change",
+            "status": "missing",
+            "evidence": "red line: no silent bank-detail change is present in the record \u2014 bank-detail changes are verified through known channels always"
+          }
+        ],
+        "computed_status": null,
+        "vendor_evaluation_vendors_count": null,
+        "vendor_evaluation_criteria_count": null,
+        "purchase_order_lines_count": null,
+        "receipt_lines_count": null,
+        "invoice_lines_count": null,
+        "duplicate_vendor_evaluation_vendor_ids": null,
+        "duplicate_vendor_evaluation_criterion_ids": null,
+        "duplicate_purchase_order_line_ids": null,
+        "duplicate_receipt_line_ids": null,
+        "duplicate_invoice_line_ids": null,
+        "vendor_evaluation_vendors_without_name": null,
+        "vendor_evaluation_vendors_without_evidence_note": null,
+        "vendor_evaluation_criteria_without_name": null,
+        "vendor_evaluation_criteria_with_invalid_weight": null,
+        "vendor_evaluation_vendors_with_incomplete_or_extra_scores": null,
+        "vendor_evaluation_vendors_with_weighted_total_mismatch": null,
+        "purchase_order_lines_with_line_total_mismatch": null,
+        "invoice_lines_with_line_total_mismatch": null,
+        "purchase_order_line_ids_missing_from_receipt": null,
+        "receipt_line_ids_not_on_purchase_order": null,
+        "purchase_order_line_ids_missing_from_invoice": null,
+        "invoice_line_ids_not_on_purchase_order": null,
+        "three_way_lines_with_quantity_mismatch": null,
+        "three_way_lines_with_unit_price_mismatch": null,
+        "vendor_evaluation_criteria_weights_sum": null,
+        "purchase_order_lines_total": null,
+        "invoice_lines_total": null,
+        "vendor_score_coverage_ratio": null,
+        "vendor_weighted_total_match_ratio": null,
+        "vendor_evidence_note_ratio": null,
+        "three_way_quantity_match_ratio": null,
+        "three_way_amount_match_ratio": null,
+        "summary": "0 pass, 0 fail, 66 missing of 66 checks across seven sections.",
+        "stamp": "VENDOR EVALUATION THREE WAY MATCH PACK\npack_title: Incomplete Record\nVERDICT: INSUFFICIENT_EVIDENCE\n  spec_and_sourcing                            insufficient_evidence\n  vendor_evaluation_and_total_cost             insufficient_evidence\n  contract_and_terms                           insufficient_evidence\n  purchase_order_discipline                    insufficient_evidence\n  three_way_match                              insufficient_evidence\n  vendor_records_and_performance               insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 66 missing of 66 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input pack_title expected string, received number."
+      },
+      "input": {
+        "pack_title": 12345
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "pack_title",
+        "detail": "pack_title must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

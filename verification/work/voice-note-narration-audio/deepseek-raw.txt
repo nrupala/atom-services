@@ -1,0 +1,89 @@
+I'll recompute every computed quantity from the case inputs, applying the fixed serialization rule: `floor(v * 1000000 + 0.5) / 1000000`, formatted with exactly six decimals.
+
+## Case 1: full-pass
+
+**Inputs:** one segment `{segment_id:"s1", section_label:"Intro", sequence_position:1, duration_seconds:10.0}`; `assembly.total_duration_seconds_declared = 10.0`.
+
+### Computed quantities
+
+**voice_note_segments_count** = length of declared list = 1. Artifact: `1`. **MATCH**
+
+**voice_note_segment_duration_total** = sum of durations = 10.0.
+- Serialize: floor(10.0 × 1000000 + 0.5)/1000000 = floor(10000000.5)/1000000 = 10000000/1000000 = 10.0 → `"10.000000"`. Artifact: `"10.000000"`. **MATCH**
+
+**voice_note_total_duration_declared** = 10.0 → `"10.000000"`. Artifact: `"10.000000"`. **MATCH**
+
+**Total duration recomputes:** sum = 10.0; declared = 10.0; equal → pass. Artifact: pass. **MATCH**
+
+**duplicate_voice_note_segment_ids** = ids appearing >1: none → `[]`. Artifact: `[]`. **MATCH**
+
+**voice_note_segments_without_section_label** = rows with empty/absent label: none → `[]`. Artifact: `[]`. **MATCH**
+
+**voice_note_segments_with_non_positive_duration** = rows with duration ≤ 0: 10.0 > 0, none → `[]`. Artifact: `[]`. **MATCH**
+
+**voice_note_segments_with_invalid_sequence_position** = positions must cover exactly 1..N (N=1). Position 1 is valid, distinct, in range → `[]`. Artifact: `[]`. **MATCH**
+
+**segment_sequence_coverage_ratio** = valid distinct in-range positions ÷ declared segments = 1/1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+**segment_section_label_ratio** = non-empty labels ÷ declared = 1/1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+**computed_status:** all ten primary computed checks complete and pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+**Verdict:** all 46 checks pass → `VOICE_NOTE_NARRATION_SOUND`. Artifact: same. **MATCH**
+
+**Summary:** 46 pass, 0 fail, 0 missing. Artifact: same. **MATCH**
+
+---
+
+## Case 2: violations
+
+**Inputs:** `production_kind = "invalid_kind"`; `voice_consent_declared = false`; one segment `{segment_id:"s1", section_label:"Intro", sequence_position:1, duration_seconds:-5.0}`; `assembly.total_duration_seconds_declared = 100.0`.
+
+### Computed quantities
+
+**voice_note_segments_count** = 1. Artifact: `1`. **MATCH**
+
+**voice_note_segment_duration_total** = sum = -5.0.
+- Serialize: floor(-5.0 × 1000000 + 0.5)/1000000 = floor(-5000000 + 0.5)/1000000 = floor(-4999999.5)/1000000 = -5000000/1000000 = -5.0 → `"-5.000000"`. Artifact: `"-5.000000"`. **MATCH**
+
+**voice_note_total_duration_declared** = 100.0 → `"100.000000"`. Artifact: `"100.000000"`. **MATCH**
+
+**Total duration recomputes:** sum = -5.0; declared = 100.0; -5.0 ≠ 100.0 → fail. Artifact: fail. **MATCH**
+
+**duplicate_voice_note_segment_ids** = none → `[]`. Artifact: `[]`. **MATCH**
+
+**voice_note_segments_without_section_label** = none → `[]`. Artifact: `[]`. **MATCH**
+
+**voice_note_segments_with_non_positive_duration** = duration -5.0 ≤ 0 → `["s1"]`. Artifact: `["s1"]`. **MATCH**
+
+**voice_note_segments_with_invalid_sequence_position** = position 1 valid, distinct, in range (N=1) → `[]`. Artifact: `[]`. **MATCH**
+
+**segment_sequence_coverage_ratio** = 1/1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+**segment_section_label_ratio** = 1/1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+**computed_status:** primary checks complete; at least one fails (duration positive, total recompute) → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Planted wrong values → expected failing checks
+
+The planted wrong values are: `production_kind="invalid_kind"`, `voice_consent_declared=false`, `duration_seconds=-5.0`, `total_duration_seconds_declared=100.0` (mismatched with sum -5.0).
+
+Expected failures:
+1. `voice_note_narration_production_kind_recognised` — "invalid_kind" not in {voice_note, narration} → **fail**. Artifact: fail. ✓
+2. `every_voice_note_narration_segment_duration_positive` — -5.0 not positive → **fail**. Artifact: fail. ✓
+3. `voice_note_narration_total_duration_recomputes_from_segments` — -5.0 ≠ 100.0 → **fail**. Artifact: fail. ✓
+4. `voice_note_narration_record_declares_voice_consent` — declared false → **fail** (red-line class). Artifact: fail. ✓
+
+All other checks should pass (all other declarations are true/valid, audience self_only so disclosure N/A, no real-person voice so consent N/A, red-line "present" flags all false). Artifact shows exactly these 4 fails and 42 passes. **MATCH**
+
+**Verdict:** any fail → `VOICE_NOTE_NARRATION_NOT_SOUND`. Artifact: same. **MATCH**
+
+**Summary:** 42 pass, 4 fail, 0 missing. Artifact: same. **MATCH**
+
+**Section statuses:** production_scoping fail (kind), segments_and_chunking fail (duration), audio_spec_and_assembly fail (total recompute), red_lines fail (consent); others pass. Artifact matches all seven. **MATCH**
+
+---
+
+Every computed quantity, ratio, list, status, verdict, and summary in both cases recomputes exactly from the inputs under the stated serialization rule. The violations case's four failing checks are exactly the four the planted wrong values should trigger.
+
+AGREEMENT: full

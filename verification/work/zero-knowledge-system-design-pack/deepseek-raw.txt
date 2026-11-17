@@ -1,0 +1,125 @@
+# Independent recompute — zero-knowledge-system-design-pack
+
+## Serialization rule (applied everywhere)
+
+Per SERVICE.md: round half up to 6dp via `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. For integers I'll show the sum then serialize.
+
+---
+
+## CASE 1: `full-pass`
+
+### Counts (declared list lengths)
+
+- `circuits` present with 1 row → `zk_design_circuits_count` = **1**. Artifact: 1 → **MATCH**
+- `verifiers` present with 1 row → `zk_design_verifiers_count` = **1**. Artifact: 1 → **MATCH**
+- `claim_mappings` present with 1 row → `zk_design_claim_mappings_count` = **1**. Artifact: 1 → **MATCH**
+
+### Constraint count sum
+
+Per-circuit `constraint_count_declared`: only `c1` = 100.
+Sum = 100.
+Serialize: floor(100 × 1000000 + 0.5)/1000000 = 100.000000 → `"100.000000"`.
+Artifact: `"100.000000"` → **MATCH**
+
+### Total constraint count recompute check
+
+Declared `proof_design.total_constraint_count_declared` = 100.0. Sum = 100. Compare on 6dp: 100.000000 vs 100.000000 → equal → **pass**.
+Artifact: `zk_design_pack_total_constraint_count_recomputes` = pass → **MATCH**
+
+### Ratios
+
+- `circuit_statement_coverage_ratio` = circuits with non-empty statement ÷ declared circuits = 1 ÷ 1 = 1. Serialize → `"1.000000"`. Artifact: `"1.000000"` → **MATCH**
+- `verifier_key_reference_coverage_ratio` = verifiers with non-empty key ref ÷ declared verifiers = 1 ÷ 1 = 1 → `"1.000000"`. Artifact: `"1.000000"` → **MATCH**
+- `claim_mapping_mechanism_coverage_ratio` = mappings with non-empty mechanism ref ÷ declared mappings = 1 ÷ 1 = 1 → `"1.000000"`. Artifact: `"1.000000"` → **MATCH**
+
+### Duplicate-id lists
+
+- circuit ids: {c1} — no repeats → `[]`. Artifact: `[]` → **MATCH**
+- verifier ids: {v1} — no repeats → `[]`. Artifact: `[]` → **MATCH**
+- mapping ids: {m1} — no repeats → `[]`. Artifact: `[]` → **MATCH**
+
+### Row-name lists
+
+All rows have non-empty name / statement / valid count / deployment target / key ref / claim text / mechanism ref → all seven `*_without_*` lists = `[]`. Artifact: all `[]` → **MATCH**
+
+### Ceremony gate
+
+`trusted_setup_required` = false → ceremony check passes as not applicable. Artifact: pass, evidence "no trusted setup declared required" → **MATCH**
+
+### Verdict / status / summary
+
+All 59 checks pass (I count the artifact's check list: 8 trust + 8 e2ee + 9 proof/circuit + 8 setup/verifier + 8 properties + 9 recovery/mapping + 5 red lines = 59). No fail, no missing → verdict `ZK_DESIGN_RECORD_SOUND`, `computed_status` = `within_stated_limits_on_declared_evidence`, summary "59 pass, 0 fail, 0 missing of 59". Artifact matches all three → **MATCH**
+
+---
+
+## CASE 2: `violations`
+
+Inputs differ from full-pass in exactly two planted places:
+1. `proof_design.total_constraint_count_declared` = **50.0** (was 100.0)
+2. `red_lines.zk_label_without_key_custody_description_present` = **true** (was false)
+
+### Constraint count sum (unchanged — circuits untouched)
+
+Per-circuit counts: `c1` = 100. Sum = 100 → `"100.000000"`. Artifact: `"100.000000"` → **MATCH**
+
+### Total constraint count recompute check
+
+Declared total = 50.0. Sum = 100. Compare on 6dp: 50.000000 ≠ 100.000000 → **fail**.
+Artifact: `zk_design_pack_total_constraint_count_recomputes` = fail → **MATCH** (correctly fails on the planted wrong total)
+
+### Red line check
+
+`zk_label_without_key_custody_description_present` = true → the "free of ZK label without key custody" check must **fail**.
+Artifact: `zk_design_pack_free_of_zk_label_without_key_custody_description` = fail → **MATCH** (correctly fails on the planted red-line)
+
+### Other red lines
+
+All other four red-line flags = false → those four checks pass. Artifact: pass → **MATCH**
+
+### Counts / ratios / duplicate lists / row-name lists
+
+Identical inputs to full-pass for circuits, verifiers, mappings → all recompute identically:
+- counts 1/1/1 → **MATCH**
+- ratios `"1.000000"` ×3 → **MATCH**
+- duplicate lists `[]` ×3 → **MATCH**
+- row-name lists `[]` ×7 → **MATCH**
+
+### Ceremony gate
+
+`trusted_setup_required` = false → pass as not applicable. Artifact: pass → **MATCH**
+
+### Verdict / status / summary
+
+Exactly 2 checks fail (total-recompute, red-line), 0 missing, 57 pass → verdict `ZK_DESIGN_RECORD_NOT_SOUND`, `computed_status` = `outside_stated_limits_on_declared_evidence`, summary "57 pass, 2 fail, 0 missing of 59". Artifact matches → **MATCH**
+
+### Confirmation of planted-failure targeting
+
+The two planted wrong values are:
+- total 50 vs sum 100 → fails **exactly** `zk_design_pack_total_constraint_count_recomputes` (proof_system_and_circuit_design section → fail).
+- red-line flag true → fails **exactly** `zk_design_pack_free_of_zk_label_without_key_custody_description` (red_lines section → fail).
+
+Artifact's failing sections are `proof_system_and_circuit_design` and `red_lines`, and the two failing checks are precisely those two. No other check fails. **Confirmed — the failing checks are exactly the ones the planted wrong values should fail.**
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| circuits_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| verifiers_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| claim_mappings_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| constraint_count_sum | 100.000000 | 100.000000 ✓ | 100.000000 | 100.000000 ✓ |
+| total_recomputes check | pass | pass ✓ | fail | fail ✓ |
+| circuit_statement_coverage_ratio | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| verifier_key_reference_coverage_ratio | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| claim_mapping_mechanism_coverage_ratio | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| duplicate lists (×3) | [] | [] ✓ | [] | [] ✓ |
+| row-name lists (×7) | [] | [] ✓ | [] | [] ✓ |
+| verdict | SOUND | SOUND ✓ | NOT_SOUND | NOT_SOUND ✓ |
+| computed_status | within | within ✓ | outside | outside ✓ |
+| summary | 59/0/0 | 59/0/0 ✓ | 57/2/0 | 57/2/0 ✓ |
+
+Every computed quantity and check recomputes to the artifact's recorded value in both cases, and the violations case fails exactly the two checks its planted wrong values target.
+
+AGREEMENT: full
