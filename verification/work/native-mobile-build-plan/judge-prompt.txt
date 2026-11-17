@@ -1,0 +1,1459 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: native-mobile-build-plan
+
+=== contract.yaml ===
+service_name: native-mobile-build-plan
+display_name: Native mobile build plan
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:mobile-native
+binding:
+  skill: mobile-native
+  skill_path: workspace/mymilo-build/skills/mobile-native/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: native_mobile_build_plan
+  prefix: atm_1_native_mobile_build_plan_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: MyMilo vault app mobile builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Native mobile build plan — `native-mobile-build-plan`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build native mobile with discipline — device constraints, offline-first, builds/releases, store compliance.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **MyMilo vault app mobile builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the native mobile build plan manifest
+
+The caller submits one JSON manifest: a declared build-plan
+record for one native mobile app, made at the planning stage —
+before the release build. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`NATIVE_MOBILE_BUILD_PLAN_NOT_READY`). All
+fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `app` (string; carried into the verdict output, not itself checked) | — |
+| `constraints.screen_sizes_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.safe_areas_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.touch_targets_minimum_44px_declared` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.battery_and_thermal_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.background_limits_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.worst_device_in_scope_named` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.back_button_and_gestures_handled` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.notification_permission_timing_planned` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.deep_links_planned` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.lifecycle_pause_resume_testing_planned` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.gestures_have_non_gesture_alternative` (boolean) | device_constraints_and_platform_citizenship |
+| `permissions` (list of permission-row objects, each with the entry fields below; computed, see below) | device_constraints_and_platform_citizenship |
+| `permissions[].name` (string; names the row in the computed outputs) | device_constraints_and_platform_citizenship |
+| `permissions[].feature_needing_it` (string; the feature that needs the permission; must be present and non-empty per row) | device_constraints_and_platform_citizenship |
+| `offline.local_store_is_truth_for_user_data` (boolean) | offline_first_and_sync |
+| `offline.sync_retry_and_queue_planned` (boolean) | offline_first_and_sync |
+| `offline.sync_states_pending_and_failed_visible` (boolean) | offline_first_and_sync |
+| `offline.indefinite_spinner_avoided` (boolean) | offline_first_and_sync |
+| `offline.conflict_rules_documented` (boolean) | offline_first_and_sync |
+| `builds.toolchain_versions_pinned` (boolean) | builds_and_signing |
+| `builds.sdk_versions_pinned` (boolean) | builds_and_signing |
+| `builds.deterministic_builds_planned` (boolean) | builds_and_signing |
+| `builds.signing_keys_held_in_keystore_outside_repos` (boolean) | builds_and_signing |
+| `builds.version_code_and_name_discipline_planned` (boolean) | builds_and_signing |
+| `builds.ci_builds_the_artifact` (boolean) | builds_and_signing |
+| `builds.human_sign_off_on_release_build` (boolean) | builds_and_signing |
+| `testing.device_matrix_includes_low_end_device` (boolean) | testing_and_accessibility |
+| `testing.device_matrix_includes_current_device` (boolean) | testing_and_accessibility |
+| `testing.largest_font_size_test_planned` (boolean) | testing_and_accessibility |
+| `testing.offline_tests_planned` (boolean) | testing_and_accessibility |
+| `testing.slow_network_tests_planned` (boolean) | testing_and_accessibility |
+| `testing.upgrade_tests_from_old_app_planned` (boolean) | testing_and_accessibility |
+| `testing.accessibility_pass_on_primary_flows_planned` (boolean) | testing_and_accessibility |
+| `testing.talkback_and_voiceover_in_accessibility_pass` (boolean) | testing_and_accessibility |
+| `release.staged_rollout_internal_beta_prod_planned` (boolean) | release_store_and_privacy |
+| `release.store_metadata_prepared` (boolean) | release_store_and_privacy |
+| `release.privacy_labels_prepared` (boolean) | release_store_and_privacy |
+| `release.data_safety_forms_prepared` (boolean) | release_store_and_privacy |
+| `release.crash_reporting_live_before_full_rollout` (boolean) | release_store_and_privacy |
+| `release.halt_rollout_rollback_plan_prepared` (boolean) | release_store_and_privacy |
+| `privacy.minimum_collection_declared` (boolean) | release_store_and_privacy |
+| `privacy.collection_disclosed_in_store_and_in_app` (boolean) | release_store_and_privacy |
+| `privacy.analytics_without_pii_declared` (boolean) | release_store_and_privacy |
+| `red_lines.secrets_in_app_bundle_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.permissions_without_feature_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.untested_upgrade_path_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Permissions declared:** the declared `permissions` list
+  passes when it is present. An absent list is missing
+  evidence. An empty list passes: it declares that the plan
+  requests no permissions, and the skill requires no
+  permission.
+- **Feature needing it per permission:** every declared
+  permission row must name a non-empty `feature_needing_it`
+  string (the skill's red line: "no permissions without a
+  feature needing them"). A row with the field absent is
+  missing evidence; a row naming an empty feature fails. On an
+  empty list the check passes vacuously — there is no
+  permission without a feature.
+- **No permission name duplicated:** no declared permission
+  `name` may appear on more than one permission row. A row
+  with `name` absent is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three primary computed checks above cannot be completed),
+`permissions_count` (the declared list length, or null when
+the list is not declared — counts are reported as integers,
+exactly), the row-name list `permissions_without_feature`
+(permissions whose feature field is present but empty; a
+permission with the field absent is missing evidence and does
+not appear), `duplicate_permission_names` (permission names
+declared on more than one row, in the order their second
+occurrence appears), and the coverage ratio `feature_coverage`
+(permissions naming a feature ÷ declared permissions).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states exactly one numeric floor — touch targets
+≥44px — and it is checked only as the caller's declaration
+that the floor is adopted, never as a measured pixel value.
+No other numeric threshold is stated — its demands are
+qualitative declarations the record makes, not bars the atom
+can set. Quantities are computed and reported; the only bar on
+the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a touch-target minimum above the skill's stated 44px,
+or any measured pixel value for a target, screen size, or safe
+area; a battery, thermal, or background-execution limit; a
+sync retry count, backoff interval, or queue depth; a choice
+among conflict-resolution strategies (only that rules are
+documented is checked); specific toolchain or SDK version
+numbers (only that versions are pinned is checked); a number
+of devices in the test matrix, or specific devices beyond a
+low-end and a current device being included; a font scale
+beyond the largest font size being tested; a slow-network
+speed or latency figure; an accessibility conformance level
+or score; rollout percentages or stage durations for the
+internal → beta → prod stages; a crash-free rate or crash-
+reporting threshold; a number of permissions an app may
+request; a data-retention period or an analytics standard
+beyond analytics running without PII as declared.
+
+The verdict is one of `NATIVE_MOBILE_BUILD_PLAN_READY` (all
+46 checks pass), `NATIVE_MOBILE_BUILD_PLAN_NOT_READY` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across six sections:
+device_constraints_and_platform_citizenship,
+offline_first_and_sync, builds_and_signing,
+testing_and_accessibility, release_store_and_privacy,
+red_lines.
+
+## Distinct ground
+
+The nearest siblings are the deployed `local-first-sync-design`
+(a sync-PROTOCOL design record for any app — entities and
+per-field merge semantics, tombstones, vector clocks, the
+CRDT/OT choice, multi-device round-trip proof),
+`multiplatform-core-design` (a shared-core record across many
+surfaces — what the portable core holds, per-surface adapters,
+PWA-first sufficiency, per-platform forks),
+`cicd-pipeline-design` (a generic CI pipeline record — stage
+minutes, cache keying, monthly minute budgets) and
+`release-readiness` (a generic software release gate —
+version, tag, changelog and artifact sealing for any product).
+This atom shares **zero checks** with any of them (verified by
+comparing every check name here against every other atom's
+source): every check here is a native-mobile build-plan
+question — the worst device in scope named, safe areas and the
+44px touch-target floor declared, back-button/gesture and
+notification-permission-timing citizenship, the local store as
+truth for user data with visible pending/failed sync states
+and no spinners-forever, signing keys held in a keystore
+outside repos, versionCode/versionName discipline, CI building
+the artifact with a human sign-off, a low-end + current +
+largest-font device matrix, upgrade tests from the old app to
+new data, TalkBack/VoiceOver in the accessibility pass, staged
+internal → beta → prod rollout with store metadata, privacy
+labels and data-safety forms prepared, crash reporting live
+before full rollout, a halt-rollout rollback plan, minimum
+collection with in-store and in-app disclosure, analytics
+without PII, and the mobile red lines. The boundary is: a
+native phone/tablet app's build-and-release plan here;
+sync-protocol design, shared-core architecture, generic CI
+and generic release gating there.
+
+## Honest scoping
+
+This atom reviews a **declared** native-mobile build plan — it
+builds no app itself, runs no toolchain, inspects no bundle,
+repository, keystore, or store listing, runs no device test,
+and does not verify that a declared plan was ever carried out.
+A plan is ready *on the caller's declared evidence*: a record
+that declares pinned versions, keys in a keystore, and no
+secrets in the bundle passes those checks even if the real
+build did none of it. It is a completeness and consistency
+audit of the build-plan record the skill requires, **not a
+build service, a store-submission service, a security audit of
+an actual bundle, or a prediction that a store will approve
+the app**: it never judges whether the named worst device is
+really the worst, whether the declared conflict rules are
+good, whether a permission is genuinely needed by the feature
+named for it, or whether the plan will work — only that the
+record contains what the skill's method, quality gates and
+red lines demand, and that its declared permission rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated 44px floor, itself checked only as a
+declaration (see the declined list above); no live
+verification of any declared fact; no judgment of plan
+*quality* — whether the constraints, sync design, or test
+matrix are adequate for the real app is the caller's
+declaration, checked only for declared presence and
+consistency; the skill's named store and platform specifics
+are checked only as the generic preparations the skill states
+(metadata, privacy labels, data-safety forms) — this atom
+files nothing with any store and takes no position on any
+store's current review rules; privacy substance (whether the
+minimum is truly collected, whether a disclosure is legally
+sufficient) is a caller declaration — only its declared
+presence is checked, and the output is not legal advice.
+
+## U-13 regulatory screen
+
+No: this atom's output could not read as regulated
+professional advice — it audits a declared software build plan
+for completeness and consistency; it offers no engineering,
+financial, medical, or legal advice, and its privacy/store
+checks judge declared presence only, never legal sufficiency.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "native-mobile-build-plan",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "NATIVE_MOBILE_BUILD_PLAN_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 46 checks pass. Computed spot checks: permissions_count=1, feature_coverage=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "permissions_count": 1,
+          "permissions_without_feature": [],
+          "feature_coverage": "1.000000",
+          "duplicate_permission_names": []
+        }
+      },
+      "input": {
+        "app": "MyMilo-Vault",
+        "constraints": {
+          "screen_sizes_considered": true,
+          "safe_areas_considered": true,
+          "touch_targets_minimum_44px_declared": true,
+          "battery_and_thermal_considered": true,
+          "background_limits_considered": true,
+          "worst_device_in_scope_named": true
+        },
+        "platform_citizenship": {
+          "back_button_and_gestures_handled": true,
+          "notification_permission_timing_planned": true,
+          "deep_links_planned": true,
+          "lifecycle_pause_resume_testing_planned": true,
+          "gestures_have_non_gesture_alternative": true
+        },
+        "permissions": [
+          {
+            "name": "CAMERA",
+            "feature_needing_it": "QR_Scanner"
+          }
+        ],
+        "offline": {
+          "local_store_is_truth_for_user_data": true,
+          "sync_retry_and_queue_planned": true,
+          "sync_states_pending_and_failed_visible": true,
+          "indefinite_spinner_avoided": true,
+          "conflict_rules_documented": true
+        },
+        "builds": {
+          "toolchain_versions_pinned": true,
+          "sdk_versions_pinned": true,
+          "deterministic_builds_planned": true,
+          "signing_keys_held_in_keystore_outside_repos": true,
+          "version_code_and_name_discipline_planned": true,
+          "ci_builds_the_artifact": true,
+          "human_sign_off_on_release_build": true
+        },
+        "testing": {
+          "device_matrix_includes_low_end_device": true,
+          "device_matrix_includes_current_device": true,
+          "largest_font_size_test_planned": true,
+          "offline_tests_planned": true,
+          "slow_network_tests_planned": true,
+          "upgrade_tests_from_old_app_planned": true,
+          "accessibility_pass_on_primary_flows_planned": true,
+          "talkback_and_voiceover_in_accessibility_pass": true
+        },
+        "release": {
+          "staged_rollout_internal_beta_prod_planned": true,
+          "store_metadata_prepared": true,
+          "privacy_labels_prepared": true,
+          "data_safety_forms_prepared": true,
+          "crash_reporting_live_before_full_rollout": true,
+          "halt_rollout_rollback_plan_prepared": true
+        },
+        "privacy": {
+          "minimum_collection_declared": true,
+          "collection_disclosed_in_store_and_in_app": true,
+          "analytics_without_pii_declared": true
+        },
+        "red_lines": {
+          "secrets_in_app_bundle_present": false,
+          "permissions_without_feature_present": false,
+          "untested_upgrade_path_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "native-mobile-build-plan",
+        "atom_version": "0.1.0",
+        "app": "MyMilo-Vault",
+        "verdict": "NATIVE_MOBILE_BUILD_PLAN_READY",
+        "sections": {
+          "device_constraints_and_platform_citizenship": "pass",
+          "offline_first_and_sync": "pass",
+          "builds_and_signing": "pass",
+          "testing_and_accessibility": "pass",
+          "release_store_and_privacy": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "screen_sizes_considered",
+            "status": "pass",
+            "evidence": "constraints: screen sizes are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "safe_areas_considered",
+            "status": "pass",
+            "evidence": "constraints: safe areas are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "touch_targets_minimum_44px_declared",
+            "status": "pass",
+            "evidence": "constraints: touch targets adopt the skill's stated floor \u2014 at least 44px"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "battery_and_thermal_considered",
+            "status": "pass",
+            "evidence": "constraints: battery and thermal limits are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "background_limits_considered",
+            "status": "pass",
+            "evidence": "constraints: background limits are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "worst_device_in_scope_named",
+            "status": "pass",
+            "evidence": "constraints: the plan designs for the worst device in scope, and that device is named"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "back_button_and_gestures_handled",
+            "status": "pass",
+            "evidence": "platform citizenship: the back button and gestures are handled"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "notification_permission_timing_planned",
+            "status": "pass",
+            "evidence": "platform citizenship: notification permission timing is planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "deep_links_planned",
+            "status": "pass",
+            "evidence": "platform citizenship: deep links are planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "lifecycle_pause_resume_testing_planned",
+            "status": "pass",
+            "evidence": "platform citizenship: lifecycle \u2014 pause and resume \u2014 testing is planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "gestures_have_non_gesture_alternative",
+            "status": "pass",
+            "evidence": "platform citizenship: haptics and gestures are seasoning, never the only path \u2014 a non-gesture alternative exists"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "permissions_declared",
+            "status": "pass",
+            "evidence": "the declared record names its permissions \u2014 the permissions list is present; an empty list declares that the plan requests no permissions"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "every_permission_names_feature_needing_it",
+            "status": "pass",
+            "evidence": "permissions: every declared permission row names the feature needing it \u2014 no permissions without a feature needing them"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "no_permission_name_duplicated",
+            "status": "pass",
+            "evidence": "permissions: no declared permission name is owned by more than one permission row"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "local_store_is_truth_for_user_data",
+            "status": "pass",
+            "evidence": "offline-first: the local store is the truth for user data"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "sync_retry_and_queue_planned",
+            "status": "pass",
+            "evidence": "offline-first: sync with retry and queue is planned"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "sync_states_pending_and_failed_visible",
+            "status": "pass",
+            "evidence": "offline-first: sync state is visible \u2014 pending and failed states are shown"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "indefinite_spinner_avoided",
+            "status": "pass",
+            "evidence": "offline-first: no spinners-forever \u2014 an indefinite spinner is avoided"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "conflict_rules_documented",
+            "status": "pass",
+            "evidence": "offline-first: conflict rules are documented"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "toolchain_versions_pinned",
+            "status": "pass",
+            "evidence": "builds: toolchain versions are pinned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "sdk_versions_pinned",
+            "status": "pass",
+            "evidence": "builds: SDK versions are pinned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "deterministic_builds_planned",
+            "status": "pass",
+            "evidence": "builds: deterministic builds are planned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "signing_keys_held_in_keystore_outside_repos",
+            "status": "pass",
+            "evidence": "builds: signing keys are held in the keystore \u2014 never in repos"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "version_code_and_name_discipline_planned",
+            "status": "pass",
+            "evidence": "builds: versionCode and versionName discipline is planned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "ci_builds_the_artifact",
+            "status": "pass",
+            "evidence": "builds: CI builds the artifact"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "human_sign_off_on_release_build",
+            "status": "pass",
+            "evidence": "builds: humans sign off the release build"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "device_matrix_includes_low_end_device",
+            "status": "pass",
+            "evidence": "testing: the device matrix includes a low-end device"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "device_matrix_includes_current_device",
+            "status": "pass",
+            "evidence": "testing: the device matrix includes a current device"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "largest_font_size_test_planned",
+            "status": "pass",
+            "evidence": "testing: the largest font size is tested"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "offline_tests_planned",
+            "status": "pass",
+            "evidence": "testing: offline behavior tests are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "slow_network_tests_planned",
+            "status": "pass",
+            "evidence": "testing: slow-network tests are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "upgrade_tests_from_old_app_planned",
+            "status": "pass",
+            "evidence": "testing: upgrade tests \u2014 old app to new data \u2014 are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "accessibility_pass_on_primary_flows_planned",
+            "status": "pass",
+            "evidence": "testing: an accessibility pass on the primary flows is planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "talkback_and_voiceover_in_accessibility_pass",
+            "status": "pass",
+            "evidence": "testing: the accessibility pass covers TalkBack and VoiceOver"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "staged_rollout_internal_beta_prod_planned",
+            "status": "pass",
+            "evidence": "release: staged rollout \u2014 internal, then beta, then prod \u2014 is planned"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "store_metadata_prepared",
+            "status": "pass",
+            "evidence": "release: store metadata \u2014 screenshots and the listing \u2014 is prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "privacy_labels_prepared",
+            "status": "pass",
+            "evidence": "release: store privacy labels are prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "data_safety_forms_prepared",
+            "status": "pass",
+            "evidence": "release: store data-safety forms are prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "crash_reporting_live_before_full_rollout",
+            "status": "pass",
+            "evidence": "release: crash reporting is live before 100% rollout"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "halt_rollout_rollback_plan_prepared",
+            "status": "pass",
+            "evidence": "release: a halt-rollout rollback plan is prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "minimum_collection_declared",
+            "status": "pass",
+            "evidence": "privacy: the plan collects the minimum"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "collection_disclosed_in_store_and_in_app",
+            "status": "pass",
+            "evidence": "privacy: what is collected is disclosed in-store and in-app"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "analytics_without_pii_declared",
+            "status": "pass",
+            "evidence": "privacy: analytics run without PII"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_secrets_in_app_bundle",
+            "status": "pass",
+            "evidence": "red line: no secrets in the app bundle are present in the plan"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_permissions_without_feature",
+            "status": "pass",
+            "evidence": "red line: no permissions without a feature needing them are present in the plan"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_untested_upgrade_path",
+            "status": "pass",
+            "evidence": "red line: no untested upgrade path is present in the plan"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "permissions_count": 1,
+        "permissions_without_feature": [],
+        "feature_coverage": "1.000000",
+        "duplicate_permission_names": [],
+        "summary": "46 pass, 0 fail, 0 missing of 46 checks across six sections.",
+        "stamp": "NATIVE MOBILE BUILD PLAN\napp: MyMilo-Vault\nVERDICT: NATIVE_MOBILE_BUILD_PLAN_READY\n  device_constraints_and_platform_citizenship  pass\n  offline_first_and_sync                       pass\n  builds_and_signing                           pass\n  testing_and_accessibility                    pass\n  release_store_and_privacy                    pass\n  red_lines                                    pass\n46 pass, 0 fail, 0 missing of 46 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NATIVE_MOBILE_BUILD_PLAN_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "every_permission_names_feature_needing_it",
+          "local_store_is_truth_for_user_data",
+          "no_secrets_in_app_bundle",
+          "screen_sizes_considered"
+        ],
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "permissions_count": 1,
+          "permissions_without_feature": [
+            "CAMERA"
+          ],
+          "feature_coverage": "0.000000",
+          "duplicate_permission_names": []
+        },
+        "notes": "Full-pass manifest with four planted violations: constraints.screen_sizes_considered false, offline.local_store_is_truth_for_user_data false, permissions[0].feature_needing_it empty, red_lines.secrets_in_app_bundle_present true."
+      },
+      "input": {
+        "app": "MyMilo-Vault",
+        "constraints": {
+          "screen_sizes_considered": false,
+          "safe_areas_considered": true,
+          "touch_targets_minimum_44px_declared": true,
+          "battery_and_thermal_considered": true,
+          "background_limits_considered": true,
+          "worst_device_in_scope_named": true
+        },
+        "platform_citizenship": {
+          "back_button_and_gestures_handled": true,
+          "notification_permission_timing_planned": true,
+          "deep_links_planned": true,
+          "lifecycle_pause_resume_testing_planned": true,
+          "gestures_have_non_gesture_alternative": true
+        },
+        "permissions": [
+          {
+            "name": "CAMERA",
+            "feature_needing_it": ""
+          }
+        ],
+        "offline": {
+          "local_store_is_truth_for_user_data": false,
+          "sync_retry_and_queue_planned": true,
+          "sync_states_pending_and_failed_visible": true,
+          "indefinite_spinner_avoided": true,
+          "conflict_rules_documented": true
+        },
+        "builds": {
+          "toolchain_versions_pinned": true,
+          "sdk_versions_pinned": true,
+          "deterministic_builds_planned": true,
+          "signing_keys_held_in_keystore_outside_repos": true,
+          "version_code_and_name_discipline_planned": true,
+          "ci_builds_the_artifact": true,
+          "human_sign_off_on_release_build": true
+        },
+        "testing": {
+          "device_matrix_includes_low_end_device": true,
+          "device_matrix_includes_current_device": true,
+          "largest_font_size_test_planned": true,
+          "offline_tests_planned": true,
+          "slow_network_tests_planned": true,
+          "upgrade_tests_from_old_app_planned": true,
+          "accessibility_pass_on_primary_flows_planned": true,
+          "talkback_and_voiceover_in_accessibility_pass": true
+        },
+        "release": {
+          "staged_rollout_internal_beta_prod_planned": true,
+          "store_metadata_prepared": true,
+          "privacy_labels_prepared": true,
+          "data_safety_forms_prepared": true,
+          "crash_reporting_live_before_full_rollout": true,
+          "halt_rollout_rollback_plan_prepared": true
+        },
+        "privacy": {
+          "minimum_collection_declared": true,
+          "collection_disclosed_in_store_and_in_app": true,
+          "analytics_without_pii_declared": true
+        },
+        "red_lines": {
+          "secrets_in_app_bundle_present": true,
+          "permissions_without_feature_present": false,
+          "untested_upgrade_path_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "native-mobile-build-plan",
+        "atom_version": "0.1.0",
+        "app": "MyMilo-Vault",
+        "verdict": "NATIVE_MOBILE_BUILD_PLAN_NOT_READY",
+        "sections": {
+          "device_constraints_and_platform_citizenship": "fail",
+          "offline_first_and_sync": "fail",
+          "builds_and_signing": "pass",
+          "testing_and_accessibility": "pass",
+          "release_store_and_privacy": "pass",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "screen_sizes_considered",
+            "status": "fail",
+            "evidence": "constraints: screen sizes are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "safe_areas_considered",
+            "status": "pass",
+            "evidence": "constraints: safe areas are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "touch_targets_minimum_44px_declared",
+            "status": "pass",
+            "evidence": "constraints: touch targets adopt the skill's stated floor \u2014 at least 44px"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "battery_and_thermal_considered",
+            "status": "pass",
+            "evidence": "constraints: battery and thermal limits are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "background_limits_considered",
+            "status": "pass",
+            "evidence": "constraints: background limits are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "worst_device_in_scope_named",
+            "status": "pass",
+            "evidence": "constraints: the plan designs for the worst device in scope, and that device is named"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "back_button_and_gestures_handled",
+            "status": "pass",
+            "evidence": "platform citizenship: the back button and gestures are handled"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "notification_permission_timing_planned",
+            "status": "pass",
+            "evidence": "platform citizenship: notification permission timing is planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "deep_links_planned",
+            "status": "pass",
+            "evidence": "platform citizenship: deep links are planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "lifecycle_pause_resume_testing_planned",
+            "status": "pass",
+            "evidence": "platform citizenship: lifecycle \u2014 pause and resume \u2014 testing is planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "gestures_have_non_gesture_alternative",
+            "status": "pass",
+            "evidence": "platform citizenship: haptics and gestures are seasoning, never the only path \u2014 a non-gesture alternative exists"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "permissions_declared",
+            "status": "pass",
+            "evidence": "the declared record names its permissions \u2014 the permissions list is present; an empty list declares that the plan requests no permissions"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "every_permission_names_feature_needing_it",
+            "status": "fail",
+            "evidence": "permissions: every declared permission row names the feature needing it \u2014 no permissions without a feature needing them"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "no_permission_name_duplicated",
+            "status": "pass",
+            "evidence": "permissions: no declared permission name is owned by more than one permission row"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "local_store_is_truth_for_user_data",
+            "status": "fail",
+            "evidence": "offline-first: the local store is the truth for user data"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "sync_retry_and_queue_planned",
+            "status": "pass",
+            "evidence": "offline-first: sync with retry and queue is planned"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "sync_states_pending_and_failed_visible",
+            "status": "pass",
+            "evidence": "offline-first: sync state is visible \u2014 pending and failed states are shown"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "indefinite_spinner_avoided",
+            "status": "pass",
+            "evidence": "offline-first: no spinners-forever \u2014 an indefinite spinner is avoided"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "conflict_rules_documented",
+            "status": "pass",
+            "evidence": "offline-first: conflict rules are documented"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "toolchain_versions_pinned",
+            "status": "pass",
+            "evidence": "builds: toolchain versions are pinned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "sdk_versions_pinned",
+            "status": "pass",
+            "evidence": "builds: SDK versions are pinned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "deterministic_builds_planned",
+            "status": "pass",
+            "evidence": "builds: deterministic builds are planned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "signing_keys_held_in_keystore_outside_repos",
+            "status": "pass",
+            "evidence": "builds: signing keys are held in the keystore \u2014 never in repos"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "version_code_and_name_discipline_planned",
+            "status": "pass",
+            "evidence": "builds: versionCode and versionName discipline is planned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "ci_builds_the_artifact",
+            "status": "pass",
+            "evidence": "builds: CI builds the artifact"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "human_sign_off_on_release_build",
+            "status": "pass",
+            "evidence": "builds: humans sign off the release build"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "device_matrix_includes_low_end_device",
+            "status": "pass",
+            "evidence": "testing: the device matrix includes a low-end device"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "device_matrix_includes_current_device",
+            "status": "pass",
+            "evidence": "testing: the device matrix includes a current device"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "largest_font_size_test_planned",
+            "status": "pass",
+            "evidence": "testing: the largest font size is tested"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "offline_tests_planned",
+            "status": "pass",
+            "evidence": "testing: offline behavior tests are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "slow_network_tests_planned",
+            "status": "pass",
+            "evidence": "testing: slow-network tests are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "upgrade_tests_from_old_app_planned",
+            "status": "pass",
+            "evidence": "testing: upgrade tests \u2014 old app to new data \u2014 are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "accessibility_pass_on_primary_flows_planned",
+            "status": "pass",
+            "evidence": "testing: an accessibility pass on the primary flows is planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "talkback_and_voiceover_in_accessibility_pass",
+            "status": "pass",
+            "evidence": "testing: the accessibility pass covers TalkBack and VoiceOver"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "staged_rollout_internal_beta_prod_planned",
+            "status": "pass",
+            "evidence": "release: staged rollout \u2014 internal, then beta, then prod \u2014 is planned"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "store_metadata_prepared",
+            "status": "pass",
+            "evidence": "release: store metadata \u2014 screenshots and the listing \u2014 is prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "privacy_labels_prepared",
+            "status": "pass",
+            "evidence": "release: store privacy labels are prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "data_safety_forms_prepared",
+            "status": "pass",
+            "evidence": "release: store data-safety forms are prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "crash_reporting_live_before_full_rollout",
+            "status": "pass",
+            "evidence": "release: crash reporting is live before 100% rollout"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "halt_rollout_rollback_plan_prepared",
+            "status": "pass",
+            "evidence": "release: a halt-rollout rollback plan is prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "minimum_collection_declared",
+            "status": "pass",
+            "evidence": "privacy: the plan collects the minimum"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "collection_disclosed_in_store_and_in_app",
+            "status": "pass",
+            "evidence": "privacy: what is collected is disclosed in-store and in-app"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "analytics_without_pii_declared",
+            "status": "pass",
+            "evidence": "privacy: analytics run without PII"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_secrets_in_app_bundle",
+            "status": "fail",
+            "evidence": "red line: no secrets in the app bundle are present in the plan"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_permissions_without_feature",
+            "status": "pass",
+            "evidence": "red line: no permissions without a feature needing them are present in the plan"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_untested_upgrade_path",
+            "status": "pass",
+            "evidence": "red line: no untested upgrade path is present in the plan"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "permissions_count": 1,
+        "permissions_without_feature": [
+          "CAMERA"
+        ],
+        "feature_coverage": "0.000000",
+        "duplicate_permission_names": [],
+        "summary": "42 pass, 4 fail, 0 missing of 46 checks across six sections.",
+        "stamp": "NATIVE MOBILE BUILD PLAN\napp: MyMilo-Vault\nVERDICT: NATIVE_MOBILE_BUILD_PLAN_NOT_READY\n  device_constraints_and_platform_citizenship  fail\n  offline_first_and_sync                       fail\n  builds_and_signing                           pass\n  testing_and_accessibility                    pass\n  release_store_and_privacy                    pass\n  red_lines                                    fail\n42 pass, 4 fail, 0 missing of 46 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only the identity field present; every check missing."
+      },
+      "input": {
+        "app": "Minimal-Plan"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "native-mobile-build-plan",
+        "atom_version": "0.1.0",
+        "app": "Minimal-Plan",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "device_constraints_and_platform_citizenship": "insufficient_evidence",
+          "offline_first_and_sync": "insufficient_evidence",
+          "builds_and_signing": "insufficient_evidence",
+          "testing_and_accessibility": "insufficient_evidence",
+          "release_store_and_privacy": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "screen_sizes_considered",
+            "status": "missing",
+            "evidence": "constraints: screen sizes are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "safe_areas_considered",
+            "status": "missing",
+            "evidence": "constraints: safe areas are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "touch_targets_minimum_44px_declared",
+            "status": "missing",
+            "evidence": "constraints: touch targets adopt the skill's stated floor \u2014 at least 44px"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "battery_and_thermal_considered",
+            "status": "missing",
+            "evidence": "constraints: battery and thermal limits are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "background_limits_considered",
+            "status": "missing",
+            "evidence": "constraints: background limits are considered in the plan"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "worst_device_in_scope_named",
+            "status": "missing",
+            "evidence": "constraints: the plan designs for the worst device in scope, and that device is named"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "back_button_and_gestures_handled",
+            "status": "missing",
+            "evidence": "platform citizenship: the back button and gestures are handled"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "notification_permission_timing_planned",
+            "status": "missing",
+            "evidence": "platform citizenship: notification permission timing is planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "deep_links_planned",
+            "status": "missing",
+            "evidence": "platform citizenship: deep links are planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "lifecycle_pause_resume_testing_planned",
+            "status": "missing",
+            "evidence": "platform citizenship: lifecycle \u2014 pause and resume \u2014 testing is planned"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "gestures_have_non_gesture_alternative",
+            "status": "missing",
+            "evidence": "platform citizenship: haptics and gestures are seasoning, never the only path \u2014 a non-gesture alternative exists"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "permissions_declared",
+            "status": "missing",
+            "evidence": "the declared record names its permissions \u2014 the permissions list is present; an empty list declares that the plan requests no permissions"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "every_permission_names_feature_needing_it",
+            "status": "missing",
+            "evidence": "permissions: every declared permission row names the feature needing it \u2014 no permissions without a feature needing them"
+          },
+          {
+            "section": "device_constraints_and_platform_citizenship",
+            "check": "no_permission_name_duplicated",
+            "status": "missing",
+            "evidence": "permissions: no declared permission name is owned by more than one permission row"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "local_store_is_truth_for_user_data",
+            "status": "missing",
+            "evidence": "offline-first: the local store is the truth for user data"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "sync_retry_and_queue_planned",
+            "status": "missing",
+            "evidence": "offline-first: sync with retry and queue is planned"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "sync_states_pending_and_failed_visible",
+            "status": "missing",
+            "evidence": "offline-first: sync state is visible \u2014 pending and failed states are shown"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "indefinite_spinner_avoided",
+            "status": "missing",
+            "evidence": "offline-first: no spinners-forever \u2014 an indefinite spinner is avoided"
+          },
+          {
+            "section": "offline_first_and_sync",
+            "check": "conflict_rules_documented",
+            "status": "missing",
+            "evidence": "offline-first: conflict rules are documented"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "toolchain_versions_pinned",
+            "status": "missing",
+            "evidence": "builds: toolchain versions are pinned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "sdk_versions_pinned",
+            "status": "missing",
+            "evidence": "builds: SDK versions are pinned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "deterministic_builds_planned",
+            "status": "missing",
+            "evidence": "builds: deterministic builds are planned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "signing_keys_held_in_keystore_outside_repos",
+            "status": "missing",
+            "evidence": "builds: signing keys are held in the keystore \u2014 never in repos"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "version_code_and_name_discipline_planned",
+            "status": "missing",
+            "evidence": "builds: versionCode and versionName discipline is planned"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "ci_builds_the_artifact",
+            "status": "missing",
+            "evidence": "builds: CI builds the artifact"
+          },
+          {
+            "section": "builds_and_signing",
+            "check": "human_sign_off_on_release_build",
+            "status": "missing",
+            "evidence": "builds: humans sign off the release build"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "device_matrix_includes_low_end_device",
+            "status": "missing",
+            "evidence": "testing: the device matrix includes a low-end device"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "device_matrix_includes_current_device",
+            "status": "missing",
+            "evidence": "testing: the device matrix includes a current device"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "largest_font_size_test_planned",
+            "status": "missing",
+            "evidence": "testing: the largest font size is tested"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "offline_tests_planned",
+            "status": "missing",
+            "evidence": "testing: offline behavior tests are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "slow_network_tests_planned",
+            "status": "missing",
+            "evidence": "testing: slow-network tests are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "upgrade_tests_from_old_app_planned",
+            "status": "missing",
+            "evidence": "testing: upgrade tests \u2014 old app to new data \u2014 are planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "accessibility_pass_on_primary_flows_planned",
+            "status": "missing",
+            "evidence": "testing: an accessibility pass on the primary flows is planned"
+          },
+          {
+            "section": "testing_and_accessibility",
+            "check": "talkback_and_voiceover_in_accessibility_pass",
+            "status": "missing",
+            "evidence": "testing: the accessibility pass covers TalkBack and VoiceOver"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "staged_rollout_internal_beta_prod_planned",
+            "status": "missing",
+            "evidence": "release: staged rollout \u2014 internal, then beta, then prod \u2014 is planned"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "store_metadata_prepared",
+            "status": "missing",
+            "evidence": "release: store metadata \u2014 screenshots and the listing \u2014 is prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "privacy_labels_prepared",
+            "status": "missing",
+            "evidence": "release: store privacy labels are prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "data_safety_forms_prepared",
+            "status": "missing",
+            "evidence": "release: store data-safety forms are prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "crash_reporting_live_before_full_rollout",
+            "status": "missing",
+            "evidence": "release: crash reporting is live before 100% rollout"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "halt_rollout_rollback_plan_prepared",
+            "status": "missing",
+            "evidence": "release: a halt-rollout rollback plan is prepared"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "minimum_collection_declared",
+            "status": "missing",
+            "evidence": "privacy: the plan collects the minimum"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "collection_disclosed_in_store_and_in_app",
+            "status": "missing",
+            "evidence": "privacy: what is collected is disclosed in-store and in-app"
+          },
+          {
+            "section": "release_store_and_privacy",
+            "check": "analytics_without_pii_declared",
+            "status": "missing",
+            "evidence": "privacy: analytics run without PII"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_secrets_in_app_bundle",
+            "status": "missing",
+            "evidence": "red line: no secrets in the app bundle are present in the plan"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_permissions_without_feature",
+            "status": "missing",
+            "evidence": "red line: no permissions without a feature needing them are present in the plan"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_untested_upgrade_path",
+            "status": "missing",
+            "evidence": "red line: no untested upgrade path is present in the plan"
+          }
+        ],
+        "computed_status": null,
+        "permissions_count": null,
+        "permissions_without_feature": null,
+        "feature_coverage": null,
+        "duplicate_permission_names": null,
+        "summary": "0 pass, 0 fail, 46 missing of 46 checks across six sections.",
+        "stamp": "NATIVE MOBILE BUILD PLAN\napp: Minimal-Plan\nVERDICT: INSUFFICIENT_EVIDENCE\n  device_constraints_and_platform_citizenship  insufficient_evidence\n  offline_first_and_sync                       insufficient_evidence\n  builds_and_signing                           insufficient_evidence\n  testing_and_accessibility                    insufficient_evidence\n  release_store_and_privacy                    insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 46 missing of 46 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: constraints field provided as string instead of object."
+      },
+      "input": {
+        "app": "Malformed-Plan",
+        "constraints": "should-be-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "constraints",
+        "detail": "constraints must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

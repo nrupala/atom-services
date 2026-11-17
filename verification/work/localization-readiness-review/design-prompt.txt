@@ -1,0 +1,309 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: localization-readiness-review
+
+=== contract.yaml ===
+service_name: localization-readiness-review
+display_name: Localization readiness review
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:i18n-localization
+binding:
+  skill: i18n-localization
+  skill_path: workspace/mymilo-build/skills/i18n-localization/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+keys:
+  namespace: localization_readiness_review
+  prefix: atm_1_localization_readiness_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product UI localization readiness work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Localization readiness review — `localization-readiness-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Internationalize properly — external strings, ICU formats, RTL, locale-aware everything, tested.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product UI localization readiness work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the localization readiness manifest
+
+The caller submits one JSON manifest: a declared localization
+record for one product. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`LOCALIZATION_READINESS_NOT_SOUND`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `product` (string; carried into the verdict output, not itself checked) | — |
+| `externalization.all_user_visible_strings_externalized` (boolean) | externalized_strings_and_translation_units |
+| `externalization.stable_keys_used` (boolean) | externalized_strings_and_translation_units |
+| `externalization.full_sentences_are_translation_units` (boolean) | externalized_strings_and_translation_units |
+| `externalization.hardcoded_ui_strings_present` (boolean; must be `false` to pass) | externalized_strings_and_translation_units |
+| `externalization.hardcoded_string_lint_catches_them` (boolean) | externalized_strings_and_translation_units |
+| `formats.dates_via_locale_apis` (boolean) | locale_formats_plurals_and_grammar |
+| `formats.times_via_locale_apis` (boolean) | locale_formats_plurals_and_grammar |
+| `formats.numbers_via_locale_apis` (boolean) | locale_formats_plurals_and_grammar |
+| `formats.currency_via_locale_apis` (boolean) | locale_formats_plurals_and_grammar |
+| `formats.lists_via_locale_apis` (boolean) | locale_formats_plurals_and_grammar |
+| `formats.relative_time_via_locale_apis` (boolean) | locale_formats_plurals_and_grammar |
+| `formats.timestamps_stored_utc_rendered_local` (boolean) | locale_formats_plurals_and_grammar |
+| `formats.hand_rolled_format_masks_present` (boolean; must be `false` to pass) | locale_formats_plurals_and_grammar |
+| `grammar.icu_messageformat_used_for_plurals_and_select` (boolean) | locale_formats_plurals_and_grammar |
+| `grammar.gender_and_declension_handled_where_required` (boolean) | locale_formats_plurals_and_grammar |
+| `layout.layout_allows_language_length_variance` (boolean) | flexible_layout_and_rtl_readiness |
+| `layout.fixed_width_text_containers_present` (boolean; must be `false` to pass) | flexible_layout_and_rtl_readiness |
+| `layout.buttons_wrap_safely` (boolean) | flexible_layout_and_rtl_readiness |
+| `rtl.logical_css_properties_used_where_rtl_possible` (boolean) | flexible_layout_and_rtl_readiness |
+| `rtl.mirrored_icons_reviewed` (boolean) | flexible_layout_and_rtl_readiness |
+| `rtl.rtl_smoke_locale_tested` (boolean) | flexible_layout_and_rtl_readiness |
+| `workflow.tms_or_controlled_files_used` (boolean) | content_workflow_and_glossary |
+| `workflow.glossary_for_product_terms_present` (boolean) | content_workflow_and_glossary |
+| `workflow.brand_names_kept_untranslated` (boolean) | content_workflow_and_glossary |
+| `workflow.glossary_respected` (boolean) | content_workflow_and_glossary |
+| `workflow.context_notes_for_translators_provided` (boolean) | content_workflow_and_glossary |
+| `workflow.machine_translation_drafts_human_reviewed_before_shipping` (boolean) | content_workflow_and_glossary |
+| `testing.pseudo_localization_pass_done` (boolean) | locale_testing_and_red_lines |
+| `testing.pseudo_localization_pass_in_ci_where_possible` (boolean) | locale_testing_and_red_lines |
+| `testing.layout_survives_long_strings` (boolean) | locale_testing_and_red_lines |
+| `locales` (list of locale-row objects, each with the entry fields below; computed, see below) | locale_testing_and_red_lines |
+| `locales[].name` (string; names the row in the computed outputs) | locale_testing_and_red_lines |
+| `locales[].code` (string; the locale code the row declares; duplicate declaration is computed, see below) | locale_testing_and_red_lines |
+| `locales[].direction` (string; must be one of `ltr`, `rtl` — the skill's own distinction) | locale_testing_and_red_lines |
+| `locales[].format_tests_passed` (boolean) | locale_testing_and_red_lines |
+| `locales[].screenshots_reviewed` (boolean) | locale_testing_and_red_lines |
+| `red_lines.string_concatenation_for_grammar_present` (boolean; must be `false` to pass — skill red line) | locale_testing_and_red_lines |
+| `red_lines.raw_machine_translation_shipped_unreviewed_for_legal_or_sensitive_text_present` (boolean; must be `false` to pass — skill red line) | locale_testing_and_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Locales declared:** the declared `locales` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Format tests per locale:** every declared locale row must
+  declare `format_tests_passed: true` (the skill: "per-locale
+  unit tests for formats"). A row with the field absent is
+  missing evidence.
+- **Direction per locale:** every declared locale row must
+  declare `direction` from the skill's own distinction —
+  `ltr`, `rtl`. A row with the field absent is missing evidence;
+  a row declaring any other value fails and is named.
+- **No locale code declared twice:** no declared `code` string
+  may appear on more than one locale row. A row with `code`
+  absent is missing evidence for this check.
+- **Screenshots per locale:** every declared locale row must
+  declare `screenshots_reviewed: true` (the skill: "screenshots
+  of key screens per language on changes").
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`locales_count` (the declared list length, or null when the list
+is not declared — counts are reported as integers, exactly),
+the row-name lists `locales_without_format_tests` (locales whose
+field is present but not true; a locale with the field absent is
+missing evidence and does not appear),
+`locales_with_invalid_direction` (locales whose `direction` is
+present but not in the skill's distinction),
+`duplicate_locale_codes` (locale codes declared on more than one
+row, in the order their second occurrence appears) and
+`locales_without_screenshots` (locales whose field is present
+but not true), and the three coverage ratios
+`format_test_coverage` (locales passing format tests ÷ declared
+locales), `valid_direction_coverage` (locales with a valid
+direction ÷ declared locales) and `screenshot_coverage`
+(locales with screenshots reviewed ÷ declared locales).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no coverage,
+count or expansion bar: its targets are qualitative attestations
+the record declares addressed, not bars the atom can set.
+Quantities are computed and reported; the only bar on the
+computed rows is completeness over the caller's own declared
+rows, exactly as stated above. Declined thresholds, named: a
+translation-coverage or string-externalization percentage; a
+number of locales or languages a product must support; a number
+of externalized strings or stable keys; a format-test count or
+test-coverage percentage; a screenshot or key-screen count; a
+text-expansion percentage to pass (the skill's stated +30–100%
+language length variance is a layout attestation the record
+declares allowed, not a measured bar this atom sets); a
+pseudo-localization elongation percentage; a number of RTL
+locales beyond the skill's stated one RTL smoke locale if in
+scope; a glossary term count; a translation-quality,
+machine-translation-quality or human-review turnaround score; a
+coverage percentage below completeness.
+
+The verdict is one of `LOCALIZATION_READINESS_SOUND` (all 37
+checks pass), `LOCALIZATION_READINESS_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across five sections:
+externalized_strings_and_translation_units,
+locale_formats_plurals_and_grammar,
+flexible_layout_and_rtl_readiness,
+content_workflow_and_glossary, locale_testing_and_red_lines.
+
+## Distinct ground
+
+No live or staged sibling atom audits a declared localization /
+internationalization readiness record. The nearest siblings are
+`meaning-first-translation-with-tone-note`, which performs an
+actual translation of supplied text (meaning, register and tone
+preserved) rather than auditing readiness, and
+`frontend-implementation`, which builds frontend code rather
+than auditing its internationalization record — zero checks are
+shared with either; the boundary is: translation performed and
+frontend code built there, externalized strings / locale formats
+and grammar / flexible layout and RTL / content workflow and
+glossary / locale testing and red lines on a declared record
+here.
+
+## Honest scoping
+
+This atom audits a **declared** localization record — it
+inspects no source code, runs no lint or pseudo-localization,
+renders no screen, executes no format test, and does not verify
+that a declared control actually works. A record is sound *on
+the caller's declared evidence*: a manifest that declares all
+strings externalized, formats via locale APIs and no raw
+machine translation shipped unreviewed passes those checks even
+if the real product does none of it. It is a completeness and
+consistency audit of the record the skill requires, **not a
+translation service, a localization service, or a certification
+that a product is correctly localized in any language**: it
+never judges whether a translation is accurate or idiomatic,
+whether a format renders correctly for a locale, whether a
+layout truly survives a language, or whether a glossary term is
+the right term — only that the record contains what the skill's
+sections and red lines demand, and that its declared rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no text inspection —
+hardcoded strings, string concatenation and unreviewed machine
+translation are caller-declared present/absent flags, the atom
+reads no code or copy; translation quality and linguistic fit
+are caller declarations — the atom checks only that workflow,
+glossary, testing and per-locale rows are declared and
+consistent; whether RTL is in scope for a product is a caller
+declaration — the smoke-locale check reads the declared flag
+only.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Generic engineering pack item
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

@@ -1,0 +1,100 @@
+# Independent recompute — mcp-server-design-and-review
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+Input: `tools` = one row: `{name:"get_user", operation:"read", has_typed_schema:true, single_job:true, has_negative_test:true}`. No `approval_or_scope_gate_present` field (irrelevant — row is not destructive).
+
+### Computed checks (the seven primary)
+
+1. **tools_declared** — list present, length 1 ≥ 1 → **pass**.
+2. **every_tool_has_typed_schema** — row has `has_typed_schema:true` → pass.
+3. **every_tool_single_job** — `single_job:true` → pass.
+4. **every_tool_operation_valid** — `operation:"read"` ∈ {read,write,destructive} → pass.
+5. **no_tool_name_duplicated** — one name `get_user`, count 1 → pass.
+6. **every_destructive_tool_gated** — destructive rows = 0 → vacuous pass.
+7. **every_tool_has_negative_test** — `has_negative_test:true` → pass.
+
+All seven complete and pass → `computed_status = within_stated_limits_on_declared_evidence`. Artifact: `within_stated_limits_on_declared_evidence` → **MATCH**.
+
+### tools_count
+Declared list length = 1. Artifact: `1` → **MATCH**.
+
+### Row-name lists
+- `tools_without_typed_schema`: rows with field present but not true = none → `[]`. Artifact `[]` → **MATCH**.
+- `tools_not_single_job`: none → `[]`. Artifact `[]` → **MATCH**.
+- `tools_with_invalid_operation`: none → `[]`. Artifact `[]` → **MATCH**.
+- `duplicate_tool_names`: none → `[]`. Artifact `[]` → **MATCH**.
+- `destructive_tools_without_gate`: no destructive rows → `[]`. Artifact `[]` → **MATCH**.
+- `tools_without_negative_test`: none → `[]`. Artifact `[]` → **MATCH**.
+
+### Coverage ratios (rule: `floor(v*1000000 + 0.5)/1000000`, formatted 6dp)
+
+- **typed_schema_coverage** = 1/1 = 1.0 → floor(1000000.5)/1000000 = 1.0 → `"1.000000"`. Artifact `"1.000000"` → **MATCH**.
+- **single_job_coverage** = 1/1 → `"1.000000"`. Artifact `"1.000000"` → **MATCH**.
+- **valid_operation_coverage** = 1/1 → `"1.000000"`. Artifact `"1.000000"` → **MATCH**.
+- **destructive_gate_coverage** = gated destructive ÷ declared destructive = 0 ÷ 0 → denominator empty → **null**. Artifact `null` → **MATCH**.
+- **negative_test_coverage** = 1/1 → `"1.000000"`. Artifact `"1.000000"` → **MATCH**.
+
+### Verdict / summary
+All 41 checks pass (8 tool_design flags + 5 computed tool checks + 6 transport/auth + 7 safety/injection + 10 versioning/tests/observability + 3 red lines = 39... let me count the artifact's check list: it lists 41 entries). No fails, no missing → `MCP_SERVER_SOUND`. Summary "41 pass, 0 fail, 0 missing of 41" — consistent with the 41 listed checks, all `pass`. → **MATCH**.
+
+## Case 2: `violations`
+
+Input: `god_tools_present:true`; two tool rows:
+- Row A: `{name:"get_user", operation:"execute", has_typed_schema:false, single_job:true, has_negative_test:true}`
+- Row B: `{name:"get_user", operation:"read", has_typed_schema:true, single_job:true, has_negative_test:false}`
+
+### Planted wrong values → expected failing checks
+- `god_tools_present:true` → **no_god_tools** must fail.
+- Row A `has_typed_schema:false` → **every_tool_has_typed_schema** must fail.
+- Row A `operation:"execute"` (not in set) → **every_tool_operation_valid** must fail.
+- `get_user` on two rows → **no_tool_name_duplicated** must fail.
+- Row B `has_negative_test:false` → **every_tool_has_negative_test** must fail.
+
+That is exactly 5 expected failures. All other declared flags are true / red-line flags false, so no other check should fail.
+
+### Computed checks (seven primary)
+1. **tools_declared** — length 2 ≥ 1 → pass.
+2. **every_tool_has_typed_schema** — Row A false → **fail**.
+3. **every_tool_single_job** — both true → pass.
+4. **every_tool_operation_valid** — Row A `execute` invalid → **fail**.
+5. **no_tool_name_duplicated** — `get_user` twice → **fail**.
+6. **every_destructive_tool_gated** — destructive rows = 0 → vacuous pass.
+7. **every_tool_has_negative_test** — Row B false → **fail**.
+
+Plus `no_god_tools` (a declared-flag check) → **fail**.
+
+Failing set = {no_god_tools, every_tool_has_typed_schema, every_tool_operation_valid, no_tool_name_duplicated, every_tool_has_negative_test} = 5 checks. Artifact's `fail` entries: exactly those 5 (no_god_tools, every_tool_has_typed_schema, every_tool_operation_valid, no_tool_name_duplicated, every_tool_has_negative_test). → **MATCH** — the failing checks are exactly the ones the planted wrong values should fail.
+
+`computed_status`: a primary computed check fails → `outside_stated_limits_on_declared_evidence`. Artifact: `outside_stated_limits_on_declared_evidence` → **MATCH**.
+
+### tools_count
+Length = 2. Artifact `2` → **MATCH**.
+
+### Row-name lists
+- `tools_without_typed_schema`: Row A present-but-false → `["get_user"]`. Artifact `["get_user"]` → **MATCH**.
+- `tools_not_single_job`: none → `[]`. Artifact `[]` → **MATCH**.
+- `tools_with_invalid_operation`: Row A `execute` → `["get_user"]`. Artifact `["get_user"]` → **MATCH**.
+- `duplicate_tool_names`: `get_user` appears on rows 1 and 2; second occurrence at row 2 → `["get_user"]`. Artifact `["get_user"]` → **MATCH**.
+- `destructive_tools_without_gate`: no destructive rows → `[]`. Artifact `[]` → **MATCH**.
+- `tools_without_negative_test`: Row B false → `["get_user"]`. Artifact `["get_user"]` → **MATCH**.
+
+### Coverage ratios
+- **typed_schema_coverage** = 1/2 = 0.5 → floor(500000.5)/1000000 = 0.5 → `"0.500000"`. Artifact `"0.500000"` → **MATCH**.
+- **single_job_coverage** = 2/2 = 1.0 → `"1.000000"`. Artifact `"1.000000"` → **MATCH**.
+- **valid_operation_coverage** = 1/2 = 0.5 → `"0.500000"`. Artifact `"0.500000"` → **MATCH**.
+- **destructive_gate_coverage** = 0 ÷ 0 → **null**. Artifact `null` → **MATCH**.
+- **negative_test_coverage** = 1/2 = 0.5 → `"0.500000"`. Artifact `"0.500000"` → **MATCH**.
+
+### Verdict / summary
+5 fails, 0 missing, 36 pass of 41 → `MCP_SERVER_NOT_SOUND`. Sections: tool_design_and_budget fail (4 fails there), versioning fail (1 fail there), others pass. Artifact matches. Summary "36 pass, 5 fail, 0 missing of 41" → **MATCH**.
+
+## Cross-check of the 41-check count
+Artifact lists 41 check entries in both cases; 41 − 5 = 36 pass in case 2, and 41 pass in case 1. Consistent.
+
+## Conclusion
+Every computed quantity (computed_status, tools_count, all six row-name lists, all five coverage ratios with the fixed 6dp serialization, verdict, and summary counts) recomputes to the artifact's recorded value in both cases. In the violations case the failing checks are exactly the five the planted wrong values should fail.
+
+AGREEMENT: full

@@ -1,0 +1,1330 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: long-form-authoring-pipeline
+
+=== contract.yaml ===
+service_name: long-form-authoring-pipeline
+display_name: Long form authoring pipeline
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:authoring-pipeline
+binding:
+  skill: authoring-pipeline
+  skill_path: workspace/mymilo-build/skills/authoring-pipeline/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: long_form_authoring_pipeline
+  prefix: atm_1_long_form_authoring_pipeline_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Book and course authoring
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Long form authoring pipeline — `long-form-authoring-pipeline`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Produce long-form work systematically — approved outlines, review passes, versioned builds, clean publishing.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Writing & documents who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Book and course authoring**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the authoring-pipeline manifest
+
+The caller submits one JSON manifest: a declared long-form
+authoring record for one work (book, course, guide or long
+document). Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`AUTHORING_PIPELINE_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `work` (string; carried into the verdict output, not itself checked) | — |
+| `outline.toc_approved_before_drafting` (boolean) | outline_as_contract |
+| `outline.chapters_or_modules_defined` (boolean) | outline_as_contract |
+| `outline.scope_fences_defined` (boolean) | outline_as_contract |
+| `units` (list of unit-row objects, each with the entry fields below; computed, see below) | outline_as_contract |
+| `units[].name` (string; names the row in the computed outputs) | outline_as_contract |
+| `units[].point_or_outcome` (string; the unit's point or its claim / learning outcome; must be non-empty, see below) | outline_as_contract |
+| `units[].has_single_point` (boolean) | outline_as_contract |
+| `drafting.small_units_used` (boolean) | drafting_loop |
+| `drafting.examples_before_abstractions` (boolean) | drafting_loop |
+| `drafting.style_sheet_maintained` (boolean) | drafting_loop |
+| `drafting.glossary_maintained` (boolean) | drafting_loop |
+| `review.comments_triaged_not_blind_applied` (boolean) | review_passes |
+| `review_passes` (list of review-pass-row objects, each with the entry fields below; computed, see below) | review_passes |
+| `review_passes[].name` (string; names the row in the computed outputs) | review_passes |
+| `review_passes[].pass_type` (string; must be one of `structure`, `technical_accuracy`, `style_read_aloud`, `facts_attribution` — the skill's own set) | review_passes |
+| `review_passes[].recorded` (boolean) | review_passes |
+| `versioning.sources_in_git_markdown` (boolean) | versioning_and_builds |
+| `versioning.research_kept_separate_from_prose` (boolean) | versioning_and_builds |
+| `versioning.editions_tagged` (boolean) | versioning_and_builds |
+| `versioning.changelog_per_edition` (boolean) | versioning_and_builds |
+| `builds.deterministic_pipeline` (boolean) | versioning_and_builds |
+| `builds.templates_pinned` (boolean) | versioning_and_builds |
+| `builds.preview_builds_for_reviewers` (boolean) | versioning_and_builds |
+| `builds.artifacts_hashed` (boolean) | versioning_and_builds |
+| `builds.artifacts_signed` (boolean) | versioning_and_builds |
+| `publishing.distribution_channels_defined` (boolean) | publishing |
+| `publishing.metadata_or_platform_setup_complete` (boolean) | publishing |
+| `publishing.launch_checklist_completed` (boolean) | publishing |
+| `publishing.sample_and_errata_pages_published` (boolean) | publishing |
+| `feedback.reader_learner_feedback_collected` (boolean) | feedback_loop_and_red_lines |
+| `feedback.corrections_list_maintained` (boolean) | feedback_loop_and_red_lines |
+| `feedback.corrections_feed_next_edition` (boolean) | feedback_loop_and_red_lines |
+| `feedback.errata_visible` (boolean) | feedback_loop_and_red_lines |
+| `feedback.drop_off_analytics_reviewed` (boolean) | feedback_loop_and_red_lines |
+| `red_lines.published_without_accuracy_pass_present` (boolean; must be `false` to pass — skill red line) | feedback_loop_and_red_lines |
+| `red_lines.silent_edition_edits_present` (boolean; must be `false` to pass — skill red line) | feedback_loop_and_red_lines |
+| `red_lines.unverified_quotes_or_attributions_present` (boolean; must be `false` to pass — skill red line) | feedback_loop_and_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Units declared:** the declared `units` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Single point per unit:** every declared unit row must
+  declare `has_single_point: true` (the skill: "each unit has
+  one point"). A row with the field absent is missing evidence.
+- **Point or outcome per unit:** every declared unit row must
+  declare a non-empty `point_or_outcome` string (quality gate:
+  "units map to outcomes/claims"). A row with the field absent
+  is missing evidence; a row declaring an empty string fails
+  and is named.
+- **Review passes declared:** the declared `review_passes`
+  list passes only when it is present and non-empty; an absent
+  list is missing evidence, an empty list fails.
+- **Every review pass recorded:** every declared pass row must
+  declare `recorded: true` (quality gate: "Review passes
+  recorded (who, when, what changed)"). A row with the field
+  absent is missing evidence.
+- **Pass type per review pass:** every declared pass row must
+  declare `pass_type` from the skill's own set — `structure`,
+  `technical_accuracy`, `style_read_aloud`,
+  `facts_attribution`. A row with the field absent is missing
+  evidence; a row declaring any other value fails and is named.
+- **All required pass types present:** the declared pass rows
+  must cover all four of the skill's pass types (the skill's
+  review sequence: structure → technical/accuracy →
+  style/read-aloud → facts/attribution). A missing type fails
+  and is named in `missing_review_pass_types`.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the seven primary computed checks above cannot be completed),
+`units_count` and `review_passes_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), the row-name lists
+`units_without_single_point` (units whose field is present but
+not true; a unit with the field absent is missing evidence and
+does not appear), `units_without_point_or_outcome` (units whose
+`point_or_outcome` is present but empty),
+`review_passes_without_record` (passes whose field is present
+but not true), `review_passes_with_invalid_type` (passes whose
+`pass_type` is present but not in the skill's set),
+`missing_review_pass_types` (the skill's pass types not declared
+by any row, in the skill's order; null when the list is not
+declared), and the four coverage ratios `single_point_coverage`
+(units with a single point ÷ declared units),
+`point_or_outcome_coverage` (units with a non-empty point or
+outcome ÷ declared units), `recorded_review_pass_coverage`
+(recorded passes ÷ declared passes) and
+`valid_review_pass_type_coverage` (passes with a valid type ÷
+declared passes).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no length,
+speed or quality bar: its gates are qualitative attestations the
+record declares, not bars the atom can set. Quantities are
+computed and reported; the only bar on the computed rows is
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a word count, page
+count or length minimum or maximum per unit or per work (the
+skill says only "small units" and states no size); a number of
+chapters, modules or units a work must contain; a number of
+review passes beyond the skill's own four named pass types, a
+reviewer count, or a reviewer-qualification bar (the skill says
+only that the technical/accuracy pass is by a domain expert —
+caller attestation); a drafting schedule, velocity or deadline;
+a readability, style or quality score; an accuracy error rate
+or a number of corrections tolerated; a build time, a hash
+algorithm, or a signing standard (the skill names hashing and
+signing, not a method); an ISBN or metadata-completeness score
+beyond the declared complete flag; a sales, enrolment or
+completion target; a feedback volume, response rate or
+correction turnaround; a drop-off percentage for courses; an
+edition frequency or changelog length; a coverage percentage
+below completeness.
+
+The verdict is one of `AUTHORING_PIPELINE_SOUND` (all 36 checks
+pass), `AUTHORING_PIPELINE_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: outline_as_contract, drafting_loop,
+review_passes, versioning_and_builds, publishing,
+feedback_loop_and_red_lines.
+
+## Distinct ground
+
+No live or staged sibling atom audits a declared long-form
+authoring-pipeline record. The nearest siblings are
+`document-operations-service`, which audits a single document
+operation — one read / revise / convert job, its findings tied
+to source locations and its output reopened and checked — and
+`release-readiness`, which audits a software release (version,
+tag, changelog, rollout and rollback) rather than a work's
+editions. Zero checks are shared with either; the boundary is:
+single-document operations and output verification there,
+software release control there, and here the whole authoring
+pipeline for a long-form work — outline-as-contract and unit
+mapping, the drafting loop, the four recorded review passes,
+manuscript versioning and deterministic builds, book/course
+publishing, and the feedback-to-next-edition loop with the
+skill's red lines.
+
+## Honest scoping
+
+This atom audits a **declared** authoring-pipeline record — it
+writes, drafts and edits no prose, reads no manuscript, runs no
+build, checks no hash or signature, and does not verify that a
+declared pass, approval or changelog entry actually happened. A
+record is sound *on the caller's declared evidence*: a manifest
+that declares an approved outline, recorded review passes and
+signed artifacts passes those checks even if the real pipeline
+did none of it. It is a completeness and consistency audit of
+the record the skill requires, **not an authoring, editing or
+publishing service, and not a judgment that the work itself is
+good**: it never judges prose quality, whether an outline is the
+right structure, whether a unit's point is worth making, or
+whether a review was competent — only that the record contains
+what the skill's sections and red lines demand, and that its
+declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no text inspection —
+the prose, the outline, the style sheet and the glossary are
+never read, and unverified quotes or attributions are a
+caller-declared present/absent flag; review quality and domain
+accuracy in substance (whether the accuracy pass genuinely
+caught errors, whether a domain expert really reviewed) are
+caller declarations — only their declared presence and record
+are checked; the recorded detail of a pass (who, when, what
+changed) is carried in the caller's own records — the atom
+checks only the declared `recorded` flag, not the record's
+contents.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+(none recorded in the scaffold for this atom)
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "long-form-authoring-pipeline",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "AUTHORING_PIPELINE_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: units_count=1, review_passes_count=4, single_point_coverage=1.000000, valid_review_pass_type_coverage=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "units_count": 1,
+          "units_without_single_point": [],
+          "single_point_coverage": "1.000000",
+          "units_without_point_or_outcome": [],
+          "point_or_outcome_coverage": "1.000000",
+          "review_passes_count": 4,
+          "review_passes_without_record": [],
+          "recorded_review_pass_coverage": "1.000000",
+          "review_passes_with_invalid_type": [],
+          "valid_review_pass_type_coverage": "1.000000",
+          "missing_review_pass_types": []
+        }
+      },
+      "input": {
+        "work": "The Art of Authoring",
+        "outline": {
+          "toc_approved_before_drafting": true,
+          "chapters_or_modules_defined": true,
+          "scope_fences_defined": true
+        },
+        "units": [
+          {
+            "name": "Intro",
+            "point_or_outcome": "Understanding the pipeline",
+            "has_single_point": true
+          }
+        ],
+        "drafting": {
+          "small_units_used": true,
+          "examples_before_abstractions": true,
+          "style_sheet_maintained": true,
+          "glossary_maintained": true
+        },
+        "review": {
+          "comments_triaged_not_blind_applied": true
+        },
+        "review_passes": [
+          {
+            "name": "P1",
+            "pass_type": "structure",
+            "recorded": true
+          },
+          {
+            "name": "P2",
+            "pass_type": "technical_accuracy",
+            "recorded": true
+          },
+          {
+            "name": "P3",
+            "pass_type": "style_read_aloud",
+            "recorded": true
+          },
+          {
+            "name": "P4",
+            "pass_type": "facts_attribution",
+            "recorded": true
+          }
+        ],
+        "versioning": {
+          "sources_in_git_markdown": true,
+          "research_kept_separate_from_prose": true,
+          "editions_tagged": true,
+          "changelog_per_edition": true
+        },
+        "builds": {
+          "deterministic_pipeline": true,
+          "templates_pinned": true,
+          "preview_builds_for_reviewers": true,
+          "artifacts_hashed": true,
+          "artifacts_signed": true
+        },
+        "publishing": {
+          "distribution_channels_defined": true,
+          "metadata_or_platform_setup_complete": true,
+          "launch_checklist_completed": true,
+          "sample_and_errata_pages_published": true
+        },
+        "feedback": {
+          "reader_learner_feedback_collected": true,
+          "corrections_list_maintained": true,
+          "corrections_feed_next_edition": true,
+          "errata_visible": true,
+          "drop_off_analytics_reviewed": true
+        },
+        "red_lines": {
+          "published_without_accuracy_pass_present": false,
+          "silent_edition_edits_present": false,
+          "unverified_quotes_or_attributions_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "long-form-authoring-pipeline",
+        "atom_version": "0.1.0",
+        "work": "The Art of Authoring",
+        "verdict": "AUTHORING_PIPELINE_SOUND",
+        "sections": {
+          "outline_as_contract": "pass",
+          "drafting_loop": "pass",
+          "review_passes": "pass",
+          "versioning_and_builds": "pass",
+          "publishing": "pass",
+          "feedback_loop_and_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "outline_as_contract",
+            "check": "toc_approved_before_drafting",
+            "status": "pass",
+            "evidence": "outline as contract: the TOC is approved before drafting"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "chapters_or_modules_defined",
+            "status": "pass",
+            "evidence": "outline as contract: chapters or modules are defined"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "scope_fences_defined",
+            "status": "pass",
+            "evidence": "outline as contract: scope fences \u2014 what the work won't cover \u2014 are defined"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "units_declared",
+            "status": "pass",
+            "evidence": "the declared record names its units \u2014 the units list is present and non-empty"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "every_unit_has_single_point",
+            "status": "pass",
+            "evidence": "outline as contract: every declared unit row has one point"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "every_unit_point_or_outcome_declared",
+            "status": "pass",
+            "evidence": "outline as contract: every declared unit row maps to a claim or learning outcome \u2014 its point or outcome is declared and non-empty"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "small_units_used",
+            "status": "pass",
+            "evidence": "drafting loop: drafting proceeds in small units"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "examples_before_abstractions",
+            "status": "pass",
+            "evidence": "drafting loop: examples come before abstractions"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "style_sheet_maintained",
+            "status": "pass",
+            "evidence": "drafting loop: a running style sheet is maintained for consistency"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "glossary_maintained",
+            "status": "pass",
+            "evidence": "drafting loop: a glossary is maintained for consistency"
+          },
+          {
+            "section": "review_passes",
+            "check": "comments_triaged_not_blind_applied",
+            "status": "pass",
+            "evidence": "review passes: comments are triaged, not blind-applied"
+          },
+          {
+            "section": "review_passes",
+            "check": "review_passes_declared",
+            "status": "pass",
+            "evidence": "the declared record names its review passes \u2014 the review_passes list is present and non-empty"
+          },
+          {
+            "section": "review_passes",
+            "check": "every_review_pass_recorded",
+            "status": "pass",
+            "evidence": "review passes: every declared review pass row is recorded \u2014 who, when, what changed"
+          },
+          {
+            "section": "review_passes",
+            "check": "every_review_pass_type_valid",
+            "status": "pass",
+            "evidence": "review passes: every declared review pass row declares a pass type from the skill's set \u2014 structure / technical_accuracy / style_read_aloud / facts_attribution"
+          },
+          {
+            "section": "review_passes",
+            "check": "all_required_review_pass_types_present",
+            "status": "pass",
+            "evidence": "review passes: all four of the skill's pass types are present \u2014 structure, technical/accuracy, style/read-aloud and facts/attribution"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "sources_in_git_markdown",
+            "status": "pass",
+            "evidence": "versioning: sources are in git, in markdown"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "research_kept_separate_from_prose",
+            "status": "pass",
+            "evidence": "versioning: research is kept separate from prose"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "editions_tagged",
+            "status": "pass",
+            "evidence": "versioning: editions are tagged"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "changelog_per_edition",
+            "status": "pass",
+            "evidence": "versioning: a changelog is kept per edition"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "deterministic_pipeline",
+            "status": "pass",
+            "evidence": "builds: the build pipeline is deterministic \u2014 markdown to HTML / ebook / PDF"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "templates_pinned",
+            "status": "pass",
+            "evidence": "builds: templates are pinned"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "preview_builds_for_reviewers",
+            "status": "pass",
+            "evidence": "builds: preview builds are distributed for reviewers"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "artifacts_hashed",
+            "status": "pass",
+            "evidence": "builds: artifacts are hashed"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "artifacts_signed",
+            "status": "pass",
+            "evidence": "builds: artifacts are signed"
+          },
+          {
+            "section": "publishing",
+            "check": "distribution_channels_defined",
+            "status": "pass",
+            "evidence": "publishing: distribution channels are defined"
+          },
+          {
+            "section": "publishing",
+            "check": "metadata_or_platform_setup_complete",
+            "status": "pass",
+            "evidence": "publishing: book metadata \u2014 ISBN, description, cover \u2014 or course platform setup, including entitlements, is complete"
+          },
+          {
+            "section": "publishing",
+            "check": "launch_checklist_completed",
+            "status": "pass",
+            "evidence": "publishing: the launch checklist is completed"
+          },
+          {
+            "section": "publishing",
+            "check": "sample_and_errata_pages_published",
+            "status": "pass",
+            "evidence": "publishing: sample and errata pages are published"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "reader_learner_feedback_collected",
+            "status": "pass",
+            "evidence": "feedback loop: reader or learner feedback is collected"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "corrections_list_maintained",
+            "status": "pass",
+            "evidence": "feedback loop: feedback feeds a corrections list"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "corrections_feed_next_edition",
+            "status": "pass",
+            "evidence": "feedback loop: the corrections list feeds the next edition"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "errata_visible",
+            "status": "pass",
+            "evidence": "feedback loop: errata are visible \u2014 the errata and feedback channel is live"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "drop_off_analytics_reviewed",
+            "status": "pass",
+            "evidence": "feedback loop: analytics on drop-off points are reviewed"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_publishing_without_accuracy_pass",
+            "status": "pass",
+            "evidence": "red line: no publishing without an accuracy pass is present"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_silent_edition_edits",
+            "status": "pass",
+            "evidence": "red line: no silent edition edits are present \u2014 no silent edits across editions"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_unverified_quotes_or_attributions",
+            "status": "pass",
+            "evidence": "red line: no unverified quotes or attributions are present \u2014 quotes and attributions are verified"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "units_count": 1,
+        "units_without_single_point": [],
+        "single_point_coverage": "1.000000",
+        "units_without_point_or_outcome": [],
+        "point_or_outcome_coverage": "1.000000",
+        "review_passes_count": 4,
+        "review_passes_without_record": [],
+        "recorded_review_pass_coverage": "1.000000",
+        "review_passes_with_invalid_type": [],
+        "valid_review_pass_type_coverage": "1.000000",
+        "missing_review_pass_types": [],
+        "summary": "36 pass, 0 fail, 0 missing of 36 checks across six sections.",
+        "stamp": "LONG FORM AUTHORING PIPELINE\nwork: The Art of Authoring\nVERDICT: AUTHORING_PIPELINE_SOUND\n  outline_as_contract                  pass\n  drafting_loop                        pass\n  review_passes                        pass\n  versioning_and_builds                pass\n  publishing                           pass\n  feedback_loop_and_red_lines          pass\n36 pass, 0 fail, 0 missing of 36 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "AUTHORING_PIPELINE_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "all_required_review_pass_types_present",
+          "every_review_pass_recorded",
+          "every_unit_has_single_point",
+          "every_unit_point_or_outcome_declared"
+        ],
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "units_count": 1,
+          "units_without_single_point": [
+            "Intro"
+          ],
+          "single_point_coverage": "0.000000",
+          "units_without_point_or_outcome": [
+            "Intro"
+          ],
+          "point_or_outcome_coverage": "0.000000",
+          "review_passes_count": 4,
+          "review_passes_without_record": [
+            "P4"
+          ],
+          "recorded_review_pass_coverage": "0.750000",
+          "review_passes_with_invalid_type": [],
+          "valid_review_pass_type_coverage": "1.000000",
+          "missing_review_pass_types": [
+            "facts_attribution"
+          ]
+        },
+        "notes": "Violates internal consistency rules for units, review types, and red lines."
+      },
+      "input": {
+        "work": "The Art of Authoring",
+        "outline": {
+          "toc_approved_before_drafting": true,
+          "chapters_or_modules_defined": true,
+          "scope_fences_defined": true
+        },
+        "units": [
+          {
+            "name": "Intro",
+            "point_or_outcome": "",
+            "has_single_point": false
+          }
+        ],
+        "drafting": {
+          "small_units_used": true,
+          "examples_before_abstractions": true,
+          "style_sheet_maintained": true,
+          "glossary_maintained": true
+        },
+        "review": {
+          "comments_triaged_not_blind_applied": true
+        },
+        "review_passes": [
+          {
+            "name": "P1",
+            "pass_type": "structure",
+            "recorded": true
+          },
+          {
+            "name": "P2",
+            "pass_type": "technical_accuracy",
+            "recorded": true
+          },
+          {
+            "name": "P3",
+            "pass_type": "style_read_aloud",
+            "recorded": true
+          },
+          {
+            "name": "P4",
+            "pass_type": "structure",
+            "recorded": false
+          }
+        ],
+        "versioning": {
+          "sources_in_git_markdown": true,
+          "research_kept_separate_from_prose": true,
+          "editions_tagged": true,
+          "changelog_per_edition": true
+        },
+        "builds": {
+          "deterministic_pipeline": true,
+          "templates_pinned": true,
+          "preview_builds_for_reviewers": true,
+          "artifacts_hashed": true,
+          "artifacts_signed": true
+        },
+        "publishing": {
+          "distribution_channels_defined": true,
+          "metadata_or_platform_setup_complete": true,
+          "launch_checklist_completed": true,
+          "sample_and_errata_pages_published": true
+        },
+        "feedback": {
+          "reader_learner_feedback_collected": true,
+          "corrections_list_maintained": true,
+          "corrections_feed_next_edition": true,
+          "errata_visible": true,
+          "drop_off_analytics_reviewed": true
+        },
+        "red_lines": {
+          "published_without_accuracy_pass_present": false,
+          "silent_edition_edits_present": false,
+          "unverified_quotes_or_attributions_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "long-form-authoring-pipeline",
+        "atom_version": "0.1.0",
+        "work": "The Art of Authoring",
+        "verdict": "AUTHORING_PIPELINE_NOT_SOUND",
+        "sections": {
+          "outline_as_contract": "fail",
+          "drafting_loop": "pass",
+          "review_passes": "fail",
+          "versioning_and_builds": "pass",
+          "publishing": "pass",
+          "feedback_loop_and_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "outline_as_contract",
+            "check": "toc_approved_before_drafting",
+            "status": "pass",
+            "evidence": "outline as contract: the TOC is approved before drafting"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "chapters_or_modules_defined",
+            "status": "pass",
+            "evidence": "outline as contract: chapters or modules are defined"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "scope_fences_defined",
+            "status": "pass",
+            "evidence": "outline as contract: scope fences \u2014 what the work won't cover \u2014 are defined"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "units_declared",
+            "status": "pass",
+            "evidence": "the declared record names its units \u2014 the units list is present and non-empty"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "every_unit_has_single_point",
+            "status": "fail",
+            "evidence": "outline as contract: every declared unit row has one point"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "every_unit_point_or_outcome_declared",
+            "status": "fail",
+            "evidence": "outline as contract: every declared unit row maps to a claim or learning outcome \u2014 its point or outcome is declared and non-empty"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "small_units_used",
+            "status": "pass",
+            "evidence": "drafting loop: drafting proceeds in small units"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "examples_before_abstractions",
+            "status": "pass",
+            "evidence": "drafting loop: examples come before abstractions"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "style_sheet_maintained",
+            "status": "pass",
+            "evidence": "drafting loop: a running style sheet is maintained for consistency"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "glossary_maintained",
+            "status": "pass",
+            "evidence": "drafting loop: a glossary is maintained for consistency"
+          },
+          {
+            "section": "review_passes",
+            "check": "comments_triaged_not_blind_applied",
+            "status": "pass",
+            "evidence": "review passes: comments are triaged, not blind-applied"
+          },
+          {
+            "section": "review_passes",
+            "check": "review_passes_declared",
+            "status": "pass",
+            "evidence": "the declared record names its review passes \u2014 the review_passes list is present and non-empty"
+          },
+          {
+            "section": "review_passes",
+            "check": "every_review_pass_recorded",
+            "status": "fail",
+            "evidence": "review passes: every declared review pass row is recorded \u2014 who, when, what changed"
+          },
+          {
+            "section": "review_passes",
+            "check": "every_review_pass_type_valid",
+            "status": "pass",
+            "evidence": "review passes: every declared review pass row declares a pass type from the skill's set \u2014 structure / technical_accuracy / style_read_aloud / facts_attribution"
+          },
+          {
+            "section": "review_passes",
+            "check": "all_required_review_pass_types_present",
+            "status": "fail",
+            "evidence": "review passes: all four of the skill's pass types are present \u2014 structure, technical/accuracy, style/read-aloud and facts/attribution"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "sources_in_git_markdown",
+            "status": "pass",
+            "evidence": "versioning: sources are in git, in markdown"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "research_kept_separate_from_prose",
+            "status": "pass",
+            "evidence": "versioning: research is kept separate from prose"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "editions_tagged",
+            "status": "pass",
+            "evidence": "versioning: editions are tagged"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "changelog_per_edition",
+            "status": "pass",
+            "evidence": "versioning: a changelog is kept per edition"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "deterministic_pipeline",
+            "status": "pass",
+            "evidence": "builds: the build pipeline is deterministic \u2014 markdown to HTML / ebook / PDF"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "templates_pinned",
+            "status": "pass",
+            "evidence": "builds: templates are pinned"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "preview_builds_for_reviewers",
+            "status": "pass",
+            "evidence": "builds: preview builds are distributed for reviewers"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "artifacts_hashed",
+            "status": "pass",
+            "evidence": "builds: artifacts are hashed"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "artifacts_signed",
+            "status": "pass",
+            "evidence": "builds: artifacts are signed"
+          },
+          {
+            "section": "publishing",
+            "check": "distribution_channels_defined",
+            "status": "pass",
+            "evidence": "publishing: distribution channels are defined"
+          },
+          {
+            "section": "publishing",
+            "check": "metadata_or_platform_setup_complete",
+            "status": "pass",
+            "evidence": "publishing: book metadata \u2014 ISBN, description, cover \u2014 or course platform setup, including entitlements, is complete"
+          },
+          {
+            "section": "publishing",
+            "check": "launch_checklist_completed",
+            "status": "pass",
+            "evidence": "publishing: the launch checklist is completed"
+          },
+          {
+            "section": "publishing",
+            "check": "sample_and_errata_pages_published",
+            "status": "pass",
+            "evidence": "publishing: sample and errata pages are published"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "reader_learner_feedback_collected",
+            "status": "pass",
+            "evidence": "feedback loop: reader or learner feedback is collected"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "corrections_list_maintained",
+            "status": "pass",
+            "evidence": "feedback loop: feedback feeds a corrections list"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "corrections_feed_next_edition",
+            "status": "pass",
+            "evidence": "feedback loop: the corrections list feeds the next edition"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "errata_visible",
+            "status": "pass",
+            "evidence": "feedback loop: errata are visible \u2014 the errata and feedback channel is live"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "drop_off_analytics_reviewed",
+            "status": "pass",
+            "evidence": "feedback loop: analytics on drop-off points are reviewed"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_publishing_without_accuracy_pass",
+            "status": "pass",
+            "evidence": "red line: no publishing without an accuracy pass is present"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_silent_edition_edits",
+            "status": "pass",
+            "evidence": "red line: no silent edition edits are present \u2014 no silent edits across editions"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_unverified_quotes_or_attributions",
+            "status": "pass",
+            "evidence": "red line: no unverified quotes or attributions are present \u2014 quotes and attributions are verified"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "units_count": 1,
+        "units_without_single_point": [
+          "Intro"
+        ],
+        "single_point_coverage": "0.000000",
+        "units_without_point_or_outcome": [
+          "Intro"
+        ],
+        "point_or_outcome_coverage": "0.000000",
+        "review_passes_count": 4,
+        "review_passes_without_record": [
+          "P4"
+        ],
+        "recorded_review_pass_coverage": "0.750000",
+        "review_passes_with_invalid_type": [],
+        "valid_review_pass_type_coverage": "1.000000",
+        "missing_review_pass_types": [
+          "facts_attribution"
+        ],
+        "summary": "32 pass, 4 fail, 0 missing of 36 checks across six sections.",
+        "stamp": "LONG FORM AUTHORING PIPELINE\nwork: The Art of Authoring\nVERDICT: AUTHORING_PIPELINE_NOT_SOUND\n  outline_as_contract                  fail\n  drafting_loop                        pass\n  review_passes                        fail\n  versioning_and_builds                pass\n  publishing                           pass\n  feedback_loop_and_red_lines          pass\n32 pass, 4 fail, 0 missing of 36 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only the identity field present; every check missing."
+      },
+      "input": {
+        "work": "Untitled Draft"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "long-form-authoring-pipeline",
+        "atom_version": "0.1.0",
+        "work": "Untitled Draft",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "outline_as_contract": "insufficient_evidence",
+          "drafting_loop": "insufficient_evidence",
+          "review_passes": "insufficient_evidence",
+          "versioning_and_builds": "insufficient_evidence",
+          "publishing": "insufficient_evidence",
+          "feedback_loop_and_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "outline_as_contract",
+            "check": "toc_approved_before_drafting",
+            "status": "missing",
+            "evidence": "outline as contract: the TOC is approved before drafting"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "chapters_or_modules_defined",
+            "status": "missing",
+            "evidence": "outline as contract: chapters or modules are defined"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "scope_fences_defined",
+            "status": "missing",
+            "evidence": "outline as contract: scope fences \u2014 what the work won't cover \u2014 are defined"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "units_declared",
+            "status": "missing",
+            "evidence": "the declared record names its units \u2014 the units list is present and non-empty"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "every_unit_has_single_point",
+            "status": "missing",
+            "evidence": "outline as contract: every declared unit row has one point"
+          },
+          {
+            "section": "outline_as_contract",
+            "check": "every_unit_point_or_outcome_declared",
+            "status": "missing",
+            "evidence": "outline as contract: every declared unit row maps to a claim or learning outcome \u2014 its point or outcome is declared and non-empty"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "small_units_used",
+            "status": "missing",
+            "evidence": "drafting loop: drafting proceeds in small units"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "examples_before_abstractions",
+            "status": "missing",
+            "evidence": "drafting loop: examples come before abstractions"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "style_sheet_maintained",
+            "status": "missing",
+            "evidence": "drafting loop: a running style sheet is maintained for consistency"
+          },
+          {
+            "section": "drafting_loop",
+            "check": "glossary_maintained",
+            "status": "missing",
+            "evidence": "drafting loop: a glossary is maintained for consistency"
+          },
+          {
+            "section": "review_passes",
+            "check": "comments_triaged_not_blind_applied",
+            "status": "missing",
+            "evidence": "review passes: comments are triaged, not blind-applied"
+          },
+          {
+            "section": "review_passes",
+            "check": "review_passes_declared",
+            "status": "missing",
+            "evidence": "the declared record names its review passes \u2014 the review_passes list is present and non-empty"
+          },
+          {
+            "section": "review_passes",
+            "check": "every_review_pass_recorded",
+            "status": "missing",
+            "evidence": "review passes: every declared review pass row is recorded \u2014 who, when, what changed"
+          },
+          {
+            "section": "review_passes",
+            "check": "every_review_pass_type_valid",
+            "status": "missing",
+            "evidence": "review passes: every declared review pass row declares a pass type from the skill's set \u2014 structure / technical_accuracy / style_read_aloud / facts_attribution"
+          },
+          {
+            "section": "review_passes",
+            "check": "all_required_review_pass_types_present",
+            "status": "missing",
+            "evidence": "review passes: all four of the skill's pass types are present \u2014 structure, technical/accuracy, style/read-aloud and facts/attribution"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "sources_in_git_markdown",
+            "status": "missing",
+            "evidence": "versioning: sources are in git, in markdown"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "research_kept_separate_from_prose",
+            "status": "missing",
+            "evidence": "versioning: research is kept separate from prose"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "editions_tagged",
+            "status": "missing",
+            "evidence": "versioning: editions are tagged"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "changelog_per_edition",
+            "status": "missing",
+            "evidence": "versioning: a changelog is kept per edition"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "deterministic_pipeline",
+            "status": "missing",
+            "evidence": "builds: the build pipeline is deterministic \u2014 markdown to HTML / ebook / PDF"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "templates_pinned",
+            "status": "missing",
+            "evidence": "builds: templates are pinned"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "preview_builds_for_reviewers",
+            "status": "missing",
+            "evidence": "builds: preview builds are distributed for reviewers"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "artifacts_hashed",
+            "status": "missing",
+            "evidence": "builds: artifacts are hashed"
+          },
+          {
+            "section": "versioning_and_builds",
+            "check": "artifacts_signed",
+            "status": "missing",
+            "evidence": "builds: artifacts are signed"
+          },
+          {
+            "section": "publishing",
+            "check": "distribution_channels_defined",
+            "status": "missing",
+            "evidence": "publishing: distribution channels are defined"
+          },
+          {
+            "section": "publishing",
+            "check": "metadata_or_platform_setup_complete",
+            "status": "missing",
+            "evidence": "publishing: book metadata \u2014 ISBN, description, cover \u2014 or course platform setup, including entitlements, is complete"
+          },
+          {
+            "section": "publishing",
+            "check": "launch_checklist_completed",
+            "status": "missing",
+            "evidence": "publishing: the launch checklist is completed"
+          },
+          {
+            "section": "publishing",
+            "check": "sample_and_errata_pages_published",
+            "status": "missing",
+            "evidence": "publishing: sample and errata pages are published"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "reader_learner_feedback_collected",
+            "status": "missing",
+            "evidence": "feedback loop: reader or learner feedback is collected"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "corrections_list_maintained",
+            "status": "missing",
+            "evidence": "feedback loop: feedback feeds a corrections list"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "corrections_feed_next_edition",
+            "status": "missing",
+            "evidence": "feedback loop: the corrections list feeds the next edition"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "errata_visible",
+            "status": "missing",
+            "evidence": "feedback loop: errata are visible \u2014 the errata and feedback channel is live"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "drop_off_analytics_reviewed",
+            "status": "missing",
+            "evidence": "feedback loop: analytics on drop-off points are reviewed"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_publishing_without_accuracy_pass",
+            "status": "missing",
+            "evidence": "red line: no publishing without an accuracy pass is present"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_silent_edition_edits",
+            "status": "missing",
+            "evidence": "red line: no silent edition edits are present \u2014 no silent edits across editions"
+          },
+          {
+            "section": "feedback_loop_and_red_lines",
+            "check": "no_unverified_quotes_or_attributions",
+            "status": "missing",
+            "evidence": "red line: no unverified quotes or attributions are present \u2014 quotes and attributions are verified"
+          }
+        ],
+        "computed_status": null,
+        "units_count": null,
+        "units_without_single_point": null,
+        "single_point_coverage": null,
+        "units_without_point_or_outcome": null,
+        "point_or_outcome_coverage": null,
+        "review_passes_count": null,
+        "review_passes_without_record": null,
+        "recorded_review_pass_coverage": null,
+        "review_passes_with_invalid_type": null,
+        "valid_review_pass_type_coverage": null,
+        "missing_review_pass_types": null,
+        "summary": "0 pass, 0 fail, 36 missing of 36 checks across six sections.",
+        "stamp": "LONG FORM AUTHORING PIPELINE\nwork: Untitled Draft\nVERDICT: INSUFFICIENT_EVIDENCE\n  outline_as_contract                  insufficient_evidence\n  drafting_loop                        insufficient_evidence\n  review_passes                        insufficient_evidence\n  versioning_and_builds                insufficient_evidence\n  publishing                           insufficient_evidence\n  feedback_loop_and_red_lines          insufficient_evidence\n0 pass, 0 fail, 36 missing of 36 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: units expects a list, received a string."
+      },
+      "input": {
+        "work": "Malformed",
+        "units": "not_a_list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "units",
+        "detail": "units must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

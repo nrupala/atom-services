@@ -1,0 +1,128 @@
+I'll recompute every computed quantity from the case inputs, using the rules stated in SERVICE.md.
+
+## Rules I'm applying (from SERVICE.md)
+
+- **Surfaces declared:** pass iff `surfaces` present and non-empty; absent → missing; empty → fail.
+- **Kind valid per row:** `kind` ∈ {`web_pwa`, `mobile`, `desktop_cli`, `api`}; absent → missing; other → fail, row named.
+- **Consumes core contract per row:** must be `true`; absent → missing.
+- **Platform code isolated per row:** must be `true`; absent → missing.
+- **No reimplementation per row:** must be `false`; absent → missing; `true` → fail, row named.
+- **`computed_status`:** `within_stated_limits_on_declared_evidence` if all five primary computed checks complete and pass; `outside_...` if any fails; `null` if any cannot be completed.
+- **Ratios:** `floor(v * 1000000 + 0.5) / 1000000`, formatted to exactly six decimals; null when denominator absent/empty.
+- **Verdict:** SOUND if all 37 pass; NOT_SOUND if any fail; INSUFFICIENT_EVIDENCE if none fail but some missing.
+
+---
+
+## Case 1: `full-pass`
+
+Input `surfaces` = one row: `{name: web_client, kind: web_pwa, consumes_core_contract: true, platform_code_isolated: true, core_logic_reimplemented: false}`.
+
+**Primary computed checks:**
+- Surfaces declared: list present, length 1 → non-empty → **pass**.
+- Kind valid: `web_pwa` ∈ set → valid → **pass**.
+- Consumes core contract: `true` → **pass**.
+- Platform code isolated: `true` → **pass**.
+- No reimplementation: `false` → **pass**.
+
+All five complete and pass → `computed_status` = **within_stated_limits_on_declared_evidence**.
+
+**`surfaces_count`:** length of list = **1**.
+
+**Row-name lists:**
+- `surfaces_with_invalid_kind`: none → **[]**.
+- `surfaces_not_consuming_core_contract`: none → **[]**.
+- `surfaces_without_isolated_platform_code`: none → **[]**.
+- `surfaces_reimplementing_core_logic`: none → **[]**.
+
+**Ratios** (denominator = 1):
+- `valid_kind_coverage` = 1/1 = 1.0 → floor(1.0·1e6 + 0.5)/1e6 = 1000000/1e6 = **"1.000000"**.
+- `core_contract_coverage` = 1/1 → **"1.000000"**.
+- `isolated_platform_code_coverage` = 1/1 → **"1.000000"**.
+- `no_core_reimplementation_coverage` = 1/1 → **"1.000000"**.
+
+**Check tally:** 37 checks, all pass → summary "37 pass, 0 fail, 0 missing of 37". Verdict **MULTIPLATFORM_CORE_SOUND**.
+
+**Comparison with artifact:**
+| Quantity | Artifact | Mine | Result |
+|---|---|---|---|
+| computed_status | within_stated_limits_on_declared_evidence | same | MATCH |
+| surfaces_count | 1 | 1 | MATCH |
+| surfaces_with_invalid_kind | [] | [] | MATCH |
+| valid_kind_coverage | 1.000000 | 1.000000 | MATCH |
+| surfaces_not_consuming_core_contract | [] | [] | MATCH |
+| core_contract_coverage | 1.000000 | 1.000000 | MATCH |
+| surfaces_without_isolated_platform_code | [] | [] | MATCH |
+| isolated_platform_code_coverage | 1.000000 | 1.000000 | MATCH |
+| surfaces_reimplementing_core_logic | [] | [] | MATCH |
+| no_core_reimplementation_coverage | 1.000000 | 1.000000 | MATCH |
+| verdict | SOUND | SOUND | MATCH |
+| summary | 37 pass, 0 fail, 0 missing | same | MATCH |
+
+---
+
+## Case 2: `violations`
+
+Input `surfaces` = one row: `{name: web_client, kind: watch, consumes_core_contract: false, platform_code_isolated: true, core_logic_reimplemented: true}`. Also `packaging.docker_used: true`.
+
+**Primary computed checks:**
+- Surfaces declared: present, length 1 → **pass**.
+- Kind valid: `watch` ∉ {web_pwa, mobile, desktop_cli, api} → **fail**, name `web_client`.
+- Consumes core contract: `false` → **fail**, name `web_client`.
+- Platform code isolated: `true` → **pass**.
+- No reimplementation: `true` → **fail**, name `web_client`.
+
+At least one fails → `computed_status` = **outside_stated_limits_on_declared_evidence**.
+
+**`surfaces_count`:** **1**.
+
+**Row-name lists:**
+- `surfaces_with_invalid_kind`: **["web_client"]**.
+- `surfaces_not_consuming_core_contract`: **["web_client"]**.
+- `surfaces_without_isolated_platform_code`: none → **[]**.
+- `surfaces_reimplementing_core_logic`: **["web_client"]**.
+
+**Ratios** (denominator = 1):
+- `valid_kind_coverage` = 0/1 = 0.0 → floor(0·1e6 + 0.5)/1e6 = 0/1e6 = **"0.000000"**.
+- `core_contract_coverage` = 0/1 → **"0.000000"**.
+- `isolated_platform_code_coverage` = 1/1 → **"1.000000"**.
+- `no_core_reimplementation_coverage` = 0/1 → **"0.000000"**.
+
+**Check tally:** 37 checks. Failing checks:
+1. `every_surface_kind_valid` (kind `watch`)
+2. `every_surface_consumes_core_contract` (false)
+3. `no_surface_reimplements_core_logic` (true)
+4. `no_docker` (`docker_used: true`)
+
+That's 4 fails, 33 pass, 0 missing → summary "33 pass, 4 fail, 0 missing of 37". Verdict **MULTIPLATFORM_CORE_NOT_SOUND**. Sections: surfaces_and_thin_adapters fail, packaging_and_testing fail, others pass.
+
+**Confirming the planted wrong values fail exactly the expected checks:**
+- `kind: "watch"` → should fail only `every_surface_kind_valid`. ✓ (it does; no other check reads `kind`)
+- `consumes_core_contract: false` → should fail only `every_surface_consumes_core_contract`. ✓
+- `core_logic_reimplemented: true` → should fail only `no_surface_reimplements_core_logic`. ✓
+- `docker_used: true` → should fail only `no_docker`. ✓
+- `platform_code_isolated: true` is correct → `every_surface_platform_code_isolated` passes. ✓
+
+The four failing checks are exactly the four planted wrong values, and no others. The `red_lines` block is all `false` (correct) so `anti_pattern_red_lines` passes — consistent with the artifact.
+
+**Comparison with artifact:**
+| Quantity | Artifact | Mine | Result |
+|---|---|---|---|
+| computed_status | outside_stated_limits_on_declared_evidence | same | MATCH |
+| surfaces_count | 1 | 1 | MATCH |
+| surfaces_with_invalid_kind | ["web_client"] | ["web_client"] | MATCH |
+| valid_kind_coverage | 0.000000 | 0.000000 | MATCH |
+| surfaces_not_consuming_core_contract | ["web_client"] | ["web_client"] | MATCH |
+| core_contract_coverage | 0.000000 | 0.000000 | MATCH |
+| surfaces_without_isolated_platform_code | [] | [] | MATCH |
+| isolated_platform_code_coverage | 1.000000 | 1.000000 | MATCH |
+| surfaces_reimplementing_core_logic | ["web_client"] | ["web_client"] | MATCH |
+| no_core_reimplementation_coverage | 0.000000 | 0.000000 | MATCH |
+| verdict | NOT_SOUND | NOT_SOUND | MATCH |
+| summary | 33 pass, 4 fail, 0 missing | same | MATCH |
+| failing checks | kind, consumes, reimplements, no_docker | same four | MATCH |
+
+---
+
+Every computed quantity in both cases recomputes to the artifact's value under the stated rounding/serialization rule, and the violations case's four failures are exactly the four planted wrong values.
+
+AGREEMENT: full

@@ -1,0 +1,154 @@
+# Independent recompute — ml-project-framing-review
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+### Inputs relevant to computation
+- `metrics` = one row: `{name:"m1", decision_action:"update_threshold", tied_to_decision:true, baseline_recorded_before_modeling:true}`
+- `metric.accuracy_for_its_own_sake_present` = false
+- `llm.uses_llm_or_rag` = false (gate declared false)
+- all red-line `*_present` fields = false
+
+### The five primary computed checks
+
+**1. `metrics_declared`** — list present and non-empty?
+- List present, length = 1 ≥ 1 → **pass**. Artifact: pass. **MATCH**
+
+**2. `every_metric_tied_to_decision`** — every row `tied_to_decision:true`?
+- Row m1: true → all true → **pass**. Artifact: pass. **MATCH**
+
+**3. `every_metric_names_decision_action`** — every row non-empty `decision_action`?
+- Row m1: "update_threshold" (length 16 > 0) → **pass**. Artifact: pass. **MATCH**
+
+**4. `every_metric_baseline_recorded_before_modeling`** — every row `baseline_recorded_before_modeling:true`?
+- Row m1: true → **pass**. Artifact: pass. **MATCH**
+
+**5. `no_metric_name_duplicated`** — no name on >1 row?
+- Names: ["m1"] — each appears once → **pass**. Artifact: pass. **MATCH**
+
+### `computed_status`
+All five primary checks completed and all pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### `metrics_count`
+Declared list length = 1. Artifact: 1. **MATCH**
+
+### `metrics_without_tied_decision`
+Rows whose `tied_to_decision` is present but not true: none → `[]`. Artifact: `[]`. **MATCH**
+
+### `metrics_without_baseline_recorded`
+Rows whose `baseline_recorded_before_modeling` present but not true: none → `[]`. Artifact: `[]`. **MATCH**
+
+### `duplicate_metric_names`
+Names appearing on >1 row, in order of second occurrence: none → `[]`. Artifact: `[]`. **MATCH**
+
+### `tied_to_decision_coverage`
+- Numerator: metrics tied to a decision = 1 (m1 true)
+- Denominator: declared metrics = 1
+- Ratio = 1/1 = 1.0
+- Serialization: `floor(1.0 * 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → format 6dp → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+### `baseline_recorded_coverage`
+- Numerator: metrics with baseline recorded = 1
+- Denominator: 1
+- Ratio = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+### Verdict / summary
+- 43 checks total. All pass, none fail, none missing → `ML_FRAMING_SOUND`. Artifact: `ML_FRAMING_SOUND`. **MATCH**
+- Summary "43 pass, 0 fail, 0 missing of 43 checks" — consistent with 43 checks all pass. **MATCH**
+
+### LLM gating sanity (affects check count = 43)
+Gate `uses_llm_or_rag` = false → `llm_applicability_declared` passes (gate present); the four gated checks pass as not-applicable. So all 43 checks are pass. Consistent with artifact. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Inputs relevant to computation
+- `metrics` = two rows:
+  - Row A: `{name:"m1", decision_action:"update_threshold", tied_to_decision:true, baseline_recorded_before_modeling:true}`
+  - Row B: `{name:"m1", decision_action:"", tied_to_decision:false, baseline_recorded_before_modeling:true}`
+- `metric.accuracy_for_its_own_sake_present` = true
+- `llm.uses_llm_or_rag` = false
+- all red-line `*_present` = false
+
+### The five primary computed checks
+
+**1. `metrics_declared`** — present, length 2 ≥ 1 → **pass**. Artifact: pass. **MATCH**
+
+**2. `every_metric_tied_to_decision`** — every row true?
+- Row A: true; Row B: false → not all true → **fail**. Artifact: fail. **MATCH**
+
+**3. `every_metric_names_decision_action`** — every row non-empty?
+- Row A: "update_threshold" non-empty; Row B: "" empty → **fail**. Artifact: fail. **MATCH**
+
+**4. `every_metric_baseline_recorded_before_modeling`** — every row true?
+- Row A: true; Row B: true → all true → **pass**. Artifact: pass. **MATCH**
+
+**5. `no_metric_name_duplicated`** — any name on >1 row?
+- "m1" appears on Row A and Row B → duplicate → **fail**. Artifact: fail. **MATCH**
+
+### `computed_status`
+All five completed; at least one fails → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### `metrics_count`
+Declared list length = 2. Artifact: 2. **MATCH**
+
+### `metrics_without_tied_decision`
+Rows with `tied_to_decision` present but not true: Row B (m1) → `["m1"]`. Artifact: `["m1"]`. **MATCH**
+
+### `metrics_without_baseline_recorded`
+Rows with `baseline_recorded_before_modeling` present but not true: none (both true) → `[]`. Artifact: `[]`. **MATCH**
+
+### `duplicate_metric_names`
+Names on >1 row, in order of second occurrence: "m1" second occurrence is Row B → `["m1"]`. Artifact: `["m1"]`. **MATCH**
+
+### `tied_to_decision_coverage`
+- Numerator: metrics tied to a decision = 1 (only Row A true)
+- Denominator: declared metrics = 2
+- Ratio = 1/2 = 0.5
+- Serialization: `floor(0.5 * 1000000 + 0.5)/1000000 = floor(500000.5)/1000000 = 500000/1000000 = 0.5` → `"0.500000"`. Artifact: `"0.500000"`. **MATCH**
+
+### `baseline_recorded_coverage`
+- Numerator: metrics with baseline recorded = 2 (both true)
+- Denominator: 2
+- Ratio = 2/2 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+### Verdict / summary
+- Failing checks: `no_accuracy_for_its_own_sake` (metric.accuracy_for_its_own_sake_present = true → fail), `every_metric_tied_to_decision`, `every_metric_names_decision_action`, `no_metric_name_duplicated` = 4 fails.
+- All other 39 checks pass, 0 missing → `ML_FRAMING_NOT_SOUND`. Artifact: `ML_FRAMING_NOT_SOUND`. **MATCH**
+- Summary "39 pass, 4 fail, 0 missing of 43 checks" — 43 − 4 = 39 pass. **MATCH**
+
+### Confirm the failing checks are exactly the planted wrong values
+Planted wrong values in the input:
+1. `metric.accuracy_for_its_own_sake_present = true` → should fail `no_accuracy_for_its_own_sake`. ✔ fails.
+2. Row B `tied_to_decision = false` → should fail `every_metric_tied_to_decision`. ✔ fails.
+3. Row B `decision_action = ""` → should fail `every_metric_names_decision_action`. ✔ fails.
+4. Row B `name = "m1"` duplicating Row A → should fail `no_metric_name_duplicated`. ✔ fails.
+
+No other planted wrong value exists (baseline fields all true, red lines all false, gate false). The four failing checks are exactly the four the planted values should fail. **CONFIRMED**.
+
+---
+
+## Summary of all computed quantities
+
+| Quantity | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| metrics_declared | pass | pass | pass | pass |
+| every_metric_tied_to_decision | pass | pass | fail | fail |
+| every_metric_names_decision_action | pass | pass | fail | fail |
+| every_metric_baseline_recorded_before_modeling | pass | pass | pass | pass |
+| no_metric_name_duplicated | pass | pass | fail | fail |
+| computed_status | within | within | outside | outside |
+| metrics_count | 1 | 1 | 2 | 2 |
+| metrics_without_tied_decision | [] | [] | ["m1"] | ["m1"] |
+| metrics_without_baseline_recorded | [] | [] | [] | [] |
+| duplicate_metric_names | [] | [] | ["m1"] | ["m1"] |
+| tied_to_decision_coverage | 1.000000 | 1.000000 | 0.500000 | 0.500000 |
+| baseline_recorded_coverage | 1.000000 | 1.000000 | 1.000000 | 1.000000 |
+| verdict | SOUND | SOUND | NOT_SOUND | NOT_SOUND |
+| summary counts | 43/0/0 | 43/0/0 | 39/4/0 | 39/4/0 |
+
+Every computed quantity matches. The violations case's four failing checks are exactly the four the planted wrong values should fail.
+
+AGREEMENT: full

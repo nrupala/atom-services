@@ -1,0 +1,351 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: negotiation-preparation-pack
+
+=== contract.yaml ===
+service_name: negotiation-preparation-pack
+display_name: Negotiation preparation pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:negotiation
+binding:
+  skill: negotiation
+  skill_path: workspace/mymilo-build/skills/negotiation/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: negotiation_preparation_pack
+  prefix: atm_1_negotiation_preparation_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Vendor escalation negotiation preparation
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Negotiation preparation pack — `negotiation-preparation-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Prepares the fundamentals and coaches the improvisation — real negotiation is nonlinear, and this skill handles both layers.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Mind & personal growth who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Vendor escalation negotiation preparation**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the negotiation preparation manifest
+
+The caller submits one JSON manifest: a declared
+negotiation-preparation record for one negotiation, made
+before the table. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`NEGOTIATION_PREPARATION_NOT_SOUND`). All
+fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `negotiation` (string; carried into the verdict output, not itself checked) | — |
+| `batna_and_reservation.batna_identified` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.batna_strengthened` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.reservation_price_set` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.counterpart_reservation_estimated` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.zopa_assessed` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.walk_away_commitment_declared` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.fundamentals_prepared_before_negotiation` (boolean) | batna_reservation_price_and_zopa |
+| `interests.own_interests_identified` (boolean) | interests_and_value_creation |
+| `interests.counterpart_interests_identified` (boolean) | interests_and_value_creation |
+| `interests.counterpart_why_to_be_asked_planned` (boolean) | interests_and_value_creation |
+| `interests.interests_not_positions_framing_adopted` (boolean) | interests_and_value_creation |
+| `value_creation.value_created_before_claiming_planned` (boolean) | interests_and_value_creation |
+| `value_creation.non_zero_sum_opportunities_sought` (boolean) | interests_and_value_creation |
+| `value_creation.trade_across_differently_valued_issues_planned` (boolean) | interests_and_value_creation |
+| `issues` (list of issue-row objects, each with the entry fields below; computed, see below) | interests_and_value_creation |
+| `issues[].name` (string; names the row in the computed outputs) | interests_and_value_creation |
+| `issues[].own_underlying_interest` (string; the caller's underlying interest behind the position; must be present and non-empty per row) | interests_and_value_creation |
+| `issues[].counterpart_underlying_interest` (string; the counterpart's underlying interest behind their position; must be present and non-empty per row) | interests_and_value_creation |
+| `issues[].trade_potential_assessed` (boolean) | interests_and_value_creation |
+| `direction.sense_of_direction_stated` (boolean) | improvisation_and_adaptation |
+| `direction.plan_not_script_approach_adopted` (boolean) | improvisation_and_adaptation |
+| `direction.plan_b_prepared` (boolean) | improvisation_and_adaptation |
+| `direction.plan_c_prepared` (boolean) | improvisation_and_adaptation |
+| `presence_and_awareness.own_emotional_state_management_planned` (boolean) | improvisation_and_adaptation |
+| `presence_and_awareness.composure_commitment_declared` (boolean) | improvisation_and_adaptation |
+| `presence_and_awareness.situational_awareness_planned` (boolean) | improvisation_and_adaptation |
+| `sequence.opening_planned` (boolean) | openings_moments_closing_and_tactics |
+| `sequence.critical_moments_recognition_planned` (boolean) | openings_moments_closing_and_tactics |
+| `sequence.closing_cleanly_planned` (boolean) | openings_moments_closing_and_tactics |
+| `anchoring.informed_enough_to_anchor_first` (boolean; the applicability gate for the gated anchoring check below) | openings_moments_closing_and_tactics |
+| `anchoring.anchor_first_planned` (boolean; gated — applies only when `informed_enough_to_anchor_first` is `true`) | openings_moments_closing_and_tactics |
+| `tactics.counterpart_yes_made_easy_planned` (boolean) | openings_moments_closing_and_tactics |
+| `tactics.people_separated_from_problem_declared` (boolean) | openings_moments_closing_and_tactics |
+| `tactics.hard_on_problem_soft_on_person_declared` (boolean) | openings_moments_closing_and_tactics |
+| `tactics.fair_enough_agreement_aim_declared` (boolean) | openings_moments_closing_and_tactics |
+| `learning.debrief_planned_after_negotiation` (boolean) | debrief_and_anti_pattern_red_lines |
+| `learning.deliberate_debrief_review_committed` (boolean) | debrief_and_anti_pattern_red_lines |
+| `learning.misleading_feedback_caution_acknowledged` (boolean) | debrief_and_anti_pattern_red_lines |
+| `red_lines.no_batna_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.arguing_positions_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.treating_everything_as_zero_sum_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.rigid_script_reliance_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.losing_composure_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.never_debriefing_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+
+The anchoring check is gated on the declared applicability
+flag, exactly as declared: `anchoring_applicability_declared`
+passes whenever `anchoring.informed_enough_to_anchor_first`
+is present (either value). The gated check
+`anchor_first_planned_when_informed` is **missing** when the
+gate or the field itself is absent, **passes as not
+applicable** when the gate is declared `false` (whatever the
+field declares), and when the gate is declared `true` passes
+only when the field is declared `true`.
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Issues declared:** the declared `issues` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Own underlying interest per issue:** every declared issue
+  row must name a non-empty `own_underlying_interest` string
+  (the skill: "negotiate the underlying interest, not the
+  stated demand"). A row with the field absent is missing
+  evidence; a row naming an empty interest fails.
+- **Counterpart underlying interest per issue:** every declared
+  issue row must name a non-empty
+  `counterpart_underlying_interest` string (the skill: "Ask
+  *why* they want what they ask for"). A row with the field
+  absent is missing evidence; a row naming an empty interest
+  fails.
+- **Trade potential assessed per issue:** every declared issue
+  row must declare `trade_potential_assessed: true` (the
+  skill: "Trade across issues you each value differently" —
+  the check is that the assessment was made per issue, not
+  what it found). A row with the field absent is missing
+  evidence.
+- **No issue name duplicated:** no declared issue `name` may
+  appear on more than one issue row. A row with `name` absent
+  is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`issues_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers,
+exactly), the row-name lists `issues_without_own_interest`
+(issues whose field is present but empty; an issue with the
+field absent is missing evidence and does not appear),
+`issues_without_counterpart_interest` (issues whose field is
+present but empty) and
+`issues_without_trade_potential_assessed` (issues whose field
+is present but not true), `duplicate_issue_names` (issue names
+declared on more than one row, in the order their second
+occurrence appears), and the three coverage ratios
+`own_interest_coverage` (issues naming the caller's own
+underlying interest ÷ declared issues),
+`counterpart_interest_coverage` (issues naming the
+counterpart's underlying interest ÷ declared issues) and
+`trade_potential_assessed_coverage` (issues with trade
+potential assessed ÷ declared issues). **Fixed serialization
+rule:** computed ratios are reported as strings with exactly
+six decimal places, produced in both implementations by the
+same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio is
+null when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — its
+preparation demands are qualitative declarations the record
+makes, not bars the atom can set. Quantities are computed and
+reported; the only bar on the computed rows is completeness
+over the caller's own declared rows, exactly as stated above.
+Declined thresholds, named: a reservation-price figure or a
+minimum distance between the reservation price and any offer;
+a ZOPA width or a minimum overlap between the two sides'
+ranges; a BATNA strength, quality, or attractiveness score;
+a number of issues a preparation must contain beyond the one
+declared issues list being non-empty; a number of fallback
+plans beyond the skill's own stated Plan B (and C); an
+anchoring amount, percentage, or first-offer figure; a
+coverage percentage below completeness; a debrief quality or
+learning-outcome score.
+
+The verdict is one of `NEGOTIATION_PREPARATION_SOUND` (all 44
+checks pass), `NEGOTIATION_PREPARATION_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across five sections:
+batna_reservation_price_and_zopa, interests_and_value_creation,
+improvisation_and_adaptation,
+openings_moments_closing_and_tactics,
+debrief_and_anti_pattern_red_lines.
+
+## Distinct ground
+
+The nearest sibling is the deployed
+`difficult-conversation-coaching` (bound skill
+`emotional-intelligence-manager`), which coaches a declared
+record for one difficult conversation: its checks ask whether
+the emotion was named and regulated, whether the counterpart's
+emotion was considered, whether the ask and boundary were
+stated clearly in the conversation, whether feedback points
+are SBI-complete, and whether repair is planned when a thread
+has soured. This atom sits on different ground and shares
+**zero checks** with it: every check here is a
+negotiation-preparation question — a BATNA *identified and
+strengthened*, a reservation price *set* and a counterpart
+reservation *estimated*, a ZOPA *assessed*, interests behind
+positions on the declared *issue rows*, value *created before
+claiming*, fallback *Plans B and C carried*, anchoring
+*decided on information*, a *fair-enough agreement that holds*
+aimed for, and a *debrief planned* against misleading
+feedback. The boundary is: preparation for a negotiation
+here; conduct and coaching of a difficult conversation there.
+The `decision-process-design` sibling designs a decision
+process (criteria set before data, loss costs in each
+direction, reversibility) — it likewise shares no check with
+this atom. No other live or staged sibling reviews a
+negotiation-preparation record.
+
+## Honest scoping
+
+This atom reviews a **declared** negotiation-preparation
+record — it prepares no negotiation itself, negotiates
+nothing, coaches no live improvisation, reads no counterpart,
+and does not verify that a declared preparation was ever
+carried out. A preparation is sound *on the caller's declared
+evidence*: a record that declares a strengthened BATNA, an
+assessed ZOPA, and no rigid script passes those checks even if
+the real preparation did none of it. It is a completeness and
+consistency audit of the preparation record the skill
+requires, **not negotiation advice, a negotiation service, or
+a prediction that the negotiation will succeed**: it never
+judges whether the declared BATNA is genuinely strong,
+whether the reservation price is the right number, whether a
+ZOPA truly exists, or whether the plan is good — only that the
+record contains what the skill's fundamentals, improvisation,
+tactics and anti-patterns demand, and that its declared issue
+rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no judgment of
+preparation *quality* — whether the BATNA, interests, or
+fallback plans will work is the caller's declaration, checked
+only for declared presence and consistency; live improvisation
+itself (presence of mind, situational awareness, recognizing
+the pivot in the room) is by the skill's own account a live
+act — this atom checks only that preparing for it is declared,
+never the act; the skill's named pairings with other skills
+(emotional-intelligence, psychological analysis) are not
+invoked — composure and awareness are checked only as the
+caller's own declared preparation in this record.
+
+## U-13 regulatory screen
+
+This atom's output could not read as regulated professional
+advice: it audits a declared preparation record for
+completeness and consistency only, and gives no engineering,
+financial, medical, or legal advice — the reservation-price
+and ZOPA fields are caller-declared booleans, never figures
+this atom sets, recommends, or computes.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

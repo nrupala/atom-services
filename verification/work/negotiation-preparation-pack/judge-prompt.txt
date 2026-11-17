@@ -1,0 +1,1456 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: negotiation-preparation-pack
+
+=== contract.yaml ===
+service_name: negotiation-preparation-pack
+display_name: Negotiation preparation pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:negotiation
+binding:
+  skill: negotiation
+  skill_path: workspace/mymilo-build/skills/negotiation/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: negotiation_preparation_pack
+  prefix: atm_1_negotiation_preparation_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Vendor escalation negotiation preparation
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Negotiation preparation pack — `negotiation-preparation-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Prepares the fundamentals and coaches the improvisation — real negotiation is nonlinear, and this skill handles both layers.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Mind & personal growth who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Vendor escalation negotiation preparation**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the negotiation preparation manifest
+
+The caller submits one JSON manifest: a declared
+negotiation-preparation record for one negotiation, made
+before the table. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`NEGOTIATION_PREPARATION_NOT_SOUND`). All
+fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `negotiation` (string; carried into the verdict output, not itself checked) | — |
+| `batna_and_reservation.batna_identified` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.batna_strengthened` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.reservation_price_set` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.counterpart_reservation_estimated` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.zopa_assessed` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.walk_away_commitment_declared` (boolean) | batna_reservation_price_and_zopa |
+| `batna_and_reservation.fundamentals_prepared_before_negotiation` (boolean) | batna_reservation_price_and_zopa |
+| `interests.own_interests_identified` (boolean) | interests_and_value_creation |
+| `interests.counterpart_interests_identified` (boolean) | interests_and_value_creation |
+| `interests.counterpart_why_to_be_asked_planned` (boolean) | interests_and_value_creation |
+| `interests.interests_not_positions_framing_adopted` (boolean) | interests_and_value_creation |
+| `value_creation.value_created_before_claiming_planned` (boolean) | interests_and_value_creation |
+| `value_creation.non_zero_sum_opportunities_sought` (boolean) | interests_and_value_creation |
+| `value_creation.trade_across_differently_valued_issues_planned` (boolean) | interests_and_value_creation |
+| `issues` (list of issue-row objects, each with the entry fields below; computed, see below) | interests_and_value_creation |
+| `issues[].name` (string; names the row in the computed outputs) | interests_and_value_creation |
+| `issues[].own_underlying_interest` (string; the caller's underlying interest behind the position; must be present and non-empty per row) | interests_and_value_creation |
+| `issues[].counterpart_underlying_interest` (string; the counterpart's underlying interest behind their position; must be present and non-empty per row) | interests_and_value_creation |
+| `issues[].trade_potential_assessed` (boolean) | interests_and_value_creation |
+| `direction.sense_of_direction_stated` (boolean) | improvisation_and_adaptation |
+| `direction.plan_not_script_approach_adopted` (boolean) | improvisation_and_adaptation |
+| `direction.plan_b_prepared` (boolean) | improvisation_and_adaptation |
+| `direction.plan_c_prepared` (boolean) | improvisation_and_adaptation |
+| `presence_and_awareness.own_emotional_state_management_planned` (boolean) | improvisation_and_adaptation |
+| `presence_and_awareness.composure_commitment_declared` (boolean) | improvisation_and_adaptation |
+| `presence_and_awareness.situational_awareness_planned` (boolean) | improvisation_and_adaptation |
+| `sequence.opening_planned` (boolean) | openings_moments_closing_and_tactics |
+| `sequence.critical_moments_recognition_planned` (boolean) | openings_moments_closing_and_tactics |
+| `sequence.closing_cleanly_planned` (boolean) | openings_moments_closing_and_tactics |
+| `anchoring.informed_enough_to_anchor_first` (boolean; the applicability gate for the gated anchoring check below) | openings_moments_closing_and_tactics |
+| `anchoring.anchor_first_planned` (boolean; gated — applies only when `informed_enough_to_anchor_first` is `true`) | openings_moments_closing_and_tactics |
+| `tactics.counterpart_yes_made_easy_planned` (boolean) | openings_moments_closing_and_tactics |
+| `tactics.people_separated_from_problem_declared` (boolean) | openings_moments_closing_and_tactics |
+| `tactics.hard_on_problem_soft_on_person_declared` (boolean) | openings_moments_closing_and_tactics |
+| `tactics.fair_enough_agreement_aim_declared` (boolean) | openings_moments_closing_and_tactics |
+| `learning.debrief_planned_after_negotiation` (boolean) | debrief_and_anti_pattern_red_lines |
+| `learning.deliberate_debrief_review_committed` (boolean) | debrief_and_anti_pattern_red_lines |
+| `learning.misleading_feedback_caution_acknowledged` (boolean) | debrief_and_anti_pattern_red_lines |
+| `red_lines.no_batna_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.arguing_positions_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.treating_everything_as_zero_sum_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.rigid_script_reliance_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.losing_composure_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+| `red_lines.never_debriefing_present` (boolean; must be `false` to pass — skill anti-pattern) | debrief_and_anti_pattern_red_lines |
+
+The anchoring check is gated on the declared applicability
+flag, exactly as declared: `anchoring_applicability_declared`
+passes whenever `anchoring.informed_enough_to_anchor_first`
+is present (either value). The gated check
+`anchor_first_planned_when_informed` is **missing** when the
+gate or the field itself is absent, **passes as not
+applicable** when the gate is declared `false` (whatever the
+field declares), and when the gate is declared `true` passes
+only when the field is declared `true`.
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Issues declared:** the declared `issues` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Own underlying interest per issue:** every declared issue
+  row must name a non-empty `own_underlying_interest` string
+  (the skill: "negotiate the underlying interest, not the
+  stated demand"). A row with the field absent is missing
+  evidence; a row naming an empty interest fails.
+- **Counterpart underlying interest per issue:** every declared
+  issue row must name a non-empty
+  `counterpart_underlying_interest` string (the skill: "Ask
+  *why* they want what they ask for"). A row with the field
+  absent is missing evidence; a row naming an empty interest
+  fails.
+- **Trade potential assessed per issue:** every declared issue
+  row must declare `trade_potential_assessed: true` (the
+  skill: "Trade across issues you each value differently" —
+  the check is that the assessment was made per issue, not
+  what it found). A row with the field absent is missing
+  evidence.
+- **No issue name duplicated:** no declared issue `name` may
+  appear on more than one issue row. A row with `name` absent
+  is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`issues_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers,
+exactly), the row-name lists `issues_without_own_interest`
+(issues whose field is present but empty; an issue with the
+field absent is missing evidence and does not appear),
+`issues_without_counterpart_interest` (issues whose field is
+present but empty) and
+`issues_without_trade_potential_assessed` (issues whose field
+is present but not true), `duplicate_issue_names` (issue names
+declared on more than one row, in the order their second
+occurrence appears), and the three coverage ratios
+`own_interest_coverage` (issues naming the caller's own
+underlying interest ÷ declared issues),
+`counterpart_interest_coverage` (issues naming the
+counterpart's underlying interest ÷ declared issues) and
+`trade_potential_assessed_coverage` (issues with trade
+potential assessed ÷ declared issues). **Fixed serialization
+rule:** computed ratios are reported as strings with exactly
+six decimal places, produced in both implementations by the
+same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio is
+null when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — its
+preparation demands are qualitative declarations the record
+makes, not bars the atom can set. Quantities are computed and
+reported; the only bar on the computed rows is completeness
+over the caller's own declared rows, exactly as stated above.
+Declined thresholds, named: a reservation-price figure or a
+minimum distance between the reservation price and any offer;
+a ZOPA width or a minimum overlap between the two sides'
+ranges; a BATNA strength, quality, or attractiveness score;
+a number of issues a preparation must contain beyond the one
+declared issues list being non-empty; a number of fallback
+plans beyond the skill's own stated Plan B (and C); an
+anchoring amount, percentage, or first-offer figure; a
+coverage percentage below completeness; a debrief quality or
+learning-outcome score.
+
+The verdict is one of `NEGOTIATION_PREPARATION_SOUND` (all 44
+checks pass), `NEGOTIATION_PREPARATION_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across five sections:
+batna_reservation_price_and_zopa, interests_and_value_creation,
+improvisation_and_adaptation,
+openings_moments_closing_and_tactics,
+debrief_and_anti_pattern_red_lines.
+
+## Distinct ground
+
+The nearest sibling is the deployed
+`difficult-conversation-coaching` (bound skill
+`emotional-intelligence-manager`), which coaches a declared
+record for one difficult conversation: its checks ask whether
+the emotion was named and regulated, whether the counterpart's
+emotion was considered, whether the ask and boundary were
+stated clearly in the conversation, whether feedback points
+are SBI-complete, and whether repair is planned when a thread
+has soured. This atom sits on different ground and shares
+**zero checks** with it: every check here is a
+negotiation-preparation question — a BATNA *identified and
+strengthened*, a reservation price *set* and a counterpart
+reservation *estimated*, a ZOPA *assessed*, interests behind
+positions on the declared *issue rows*, value *created before
+claiming*, fallback *Plans B and C carried*, anchoring
+*decided on information*, a *fair-enough agreement that holds*
+aimed for, and a *debrief planned* against misleading
+feedback. The boundary is: preparation for a negotiation
+here; conduct and coaching of a difficult conversation there.
+The `decision-process-design` sibling designs a decision
+process (criteria set before data, loss costs in each
+direction, reversibility) — it likewise shares no check with
+this atom. No other live or staged sibling reviews a
+negotiation-preparation record.
+
+## Honest scoping
+
+This atom reviews a **declared** negotiation-preparation
+record — it prepares no negotiation itself, negotiates
+nothing, coaches no live improvisation, reads no counterpart,
+and does not verify that a declared preparation was ever
+carried out. A preparation is sound *on the caller's declared
+evidence*: a record that declares a strengthened BATNA, an
+assessed ZOPA, and no rigid script passes those checks even if
+the real preparation did none of it. It is a completeness and
+consistency audit of the preparation record the skill
+requires, **not negotiation advice, a negotiation service, or
+a prediction that the negotiation will succeed**: it never
+judges whether the declared BATNA is genuinely strong,
+whether the reservation price is the right number, whether a
+ZOPA truly exists, or whether the plan is good — only that the
+record contains what the skill's fundamentals, improvisation,
+tactics and anti-patterns demand, and that its declared issue
+rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no judgment of
+preparation *quality* — whether the BATNA, interests, or
+fallback plans will work is the caller's declaration, checked
+only for declared presence and consistency; live improvisation
+itself (presence of mind, situational awareness, recognizing
+the pivot in the room) is by the skill's own account a live
+act — this atom checks only that preparing for it is declared,
+never the act; the skill's named pairings with other skills
+(emotional-intelligence, psychological analysis) are not
+invoked — composure and awareness are checked only as the
+caller's own declared preparation in this record.
+
+## U-13 regulatory screen
+
+This atom's output could not read as regulated professional
+advice: it audits a declared preparation record for
+completeness and consistency only, and gives no engineering,
+financial, medical, or legal advice — the reservation-price
+and ZOPA fields are caller-declared booleans, never figures
+this atom sets, recommends, or computes.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "negotiation-preparation-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "NEGOTIATION_PREPARATION_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 44 checks pass. computed_spot_checks: issues_count=1, own_interest_coverage=1.000000, counterpart_interest_coverage=1.000000, trade_potential_assessed_coverage=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "issues_count": 1,
+          "issues_without_own_interest": [],
+          "own_interest_coverage": "1.000000",
+          "issues_without_counterpart_interest": [],
+          "counterpart_interest_coverage": "1.000000",
+          "issues_without_trade_potential_assessed": [],
+          "trade_potential_assessed_coverage": "1.000000",
+          "duplicate_issue_names": []
+        }
+      },
+      "input": {
+        "negotiation": "Vendor Service Level Agreement",
+        "batna_and_reservation": {
+          "batna_identified": true,
+          "batna_strengthened": true,
+          "reservation_price_set": true,
+          "counterpart_reservation_estimated": true,
+          "zopa_assessed": true,
+          "walk_away_commitment_declared": true,
+          "fundamentals_prepared_before_negotiation": true
+        },
+        "interests": {
+          "own_interests_identified": true,
+          "counterpart_interests_identified": true,
+          "counterpart_why_to_be_asked_planned": true,
+          "interests_not_positions_framing_adopted": true
+        },
+        "value_creation": {
+          "value_created_before_claiming_planned": true,
+          "non_zero_sum_opportunities_sought": true,
+          "trade_across_differently_valued_issues_planned": true
+        },
+        "issues": [
+          {
+            "name": "Price",
+            "own_underlying_interest": "Maintain budget",
+            "counterpart_underlying_interest": "Maximize margin",
+            "trade_potential_assessed": true
+          }
+        ],
+        "direction": {
+          "sense_of_direction_stated": true,
+          "plan_not_script_approach_adopted": true,
+          "plan_b_prepared": true,
+          "plan_c_prepared": true
+        },
+        "presence_and_awareness": {
+          "own_emotional_state_management_planned": true,
+          "composure_commitment_declared": true,
+          "situational_awareness_planned": true
+        },
+        "sequence": {
+          "opening_planned": true,
+          "critical_moments_recognition_planned": true,
+          "closing_cleanly_planned": true
+        },
+        "anchoring": {
+          "informed_enough_to_anchor_first": true,
+          "anchor_first_planned": true
+        },
+        "tactics": {
+          "counterpart_yes_made_easy_planned": true,
+          "people_separated_from_problem_declared": true,
+          "hard_on_problem_soft_on_person_declared": true,
+          "fair_enough_agreement_aim_declared": true
+        },
+        "learning": {
+          "debrief_planned_after_negotiation": true,
+          "deliberate_debrief_review_committed": true,
+          "misleading_feedback_caution_acknowledged": true
+        },
+        "red_lines": {
+          "no_batna_present": false,
+          "arguing_positions_present": false,
+          "treating_everything_as_zero_sum_present": false,
+          "rigid_script_reliance_present": false,
+          "losing_composure_present": false,
+          "never_debriefing_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "negotiation-preparation-pack",
+        "atom_version": "0.1.0",
+        "negotiation": "Vendor Service Level Agreement",
+        "verdict": "NEGOTIATION_PREPARATION_SOUND",
+        "sections": {
+          "batna_reservation_price_and_zopa": "pass",
+          "interests_and_value_creation": "pass",
+          "improvisation_and_adaptation": "pass",
+          "openings_moments_closing_and_tactics": "pass",
+          "debrief_and_anti_pattern_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "batna_identified",
+            "status": "pass",
+            "evidence": "BATNA: the Best Alternative To a Negotiated Agreement is identified"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "batna_strengthened",
+            "status": "pass",
+            "evidence": "BATNA: the BATNA is strengthened, not only known \u2014 it is the real walk-away power"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "reservation_price_set",
+            "status": "pass",
+            "evidence": "reservation price: the walk-away number is set before the table"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "counterpart_reservation_estimated",
+            "status": "pass",
+            "evidence": "reservation price: the counterpart's walk-away range is estimated, so an overlap can be assessed"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "zopa_assessed",
+            "status": "pass",
+            "evidence": "ZOPA: the Zone of Possible Agreement \u2014 where the two reservation ranges overlap \u2014 is assessed"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "walk_away_commitment_declared",
+            "status": "pass",
+            "evidence": "reservation price: walking away beyond the reservation number is committed to in advance"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "fundamentals_prepared_before_negotiation",
+            "status": "pass",
+            "evidence": "fundamentals: the fundamentals are prepared before the table, not improvised from nothing"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "own_interests_identified",
+            "status": "pass",
+            "evidence": "interests: the caller's own underlying interests are identified, not only the stated demand"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "counterpart_interests_identified",
+            "status": "pass",
+            "evidence": "interests: the counterpart's underlying interests are identified, not only their stated demand"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "counterpart_why_to_be_asked_planned",
+            "status": "pass",
+            "evidence": "interests: asking why the counterpart wants what they ask for is planned"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "interests_not_positions_framing_adopted",
+            "status": "pass",
+            "evidence": "interests: the negotiation is framed on underlying interests, not positions"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "value_created_before_claiming_planned",
+            "status": "pass",
+            "evidence": "value creation: expanding the pie is planned before claiming a share of it"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "non_zero_sum_opportunities_sought",
+            "status": "pass",
+            "evidence": "value creation: the deal is not treated as zero-sum \u2014 opportunities to create value are sought"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "trade_across_differently_valued_issues_planned",
+            "status": "pass",
+            "evidence": "value creation: trading across issues the two sides value differently is planned"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "issues_declared",
+            "status": "pass",
+            "evidence": "the declared record names its issues \u2014 the issues list is present and non-empty"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_names_own_underlying_interest",
+            "status": "pass",
+            "evidence": "interests: every declared issue row names the caller's own underlying interest behind the position"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_names_counterpart_underlying_interest",
+            "status": "pass",
+            "evidence": "interests: every declared issue row names the counterpart's underlying interest behind their position"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_trade_potential_assessed",
+            "status": "pass",
+            "evidence": "value creation: every declared issue row has its trade potential \u2014 whether the two sides value it differently \u2014 assessed"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "no_issue_name_duplicated",
+            "status": "pass",
+            "evidence": "issues: no declared issue name is owned by more than one issue row"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "sense_of_direction_stated",
+            "status": "pass",
+            "evidence": "direction: a sense of direction is stated \u2014 a map that orients even when the terrain differs"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_not_script_approach_adopted",
+            "status": "pass",
+            "evidence": "direction: the plan is carried as orientation, not as a rigid script"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_b_prepared",
+            "status": "pass",
+            "evidence": "direction: a Plan B is carried"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_c_prepared",
+            "status": "pass",
+            "evidence": "direction: a Plan C is carried, beyond Plan B"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "own_emotional_state_management_planned",
+            "status": "pass",
+            "evidence": "presence of mind: managing the caller's own emotional state during the negotiation is planned"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "composure_commitment_declared",
+            "status": "pass",
+            "evidence": "presence of mind: staying composed is committed to in advance"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "situational_awareness_planned",
+            "status": "pass",
+            "evidence": "situational awareness: reading shifting interests, constraints and emotions in real time is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "opening_planned",
+            "status": "pass",
+            "evidence": "sequence: the opening is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "critical_moments_recognition_planned",
+            "status": "pass",
+            "evidence": "sequence: recognizing the critical moments \u2014 the pivot points \u2014 is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "closing_cleanly_planned",
+            "status": "pass",
+            "evidence": "sequence: closing cleanly is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "anchoring_applicability_declared",
+            "status": "pass",
+            "evidence": "anchoring: whether the caller is informed enough to anchor first is declared \u2014 anchoring first applies only when informed"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "anchor_first_planned_when_informed",
+            "status": "pass",
+            "evidence": "anchoring: anchoring first is planned for when the caller is informed"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "counterpart_yes_made_easy_planned",
+            "status": "pass",
+            "evidence": "tactics: making the counterpart's yes easy is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "people_separated_from_problem_declared",
+            "status": "pass",
+            "evidence": "tactics: the people are separated from the problem"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "hard_on_problem_soft_on_person_declared",
+            "status": "pass",
+            "evidence": "tactics: hard on the problem, soft on the person is declared"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "fair_enough_agreement_aim_declared",
+            "status": "pass",
+            "evidence": "tactics: the aim is a fair-enough agreement that holds, not a maximal extraction"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "debrief_planned_after_negotiation",
+            "status": "pass",
+            "evidence": "debrief: a debrief after the negotiation is planned \u2014 every negotiation is debriefed"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "deliberate_debrief_review_committed",
+            "status": "pass",
+            "evidence": "debrief: the debrief is a deliberate review, committed to in advance, so learning actually happens"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "misleading_feedback_caution_acknowledged",
+            "status": "pass",
+            "evidence": "debrief: negotiation is a wicked learning environment where feedback misleads \u2014 that caution is acknowledged"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_batna",
+            "status": "pass",
+            "evidence": "red line: no BATNA is present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_arguing_positions",
+            "status": "pass",
+            "evidence": "red line: arguing positions is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_zero_sum_treatment",
+            "status": "pass",
+            "evidence": "red line: treating everything as zero-sum is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_rigid_script_reliance",
+            "status": "pass",
+            "evidence": "red line: reliance on a rigid script is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_losing_composure",
+            "status": "pass",
+            "evidence": "red line: losing composure is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_never_debriefing",
+            "status": "pass",
+            "evidence": "red line: never debriefing is not present in the preparation"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "issues_count": 1,
+        "issues_without_own_interest": [],
+        "own_interest_coverage": "1.000000",
+        "issues_without_counterpart_interest": [],
+        "counterpart_interest_coverage": "1.000000",
+        "issues_without_trade_potential_assessed": [],
+        "trade_potential_assessed_coverage": "1.000000",
+        "duplicate_issue_names": [],
+        "summary": "44 pass, 0 fail, 0 missing of 44 checks across five sections.",
+        "stamp": "NEGOTIATION PREPARATION PACK\nnegotiation: Vendor Service Level Agreement\nVERDICT: NEGOTIATION_PREPARATION_SOUND\n  batna_reservation_price_and_zopa             pass\n  interests_and_value_creation                 pass\n  improvisation_and_adaptation                 pass\n  openings_moments_closing_and_tactics         pass\n  debrief_and_anti_pattern_red_lines           pass\n44 pass, 0 fail, 0 missing of 44 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "NEGOTIATION_PREPARATION_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "anchor_first_planned_when_informed",
+          "batna_identified",
+          "every_issue_names_own_underlying_interest",
+          "every_issue_trade_potential_assessed",
+          "no_batna"
+        ],
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "issues_count": 1,
+          "issues_without_own_interest": [
+            "Price"
+          ],
+          "own_interest_coverage": "0.000000",
+          "issues_without_counterpart_interest": [],
+          "counterpart_interest_coverage": "1.000000",
+          "issues_without_trade_potential_assessed": [
+            "Price"
+          ],
+          "trade_potential_assessed_coverage": "0.000000",
+          "duplicate_issue_names": []
+        },
+        "notes": "Full manifest identical to full-pass except batna_identified false, issues[0].own_underlying_interest empty, issues[0].trade_potential_assessed false, anchoring.anchor_first_planned false (gate true), red_lines.no_batna_present true."
+      },
+      "input": {
+        "negotiation": "Vendor Service Level Agreement",
+        "batna_and_reservation": {
+          "batna_identified": false,
+          "batna_strengthened": true,
+          "reservation_price_set": true,
+          "counterpart_reservation_estimated": true,
+          "zopa_assessed": true,
+          "walk_away_commitment_declared": true,
+          "fundamentals_prepared_before_negotiation": true
+        },
+        "interests": {
+          "own_interests_identified": true,
+          "counterpart_interests_identified": true,
+          "counterpart_why_to_be_asked_planned": true,
+          "interests_not_positions_framing_adopted": true
+        },
+        "value_creation": {
+          "value_created_before_claiming_planned": true,
+          "non_zero_sum_opportunities_sought": true,
+          "trade_across_differently_valued_issues_planned": true
+        },
+        "issues": [
+          {
+            "name": "Price",
+            "own_underlying_interest": "",
+            "counterpart_underlying_interest": "Maximize margin",
+            "trade_potential_assessed": false
+          }
+        ],
+        "direction": {
+          "sense_of_direction_stated": true,
+          "plan_not_script_approach_adopted": true,
+          "plan_b_prepared": true,
+          "plan_c_prepared": true
+        },
+        "presence_and_awareness": {
+          "own_emotional_state_management_planned": true,
+          "composure_commitment_declared": true,
+          "situational_awareness_planned": true
+        },
+        "sequence": {
+          "opening_planned": true,
+          "critical_moments_recognition_planned": true,
+          "closing_cleanly_planned": true
+        },
+        "anchoring": {
+          "informed_enough_to_anchor_first": true,
+          "anchor_first_planned": false
+        },
+        "tactics": {
+          "counterpart_yes_made_easy_planned": true,
+          "people_separated_from_problem_declared": true,
+          "hard_on_problem_soft_on_person_declared": true,
+          "fair_enough_agreement_aim_declared": true
+        },
+        "learning": {
+          "debrief_planned_after_negotiation": true,
+          "deliberate_debrief_review_committed": true,
+          "misleading_feedback_caution_acknowledged": true
+        },
+        "red_lines": {
+          "no_batna_present": true,
+          "arguing_positions_present": false,
+          "treating_everything_as_zero_sum_present": false,
+          "rigid_script_reliance_present": false,
+          "losing_composure_present": false,
+          "never_debriefing_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "negotiation-preparation-pack",
+        "atom_version": "0.1.0",
+        "negotiation": "Vendor Service Level Agreement",
+        "verdict": "NEGOTIATION_PREPARATION_NOT_SOUND",
+        "sections": {
+          "batna_reservation_price_and_zopa": "fail",
+          "interests_and_value_creation": "fail",
+          "improvisation_and_adaptation": "pass",
+          "openings_moments_closing_and_tactics": "fail",
+          "debrief_and_anti_pattern_red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "batna_identified",
+            "status": "fail",
+            "evidence": "BATNA: the Best Alternative To a Negotiated Agreement is identified"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "batna_strengthened",
+            "status": "pass",
+            "evidence": "BATNA: the BATNA is strengthened, not only known \u2014 it is the real walk-away power"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "reservation_price_set",
+            "status": "pass",
+            "evidence": "reservation price: the walk-away number is set before the table"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "counterpart_reservation_estimated",
+            "status": "pass",
+            "evidence": "reservation price: the counterpart's walk-away range is estimated, so an overlap can be assessed"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "zopa_assessed",
+            "status": "pass",
+            "evidence": "ZOPA: the Zone of Possible Agreement \u2014 where the two reservation ranges overlap \u2014 is assessed"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "walk_away_commitment_declared",
+            "status": "pass",
+            "evidence": "reservation price: walking away beyond the reservation number is committed to in advance"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "fundamentals_prepared_before_negotiation",
+            "status": "pass",
+            "evidence": "fundamentals: the fundamentals are prepared before the table, not improvised from nothing"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "own_interests_identified",
+            "status": "pass",
+            "evidence": "interests: the caller's own underlying interests are identified, not only the stated demand"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "counterpart_interests_identified",
+            "status": "pass",
+            "evidence": "interests: the counterpart's underlying interests are identified, not only their stated demand"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "counterpart_why_to_be_asked_planned",
+            "status": "pass",
+            "evidence": "interests: asking why the counterpart wants what they ask for is planned"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "interests_not_positions_framing_adopted",
+            "status": "pass",
+            "evidence": "interests: the negotiation is framed on underlying interests, not positions"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "value_created_before_claiming_planned",
+            "status": "pass",
+            "evidence": "value creation: expanding the pie is planned before claiming a share of it"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "non_zero_sum_opportunities_sought",
+            "status": "pass",
+            "evidence": "value creation: the deal is not treated as zero-sum \u2014 opportunities to create value are sought"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "trade_across_differently_valued_issues_planned",
+            "status": "pass",
+            "evidence": "value creation: trading across issues the two sides value differently is planned"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "issues_declared",
+            "status": "pass",
+            "evidence": "the declared record names its issues \u2014 the issues list is present and non-empty"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_names_own_underlying_interest",
+            "status": "fail",
+            "evidence": "interests: every declared issue row names the caller's own underlying interest behind the position"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_names_counterpart_underlying_interest",
+            "status": "pass",
+            "evidence": "interests: every declared issue row names the counterpart's underlying interest behind their position"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_trade_potential_assessed",
+            "status": "fail",
+            "evidence": "value creation: every declared issue row has its trade potential \u2014 whether the two sides value it differently \u2014 assessed"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "no_issue_name_duplicated",
+            "status": "pass",
+            "evidence": "issues: no declared issue name is owned by more than one issue row"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "sense_of_direction_stated",
+            "status": "pass",
+            "evidence": "direction: a sense of direction is stated \u2014 a map that orients even when the terrain differs"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_not_script_approach_adopted",
+            "status": "pass",
+            "evidence": "direction: the plan is carried as orientation, not as a rigid script"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_b_prepared",
+            "status": "pass",
+            "evidence": "direction: a Plan B is carried"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_c_prepared",
+            "status": "pass",
+            "evidence": "direction: a Plan C is carried, beyond Plan B"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "own_emotional_state_management_planned",
+            "status": "pass",
+            "evidence": "presence of mind: managing the caller's own emotional state during the negotiation is planned"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "composure_commitment_declared",
+            "status": "pass",
+            "evidence": "presence of mind: staying composed is committed to in advance"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "situational_awareness_planned",
+            "status": "pass",
+            "evidence": "situational awareness: reading shifting interests, constraints and emotions in real time is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "opening_planned",
+            "status": "pass",
+            "evidence": "sequence: the opening is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "critical_moments_recognition_planned",
+            "status": "pass",
+            "evidence": "sequence: recognizing the critical moments \u2014 the pivot points \u2014 is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "closing_cleanly_planned",
+            "status": "pass",
+            "evidence": "sequence: closing cleanly is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "anchoring_applicability_declared",
+            "status": "pass",
+            "evidence": "anchoring: whether the caller is informed enough to anchor first is declared \u2014 anchoring first applies only when informed"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "anchor_first_planned_when_informed",
+            "status": "fail",
+            "evidence": "anchoring: anchoring first is planned for when the caller is informed"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "counterpart_yes_made_easy_planned",
+            "status": "pass",
+            "evidence": "tactics: making the counterpart's yes easy is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "people_separated_from_problem_declared",
+            "status": "pass",
+            "evidence": "tactics: the people are separated from the problem"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "hard_on_problem_soft_on_person_declared",
+            "status": "pass",
+            "evidence": "tactics: hard on the problem, soft on the person is declared"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "fair_enough_agreement_aim_declared",
+            "status": "pass",
+            "evidence": "tactics: the aim is a fair-enough agreement that holds, not a maximal extraction"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "debrief_planned_after_negotiation",
+            "status": "pass",
+            "evidence": "debrief: a debrief after the negotiation is planned \u2014 every negotiation is debriefed"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "deliberate_debrief_review_committed",
+            "status": "pass",
+            "evidence": "debrief: the debrief is a deliberate review, committed to in advance, so learning actually happens"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "misleading_feedback_caution_acknowledged",
+            "status": "pass",
+            "evidence": "debrief: negotiation is a wicked learning environment where feedback misleads \u2014 that caution is acknowledged"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_batna",
+            "status": "fail",
+            "evidence": "red line: no BATNA is present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_arguing_positions",
+            "status": "pass",
+            "evidence": "red line: arguing positions is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_zero_sum_treatment",
+            "status": "pass",
+            "evidence": "red line: treating everything as zero-sum is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_rigid_script_reliance",
+            "status": "pass",
+            "evidence": "red line: reliance on a rigid script is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_losing_composure",
+            "status": "pass",
+            "evidence": "red line: losing composure is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_never_debriefing",
+            "status": "pass",
+            "evidence": "red line: never debriefing is not present in the preparation"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "issues_count": 1,
+        "issues_without_own_interest": [
+          "Price"
+        ],
+        "own_interest_coverage": "0.000000",
+        "issues_without_counterpart_interest": [],
+        "counterpart_interest_coverage": "1.000000",
+        "issues_without_trade_potential_assessed": [
+          "Price"
+        ],
+        "trade_potential_assessed_coverage": "0.000000",
+        "duplicate_issue_names": [],
+        "summary": "39 pass, 5 fail, 0 missing of 44 checks across five sections.",
+        "stamp": "NEGOTIATION PREPARATION PACK\nnegotiation: Vendor Service Level Agreement\nVERDICT: NEGOTIATION_PREPARATION_NOT_SOUND\n  batna_reservation_price_and_zopa             fail\n  interests_and_value_creation                 fail\n  improvisation_and_adaptation                 pass\n  openings_moments_closing_and_tactics         fail\n  debrief_and_anti_pattern_red_lines           fail\n39 pass, 5 fail, 0 missing of 44 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only the identity field present; every check missing."
+      },
+      "input": {
+        "negotiation": "Incomplete Prep"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "negotiation-preparation-pack",
+        "atom_version": "0.1.0",
+        "negotiation": "Incomplete Prep",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "batna_reservation_price_and_zopa": "insufficient_evidence",
+          "interests_and_value_creation": "insufficient_evidence",
+          "improvisation_and_adaptation": "insufficient_evidence",
+          "openings_moments_closing_and_tactics": "insufficient_evidence",
+          "debrief_and_anti_pattern_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "batna_identified",
+            "status": "missing",
+            "evidence": "BATNA: the Best Alternative To a Negotiated Agreement is identified"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "batna_strengthened",
+            "status": "missing",
+            "evidence": "BATNA: the BATNA is strengthened, not only known \u2014 it is the real walk-away power"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "reservation_price_set",
+            "status": "missing",
+            "evidence": "reservation price: the walk-away number is set before the table"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "counterpart_reservation_estimated",
+            "status": "missing",
+            "evidence": "reservation price: the counterpart's walk-away range is estimated, so an overlap can be assessed"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "zopa_assessed",
+            "status": "missing",
+            "evidence": "ZOPA: the Zone of Possible Agreement \u2014 where the two reservation ranges overlap \u2014 is assessed"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "walk_away_commitment_declared",
+            "status": "missing",
+            "evidence": "reservation price: walking away beyond the reservation number is committed to in advance"
+          },
+          {
+            "section": "batna_reservation_price_and_zopa",
+            "check": "fundamentals_prepared_before_negotiation",
+            "status": "missing",
+            "evidence": "fundamentals: the fundamentals are prepared before the table, not improvised from nothing"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "own_interests_identified",
+            "status": "missing",
+            "evidence": "interests: the caller's own underlying interests are identified, not only the stated demand"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "counterpart_interests_identified",
+            "status": "missing",
+            "evidence": "interests: the counterpart's underlying interests are identified, not only their stated demand"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "counterpart_why_to_be_asked_planned",
+            "status": "missing",
+            "evidence": "interests: asking why the counterpart wants what they ask for is planned"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "interests_not_positions_framing_adopted",
+            "status": "missing",
+            "evidence": "interests: the negotiation is framed on underlying interests, not positions"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "value_created_before_claiming_planned",
+            "status": "missing",
+            "evidence": "value creation: expanding the pie is planned before claiming a share of it"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "non_zero_sum_opportunities_sought",
+            "status": "missing",
+            "evidence": "value creation: the deal is not treated as zero-sum \u2014 opportunities to create value are sought"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "trade_across_differently_valued_issues_planned",
+            "status": "missing",
+            "evidence": "value creation: trading across issues the two sides value differently is planned"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "issues_declared",
+            "status": "missing",
+            "evidence": "the declared record names its issues \u2014 the issues list is present and non-empty"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_names_own_underlying_interest",
+            "status": "missing",
+            "evidence": "interests: every declared issue row names the caller's own underlying interest behind the position"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_names_counterpart_underlying_interest",
+            "status": "missing",
+            "evidence": "interests: every declared issue row names the counterpart's underlying interest behind their position"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "every_issue_trade_potential_assessed",
+            "status": "missing",
+            "evidence": "value creation: every declared issue row has its trade potential \u2014 whether the two sides value it differently \u2014 assessed"
+          },
+          {
+            "section": "interests_and_value_creation",
+            "check": "no_issue_name_duplicated",
+            "status": "missing",
+            "evidence": "issues: no declared issue name is owned by more than one issue row"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "sense_of_direction_stated",
+            "status": "missing",
+            "evidence": "direction: a sense of direction is stated \u2014 a map that orients even when the terrain differs"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_not_script_approach_adopted",
+            "status": "missing",
+            "evidence": "direction: the plan is carried as orientation, not as a rigid script"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_b_prepared",
+            "status": "missing",
+            "evidence": "direction: a Plan B is carried"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "plan_c_prepared",
+            "status": "missing",
+            "evidence": "direction: a Plan C is carried, beyond Plan B"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "own_emotional_state_management_planned",
+            "status": "missing",
+            "evidence": "presence of mind: managing the caller's own emotional state during the negotiation is planned"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "composure_commitment_declared",
+            "status": "missing",
+            "evidence": "presence of mind: staying composed is committed to in advance"
+          },
+          {
+            "section": "improvisation_and_adaptation",
+            "check": "situational_awareness_planned",
+            "status": "missing",
+            "evidence": "situational awareness: reading shifting interests, constraints and emotions in real time is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "opening_planned",
+            "status": "missing",
+            "evidence": "sequence: the opening is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "critical_moments_recognition_planned",
+            "status": "missing",
+            "evidence": "sequence: recognizing the critical moments \u2014 the pivot points \u2014 is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "closing_cleanly_planned",
+            "status": "missing",
+            "evidence": "sequence: closing cleanly is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "anchoring_applicability_declared",
+            "status": "missing",
+            "evidence": "anchoring: whether the caller is informed enough to anchor first is declared \u2014 anchoring first applies only when informed"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "anchor_first_planned_when_informed",
+            "status": "missing",
+            "evidence": "anchoring: anchoring first is planned for when the caller is informed"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "counterpart_yes_made_easy_planned",
+            "status": "missing",
+            "evidence": "tactics: making the counterpart's yes easy is planned"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "people_separated_from_problem_declared",
+            "status": "missing",
+            "evidence": "tactics: the people are separated from the problem"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "hard_on_problem_soft_on_person_declared",
+            "status": "missing",
+            "evidence": "tactics: hard on the problem, soft on the person is declared"
+          },
+          {
+            "section": "openings_moments_closing_and_tactics",
+            "check": "fair_enough_agreement_aim_declared",
+            "status": "missing",
+            "evidence": "tactics: the aim is a fair-enough agreement that holds, not a maximal extraction"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "debrief_planned_after_negotiation",
+            "status": "missing",
+            "evidence": "debrief: a debrief after the negotiation is planned \u2014 every negotiation is debriefed"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "deliberate_debrief_review_committed",
+            "status": "missing",
+            "evidence": "debrief: the debrief is a deliberate review, committed to in advance, so learning actually happens"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "misleading_feedback_caution_acknowledged",
+            "status": "missing",
+            "evidence": "debrief: negotiation is a wicked learning environment where feedback misleads \u2014 that caution is acknowledged"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_batna",
+            "status": "missing",
+            "evidence": "red line: no BATNA is present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_arguing_positions",
+            "status": "missing",
+            "evidence": "red line: arguing positions is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_zero_sum_treatment",
+            "status": "missing",
+            "evidence": "red line: treating everything as zero-sum is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_rigid_script_reliance",
+            "status": "missing",
+            "evidence": "red line: reliance on a rigid script is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_losing_composure",
+            "status": "missing",
+            "evidence": "red line: losing composure is not present in the preparation"
+          },
+          {
+            "section": "debrief_and_anti_pattern_red_lines",
+            "check": "no_never_debriefing",
+            "status": "missing",
+            "evidence": "red line: never debriefing is not present in the preparation"
+          }
+        ],
+        "computed_status": null,
+        "issues_count": null,
+        "issues_without_own_interest": null,
+        "own_interest_coverage": null,
+        "issues_without_counterpart_interest": null,
+        "counterpart_interest_coverage": null,
+        "issues_without_trade_potential_assessed": null,
+        "trade_potential_assessed_coverage": null,
+        "duplicate_issue_names": null,
+        "summary": "0 pass, 0 fail, 44 missing of 44 checks across five sections.",
+        "stamp": "NEGOTIATION PREPARATION PACK\nnegotiation: Incomplete Prep\nVERDICT: INSUFFICIENT_EVIDENCE\n  batna_reservation_price_and_zopa             insufficient_evidence\n  interests_and_value_creation                 insufficient_evidence\n  improvisation_and_adaptation                 insufficient_evidence\n  openings_moments_closing_and_tactics         insufficient_evidence\n  debrief_and_anti_pattern_red_lines           insufficient_evidence\n0 pass, 0 fail, 44 missing of 44 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: 'batna_and_reservation' field expected to be an object, received a string."
+      },
+      "input": {
+        "negotiation": "Malformed",
+        "batna_and_reservation": "not_an_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "batna_and_reservation",
+        "detail": "batna_and_reservation must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}
