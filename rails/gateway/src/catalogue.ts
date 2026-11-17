@@ -14,6 +14,32 @@
  */
 
 import { CATALOGUE, type CatalogueRow } from "./generated.js";
+import { DOCS } from "./docs.generated.js";
+import type { Store } from "./store.js";
+
+/** Live kill-switch state (takedown-presentation patch, 2026-11-15).
+ *  Presentation derives from the SAME D1 config the call path reads
+ *  (`atom_enabled:<service>` via store.getConfig — see callpath.ts),
+ *  resolved AT REQUEST TIME on every call below: no disabled list is
+ *  baked into generated.ts or the bundle, so flipping a switch in D1
+ *  changes the catalogue, the feed, /health and the MCP surfaces
+ *  with NO redeploy. Reads for a whole surface run in parallel
+ *  (one getConfig per atom, per request — no cache, so a flip is
+ *  visible on the very next request). */
+export async function isAtomDisabled(store: Store, serviceName: string): Promise<boolean> {
+  return (await store.getConfig(`atom_enabled:${serviceName}`)) === "0";
+}
+
+export async function disabledAtoms(store: Store, serviceNames: string[]): Promise<Set<string>> {
+  const flags = await Promise.all(
+    serviceNames.map(async (name) => [name, await isAtomDisabled(store, name)] as const)
+  );
+  return new Set(flags.filter(([, disabled]) => disabled).map(([name]) => name));
+}
+
+export async function catalogueDisabled(store: Store): Promise<Set<string>> {
+  return disabledAtoms(store, CATALOGUE.map((row) => row.serviceName));
+}
 
 export function rateDisplay(row: CatalogueRow): string {
   if (row.rateMicro === null) return "Free during trial — rate pending";
@@ -21,7 +47,8 @@ export function rateDisplay(row: CatalogueRow): string {
   return `$${usd.toFixed(usd < 0.01 ? 4 : 2)} / ${row.unit}`;
 }
 
-export function feedJson(baseUrl: string): Record<string, unknown> {
+export async function feedJson(baseUrl: string, store: Store): Promise<Record<string, unknown>> {
+  const disabled = await catalogueDisabled(store);
   return {
     service: "conduit-atoms",
     generated_from: "atom contracts (pricing blocks) via tools/sync-rates.mjs",
@@ -32,10 +59,21 @@ export function feedJson(baseUrl: string): Record<string, unknown> {
       category: row.category,
       deliverable_type: row.deliverableType,
       version: row.atomVersion,
+      status: disabled.has(row.serviceName) ? "disabled" : "live",
       endpoints: {
         api: `${baseUrl}/v1/${row.serviceName}`,
         mcp: `${baseUrl}/mcp/${row.serviceName}`,
       },
+      // Documentation link (Batch 14 doc-link): present ONLY for a
+      // live atom with an emitted doc — a disabled atom keeps its
+      // takedown presentation (status disabled, no doc link that
+      // could present it as available), and an atom whose WS1 doc
+      // has not landed yet (the deploying batch) gets no link that
+      // would point at a missing page. sync-docs.mjs's build guard
+      // binds every atom live before the deploying batch.
+      ...(disabled.has(row.serviceName) || !DOCS[row.serviceName]
+        ? {}
+        : { documentation: `${baseUrl}/docs/${row.serviceName}` }),
       pricing: {
         unit: row.unit,
         rate_usd: row.rateMicro === null ? null : row.rateMicro / 1_000_000,
@@ -50,19 +88,21 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-export function catalogueHtml(baseUrl: string): string {
-  const rows = CATALOGUE.map((row) => {
+export async function catalogueHtml(baseUrl: string, store: Store): Promise<string> {
+  const disabled = await catalogueDisabled(store);
+  const visible = CATALOGUE.filter((row) => !disabled.has(row.serviceName));
+  const rows = visible.map((row) => {
     const rate = rateDisplay(row);
     const rateSort = row.rateMicro === null ? -1 : row.rateMicro;
     return `<tr data-name="${esc(row.displayName.toLowerCase())} ${esc(row.serviceName)}" data-category="${esc(row.category)}" data-rate="${rateSort}">
-      <td><strong>${esc(row.displayName)}</strong><br><span class="dim">${esc(row.description)}</span><br><span class="dim mono">${esc(row.serviceName)} · v${esc(row.atomVersion)} · ${esc(row.deliverableType)}</span></td>
+      <td><strong>${esc(row.displayName)}</strong><br><span class="dim">${esc(row.description)}</span><br><span class="dim mono">${esc(row.serviceName)} · v${esc(row.atomVersion)} · ${esc(row.deliverableType)}</span>${DOCS[row.serviceName] ? `<br><a href="/docs/${esc(row.serviceName)}">Documentation</a>` : ""}</td>
       <td>${esc(row.category)}</td>
       <td class="mono">${baseUrl}/v1/${esc(row.serviceName)}<br>${baseUrl}/mcp/${esc(row.serviceName)}</td>
       <td>${esc(row.unit)}</td>
       <td data-rate-cell>${esc(rate)}</td>
     </tr>`;
   }).join("\n");
-  const categories = [...new Set(CATALOGUE.map((r) => r.category))].sort();
+  const categories = [...new Set(visible.map((r) => r.category))].sort();
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

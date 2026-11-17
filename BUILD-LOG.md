@@ -178,3 +178,40 @@ additions (contract-synced rates; models.dev-style catalogue).
   still carries the scaffolded _meta + per-atom key wording —
   refresh on the same decision). (3) Signup redeem-click UAT leg —
   browser-only by the Gmail connector's redaction design.
+
+## 2026-11-17 — Batch 23 (utilities) built, deployed, gated
+
+Commissioned by the Director's ruling of 2026-11-17 ("These three
+are good to add actually"), relayed from the Mercer lane:
+markdown-sanitizer, token-estimator, json-schema-enforcer — the
+three atoms Mercer had originally picked for Batch #1 marketing
+before they existed; the Director adopted them into the portfolio.
+
+Build (on master, staging commit `1fe07ac`): three method skills
+authored first (markdown-sanitization, token-estimation,
+json-schema-enforcement under ~/workspace/mymilo-build/skills/);
+register entries Tier B, T5 false (commodity utilities — packs
+only), register totals 258 candidates / 165 public; Python
+oracles 19/15/20 tests green; faithful TS gateway ports; 19
+golden fixtures from the oracles; SERVICE.md, contract.yaml,
+listing, DOCUMENTATION.md and USER-GUIDE.md completed with the
+build (worked examples are verbatim recorded CLI runs). One bug
+found by the docs worked-example run and fixed in both oracle
+and port with regression tests: a link target containing
+parentheses was only half-neutralized. Gateway suite on master
+6,705/6,705 green. Note for future batches: tools/generate.py is
+stale against the hand-evolved fleet — scaffolds are
+hand-completed, and PUBLIC-LIST.md is regenerated only in a
+throwaway pass with the U-13 takedown banner re-applied by hand.
+
+Deploy + gate (deploy/batch23, REPLICATION-LOG.md Batch 23
+entry): integration deployment `5ac5dfdf…` + docs-emit
+deployment `c8b9f8e8…`; catalogue 142 → 145, serving 135 → 138,
+disabled stays the Director's seven. Keyed live probes 14/14
+PASS (D1-seeded session method). U-13 screen YES ×3
+(CENSUS-FOLLOWUP-2026-11-17-BATCH23-SCREEN.md). Per-atom gate
+verdicts PASS WITH FINDINGS ×3 (GATE-VERDICTS.md rows; families
+PROVEN 11 / N/A 2 / NOT RUN 4; UAT and Guardian Mesh NOT RUN).
+Listings published to the official MCP Registry as
+org.aimlds/atom-<atom> @ 0.1.0, read back active / isLatest.
+RC soak 2026-11-17 → 2026-11-24. Rates remain null.

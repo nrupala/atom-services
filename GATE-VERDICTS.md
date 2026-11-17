@@ -87,3 +87,78 @@ evidence input to these verdicts, never the verdict itself.
 | difficult-conversation-coaching | Batch 12 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/difficult-conversation-coaching/GATE-VERDICT.md) |
 | document-operations-service | Batch 12 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/document-operations-service/GATE-VERDICT.md) |
 | domain-portfolio-audit | Batch 12 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/domain-portfolio-audit/GATE-VERDICT.md) |
+| edge-platform-engineering | Batch 13 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/edge-platform-engineering/GATE-VERDICT.md) |
+| efficient-web-build-standard | Batch 13 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/efficient-web-build-standard/GATE-VERDICT.md) |
+| engineering-project-budget-pack | Batch 13 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/engineering-project-budget-pack/GATE-VERDICT.md) |
+| engineering-work-package-structuring | Batch 13 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/engineering-work-package-structuring/GATE-VERDICT.md) |
+| fare-construction-savings-strategy | Batch 13 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/fare-construction-savings-strategy/GATE-VERDICT.md) |
+| finance-education-article | Batch 13 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/finance-education-article/GATE-VERDICT.md) |
+| finance-tool-design-advisory | Batch 14 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/finance-tool-design-advisory/GATE-VERDICT.md) |
+| forecast-confidence-scoreboard | Batch 14 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/forecast-confidence-scoreboard/GATE-VERDICT.md) |
+| framework-adoption-adr | Batch 14 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/framework-adoption-adr/GATE-VERDICT.md) |
+| frontend-implementation | Batch 14 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/frontend-implementation/GATE-VERDICT.md) |
+| full-stack-app-build-pack | Batch 14 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/full-stack-app-build-pack/GATE-VERDICT.md) |
+| grpc-service-design | Batch 14 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/grpc-service-design/GATE-VERDICT.md) |
+| home-shortlist-carrying-cost-comparison | Batch 14 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/home-shortlist-carrying-cost-comparison/GATE-VERDICT.md) |
+| honest-seo-audit-intent-map | Batch 15 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/honest-seo-audit-intent-map/GATE-VERDICT.md) |
+| javascript-review-and-build | Batch 15 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/javascript-review-and-build/GATE-VERDICT.md) |
+| json-schema-design-check | Batch 15 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/json-schema-design-check/GATE-VERDICT.md) |
+| knowledge-graph-design | Batch 15 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/knowledge-graph-design/GATE-VERDICT.md) |
+| local-first-sync-design | Batch 15 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/local-first-sync-design/GATE-VERDICT.md) |
+| local-llm-serving-setup | Batch 15 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/local-llm-serving-setup/GATE-VERDICT.md) |
+| local-voice-stack-engineering-pack | Batch 15 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/local-voice-stack-engineering-pack/GATE-VERDICT.md) |
+| localization-readiness-review | Batch 16 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/localization-readiness-review/GATE-VERDICT.md) |
+| long-form-authoring-pipeline | Batch 16 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/long-form-authoring-pipeline/GATE-VERDICT.md) |
+| mcp-server-design-and-review | Batch 16 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/mcp-server-design-and-review/GATE-VERDICT.md) |
+| meaning-first-translation-with-tone-note | Batch 16 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/meaning-first-translation-with-tone-note/GATE-VERDICT.md) |
+| meeting-decisions-and-actions-extract | Batch 16 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/meeting-decisions-and-actions-extract/GATE-VERDICT.md) |
+| ml-project-framing-review | Batch 16 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/ml-project-framing-review/GATE-VERDICT.md) |
+| multiplatform-core-design | Batch 16 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/multiplatform-core-design/GATE-VERDICT.md) |
+| native-mobile-build-plan | Batch 17 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/native-mobile-build-plan/GATE-VERDICT.md) |
+| negotiation-preparation-pack | Batch 17 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/negotiation-preparation-pack/GATE-VERDICT.md) |
+| observability-and-runbook-design | Batch 17 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/observability-and-runbook-design/GATE-VERDICT.md) |
+| offline-first-pwa-engineering-pack | Batch 17 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/offline-first-pwa-engineering-pack/GATE-VERDICT.md) |
+| personal-web-presence-audit | Batch 17 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/personal-web-presence-audit/GATE-VERDICT.md) |
+| poc-design-kill-criteria-verdict | Batch 17 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/poc-design-kill-criteria-verdict/GATE-VERDICT.md) |
+| prd-with-testable-acceptance-criteria | Batch 18 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/prd-with-testable-acceptance-criteria/GATE-VERDICT.md) |
+| pricing-unit-economics-pack | Batch 18 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/pricing-unit-economics-pack/GATE-VERDICT.md) |
+| process-waste-review-coaching | Batch 18 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/process-waste-review-coaching/GATE-VERDICT.md) |
+| product-metrics-event-taxonomy-pack | Batch 18 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/product-metrics-event-taxonomy-pack/GATE-VERDICT.md) |
+| production-python-engineering-pack | Batch 18 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/production-python-engineering-pack/GATE-VERDICT.md) |
+| production-python-engineering-pack-expert | Batch 18 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/production-python-engineering-pack-expert/GATE-VERDICT.md) |
+| production-rust-engineering-pack | Batch 18 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/production-rust-engineering-pack/GATE-VERDICT.md) |
+| production-rust-engineering-pack-expert | Batch 19 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/production-rust-engineering-pack-expert/GATE-VERDICT.md) |
+| quant-math-derivation-sanity-check | Batch 19 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/quant-math-derivation-sanity-check/GATE-VERDICT.md) |
+| release-pack-changelog-seal-rollback | Batch 19 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/release-pack-changelog-seal-rollback/GATE-VERDICT.md) |
+| semantic-html-review | Batch 19 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/semantic-html-review/GATE-VERDICT.md) |
+| service-isolation-hardening-review | Batch 19 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/service-isolation-hardening-review/GATE-VERDICT.md) |
+| single-living-trip-itinerary | Batch 19 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/single-living-trip-itinerary/GATE-VERDICT.md) |
+| sourced-podcast-episode-production | Batch 20 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/sourced-podcast-episode-production/GATE-VERDICT.md) |
+| sourced-visual-reference-search | Batch 20 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/sourced-visual-reference-search/GATE-VERDICT.md) |
+| sql-schema-query-engineering-pack | Batch 20 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/sql-schema-query-engineering-pack/GATE-VERDICT.md) |
+| statistical-study-design-report | Batch 20 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/statistical-study-design-report/GATE-VERDICT.md) |
+| strict-typescript-engineering-pack | Batch 20 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/strict-typescript-engineering-pack/GATE-VERDICT.md) |
+| structured-decision-making | Batch 20 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/structured-decision-making/GATE-VERDICT.md) |
+| tech-stack-decision-memo | Batch 21 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/tech-stack-decision-memo/GATE-VERDICT.md) |
+| technical-documentation-pack | Batch 21 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/technical-documentation-pack/GATE-VERDICT.md) |
+| testing-strategy-regression-pack | Batch 21 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/testing-strategy-regression-pack/GATE-VERDICT.md) |
+| uat-scenario-sign-off-pack | Batch 21 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/uat-scenario-sign-off-pack/GATE-VERDICT.md) |
+| ux-flow-component-spec-pack | Batch 21 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/ux-flow-component-spec-pack/GATE-VERDICT.md) |
+| vendor-evaluation-three-way-match-pack | Batch 22 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/vendor-evaluation-three-way-match-pack/GATE-VERDICT.md) |
+| verified-place-shortlist | Batch 22 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/verified-place-shortlist/GATE-VERDICT.md) |
+| voice-note-narration-audio | Batch 22 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/voice-note-narration-audio/GATE-VERDICT.md) |
+| zero-knowledge-system-design-pack | Batch 22 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/zero-knowledge-system-design-pack/GATE-VERDICT.md) |
+| zero-trust-architecture-design-pack | Batch 22 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/zero-trust-architecture-design-pack/GATE-VERDICT.md) |
+| markdown-sanitizer | Batch 23 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/markdown-sanitizer/GATE-VERDICT.md) |
+| token-estimator | Batch 23 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/token-estimator/GATE-VERDICT.md) |
+| json-schema-enforcer | Batch 23 | PASS WITH FINDINGS | [GATE-VERDICT.md](services/json-schema-enforcer/GATE-VERDICT.md) |
+
+**Batch 23 note (2026-11-17):** the three Batch 23 rows are RELEASE
+CANDIDATES in RC soak to **2026-11-24** (the header's 2026-11-22 soak
+covers the earlier cohorts). Their verdicts were issued by the building
+seat's per-atom gate at deploy (deployments `5ac5dfdf…` +
+`c8b9f8e8…`), with the keyed live replay executed the same day
+(14/14 probe checks, D1-seeded session method; cohort finding
+F-B23-1 closed in each verdict). UAT (external verification wave)
+has not yet run for this cohort. Regulatory screen: YES ×3
+(CENSUS-FOLLOWUP-2026-11-17-BATCH23-SCREEN.md).

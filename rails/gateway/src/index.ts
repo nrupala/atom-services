@@ -8,6 +8,10 @@
  *    GET  /health                    ungated liveness
  *    GET  /                          catalogue / pricing page
  *    GET  /api.json                  machine-readable catalogue feed
+ *    GET  /docs/<atom-service>       the atom's full documentation
+ *                                    (WS1 DOCUMENTATION.md, rendered;
+ *                                    404 for unknown, undocumented
+ *                                    or kill-switch-disabled atoms)
  *    POST /mcp/<atom-service>        MCP face (gateway key + scope)
  *    POST /v1/<atom-service>         HTTP face (gateway key + scope)
  *    POST /v1/signup                 {email} → magic sign-in link
@@ -22,6 +26,7 @@
  */
 
 import {
+  authenticateKey,
   bearerKey,
   issueKeyForAtom,
   log,
@@ -32,8 +37,9 @@ import {
   type GatewayEnv,
 } from "./auth.js";
 import { mcpCall, restCall } from "./callpath.js";
-import { liveAtoms, resolveAtom } from "./atoms-registry.js";
-import { catalogueHtml, feedJson } from "./catalogue.js";
+import { liveAtoms, resolveAtom, type AtomHandler } from "./atoms-registry.js";
+import { catalogueHtml, disabledAtoms, feedJson, isAtomDisabled } from "./catalogue.js";
+import { docPageHtml } from "./docs.js";
 import {
   PACKS,
   StripeRefundError,
@@ -74,7 +80,108 @@ async function requireSession(
   return sessionEmail(store, request, now);
 }
 
+/** MCP presentation for a kill-switch-disabled atom (takedown-
+ *  presentation patch, 2026-11-15). callpath.ts is unchanged: its
+ *  executeCall refusal semantics stay as they are. This route layer
+ *  changes only how the MCP surface RENDERS the disabled state,
+ *  after the same key + scope gates mcpCall applies (same order,
+ *  same error bodies):
+ *    tools/list  → 200 with an EMPTY tools array (nothing to call)
+ *    tools/call  → literal HTTP 503 with the REST refusal body
+ *                  {ok:false, error:"atom_disabled", detail:…}
+ *                  (previously HTTP 200 with a JSON-RPC error)
+ *    initialize  → the same literal 503 (discovery must not present
+ *                  a disabled atom as a live server)
+ *  Any other method (ping, notifications, unknown methods) is
+ *  delegated to mcpCall unchanged — none of them can run the atom.
+ *  There is no aggregate MCP endpoint on this gateway; the per-atom
+ *  /mcp/<atom> route below is the only MCP listing/discovery
+ *  surface, and /health + /api.json + the catalogue page are the
+ *  other discovery surfaces (handled at their own routes). */
+async function disabledMcpResponse(
+  store: Store,
+  env: Env,
+  atom: AtomHandler,
+  request: Request,
+  payload: unknown,
+  now: Date
+): Promise<Response> {
+  if (!env.ATOMS_MASTER_SECRET) {
+    return json({ error: "server misconfigured: key verification is not configured" }, 500);
+  }
+  const record = await authenticateKey(store, env.ATOMS_MASTER_SECRET, bearerKey(request));
+  if (!record) return json({ error: "missing or invalid gateway API key" }, 401);
+  if (!record.scopes.includes(atom.namespace)) {
+    return json({ error: `this key does not hold the ${atom.namespace} scope` }, 403);
+  }
+  const refusal = () =>
+    json({ ok: false, error: "atom_disabled", detail: `${atom.serviceName} is currently disabled` }, 503);
+  const methodOf = (msg: unknown): unknown =>
+    msg && typeof msg === "object" ? (msg as Record<string, unknown>)["method"] : undefined;
+  const emptyTools = (msg: unknown): Record<string, unknown> => {
+    const id = msg && typeof msg === "object" ? (msg as Record<string, unknown>)["id"] : null;
+    return { jsonrpc: "2.0", id: id ?? null, result: { tools: [] } };
+  };
+  if (Array.isArray(payload)) {
+    if (payload.some((msg) => methodOf(msg) === "tools/call" || methodOf(msg) === "initialize")) {
+      return refusal();
+    }
+    const out: unknown[] = [];
+    for (const msg of payload) {
+      if (methodOf(msg) === "tools/list") {
+        out.push(emptyTools(msg));
+      } else {
+        const r = await mcpCall(store, env, atom.serviceName, request, msg, now);
+        if (r.body !== null) out.push(r.body);
+      }
+    }
+    return json(out);
+  }
+  if (payload && typeof payload === "object") {
+    const method = methodOf(payload);
+    if (method === "tools/list") return json(emptyTools(payload));
+    if (method === "tools/call" || method === "initialize") return refusal();
+  }
+  const res = await mcpCall(store, env, atom.serviceName, request, payload, now);
+  return json(res.body, res.status);
+}
+
+/** Security headers on EVERY gateway response (F-G3, confirmed by
+ *  the per-atom gate's validator pass: no security headers on any
+ *  surface). Applied centrally here so no route can miss them —
+ *  success, refusal and error responses alike. The CSP is split by
+ *  surface: the HTML pages (catalogue, docs, redeem) carry inline
+ *  style/script by construction and get a self+inline policy with
+ *  framing denied; every non-HTML response (JSON APIs, MCP) gets a
+ *  no-content policy. */
+const SECURITY_HEADERS_HTML: Record<string, string> = {
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "no-referrer",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
+  "content-security-policy":
+    "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+};
+const SECURITY_HEADERS_NON_HTML: Record<string, string> = {
+  ...SECURITY_HEADERS_HTML,
+  "content-security-policy": "default-src 'none'; frame-ancestors 'none'; sandbox",
+};
+
+export function withSecurityHeaders(res: Response): Response {
+  const isHtml = (res.headers.get("content-type") || "").includes("text/html");
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(isHtml ? SECURITY_HEADERS_HTML : SECURITY_HEADERS_NON_HTML)) {
+    headers.set(k, v);
+  }
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 export async function handleRequest(request: Request, env: Env, store: Store): Promise<Response> {
+  return withSecurityHeaders(await routeRequest(request, env, store));
+}
+
+async function routeRequest(request: Request, env: Env, store: Store): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const now = new Date();
@@ -84,21 +191,50 @@ export async function handleRequest(request: Request, env: Env, store: Store): P
   try {
     // ---- public surfaces -------------------------------------------------
     if (request.method === "GET" && path === "/health") {
+      const all = liveAtoms().map((a) => a.serviceName);
+      const disabled = await disabledAtoms(store, all);
       return json({
         ok: true,
         service: "atoms-gateway",
         version: GATEWAY_VERSION,
-        atoms: liveAtoms().map((a) => a.serviceName),
+        atoms: all.filter((name) => !disabled.has(name)),
+        disabled_atoms: all.filter((name) => disabled.has(name)),
       });
     }
     if (request.method === "GET" && path === "/") {
-      return new Response(catalogueHtml(origin), {
+      return new Response(await catalogueHtml(origin, store), {
         status: 200,
         headers: { "content-type": "text/html; charset=utf-8" },
       });
     }
     if (request.method === "GET" && path === "/api.json") {
-      return json(feedJson(origin));
+      return json(await feedJson(origin, store));
+    }
+    const docsMatch = /^\/docs\/([a-z0-9-]+)$/.exec(path);
+    if (request.method === "GET" && docsMatch) {
+      // Public documentation, same posture as the catalogue. A
+      // kill-switch-disabled atom 404s here exactly like an unknown
+      // or not-yet-documented one: the takedown presentation rule
+      // is that a disabled atom is down on every surface, docs
+      // included — no doc page may present it as available.
+      const name = docsMatch[1];
+      if (!resolveAtom(name) || (await isAtomDisabled(store, name))) {
+        return new Response("not found\n", {
+          status: 404,
+          headers: { "content-type": "text/plain; charset=utf-8" },
+        });
+      }
+      const html = docPageHtml(name, origin);
+      if (!html) {
+        return new Response("not found\n", {
+          status: 404,
+          headers: { "content-type": "text/plain; charset=utf-8" },
+        });
+      }
+      return new Response(html, {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
     }
 
     // ---- signup + magic-link auth ---------------------------------------
@@ -255,6 +391,10 @@ export async function handleRequest(request: Request, env: Env, store: Store): P
     const mcpMatch = /^\/mcp\/([a-z0-9-]+)$/.exec(path);
     if (mcpMatch && request.method === "POST") {
       const payload = await request.json().catch(() => null);
+      const atom = resolveAtom(mcpMatch[1]);
+      if (atom && (await isAtomDisabled(store, atom.serviceName))) {
+        return disabledMcpResponse(store, env, atom, request, payload, now);
+      }
       const res = await mcpCall(store, env, mcpMatch[1], request, payload, now);
       return json(res.body, res.status);
     }

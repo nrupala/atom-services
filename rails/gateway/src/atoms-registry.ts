@@ -70,19 +70,53 @@ import { evaluate as evaluateFinanceContent, stamp as stampFinanceContent } from
 import { evaluate as evaluateForecastRanges, stamp as stampForecastRanges } from "./atoms/forecast-with-ranges-and-scorecard.js";
 import { evaluate as evaluateLean4FormalProof, stamp as stampLean4FormalProof } from "./atoms/lean4-formal-proof.js";
 import { evaluate as evaluateLinkRotScan, stamp as stampLinkRotScan } from "./atoms/link-rot-scan-and-notarized-archive.js";
+import { evaluate as evaluateLocalizationReadinessReview, stamp as stampLocalizationReadinessReview } from "./atoms/localization-readiness-review.js";
+import { evaluate as evaluateLongFormAuthoringPipeline, stamp as stampLongFormAuthoringPipeline } from "./atoms/long-form-authoring-pipeline.js";
+import { evaluate as evaluateMcpServerDesignAndReview, stamp as stampMcpServerDesignAndReview } from "./atoms/mcp-server-design-and-review.js";
+import { evaluate as evaluateMeaningFirstTranslationWithToneNote, stamp as stampMeaningFirstTranslationWithToneNote } from "./atoms/meaning-first-translation-with-tone-note.js";
+import { evaluate as evaluateMeetingDecisionsAndActionsExtract, stamp as stampMeetingDecisionsAndActionsExtract } from "./atoms/meeting-decisions-and-actions-extract.js";
+import { evaluate as evaluateMlProjectFramingReview, stamp as stampMlProjectFramingReview } from "./atoms/ml-project-framing-review.js";
+import { evaluate as evaluateMultiplatformCoreDesign, stamp as stampMultiplatformCoreDesign } from "./atoms/multiplatform-core-design.js";
+import { evaluate as evaluateNativeMobileBuildPlan, stamp as stampNativeMobileBuildPlan } from "./atoms/native-mobile-build-plan.js";
+import { evaluate as evaluateNegotiationPreparationPack, stamp as stampNegotiationPreparationPack } from "./atoms/negotiation-preparation-pack.js";
 import { evaluate as evaluateNetworkExposure, stamp as stampNetworkExposure } from "./atoms/network-exposure-audit.js";
+import { evaluate as evaluateObservabilityAndRunbookDesign, stamp as stampObservabilityAndRunbookDesign } from "./atoms/observability-and-runbook-design.js";
+import { evaluate as evaluateOfflineFirstPwaEngineeringPack, stamp as stampOfflineFirstPwaEngineeringPack } from "./atoms/offline-first-pwa-engineering-pack.js";
+import { evaluate as evaluatePersonalFinancialSnapshot, stamp as stampPersonalFinancialSnapshot } from "./atoms/personal-financial-snapshot.js";
+import { evaluate as evaluatePersonalWebPresenceAudit, stamp as stampPersonalWebPresenceAudit } from "./atoms/personal-web-presence-audit.js";
+import { evaluate as evaluatePocDesignKillCriteriaVerdict, stamp as stampPocDesignKillCriteriaVerdict } from "./atoms/poc-design-kill-criteria-verdict.js";
 import { evaluate as evaluatePortfolioRisk, stamp as stampPortfolioRisk } from "./atoms/portfolio-risk-analytics-report.js";
+import { evaluate as evaluatePrdWithTestableAcceptanceCriteria, stamp as stampPrdWithTestableAcceptanceCriteria } from "./atoms/prd-with-testable-acceptance-criteria.js";
 import { evaluate as evaluatePredictionLeakage, stamp as stampPredictionLeakage } from "./atoms/prediction-model-leakage-calibration-audit.js";
 import { evaluate as evaluatePredictiveMaintenance, stamp as stampPredictiveMaintenance } from "./atoms/predictive-maintenance-failure-risk-assessment.js";
+import { evaluate as evaluatePricingUnitEconomicsPack, stamp as stampPricingUnitEconomicsPack } from "./atoms/pricing-unit-economics-pack.js";
+import { evaluate as evaluateProcessWasteReviewCoaching, stamp as stampProcessWasteReviewCoaching } from "./atoms/process-waste-review-coaching.js";
+import { evaluate as evaluateProductMetricsEventTaxonomyPack, stamp as stampProductMetricsEventTaxonomyPack } from "./atoms/product-metrics-event-taxonomy-pack.js";
+import { evaluate as evaluateProductionPythonEngineeringPack, stamp as stampProductionPythonEngineeringPack } from "./atoms/production-python-engineering-pack.js";
+import { evaluate as evaluateProductionPythonEngineeringPackExpert, stamp as stampProductionPythonEngineeringPackExpert } from "./atoms/production-python-engineering-pack-expert.js";
+import { evaluate as evaluateProductionRustEngineeringPack, stamp as stampProductionRustEngineeringPack } from "./atoms/production-rust-engineering-pack.js";
 import { evaluate as evaluatePumpConveyor, stamp as stampPumpConveyor } from "./atoms/pump-conveyor-motor-suitability-check.js";
 import { evaluate as evaluateRagRetrieval, stamp as stampRagRetrieval } from "./atoms/rag-retrieval-evaluation-tuning.js";
 import { evaluate as evaluateReconciledPortfolio, stamp as stampReconciledPortfolio } from "./atoms/reconciled-portfolio-performance-report.js";
 import { evaluate as evaluateSemanticTaint, stamp as stampSemanticTaint } from "./atoms/semantic-code-taint-analysis-report.js";
 import { evaluate as evaluateStrategyBacktest, stamp as stampStrategyBacktest } from "./atoms/strategy-backtest-validation.js";
+import { evaluate as evaluateSystemDesignFailureModePack, stamp as stampSystemDesignFailureModePack } from "./atoms/system-design-failure-mode-pack.js";
+import { evaluate as evaluateTechStackDecisionMemo, stamp as stampTechStackDecisionMemo } from "./atoms/tech-stack-decision-memo.js";
+import { evaluate as evaluateTechnicalDocumentationPack, stamp as stampTechnicalDocumentationPack } from "./atoms/technical-documentation-pack.js";
+import { evaluate as evaluateTechnicalExplainerContentPack, stamp as stampTechnicalExplainerContentPack } from "./atoms/technical-explainer-content-pack.js";
 import { evaluate as evaluateTestedAuthorization, stamp as stampTestedAuthorization } from "./atoms/tested-authorization-policy-pack.js";
+import { evaluate as evaluateTestingStrategyRegressionPack, stamp as stampTestingStrategyRegressionPack } from "./atoms/testing-strategy-regression-pack.js";
+import { evaluate as evaluateUatScenarioSignOffPack, stamp as stampUatScenarioSignOffPack } from "./atoms/uat-scenario-sign-off-pack.js";
+import { evaluate as evaluateUxFlowComponentSpecPack, stamp as stampUxFlowComponentSpecPack } from "./atoms/ux-flow-component-spec-pack.js";
+import { evaluate as evaluateValidatedSimulationScenarioPack, stamp as stampValidatedSimulationScenarioPack } from "./atoms/validated-simulation-scenario-pack.js";
+import { evaluate as evaluateVendorEvaluationThreeWayMatchPack, stamp as stampVendorEvaluationThreeWayMatchPack } from "./atoms/vendor-evaluation-three-way-match-pack.js";
+import { evaluate as evaluateVerifiedPlaceShortlist, stamp as stampVerifiedPlaceShortlist } from "./atoms/verified-place-shortlist.js";
 import { evaluate as evaluateVfdApplication, stamp as stampVfdApplication } from "./atoms/vfd-application-engineering-check.js";
+import { evaluate as evaluateVoiceNoteNarrationAudio, stamp as stampVoiceNoteNarrationAudio } from "./atoms/voice-note-narration-audio.js";
 import { evaluate as evaluateVulnerabilityTriage, stamp as stampVulnerabilityTriage } from "./atoms/vulnerability-triage-verified-closure.js";
 import { evaluate as evaluateZeroKnowledgeClaim, stamp as stampZeroKnowledgeClaim } from "./atoms/zero-knowledge-claim-audit.js";
+import { evaluate as evaluateZeroKnowledgeSystemDesignPack, stamp as stampZeroKnowledgeSystemDesignPack } from "./atoms/zero-knowledge-system-design-pack.js";
+import { evaluate as evaluateZeroTrustArchitectureDesignPack, stamp as stampZeroTrustArchitectureDesignPack } from "./atoms/zero-trust-architecture-design-pack.js";
 import { evaluate as evaluateZeroTrustEvaluation, stamp as stampZeroTrustEvaluation } from "./atoms/zero-trust-evaluation-verdict.js";
 import { evaluate as evaluateAcpIntegration, stamp as stampAcpIntegration } from "./atoms/acp-protocol-integration-review.js";
 import { evaluate as evaluateContextPackaging, stamp as stampContextPackaging } from "./atoms/agent-context-packaging.js";
@@ -107,6 +141,30 @@ import { evaluate as evaluateCEngineeringReview, stamp as stampCEngineeringRevie
 import { evaluate as evaluateCashFlowForecast, stamp as stampCashFlowForecast } from "./atoms/cash-flow-forecast.js";
 import { CATALOGUE } from "./generated.js";
 import { FieldTypeError } from "./atoms/validate.js";
+import { evaluate as evaluateHonestSeoAuditIntentMap, stamp as stampHonestSeoAuditIntentMap } from "./atoms/honest-seo-audit-intent-map.js";
+import { evaluate as evaluateJavascriptReviewAndBuild, stamp as stampJavascriptReviewAndBuild } from "./atoms/javascript-review-and-build.js";
+import { evaluate as evaluateJsonSchemaDesignCheck, stamp as stampJsonSchemaDesignCheck } from "./atoms/json-schema-design-check.js";
+import { evaluate as evaluateKnowledgeGraphDesign, stamp as stampKnowledgeGraphDesign } from "./atoms/knowledge-graph-design.js";
+import { evaluate as evaluateLocalFirstSyncDesign, stamp as stampLocalFirstSyncDesign } from "./atoms/local-first-sync-design.js";
+import { evaluate as evaluateLocalLlmServingSetup, stamp as stampLocalLlmServingSetup } from "./atoms/local-llm-serving-setup.js";
+import { evaluate as evaluateLocalVoiceStackEngineeringPack, stamp as stampLocalVoiceStackEngineeringPack } from "./atoms/local-voice-stack-engineering-pack.js";
+import { evaluate as evaluateProductionRustEngineeringPackExpert, stamp as stampProductionRustEngineeringPackExpert } from "./atoms/production-rust-engineering-pack-expert.js";
+import { evaluate as evaluateQuantMathDerivationSanityCheck, stamp as stampQuantMathDerivationSanityCheck } from "./atoms/quant-math-derivation-sanity-check.js";
+import { evaluate as evaluateReleasePackChangelogSealRollback, stamp as stampReleasePackChangelogSealRollback } from "./atoms/release-pack-changelog-seal-rollback.js";
+import { evaluate as evaluateSemanticHtmlReview, stamp as stampSemanticHtmlReview } from "./atoms/semantic-html-review.js";
+import { evaluate as evaluateServiceIsolationHardeningReview, stamp as stampServiceIsolationHardeningReview } from "./atoms/service-isolation-hardening-review.js";
+import { evaluate as evaluateSingleLivingTripItinerary, stamp as stampSingleLivingTripItinerary } from "./atoms/single-living-trip-itinerary.js";
+import { evaluate as evaluateSmartGridDerDesignPack, stamp as stampSmartGridDerDesignPack } from "./atoms/smart-grid-der-design-pack.js";
+import { evaluate as evaluateSourcedPodcastEpisodeProduction, stamp as stampSourcedPodcastEpisodeProduction } from "./atoms/sourced-podcast-episode-production.js";
+import { evaluate as evaluateSourcedVisualReferenceSearch, stamp as stampSourcedVisualReferenceSearch } from "./atoms/sourced-visual-reference-search.js";
+import { evaluate as evaluateSqlSchemaQueryEngineeringPack, stamp as stampSqlSchemaQueryEngineeringPack } from "./atoms/sql-schema-query-engineering-pack.js";
+import { evaluate as evaluateStatisticalStudyDesignReport, stamp as stampStatisticalStudyDesignReport } from "./atoms/statistical-study-design-report.js";
+import { evaluate as evaluateStrictTypescriptEngineeringPack, stamp as stampStrictTypescriptEngineeringPack } from "./atoms/strict-typescript-engineering-pack.js";
+import { evaluate as evaluateStructuredDecisionMaking, stamp as stampStructuredDecisionMaking } from "./atoms/structured-decision-making.js";
+import { evaluate as evaluateStructuredRootCauseAnalysis, stamp as stampStructuredRootCauseAnalysis } from "./atoms/structured-root-cause-analysis.js";
+import { evaluate as evaluateMarkdownSanitizer, stamp as stampMarkdownSanitizer } from "./atoms/markdown-sanitizer.js";
+import { evaluate as evaluateTokenEstimator, stamp as stampTokenEstimator } from "./atoms/token-estimator.js";
+import { evaluate as evaluateJsonSchemaEnforcer, stamp as stampJsonSchemaEnforcer } from "./atoms/json-schema-enforcer.js";
 
 export interface AtomToolDef {
   name: string;
@@ -1031,6 +1089,173 @@ const linkRotScanAndNotarizedArchive = manifestAtom({
   stampFn: stampLinkRotScan
 });
 
+const localizationReadinessReview = manifestAtom({
+  serviceName: "localization-readiness-review",
+  namespace: "localization_readiness_review",
+  displayName: "Localization readiness review",
+  description:
+    "Submits a localization readiness record (externalized strings and translation units, locale formats plurals and grammar, flexible layout and RTL readiness, content workflow and glossary, locale testing and red lines) and returns a deterministic LOCALIZATION_READINESS_SOUND / LOCALIZATION_READINESS_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-locale format-test, direction and screenshot coverage checks, with per-check evidence. Audits the declared record; it inspects no code and runs no tests.",
+  schemaDescription: "The localization readiness review manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    product: str("Product or property the review covers."),
+    externalization: obj("Externalization evidence."),
+    formats: obj("Locale formats evidence."),
+    grammar: obj("Plurals and grammar evidence."),
+    layout: obj("Flexible layout evidence."),
+    rtl: obj("RTL readiness evidence."),
+    workflow: obj("Content workflow evidence."),
+    testing: obj("Locale testing evidence."),
+    locales: arr("Declared locales: {name, code, direction, format_tests_passed, screenshots_reviewed}."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateLocalizationReadinessReview,
+  stampFn: stampLocalizationReadinessReview
+});
+
+const longFormAuthoringPipeline = manifestAtom({
+  serviceName: "long-form-authoring-pipeline",
+  namespace: "long_form_authoring_pipeline",
+  displayName: "Long-form authoring pipeline",
+  description:
+    "Submits a long-form authoring pipeline record (outline as contract, drafting loop, review passes, versioning and builds, publishing, feedback loop and red lines) and returns a deterministic AUTHORING_PIPELINE_SOUND / AUTHORING_PIPELINE_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed per-unit single-point and review-pass coverage checks, with per-check evidence. Audits the declared record; it writes nothing and runs no build.",
+  schemaDescription: "The long-form authoring pipeline manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    work: str("Work the pipeline produces."),
+    outline: obj("Outline-as-contract evidence."),
+    units: arr("Declared units: {name, point_or_outcome, has_single_point}."),
+    drafting: obj("Drafting loop evidence."),
+    review: obj("Review evidence."),
+    review_passes: arr("Declared review passes: {name, pass_type, recorded}."),
+    versioning: obj("Versioning evidence."),
+    builds: obj("Builds evidence."),
+    publishing: obj("Publishing evidence."),
+    feedback: obj("Feedback loop evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateLongFormAuthoringPipeline,
+  stampFn: stampLongFormAuthoringPipeline
+});
+
+const mcpServerDesignAndReview = manifestAtom({
+  serviceName: "mcp-server-design-and-review",
+  namespace: "mcp_server_design_and_review",
+  displayName: "MCP server design and review",
+  description:
+    "Submits an MCP server design record (tool design and budget, transports and auth, safety rails and injection awareness, versioning contract tests and observability, red lines) and returns a deterministic MCP_SERVER_SOUND / MCP_SERVER_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-tool schema, single-job, operation and destructive-gate checks, with per-check evidence. Audits the declared record; it connects to no server.",
+  schemaDescription: "The mcp server design and review manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    server: str("Server under review."),
+    tool_design: obj("Tool design evidence."),
+    budget: obj("Budget evidence."),
+    tools: arr("Declared tools: {name, operation, has_typed_schema, single_job, has_negative_test, approval_or_scope_gate_present}."),
+    transport: obj("Transport evidence."),
+    auth: obj("Auth evidence."),
+    safety: obj("Safety rails evidence."),
+    injection: obj("Injection awareness evidence."),
+    versioning: obj("Versioning evidence."),
+    tests: obj("Contract tests evidence."),
+    observability: obj("Observability evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateMcpServerDesignAndReview,
+  stampFn: stampMcpServerDesignAndReview
+});
+
+const meaningFirstTranslationWithToneNote = manifestAtom({
+  serviceName: "meaning-first-translation-with-tone-note",
+  namespace: "meaning_first_translation_with_tone_note",
+  displayName: "Meaning-first translation with tone note",
+  description:
+    "Submits a meaning-first translation record (context and meaning-first method, register tone and send readiness, idiom ambiguity and uncertainty, exact carryover and segment coverage, sensitive documents and red lines) and returns a deterministic MEANING_FIRST_TRANSLATION_SOUND / MEANING_FIRST_TRANSLATION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-segment coverage and exact-carryover checks, with per-check evidence. Audits the declared record; it translates nothing and certifies nothing.",
+  schemaDescription: "The meaning-first translation with tone note manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    document: str("Document the record covers."),
+    context: obj("Context evidence."),
+    tone: obj("Register and tone evidence."),
+    handling: obj("Idiom and ambiguity handling evidence."),
+    segments: arr("Declared segments: {name, has_translation, meaning_preserved, idiom_ambiguity_handling_complete, exact_carryover_checked}."),
+    carryover: obj("Exact carryover evidence."),
+    carryover_items: arr("Declared carryover items: {name, kind, matches_original_exactly}."),
+    sensitive: obj("Sensitive documents evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateMeaningFirstTranslationWithToneNote,
+  stampFn: stampMeaningFirstTranslationWithToneNote
+});
+
+const meetingDecisionsAndActionsExtract = manifestAtom({
+  serviceName: "meeting-decisions-and-actions-extract",
+  namespace: "meeting_decisions_and_actions_extract",
+  displayName: "Meeting decisions and actions extract",
+  description:
+    "Submits a meeting decisions-and-actions extraction record (source and meeting identity, decisions fidelity, action ownership and dates, open questions and carry-forward, recap draft and handoff, red lines) and returns a deterministic MEETING_EXTRACTION_SOUND / MEETING_EXTRACTION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed per-decision anchor and per-action owner/date coverage checks, with per-check evidence. Audits the declared record; it extracts nothing from any transcript.",
+  schemaDescription: "The meeting decisions and actions extract manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    meeting: str("Meeting the extraction covers."),
+    source: obj("Source and identity evidence."),
+    decisions_record: obj("Decisions record evidence."),
+    decisions: arr("Declared decisions: {name, source_anchor, faithful_to_source, is_inferred, inference_marked}."),
+    actions_record: obj("Actions record evidence."),
+    actions: arr("Declared actions: {name, owner, due_date, source_anchor}."),
+    open_questions_record: obj("Open questions record evidence."),
+    open_questions: arr("Declared open questions: {name, source_anchor}."),
+    recap: obj("Recap draft evidence."),
+    handoff: obj("Handoff evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateMeetingDecisionsAndActionsExtract,
+  stampFn: stampMeetingDecisionsAndActionsExtract
+});
+
+const mlProjectFramingReview = manifestAtom({
+  serviceName: "ml-project-framing-review",
+  namespace: "ml_project_framing_review",
+  displayName: "ML project framing review",
+  description:
+    "Submits an ML project framing record (necessity and decision framing, metric and baseline framing, data and evaluation plan, approach reproducibility and LLM framing, anti-pattern red lines) and returns a deterministic ML_FRAMING_SOUND / ML_FRAMING_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-metric decision-tie and baseline-recorded coverage checks, with per-check evidence. Audits the declared framing record; it trains nothing and runs no model.",
+  schemaDescription: "The ml project framing review manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under framing review."),
+    framing: obj("Necessity and decision framing evidence."),
+    metric: obj("Metric framing evidence."),
+    baseline: obj("Baseline framing evidence."),
+    metrics: arr("Declared metrics: {name, decision_action, tied_to_decision, baseline_recorded_before_modeling}."),
+    data_plan: obj("Data plan evidence."),
+    evaluation_plan: obj("Evaluation plan evidence."),
+    approach: obj("Approach and reproducibility evidence."),
+    llm: obj("LLM framing evidence."),
+    serving: obj("Serving evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateMlProjectFramingReview,
+  stampFn: stampMlProjectFramingReview
+});
+
+const multiplatformCoreDesign = manifestAtom({
+  serviceName: "multiplatform-core-design",
+  namespace: "multiplatform_core_design",
+  displayName: "Multiplatform core design",
+  description:
+    "Submits a multiplatform core design record (core architecture, surfaces and thin adapters, local-first and portability, packaging and testing, anti-pattern red lines) and returns a deterministic MULTIPLATFORM_CORE_SOUND / MULTIPLATFORM_CORE_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-surface kind, core-contract and isolation checks, with per-check evidence. Audits the declared record; it builds nothing.",
+  schemaDescription: "The multiplatform core design manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under design review."),
+    core: obj("Core architecture evidence."),
+    web: obj("Web surface evidence."),
+    mobile: obj("Mobile surface evidence."),
+    desktop_cli: obj("Desktop/CLI surface evidence."),
+    api: obj("API surface evidence."),
+    surfaces: arr("Declared surfaces: {name, kind, consumes_core_contract, platform_code_isolated, core_logic_reimplemented}."),
+    local_first: obj("Local-first evidence."),
+    portability: obj("Portability evidence."),
+    packaging: obj("Packaging evidence."),
+    testing: obj("Testing evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateMultiplatformCoreDesign,
+  stampFn: stampMultiplatformCoreDesign
+});
+
 const networkExposureAudit = manifestAtom({
   serviceName: "network-exposure-audit",
   namespace: "network_exposure_audit",
@@ -1082,6 +1307,32 @@ const portfolioRiskAnalyticsReport = manifestAtom({
   stampFn: stampPortfolioRisk
 });
 
+const prdWithTestableAcceptanceCriteria = manifestAtom({
+  serviceName: "prd-with-testable-acceptance-criteria",
+  namespace: "prd_with_testable_acceptance_criteria",
+  displayName: "Prd with testable acceptance criteria",
+  description:
+    "Submits a product requirements record (problem and outcome statements, user-story and acceptance-criteria rows, scope fences with declared out-of-scope items, priorities and decisions, open-question rows and approval, red lines) and returns a deterministic PRD_WITH_TESTABLE_ACCEPTANCE_CRITERIA_READY / PRD_WITH_TESTABLE_ACCEPTANCE_CRITERIA_NOT_READY / INSUFFICIENT_EVIDENCE verdict across six sections, including computed story-to-criteria traceability and testable/binary coverage checks over the declared rows, with per-check evidence. Audits the declared PRD record only; it writes no requirements and judges no product's worth.",
+  schemaDescription: "The prd with testable acceptance criteria manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    product: str("Product under review."),
+    problem: obj("Problem evidence."),
+    outcome: obj("Outcome evidence."),
+    stories: arr("Declared stories rows."),
+    acceptance_criteria: arr("Declared acceptance criteria rows."),
+    out_of_scope_items: arr("Declared out of scope items (plain strings)."),
+    scope: obj("Scope evidence."),
+    priorities: obj("Priorities evidence."),
+    decisions: obj("Decisions evidence."),
+    open_questions: arr("Declared open questions rows."),
+    open_question_tracking: obj("Open question tracking evidence."),
+    approval: obj("Approval evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluatePrdWithTestableAcceptanceCriteria,
+  stampFn: stampPrdWithTestableAcceptanceCriteria
+});
+
 const predictionModelLeakageCalibrationAudit = manifestAtom({
   serviceName: "prediction-model-leakage-calibration-audit",
   namespace: "prediction_model_leakage_calibration_audit",
@@ -1127,6 +1378,173 @@ const predictiveMaintenanceFailureRiskAssessment = manifestAtom({
   stampFn: stampPredictiveMaintenance
 });
 
+const pricingUnitEconomicsPack = manifestAtom({
+  serviceName: "pricing-unit-economics-pack",
+  namespace: "pricing_unit_economics_pack",
+  displayName: "Pricing unit economics pack",
+  description:
+    "Submits a pricing and unit-economics record (revenue model and recognition, pricing tiers as declared rows, discount policy with declared discount rows, unit economics, churn and the MRR bridge, reporting, red lines) and returns a deterministic PRICING_UNIT_ECONOMICS_PACK_READY / PRICING_UNIT_ECONOMICS_PACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across six sections, including computed tier arithmetic, contribution-margin, break-even and MRR-bridge closure checks re-derived from the declared figures, with per-check evidence. Audits the declared record only; it recommends no price, approves no deal and projects nothing.",
+  schemaDescription: "The pricing unit economics pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    product: str("Product under review."),
+    revenue_model: obj("Revenue model evidence."),
+    pricing: obj("Pricing evidence."),
+    tiers: arr("Declared tiers rows."),
+    discount_policy: obj("Discount policy evidence."),
+    discounts: arr("Declared discounts rows."),
+    unit_economics: obj("Unit economics evidence."),
+    churn: obj("Churn evidence."),
+    mrr_bridge: obj("Mrr bridge evidence."),
+    reporting: obj("Reporting evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluatePricingUnitEconomicsPack,
+  stampFn: stampPricingUnitEconomicsPack
+});
+
+const processWasteReviewCoaching = manifestAtom({
+  serviceName: "process-waste-review-coaching",
+  namespace: "process_waste_review_coaching",
+  displayName: "Process waste review coaching",
+  description:
+    "Submits a process waste review record (define and visibility, process mapping with declared step and waste rows, measurement and metrics, analysis and constraint, improvement and control, red lines) and returns a deterministic PROCESS_WASTE_REVIEW_READY / PROCESS_WASTE_REVIEW_NOT_READY / INSUFFICIENT_EVIDENCE verdict across six sections, including computed step/waste consistency, wait-share and bottleneck-agreement checks over the declared rows, with per-check evidence. Audits the declared operations record only; it coaches no person and assesses no behaviour or mental state.",
+  schemaDescription: "The process waste review coaching manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    process: str("Process under review."),
+    define: obj("Define evidence."),
+    mapping: obj("Mapping evidence."),
+    steps: arr("Declared steps rows."),
+    wastes: arr("Declared wastes rows."),
+    measure: obj("Measure evidence."),
+    metrics: obj("Metrics evidence."),
+    analyze: obj("Analyze evidence."),
+    constraint: obj("Constraint evidence."),
+    improve: obj("Improve evidence."),
+    control: obj("Control evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateProcessWasteReviewCoaching,
+  stampFn: stampProcessWasteReviewCoaching
+});
+
+const productMetricsEventTaxonomyPack = manifestAtom({
+  serviceName: "product-metrics-event-taxonomy-pack",
+  namespace: "product_metrics_event_taxonomy_pack",
+  displayName: "Product metrics event taxonomy pack",
+  description:
+    "Submits a product metrics and event taxonomy record (decision and KPI tree, declared metric, event and property rows, data quality, privacy by construction, dashboards, experiments and feedback, red lines) and returns a deterministic PRODUCT_METRICS_EVENT_TAXONOMY_PACK_READY / PRODUCT_METRICS_EVENT_TAXONOMY_PACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across six sections, including computed naming-convention, traceability and coverage checks over the declared rows, with per-check evidence. Audits the declared taxonomy record only; it collects no data and judges no product's performance.",
+  schemaDescription: "The product metrics event taxonomy pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    product: str("Product under review."),
+    decision: obj("Decision evidence."),
+    metrics: arr("Declared metrics rows."),
+    taxonomy: obj("Taxonomy evidence."),
+    events: arr("Declared events rows."),
+    properties: arr("Declared properties rows."),
+    data_quality: obj("Data quality evidence."),
+    privacy: obj("Privacy evidence."),
+    dashboards: obj("Dashboards evidence."),
+    experiments: obj("Experiments evidence."),
+    feedback: obj("Feedback evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateProductMetricsEventTaxonomyPack,
+  stampFn: stampProductMetricsEventTaxonomyPack
+});
+
+const productionPythonEngineeringPack = manifestAtom({
+  serviceName: "production-python-engineering-pack",
+  namespace: "production_python_engineering_pack",
+  displayName: "Production python engineering pack",
+  description:
+    "Submits a production Python engineering record (environment, declared dependency rows, typing and style, errors, resources and async practices, testing, packaging, red lines) and returns a deterministic PRODUCTION_PYTHON_ENGINEERING_PACK_READY / PRODUCTION_PYTHON_ENGINEERING_PACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across six sections, including computed dependency pinning and duplication checks over the declared rows, with per-check evidence. Audits the declared engineering record only; it runs no code and reviews no repository.",
+  schemaDescription: "The production python engineering pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under review."),
+    environment: obj("Environment evidence."),
+    dependencies: arr("Declared dependencies rows."),
+    typing: obj("Typing evidence."),
+    style: obj("Style evidence."),
+    errors: obj("Errors evidence."),
+    resources: obj("Resources evidence."),
+    async_practices: obj("Async practices evidence."),
+    testing: obj("Testing evidence."),
+    packaging: obj("Packaging evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateProductionPythonEngineeringPack,
+  stampFn: stampProductionPythonEngineeringPack
+});
+
+const productionPythonEngineeringPackExpert = manifestAtom({
+  serviceName: "production-python-engineering-pack-expert",
+  namespace: "production_python_engineering_pack_expert",
+  displayName: "Production python engineering pack expert",
+  description:
+    "Submits an expert production Python engineering record (expert typing and idioms, expert packaging, expert async, expert performance with declared hot-path rows, expert surfaces, expert testing, red lines) and returns a deterministic PRODUCTION_PYTHON_ENGINEERING_PACK_EXPERT_READY / PRODUCTION_PYTHON_ENGINEERING_PACK_EXPERT_NOT_READY / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed hot-path profiling-first and acceleration-route checks over the declared rows, with per-check evidence. Audits the declared engineering record only; it runs no code and profiles nothing.",
+  schemaDescription: "The production python engineering pack expert manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under review."),
+    expert_typing: obj("Expert typing evidence."),
+    expert_idioms: obj("Expert idioms evidence."),
+    expert_packaging: obj("Expert packaging evidence."),
+    expert_async: obj("Expert async evidence."),
+    expert_performance: obj("Expert performance evidence."),
+    hot_paths: arr("Declared hot paths rows."),
+    expert_surfaces: obj("Expert surfaces evidence."),
+    expert_testing: obj("Expert testing evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateProductionPythonEngineeringPackExpert,
+  stampFn: stampProductionPythonEngineeringPackExpert
+});
+
+const productionRustEngineeringPack = manifestAtom({
+  serviceName: "production-rust-engineering-pack",
+  namespace: "production_rust_engineering_pack",
+  displayName: "Production rust engineering pack",
+  description:
+    "Submits a production Rust engineering record (ownership and lifetimes, error handling, unsafe policy with declared unsafe-block rows, async runtime, testing, tooling, workspace and supply chain, red lines) and returns a deterministic PRODUCTION_RUST_ENGINEERING_PACK_READY / PRODUCTION_RUST_ENGINEERING_PACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed unsafe-block invariant and test-coverage checks over the declared rows, with per-check evidence. Audits the declared engineering record only; it compiles nothing and reviews no repository.",
+  schemaDescription: "The production rust engineering pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under review."),
+    ownership: obj("Ownership evidence."),
+    errors: obj("Errors evidence."),
+    unsafe_policy: obj("Unsafe policy evidence."),
+    unsafe_blocks: arr("Declared unsafe blocks rows."),
+    async_runtime: obj("Async runtime evidence."),
+    testing: obj("Testing evidence."),
+    tooling: obj("Tooling evidence."),
+    workspace: obj("Workspace evidence."),
+    supply_chain: obj("Supply chain evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateProductionRustEngineeringPack,
+  stampFn: stampProductionRustEngineeringPack
+});
+
+const productionRustEngineeringPackExpert = manifestAtom({
+  serviceName: "production-rust-engineering-pack-expert",
+  namespace: "production_rust_engineering_pack_expert",
+  displayName: "Production rust engineering pack expert",
+  description:
+    "Submits an expert-level production Rust engineering record (lifetime architecture, type-system and API design, async runtime depth, performance measurement and allocation discipline, unsafe/FFI/wasm practice with declared FFI binding rows, cryptography and secret handling, expert red lines) and returns a deterministic PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_READY / PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_NOT_READY / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed per-binding safe-wrapper, SAFETY-comment and miri-test coverage checks over the declared rows, with per-check evidence. Audits the declared engineering record only; it inspects no real code and prescribes no design.",
+  schemaDescription: "The production rust engineering pack expert manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under review."),
+    lifetime_design: obj("Lifetime design evidence."),
+    type_design: obj("Type design evidence."),
+    async_depth: obj("Async depth evidence."),
+    performance: obj("Performance evidence."),
+    unsafe_ffi: obj("Unsafe and FFI evidence."),
+    ffi_bindings: arr("Declared FFI binding rows."),
+    crypto: obj("Cryptography evidence."),
+    expert_red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateProductionRustEngineeringPackExpert,
+  stampFn: stampProductionRustEngineeringPackExpert
+});
+
 const pumpConveyorMotorSuitabilityCheck = manifestAtom({
   serviceName: "pump-conveyor-motor-suitability-check",
   namespace: "pump_conveyor_motor_suitability_check",
@@ -1147,6 +1565,26 @@ const pumpConveyorMotorSuitabilityCheck = manifestAtom({
   },
   evaluateFn: evaluatePumpConveyor,
   stampFn: stampPumpConveyor
+});
+
+const quantMathDerivationSanityCheck = manifestAtom({
+  serviceName: "quant-math-derivation-sanity-check",
+  namespace: "quant_math_derivation_sanity_check",
+  displayName: "Quant math derivation sanity check",
+  description:
+    "Submits a quantitative derivation record (declared goal and givens, declared derivation steps with operands, results and units, declared final result, assumptions and method declarations, red lines) and returns a deterministic DERIVATION_SOUND / DERIVATION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including exact recomputation of every declared step's arithmetic and unit algebra over the declared rows, with per-check evidence. Audits the declared derivation record only; it derives nothing itself and gives no financial advice.",
+  schemaDescription: "The quant math derivation sanity check manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    derivation_title: str("Derivation under review."),
+    derivation: obj("Derivation structure evidence."),
+    steps: arr("Declared derivation step rows."),
+    dimensions: obj("Dimensions and units evidence."),
+    assumptions: obj("Assumptions evidence."),
+    method: obj("Method evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateQuantMathDerivationSanityCheck,
+  stampFn: stampQuantMathDerivationSanityCheck
 });
 
 const ragRetrievalEvaluationTuning = manifestAtom({
@@ -1227,6 +1665,292 @@ const semanticCodeTaintAnalysisReport: AtomHandler = {
   },
 };
 
+const releasePackChangelogSealRollback = manifestAtom({
+  serviceName: "release-pack-changelog-seal-rollback",
+  namespace: "release_pack_changelog_seal_rollback",
+  displayName: "Release pack changelog seal rollback",
+  description:
+    "Submits a release-pack record (version stamp and bump classification, changelog pack declarations with declared entry rows, seal record with declared sealed-artifact rows, tag and attachment, rollback detail with declared step rows, staged-rollout and health record, red lines) and returns a deterministic RELEASE_PACK_CHANGELOG_SEAL_ROLLBACK_READY / RELEASE_PACK_CHANGELOG_SEAL_ROLLBACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across seven sections, including semver bump arithmetic, declared checksum-format checks and rollback step-order checks over the declared rows, with per-check evidence. Audits the declared release-pack record only; it fetches no real release and verifies no real artifact.",
+  schemaDescription: "The release pack changelog seal rollback manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    release_label: str("Release under review."),
+    version_detail: obj("Version detail evidence."),
+    changelog_pack: obj("Changelog pack evidence."),
+    changelog_entries: arr("Declared changelog entry rows."),
+    seal_record: obj("Seal record evidence."),
+    sealed_artifacts: arr("Declared sealed artifact rows."),
+    tag_and_attachment: obj("Tag and attachment evidence."),
+    rollback_detail: obj("Rollback detail evidence."),
+    rollback_steps: arr("Declared rollback step rows."),
+    rollout_record: obj("Rollout record evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateReleasePackChangelogSealRollback,
+  stampFn: stampReleasePackChangelogSealRollback
+});
+
+const semanticHtmlReview = manifestAtom({
+  serviceName: "semantic-html-review",
+  namespace: "semantic_html_review",
+  displayName: "Semantic html review",
+  description:
+    "Submits a semantic HTML review record for one page (declared landmarks, heading outline rows, semantic elements, controls with declared form-input rows, media with declared image rows, declared data-table rows, document head, ARIA practice, validation, red lines) and returns a deterministic SEMANTIC_HTML_REVIEW_SOUND / SEMANTIC_HTML_REVIEW_DEFICIENT / INSUFFICIENT_EVIDENCE verdict across nine sections, including computed heading-outline, label-binding, alt-text and table-structure checks over the declared rows, with per-check evidence. Audits the declared review record only; it fetches and parses no live page.",
+  schemaDescription: "The semantic html review manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    page: str("Page under review."),
+    landmarks: obj("Landmarks evidence."),
+    headings: arr("Declared heading outline rows."),
+    semantic_elements: obj("Semantic elements evidence."),
+    controls: obj("Controls evidence."),
+    form_inputs: arr("Declared form input rows."),
+    media: obj("Media evidence."),
+    images: arr("Declared image rows."),
+    data_tables: arr("Declared data table rows."),
+    document_head: obj("Document head evidence."),
+    aria_practice: obj("ARIA practice evidence."),
+    validation: obj("Validation evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateSemanticHtmlReview,
+  stampFn: stampSemanticHtmlReview
+});
+
+const serviceIsolationHardeningReview = manifestAtom({
+  serviceName: "service-isolation-hardening-review",
+  namespace: "service_isolation_hardening_review",
+  displayName: "Service isolation hardening review",
+  description:
+    "Submits a service-isolation hardening record (declared least-privilege identity with a declared service roster, systemd sandbox directives, confinement and sandbox tooling, resource containment, egress monitoring and kill switch, isolation verification, red lines) and returns a deterministic SERVICE_ISOLATION_HARDENING_REVIEW_HARDENED / SERVICE_ISOLATION_HARDENING_REVIEW_NOT_HARDENED / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed per-service dedicated-user, filesystem-scope and egress-restriction coverage checks over the declared roster, with per-check evidence. Audits the declared isolation record only; it probes no live system and certifies no host.",
+  schemaDescription: "The service isolation hardening review manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    subject: str("Subject under review."),
+    identity: obj("Identity evidence."),
+    services: arr("Declared service roster rows."),
+    systemd: obj("Systemd sandbox evidence."),
+    confinement: obj("Confinement evidence."),
+    resources: obj("Resource containment evidence."),
+    egress_monitoring: obj("Egress monitoring evidence."),
+    verification: obj("Verification evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateServiceIsolationHardeningReview,
+  stampFn: stampServiceIsolationHardeningReview
+});
+
+const singleLivingTripItinerary = manifestAtom({
+  serviceName: "single-living-trip-itinerary",
+  namespace: "single_living_trip_itinerary",
+  displayName: "Single living trip itinerary",
+  description:
+    "Submits a single living trip itinerary record (trip header, entry and transit constraint declarations, itinerary entries in idea/held/booked states with declared totals, skeleton and ordering, declared totals, conflicts, pre-departure read-through, red lines) and returns a deterministic SINGLE_LIVING_TRIP_ITINERARY_READY / SINGLE_LIVING_TRIP_ITINERARY_NOT_READY / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed date-ordering, leg-connection and booked-total summation checks over the declared entries, with per-check evidence. Audits the declared itinerary record only; it searches nothing, prices nothing live and books nothing.",
+  schemaDescription: "The single living trip itinerary manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    trip_title: str("Trip under review."),
+    header: obj("Trip header evidence."),
+    constraints: obj("Constraints evidence."),
+    entries: arr("Declared itinerary entry rows."),
+    skeleton: obj("Skeleton evidence."),
+    totals: obj("Totals evidence."),
+    conflicts: obj("Conflicts evidence."),
+    readiness: obj("Readiness evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateSingleLivingTripItinerary,
+  stampFn: stampSingleLivingTripItinerary
+});
+
+const smartGridDerDesignPack = manifestAtom({
+  serviceName: "smart-grid-der-design-pack",
+  namespace: "smart_grid_der_design_pack",
+  displayName: "Smart grid der design pack",
+  description:
+    "Submits a smart-grid DER design record (layered architecture and standards citations, network model with declared telemetry-point rows, DER interconnection and protection declarations with declared DER-unit rows, latency tiers with declared control-loop rows, OT cybersecurity, pilot economics and authority, red lines) and returns a deterministic SMART_GRID_DER_DESIGN_PACK_READY / SMART_GRID_DER_DESIGN_PACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed per-point and per-unit completeness checks and declared-capacity versus declared-hosting-capacity arithmetic over the declared rows, with per-check evidence. Audits the declared design record only; it is not engineering advice and not a design service.",
+  schemaDescription: "The smart grid der design pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under review."),
+    architecture: obj("Architecture evidence."),
+    network_model: obj("Network model evidence."),
+    telemetry_points: arr("Declared telemetry point rows."),
+    der: obj("DER interconnection evidence."),
+    der_units: arr("Declared DER unit rows."),
+    latency: obj("Latency evidence."),
+    control_loops: arr("Declared control loop rows."),
+    cyber: obj("OT cybersecurity evidence."),
+    pilot: obj("Pilot evidence."),
+    economics: obj("Economics evidence."),
+    review: obj("Review evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateSmartGridDerDesignPack,
+  stampFn: stampSmartGridDerDesignPack
+});
+
+const sourcedPodcastEpisodeProduction = manifestAtom({
+  serviceName: "sourced-podcast-episode-production",
+  namespace: "sourced_podcast_episode_production",
+  displayName: "Sourced podcast episode production",
+  description:
+    "Submit a podcast episode production record (declared scoping and outline sections, sources, quote/statistic claim rows with source references, script, narration and assembly, show-notes source list, rights, guest-release and publishing declarations, red lines) and return a deterministic EPISODE_PRODUCTION_SOUND / EPISODE_PRODUCTION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed claim-to-source traceability and show-notes source-list matching, with per-check evidence. Audits the declared record only; produces no audio, writes no script, publishes nothing.",
+  schemaDescription: "The sourced podcast episode production manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    episode_title: str("Episode under review."),
+    scoping: obj("Scoping evidence."),
+    episode_sections: arr("Declared episode section rows."),
+    source_work: obj("Source work evidence."),
+    sources: arr("Declared source rows."),
+    claims: arr("Declared claim rows."),
+    script: obj("Script evidence."),
+    narration: obj("Narration and assembly evidence."),
+    show_notes: obj("Show notes evidence."),
+    rights: obj("Rights evidence."),
+    guests: obj("Guest evidence."),
+    publishing: obj("Publishing evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateSourcedPodcastEpisodeProduction,
+  stampFn: stampSourcedPodcastEpisodeProduction
+});
+
+const sourcedVisualReferenceSearch = manifestAtom({
+  serviceName: "sourced-visual-reference-search",
+  namespace: "sourced_visual_reference_search",
+  displayName: "Sourced visual reference search",
+  description:
+    "Submits a declared visual-reference search record (brief in searchable terms, result rows with direct and source page URLs, source verification, viewed relevance, context notes, licence status/note/credit, selection and licensing records, red lines) and returns a deterministic VISUAL_REFERENCE_SET_SOUND / VISUAL_REFERENCE_SET_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, with source-pairing, dedupe and licence/attribution coverage computed over the declared rows. Audits the declared record only; searches nothing, fetches no image, identifies no person, clears no image.",
+  schemaDescription: "The sourced visual reference search manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    search_title: str("Search under review."),
+    brief: obj("Search brief evidence."),
+    search: obj("Search adjustment evidence."),
+    results: arr("Declared visual reference result rows."),
+    quality: obj("Relevance and quality evidence."),
+    selection: obj("Selection evidence."),
+    licensing: obj("Licensing evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateSourcedVisualReferenceSearch,
+  stampFn: stampSourcedVisualReferenceSearch
+});
+
+const sqlSchemaQueryEngineeringPack = manifestAtom({
+  serviceName: "sql-schema-query-engineering-pack",
+  namespace: "sql_schema_query_engineering_pack",
+  displayName: "Sql schema query engineering pack",
+  description:
+    "Submits a SQL schema and query engineering record (schema design with declared table rows, index design with declared index rows, declared query rows, query practice, transactions, SQL safety, migrations, performance evidence, red lines) and returns a deterministic SQL_SCHEMA_QUERY_ENGINEERING_PACK_READY / SQL_SCHEMA_QUERY_ENGINEERING_PACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across eight sections, including computed coverage ratios over the declared rows, with per-check evidence. Audits the declared record only; it connects to no database, executes no SQL and reviews no live codebase.",
+  schemaDescription: "The SQL schema & query engineering manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under review."),
+    schema_design: obj("Schema design evidence."),
+    tables: arr("Declared table rows."),
+    index_design: obj("Index design evidence."),
+    indexes: arr("Declared index rows."),
+    queries: arr("Declared query rows."),
+    query_practice: obj("Query practice evidence."),
+    transactions: obj("Transaction evidence."),
+    sql_safety: obj("SQL safety evidence."),
+    migrations: obj("Migration evidence."),
+    performance_evidence: obj("Performance evidence."),
+    sql_red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateSqlSchemaQueryEngineeringPack,
+  stampFn: stampSqlSchemaQueryEngineeringPack
+});
+
+const statisticalStudyDesignReport = manifestAtom({
+  serviceName: "statistical-study-design-report",
+  namespace: "statistical_study_design_report",
+  displayName: "Statistical study design report",
+  description:
+    "Submits a statistical study design record (framed decision and research question, declared design type, variables and groups, sampling and declared alpha / target power / effect size inputs, analysis-plan, validation and delivery declarations, red lines) and returns a deterministic STUDY_DESIGN_READY / STUDY_DESIGN_NOT_READY / INSUFFICIENT_EVIDENCE verdict across seven sections, including exact recomputation of the declared total sample size from the declared group sizes, with per-check evidence. Audits the declared design record only; it runs no study, analyses no data and gives no statistical advice or conclusion.",
+  schemaDescription: "The statistical study design report manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    study_title: str("Study under review."),
+    framing: obj("Decision framing evidence."),
+    design: obj("Design evidence."),
+    variables: arr("Declared variable rows."),
+    sampling: obj("Sampling and power evidence."),
+    groups: arr("Declared group rows."),
+    analysis: obj("Analysis plan evidence."),
+    validation: obj("Validation and bias-control evidence."),
+    delivery: obj("Delivery and reproducibility evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateStatisticalStudyDesignReport,
+  stampFn: stampStatisticalStudyDesignReport
+});
+
+const strictTypescriptEngineeringPack = manifestAtom({
+  serviceName: "strict-typescript-engineering-pack",
+  namespace: "strict_typescript_engineering_pack",
+  displayName: "Strict typescript engineering pack",
+  description:
+    "Submits a strict TypeScript record (tsconfig strictness, no-any typing discipline, schema-validated boundaries with declared boundary rows, discriminated-union state modelling, modules with declared module rows, async discipline, tests/build tooling, red lines) and returns a deterministic STRICT_TYPESCRIPT_ENGINEERING_PACK_READY / STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY / INSUFFICIENT_EVIDENCE verdict across eight sections, including computed strict-flag, per-boundary schema and per-module any-free coverage, with per-check evidence. Audits the declared record only; compiles no code.",
+  schemaDescription: "The strict typescript engineering pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    project: str("Project under review."),
+    tsconfig: obj("Tsconfig evidence."),
+    typing: obj("Typing discipline evidence."),
+    boundary_validation: obj("Boundary validation evidence."),
+    boundaries: arr("Declared boundary rows."),
+    state_modelling: obj("State modelling evidence."),
+    module_structure: obj("Module structure evidence."),
+    modules: arr("Declared module rows."),
+    async_practices: obj("Async practice evidence."),
+    testing: obj("Testing evidence."),
+    build_tooling: obj("Build tooling evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateStrictTypescriptEngineeringPack,
+  stampFn: stampStrictTypescriptEngineeringPack
+});
+
+const structuredDecisionMaking = manifestAtom({
+  serviceName: "structured-decision-making",
+  namespace: "structured_decision_making",
+  displayName: "Structured decision making",
+  description:
+    "Submits a structured decision record (framing and classification, option rows incl. status-quo and smaller-step rows, criteria with weights defined before scoring, a score matrix with declared weighted totals, evaluation, pre-mortem, commit log, review and red-line declarations) and returns a deterministic DECISION_RECORD_SOUND / DECISION_RECORD_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across eight sections, including exact recomputation of every declared weighted total from declared scores x weights, with per-check evidence. Audits the declared record only; makes no decision, recommends no option.",
+  schemaDescription: "The structured decision making manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    decision: str("Decision under review."),
+    framing: obj("Framing and classification evidence."),
+    options: arr("Declared option rows with score rows and declared weighted totals."),
+    criteria: arr("Declared criterion rows with weights."),
+    evaluation: obj("Evaluation method, score scale and uncertainty evidence."),
+    premortem: obj("Pre-mortem evidence."),
+    log: obj("Commit log evidence."),
+    review: obj("Review plan evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateStructuredDecisionMaking,
+  stampFn: stampStructuredDecisionMaking
+});
+
+const structuredRootCauseAnalysis = manifestAtom({
+  serviceName: "structured-root-cause-analysis",
+  namespace: "structured_root_cause_analysis",
+  displayName: "Structured root cause analysis",
+  description:
+    "Submits a root-cause analysis record (problem and classified inference, decomposition and hypothesis tree, timeline rows, fishbone factor rows with evidence tiers, 5-whys causal chain, verification and falsification record, corrective-action rows, red lines) and returns a deterministic ROOT_CAUSE_ANALYSIS_SOUND / ROOT_CAUSE_ANALYSIS_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed timeline-order, chain-depth and factor-reference checks over the declared rows, with per-check evidence. Audits the declared record only; it investigates nothing, asserts no cause.",
+  schemaDescription: "The structured root cause analysis manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    analysis_title: str("Root-cause analysis under review."),
+    problem: obj("Problem framing and inference evidence."),
+    decomposition: obj("Decomposition evidence."),
+    timeline_events: arr("Declared timeline event rows."),
+    factors: arr("Declared fishbone factor rows."),
+    causal_chain: arr("Declared causal chain (5-whys) link rows."),
+    evidence: obj("Evidence and quantification evidence."),
+    verification: obj("Verification and falsification evidence."),
+    conclusion: obj("Conclusion evidence."),
+    corrective_actions: arr("Declared corrective action rows."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateStructuredRootCauseAnalysis,
+  stampFn: stampStructuredRootCauseAnalysis
+});
+
 const strategyBacktestValidation = manifestAtom({
   serviceName: "strategy-backtest-validation",
   namespace: "strategy_backtest_validation",
@@ -1247,6 +1971,113 @@ const strategyBacktestValidation = manifestAtom({
   },
   evaluateFn: evaluateStrategyBacktest,
   stampFn: stampStrategyBacktest
+});
+
+const systemDesignFailureModePack = manifestAtom({
+  serviceName: "system-design-failure-mode-pack",
+  namespace: "system_design_failure_mode_pack",
+  displayName: "System design failure mode pack",
+  description:
+    "Submits a system-design failure-mode analysis record (design framing and boundaries, declared component rows, declared failure-mode rows with severity/occurrence/detection ratings and declared RPN values, declared mitigation rows and mitigation work, state/reliability and queue declarations, observability/scaling/security declarations, red lines) and returns a deterministic FAILURE_MODE_PACK_SOUND / FAILURE_MODE_PACK_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed duplicate-id, component-reference, mitigation-coverage and exact RPN-recomputation checks over the declared rows, with per-check evidence. Audits the declared record only; it designs no system, performs no failure-mode analysis, assigns no rating and certifies nothing.",
+  schemaDescription: "The system design failure mode pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    design_name: str("Design under review."),
+    design_context: obj("Design context evidence."),
+    components: obj("Components evidence."),
+    failure_modes: obj("Failure modes evidence."),
+    mitigations: obj("Mitigations evidence."),
+    mitigation_work: obj("Mitigation work evidence."),
+    state_and_reliability: obj("State and reliability evidence."),
+    queues: obj("Queues evidence."),
+    observability_scaling_security: obj("Observability scaling security evidence."),
+    caching: obj("Caching evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateSystemDesignFailureModePack,
+  stampFn: stampSystemDesignFailureModePack
+});
+
+const techStackDecisionMemo = manifestAtom({
+  serviceName: "tech-stack-decision-memo",
+  namespace: "tech_stack_decision_memo",
+  displayName: "Tech stack decision memo",
+  description:
+    "Submits a tech-stack decision memo record (context and constraints, declared candidate rows and boring-technology declarations, evaluation criteria rows and evidence, total-cost and operability declarations, decision and rationale, reversibility and exit declarations, red lines) and returns a deterministic TECH_STACK_DECISION_SOUND / TECH_STACK_DECISION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed criterion-reference, weighted-score recomputation and decision-candidate consistency checks over the declared rows, with per-check evidence. Audits the declared memo record only; it recommends no stack, picks no stack and ranks no candidate.",
+  schemaDescription: "The tech stack decision memo manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    memo_title: str("Memo under review."),
+    context: obj("Context evidence."),
+    candidate_work: obj("Candidate work evidence."),
+    candidates: obj("Candidates evidence."),
+    evaluation: obj("Evaluation evidence."),
+    criteria: obj("Criteria evidence."),
+    tco: obj("Tco evidence."),
+    decision: obj("Decision evidence."),
+    reversibility: obj("Reversibility evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateTechStackDecisionMemo,
+  stampFn: stampTechStackDecisionMemo
+});
+
+const technicalDocumentationPack = manifestAtom({
+  serviceName: "technical-documentation-pack",
+  namespace: "technical_documentation_pack",
+  displayName: "Technical documentation pack",
+  description:
+    "Submits a technical documentation production record (README and doc-set structure, docs-as-code and source-of-truth declarations, declared document rows, declared config-option rows, API docs and declared endpoint rows, decision work and declared decision-record rows, review/verification and plain-language declarations, changelog and versioning declarations, red lines) and returns a deterministic TECHNICAL_DOCUMENTATION_SOUND / TECHNICAL_DOCUMENTATION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across eight sections, including computed document-reference and version-consistency checks over the declared rows, with per-check evidence. Audits the declared record only; it writes no documentation and verifies no document against the real product.",
+  schemaDescription: "The technical documentation pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    product_name: str("Product under review."),
+    product_version: str("Declared product version."),
+    readme: obj("Readme evidence."),
+    documents: obj("Documents evidence."),
+    source_of_truth: obj("Source of truth evidence."),
+    config_options: obj("Config options evidence."),
+    api_docs: obj("Api docs evidence."),
+    endpoints: obj("Endpoints evidence."),
+    decision_work: obj("Decision work evidence."),
+    decision_records: obj("Decision records evidence."),
+    review_verification: obj("Review verification evidence."),
+    plain_language: obj("Plain language evidence."),
+    changelog: obj("Changelog evidence."),
+    versioning: obj("Versioning evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateTechnicalDocumentationPack,
+  stampFn: stampTechnicalDocumentationPack
+});
+
+const technicalExplainerContentPack = manifestAtom({
+  serviceName: "technical-explainer-content-pack",
+  namespace: "technical_explainer_content_pack",
+  displayName: "Technical explainer content pack",
+  description:
+    "Submits a technical-explainer content production record (audience and declared prerequisite rows, learning-objective framing and declared objective rows, structure and declared explanation-section rows, simplification and analogy declarations, example work and declared worked-example rows, declared misconception rows, accuracy and declared source rows, safety declarations, canonical and declared rendering rows, corrections, red lines) and returns a deterministic EXPLAINER_CONTENT_SOUND / EXPLAINER_CONTENT_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across eight sections, including computed objective-to-section coverage, misconception-resolution and source-traceability checks over the declared rows, with per-check evidence. Audits the declared record only; it writes no explainer, teaches nothing and certifies no learning.",
+  schemaDescription: "The technical explainer content pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    explainer_title: str("Explainer under review."),
+    audience: obj("Audience evidence."),
+    prerequisites: obj("Prerequisites evidence."),
+    learning_objective_framing: obj("Learning objective framing evidence."),
+    learning_objectives: obj("Learning objectives evidence."),
+    structure: obj("Structure evidence."),
+    explanation_sections: obj("Explanation sections evidence."),
+    simplification: obj("Simplification evidence."),
+    analogy: obj("Analogy evidence."),
+    example_work: obj("Example work evidence."),
+    worked_examples: obj("Worked examples evidence."),
+    misconceptions: obj("Misconceptions evidence."),
+    accuracy: obj("Accuracy evidence."),
+    sources: obj("Sources evidence."),
+    safety: obj("Safety evidence."),
+    canonical: obj("Canonical evidence."),
+    renderings: obj("Renderings evidence."),
+    corrections: obj("Corrections evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateTechnicalExplainerContentPack,
+  stampFn: stampTechnicalExplainerContentPack
 });
 
 const testedAuthorizationPolicyPack = manifestAtom({
@@ -1272,6 +2103,157 @@ const testedAuthorizationPolicyPack = manifestAtom({
   stampFn: stampTestedAuthorization
 });
 
+const testingStrategyRegressionPack = manifestAtom({
+  serviceName: "testing-strategy-regression-pack",
+  namespace: "testing_strategy_regression_pack",
+  displayName: "Testing strategy regression pack",
+  description:
+    "Submits a testing strategy and regression plan record (scoping, declared risk rows, level planning and declared test-level rows, regression planning, declared change rows and declared regression rows, fixture and determinism declarations, flake policy, negative-testing declarations, entry/exit and reporting declarations, red lines) and returns a deterministic TESTING_STRATEGY_SOUND / TESTING_STRATEGY_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across eight sections, including computed risk-to-level coverage, pyramid-order and change-to-regression coverage checks over the declared rows, with per-check evidence. Audits the declared record only; it runs no tests and inspects no code.",
+  schemaDescription: "The testing strategy regression pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    plan_title: str("Plan under review."),
+    scoping: obj("Scoping evidence."),
+    risk_rows: obj("Risk rows evidence."),
+    level_planning: obj("Level planning evidence."),
+    test_level_rows: obj("Test level rows evidence."),
+    regression_planning: obj("Regression planning evidence."),
+    declared_changes: obj("Declared changes evidence."),
+    regression_rows: obj("Regression rows evidence."),
+    fixtures: obj("Fixtures evidence."),
+    flake_policy: obj("Flake policy evidence."),
+    negative_testing: obj("Negative testing evidence."),
+    entry_exit_and_reporting: obj("Entry exit and reporting evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateTestingStrategyRegressionPack,
+  stampFn: stampTestingStrategyRegressionPack
+});
+
+const uatScenarioSignOffPack = manifestAtom({
+  serviceName: "uat-scenario-sign-off-pack",
+  namespace: "uat_scenario_sign_off_pack",
+  displayName: "Uat scenario sign off pack",
+  description:
+    "Submits a UAT scenario and sign-off record (scope, declared acceptance-criterion rows, declared scenario rows, environment and people declarations, execution declarations, declared defect rows, triage declarations, declared required sign-off role rows, declared sign-off rows, retest declarations, declared totals, red lines) and returns a deterministic UAT_SIGN_OFF_SOUND / UAT_SIGN_OFF_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed criterion-to-scenario coverage, sign-off completeness over the declared required roles and recomputation of the declared totals over the declared rows, with per-check evidence. Audits the declared record only; it runs no UAT, executes no scenario and accepts nothing on anyone's behalf.",
+  schemaDescription: "The uat scenario sign off pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    uat_round_title: str("UAT round under review."),
+    scope: obj("Scope evidence."),
+    acceptance_criteria: obj("Acceptance criteria evidence."),
+    scenarios: obj("Scenarios evidence."),
+    environment: obj("Environment evidence."),
+    people: obj("People evidence."),
+    execution: obj("Execution evidence."),
+    defects: obj("Defects evidence."),
+    triage: obj("Triage evidence."),
+    required_sign_off_roles: obj("Required sign off roles evidence."),
+    sign_offs: obj("Sign offs evidence."),
+    sign_off: obj("Sign off evidence."),
+    retest: obj("Retest evidence."),
+    declared_totals: obj("Declared totals evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateUatScenarioSignOffPack,
+  stampFn: stampUatScenarioSignOffPack
+});
+
+const uxFlowComponentSpecPack = manifestAtom({
+  serviceName: "ux-flow-component-spec-pack",
+  namespace: "ux_flow_component_spec_pack",
+  displayName: "Ux flow component spec pack",
+  description:
+    "Submits a UX flow and component specification record (flow design and declared flow-step rows, design-token declarations, declared component rows, declared screen rows, accessibility declarations, microcopy and critique declarations, red lines) and returns a deterministic UX_SPEC_SOUND / UX_SPEC_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed next-step reference resolution, interactive-state inventory and data-surface state checks over the declared rows, with per-check evidence. Audits the declared specification record only; it designs no interface, measures no contrast, tests no keyboard path and certifies no accessibility conformance.",
+  schemaDescription: "The ux flow component spec pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    spec_title: str("Specification under review."),
+    flow_design: obj("Flow design evidence."),
+    flow_steps: obj("Flow steps evidence."),
+    design_tokens: obj("Design tokens evidence."),
+    components: obj("Components evidence."),
+    screens: obj("Screens evidence."),
+    accessibility: obj("Accessibility evidence."),
+    microcopy: obj("Microcopy evidence."),
+    critique: obj("Critique evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateUxFlowComponentSpecPack,
+  stampFn: stampUxFlowComponentSpecPack
+});
+
+const validatedSimulationScenarioPack = manifestAtom({
+  serviceName: "validated-simulation-scenario-pack",
+  namespace: "validated_simulation_scenario_pack",
+  displayName: "Validated simulation scenario pack",
+  description:
+    "Submits a validated simulation scenario pack record (purpose and fidelity declarations, model core and unit declarations, declared parameter rows, randomness and reproducibility declarations, declared scenario rows and scenario-library declarations, validation declarations and declared validation-case rows, interaction and performance declarations, red lines) and returns a deterministic SIMULATION_SCENARIO_PACK_SOUND / SIMULATION_SCENARIO_PACK_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed parameter, scenario and validation-case row checks and exact recomputation of each declared validation error from the declared simulated and expected values, with per-check evidence. Audits the declared pack record only; it runs no simulation, produces no simulated value and makes no validation or fitness determination.",
+  schemaDescription: "The validated simulation scenario pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    pack_title: str("Pack under review."),
+    purpose: obj("Purpose evidence."),
+    core: obj("Core evidence."),
+    parameters: arr("Declared parameter rows."),
+    randomness: obj("Randomness evidence."),
+    scenarios: arr("Declared scenario rows."),
+    scenario_library: obj("Scenario library evidence."),
+    model_version: str("Model version."),
+    validation: obj("Validation evidence."),
+    validation_cases: arr("Declared validation case rows."),
+    interaction: obj("Interaction evidence."),
+    performance: obj("Performance evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateValidatedSimulationScenarioPack,
+  stampFn: stampValidatedSimulationScenarioPack
+});
+
+const vendorEvaluationThreeWayMatchPack = manifestAtom({
+  serviceName: "vendor-evaluation-three-way-match-pack",
+  namespace: "vendor_evaluation_three_way_match_pack",
+  displayName: "Vendor evaluation three way match pack",
+  description:
+    "Submits a vendor evaluation and three-way match record (spec and sourcing declarations, evaluation setup, declared vendor rows and declared criteria rows, contract and terms declarations, purchase-order discipline declarations, three-way match declarations, declared purchase-order, receipt and invoice line rows, vendor-record declarations, red lines) and returns a deterministic VENDOR_EVALUATION_AND_MATCH_SOUND / VENDOR_EVALUATION_AND_MATCH_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including exact recomputation of weighted vendor totals, per-line totals, cross-document quantity and unit-price matching and both grand totals over the declared rows, with per-check evidence. Audits the declared record only; it contacts no vendor, approves no payment and gives no procurement advice.",
+  schemaDescription: "The vendor evaluation three way match pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    pack_title: str("Pack under review."),
+    spec: obj("Spec evidence."),
+    sourcing: obj("Sourcing evidence."),
+    evaluation_setup: obj("Evaluation setup evidence."),
+    vendors: arr("Declared vendor rows."),
+    criteria: arr("Declared criteria rows."),
+    contract: obj("Contract evidence."),
+    po_discipline: obj("Po discipline evidence."),
+    three_way_match: obj("Three way match evidence."),
+    purchase_order_lines: arr("Declared purchase order line rows."),
+    receipt_lines: arr("Declared receipt line rows."),
+    invoice_lines: arr("Declared invoice line rows."),
+    vendor_records: obj("Vendor records evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateVendorEvaluationThreeWayMatchPack,
+  stampFn: stampVendorEvaluationThreeWayMatchPack
+});
+
+const verifiedPlaceShortlist = manifestAtom({
+  serviceName: "verified-place-shortlist",
+  namespace: "verified_place_shortlist",
+  displayName: "Verified place shortlist",
+  description:
+    "Submits a verified place shortlist record (constraint declarations, declared criterion rows, declared place rows with declared verification evidence, evaluation declarations, ranking declarations, freshness and uncertainty handling declarations, red lines) and returns a deterministic VERIFIED_PLACE_SHORTLIST_SOUND / VERIFIED_PLACE_SHORTLIST_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed criterion-to-place coverage, per-row evidence completeness and winner and backup resolution checks over the declared rows, with per-check evidence. Audits the declared shortlist record only; it fetches nothing live, verifies no real-world fact and recommends or books nothing. The word verified in its name refers to the caller's declared verification discipline, not to any live verification by the atom.",
+  schemaDescription: "The verified place shortlist manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    shortlist_title: str("Shortlist under review."),
+    constraints: obj("Constraints evidence."),
+    criteria: arr("Declared criteria rows."),
+    places: arr("Declared place rows."),
+    evaluation: obj("Evaluation evidence."),
+    ranking: obj("Ranking evidence."),
+    handling: obj("Handling evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateVerifiedPlaceShortlist,
+  stampFn: stampVerifiedPlaceShortlist
+});
+
 const vfdApplicationEngineeringCheck = manifestAtom({
   serviceName: "vfd-application-engineering-check",
   namespace: "vfd_application_engineering_check",
@@ -1292,6 +2274,30 @@ const vfdApplicationEngineeringCheck = manifestAtom({
   },
   evaluateFn: evaluateVfdApplication,
   stampFn: stampVfdApplication
+});
+
+const voiceNoteNarrationAudio = manifestAtom({
+  serviceName: "voice-note-narration-audio",
+  namespace: "voice_note_narration_audio",
+  displayName: "Voice note narration audio",
+  description:
+    "Submits a voice-note and narration production record (scoping and confirmation declarations, voice declarations, rights and voice-consent declarations, listening-adaptation declarations, chunking declarations, declared segment rows, audio-spec and assembly declarations, delivery and disclosure declarations, red lines) and returns a deterministic VOICE_NOTE_NARRATION_SOUND / VOICE_NOTE_NARRATION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed segment sequence coverage and exact recomputation of the declared total duration from the declared segment durations, with per-check evidence. Audits the declared record only; it synthesizes no audio, records nothing and clones no voice.",
+  schemaDescription: "The voice note narration audio manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    production_title: str("Production under review."),
+    scoping: obj("Scoping evidence."),
+    voice: obj("Voice evidence."),
+    rights: obj("Rights evidence."),
+    adaptation: obj("Adaptation evidence."),
+    chunking: obj("Chunking evidence."),
+    segments: arr("Declared segment rows."),
+    audio_spec: obj("Audio spec evidence."),
+    assembly: obj("Assembly evidence."),
+    delivery: obj("Delivery evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateVoiceNoteNarrationAudio,
+  stampFn: stampVoiceNoteNarrationAudio
 });
 
 const vulnerabilityTriageVerifiedClosure = manifestAtom({
@@ -1339,6 +2345,52 @@ const zeroKnowledgeClaimAudit = manifestAtom({
   },
   evaluateFn: evaluateZeroKnowledgeClaim,
   stampFn: stampZeroKnowledgeClaim
+});
+
+const zeroKnowledgeSystemDesignPack = manifestAtom({
+  serviceName: "zero-knowledge-system-design-pack",
+  namespace: "zero_knowledge_system_design_pack",
+  displayName: "Zero knowledge system design pack",
+  description:
+    "Submits a zero-knowledge system design record (trust-model and key-custody declarations, client-encryption and sharing design declarations, proof-system and circuit design declarations, declared circuit rows, setup and verifier declarations, declared verifier rows, property and proof-selection declarations, recovery, limits and claim-mapping declarations with declared claim-mapping rows, red lines) and returns a deterministic ZK_DESIGN_RECORD_SOUND / ZK_DESIGN_RECORD_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed row completeness and uniqueness checks and exact recomputation of the declared constraint-count total over the declared circuit rows, with per-check evidence. Audits the declared design record only; it proves nothing, verifies no proof, runs no cryptography and certifies no security property.",
+  schemaDescription: "The zero knowledge system design pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    design_title: str("Design under review."),
+    trust_model: obj("Trust model evidence."),
+    e2ee_design: obj("E2ee design evidence."),
+    proof_design: obj("Proof design evidence."),
+    circuits: arr("Declared circuit rows."),
+    setup_and_verifier: obj("Setup and verifier evidence."),
+    verifiers: arr("Declared verifier rows."),
+    properties: obj("Properties evidence."),
+    recovery_and_limits: obj("Recovery and limits evidence."),
+    claim_mappings: arr("Declared claim mapping rows."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateZeroKnowledgeSystemDesignPack,
+  stampFn: stampZeroKnowledgeSystemDesignPack
+});
+
+const zeroTrustArchitectureDesignPack = manifestAtom({
+  serviceName: "zero-trust-architecture-design-pack",
+  namespace: "zero_trust_architecture_design_pack",
+  displayName: "Zero trust architecture design pack",
+  description:
+    "Submits a zero-trust architecture design record (identity and perimeter framing declarations, declared asset rows, declared policy rows, segmentation declarations, device and workload trust declarations, monitoring, audit and response declarations, migration and rollout declarations, red lines) and returns a deterministic ZERO_TRUST_DESIGN_SOUND / ZERO_TRUST_DESIGN_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed policy-coverage recomputation over the declared asset and policy rows, with per-check evidence. Audits the declared design record only; it evaluates no live posture, probes no network and certifies no security outcome.",
+  schemaDescription: "The zero trust architecture design pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    design_title: str("Design under review."),
+    identity: obj("Identity evidence."),
+    assets: arr("Declared asset rows."),
+    policies: arr("Declared policy rows."),
+    segmentation: obj("Segmentation evidence."),
+    trust: obj("Trust evidence."),
+    monitoring: obj("Monitoring evidence."),
+    migration: obj("Migration evidence."),
+    red_lines: obj("Red lines evidence.")
+  },
+  evaluateFn: evaluateZeroTrustArchitectureDesignPack,
+  stampFn: stampZeroTrustArchitectureDesignPack
 });
 
 const zeroTrustEvaluationVerdict = manifestAtom({
@@ -2298,7 +3350,374 @@ const domainPortfolioAudit = manifestAtom({
   stampFn: stampDomainPortfolioAudit
 });
 
+const honestSeoAuditIntentMap = manifestAtom({
+  serviceName: "honest-seo-audit-intent-map",
+  namespace: "honest_seo_audit_intent_map",
+  displayName: "Honest SEO audit intent map",
+  description:
+    "Submits an SEO audit and search-intent map record (technical foundation, intent map and on-page craft, structured data and entity clarity, earned authority and measurement, white-hat red lines) and returns a deterministic HONEST_SEO_MAP_SOUND / HONEST_SEO_MAP_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-page intent-ownership and coverage checks, with per-check evidence. Audits the declared record; it crawls nothing and reads no live data.",
+  schemaDescription: "The honest seo audit intent map manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    site: str("Site or property the audit covers."),
+    technical: obj("Technical foundation evidence."),
+    intent: obj("Intent map evidence."),
+    on_page: obj("On-page craft evidence."),
+    pages: arr("Declared pages: {name, intent, intent_type, has_single_intent, fully_answers_question}."),
+    structured_data: obj("Structured data evidence."),
+    entity: obj("Entity clarity evidence."),
+    authority: obj("Earned authority evidence."),
+    measurement: obj("Measurement evidence."),
+    ai_era: obj("AI-era extraction evidence."),
+    red_lines: obj("White-hat red-line evidence.")
+  },
+  evaluateFn: evaluateHonestSeoAuditIntentMap,
+  stampFn: stampHonestSeoAuditIntentMap
+});
+
+const javascriptReviewAndBuild = manifestAtom({
+  serviceName: "javascript-review-and-build",
+  namespace: "javascript_review_and_build",
+  displayName: "JavaScript review and build",
+  description:
+    "Submits a JavaScript review-and-build record (modules and strictness, async discipline, DOM safety, environment and bundle, tests and red lines) and returns a deterministic JAVASCRIPT_REVIEW_SOUND / JAVASCRIPT_REVIEW_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-file ESM, var and promise-handling checks, with per-check evidence. Audits the declared record; it runs no code.",
+  schemaDescription: "The javascript review and build manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    subject: str("Codebase or package under review."),
+    modules: obj("Modules and strictness evidence."),
+    async: obj("Async discipline evidence."),
+    dom: obj("DOM safety evidence."),
+    environment: obj("Environment evidence."),
+    bundle: obj("Bundle evidence."),
+    files: arr("Declared files: {name, esm_module, var_present, unhandled_promise_present, inner_html_with_user_input_present}."),
+    tests: obj("Tests evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateJavascriptReviewAndBuild,
+  stampFn: stampJavascriptReviewAndBuild
+});
+
+const jsonSchemaDesignCheck = manifestAtom({
+  serviceName: "json-schema-design-check",
+  namespace: "json_schema_design_check",
+  displayName: "JSON schema design check",
+  description:
+    "Submits a JSON schema design record (schema-first boundary, canonical form and number care, versioning, parsing safety and encoding, streaming operations and red lines) and returns a deterministic JSON_SCHEMA_DESIGN_SOUND / JSON_SCHEMA_DESIGN_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-payload schema, version and canonical-coverage checks, with per-check evidence. Audits the declared record; it parses no live payloads.",
+  schemaDescription: "The json schema design check manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    artifact: str("Artifact or interface the schema design covers."),
+    schema: obj("Schema-first and boundary evidence."),
+    writer_reader: obj("Writer/reader contract evidence."),
+    payloads: arr("Declared payloads: {name, has_schema, has_sample, has_version_field, money_and_bigint_fields_as_strings, is_hashed_or_signed, canonical_rules_documented}."),
+    canonical: obj("Canonical form and number care evidence."),
+    versioning: obj("Versioning evidence."),
+    parsing: obj("Parsing safety and encoding evidence."),
+    streaming_ops: obj("Streaming operations evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateJsonSchemaDesignCheck,
+  stampFn: stampJsonSchemaDesignCheck
+});
+
+const knowledgeGraphDesign = manifestAtom({
+  serviceName: "knowledge-graph-design",
+  namespace: "knowledge_graph_design",
+  displayName: "Knowledge graph design",
+  description:
+    "Submits a knowledge-graph design record (schema and modeling, provenance, immutable history, storage and query retrieval, portability and ownership, privacy and red lines) and returns a deterministic KNOWLEDGE_GRAPH_DESIGN_SOUND / KNOWLEDGE_GRAPH_DESIGN_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across six sections, including computed per-assertion provenance and origin-classification coverage checks, with per-check evidence. Audits the declared design; it stores and queries no graph.",
+  schemaDescription: "The knowledge graph design manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    graph: str("Knowledge graph being designed."),
+    schema: obj("Schema and modeling evidence."),
+    provenance: obj("Provenance evidence."),
+    assertions: arr("Declared assertions: {name, source_declared, date_declared, confidence_declared, origin_classified}."),
+    history: obj("Immutable history evidence."),
+    storage: obj("Storage evidence."),
+    query: obj("Query and retrieval evidence."),
+    portability: obj("Portability and ownership evidence."),
+    privacy: obj("Privacy evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateKnowledgeGraphDesign,
+  stampFn: stampKnowledgeGraphDesign
+});
+
+const localFirstSyncDesign = manifestAtom({
+  serviceName: "local-first-sync-design",
+  namespace: "local_first_sync_design",
+  displayName: "Local-first sync design",
+  description:
+    "Submits a local-first sync design record (local truth and data model, sync protocol, encryption and keys, conflicts and state UI, testing and quality gates) and returns a deterministic LOCAL_FIRST_SYNC_SOUND / LOCAL_FIRST_SYNC_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-entity merge-semantics and silent-last-write-wins checks, with per-check evidence. Audits the declared design; it syncs nothing.",
+  schemaDescription: "The local first sync design manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    app: str("Application the sync design covers."),
+    local_truth: obj("Local truth evidence."),
+    data_model: obj("Data model evidence."),
+    entities: arr("Declared entities: {name, per_field_merge_semantics_declared, stable_id_declared, is_user_prose, silent_last_write_wins_present}."),
+    sync_protocol: obj("Sync protocol evidence."),
+    encryption: obj("Encryption and keys evidence."),
+    personal_data_sync: obj("Personal-data sync evidence (gates the encryption checks)."),
+    conflicts: obj("Conflicts evidence."),
+    state_ui: obj("State UI evidence."),
+    testing: obj("Testing and quality-gate evidence.")
+  },
+  evaluateFn: evaluateLocalFirstSyncDesign,
+  stampFn: stampLocalFirstSyncDesign
+});
+
+const localLlmServingSetup = manifestAtom({
+  serviceName: "local-llm-serving-setup",
+  namespace: "local_llm_serving_setup",
+  displayName: "Local LLM serving setup",
+  description:
+    "Submits a local LLM serving setup record (workload and memory budget, model selection and provenance, serving stack and exposure, performance and operations, fallback chains and evaluation) and returns a deterministic LOCAL_LLM_SERVING_SOUND / LOCAL_LLM_SERVING_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-model budget, pinning, license and evaluation coverage checks, with per-check evidence. Audits the declared setup record; it serves no models.",
+  schemaDescription: "The local llm serving setup manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    setup: str("Serving setup being audited."),
+    workload: obj("Workload and memory budget evidence."),
+    model_selection: obj("Model selection and provenance evidence."),
+    models: arr("Declared models: {name, vram_ram_and_context_budget_documented, version_pinned_and_checksum_recorded, license_vetted_for_commercial_use, performance_measured_at_realistic_context, golden_task_eval_recorded}."),
+    serving: obj("Serving stack and exposure evidence."),
+    performance: obj("Performance evidence."),
+    operations: obj("Operations evidence."),
+    fallback: obj("Fallback chain evidence."),
+    evaluation: obj("Evaluation evidence.")
+  },
+  evaluateFn: evaluateLocalLlmServingSetup,
+  stampFn: stampLocalLlmServingSetup
+});
+
+const localVoiceStackEngineeringPack = manifestAtom({
+  serviceName: "local-voice-stack-engineering-pack",
+  namespace: "local_voice_stack_engineering_pack",
+  displayName: "Local voice stack engineering pack",
+  description:
+    "Submits a local voice-stack engineering record (pipeline and engine selection, cloning consent and ethics, audio engineering and latency, accessibility, testing and quality gates) and returns a deterministic LOCAL_VOICE_STACK_SOUND / LOCAL_VOICE_STACK_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-engine license, golden-evaluation and cloning-consent checks, with per-check evidence. Audits the declared record; it processes no audio.",
+  schemaDescription: "The local voice stack engineering pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    stack: str("Voice stack being engineered."),
+    pipeline: obj("Pipeline evidence."),
+    engine_selection: obj("Engine selection evidence."),
+    engines: arr("Declared engines: {name, license_cleared_for_commercial_use, evaluated_on_own_golden_sentences, is_voice_cloning, cloning_consent_recorded}."),
+    cloning: obj("Cloning consent and ethics evidence."),
+    audio_engineering: obj("Audio engineering evidence."),
+    latency: obj("Latency evidence."),
+    accessibility: obj("Accessibility evidence."),
+    testing: obj("Testing and quality-gate evidence.")
+  },
+  evaluateFn: evaluateLocalVoiceStackEngineeringPack,
+  stampFn: stampLocalVoiceStackEngineeringPack
+});
+
+const nativeMobileBuildPlan = manifestAtom({
+  serviceName: "native-mobile-build-plan",
+  namespace: "native_mobile_build_plan",
+  displayName: "Native mobile build plan",
+  description:
+    "Submits a native mobile build-plan record (device constraints and platform citizenship, offline-first and sync, builds and signing, testing and accessibility, release/store and privacy, red lines) and returns a deterministic NATIVE_MOBILE_BUILD_PLAN_READY / NATIVE_MOBILE_BUILD_PLAN_NOT_READY / INSUFFICIENT_EVIDENCE verdict across six sections, including computed per-permission feature-coverage checks, with per-check evidence. Audits the declared build-plan record; it builds no app and submits nothing to any store.",
+  schemaDescription: "The native mobile build plan manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    app: str("Mobile app under build-plan review."),
+    constraints: obj("Device-constraint evidence."),
+    platform_citizenship: obj("Platform citizenship evidence."),
+    permissions: arr("Declared permissions: {name, feature_needing_it}."),
+    offline: obj("Offline-first and sync evidence."),
+    builds: obj("Builds and signing evidence."),
+    testing: obj("Testing and accessibility evidence."),
+    release: obj("Release and store evidence."),
+    privacy: obj("Privacy evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateNativeMobileBuildPlan,
+  stampFn: stampNativeMobileBuildPlan
+});
+
+const negotiationPreparationPack = manifestAtom({
+  serviceName: "negotiation-preparation-pack",
+  namespace: "negotiation_preparation_pack",
+  displayName: "Negotiation preparation pack",
+  description:
+    "Submits a negotiation preparation record (BATNA, reservation price and ZOPA, interests and value creation, improvisation and adaptation, openings/moments/closing and tactics, debrief and anti-pattern red lines) and returns a deterministic NEGOTIATION_PREPARATION_SOUND / NEGOTIATION_PREPARATION_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-issue interest and trade-potential coverage checks, with per-check evidence. Audits the declared preparation record; it negotiates nothing and sets no figures.",
+  schemaDescription: "The negotiation preparation pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    negotiation: str("Negotiation being prepared for."),
+    batna_and_reservation: obj("BATNA and reservation-price evidence."),
+    interests: obj("Interests evidence."),
+    value_creation: obj("Value-creation evidence."),
+    issues: arr("Declared issues: {name, own_underlying_interest, counterpart_underlying_interest, trade_potential_assessed}."),
+    direction: obj("Direction evidence."),
+    presence_and_awareness: obj("Presence and awareness evidence."),
+    sequence: obj("Sequence evidence."),
+    anchoring: obj("Anchoring evidence."),
+    tactics: obj("Tactics evidence."),
+    learning: obj("Debrief and learning evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateNegotiationPreparationPack,
+  stampFn: stampNegotiationPreparationPack
+});
+
+const observabilityAndRunbookDesign = manifestAtom({
+  serviceName: "observability-and-runbook-design",
+  namespace: "observability_and_runbook_design",
+  displayName: "Observability and runbook design",
+  description:
+    "Submits an observability and runbook design record (signals and dashboards, alert design and runbook linkage, runbook content and failure modes, incident flow and postmortem, backups/silent failure and red lines) and returns a deterministic OBSERVABILITY_DESIGN_SOUND / OBSERVABILITY_DESIGN_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-alert and per-failure-mode coverage checks, with per-check evidence. Audits the declared design record; it monitors no live system.",
+  schemaDescription: "The observability and runbook design manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    service_name: str("Service under observability design review."),
+    signals: obj("Signals and dashboards evidence."),
+    alert_design: obj("Alert-design evidence."),
+    alerts: arr("Declared alerts: {name, owner, runbook_linked, actionable, symptom_based}."),
+    failure_modes: arr("Declared failure modes: {name, runbook_present, symptoms_described, check_steps_present, mitigation_present, escalation_present, recovery_verification_present}."),
+    incident: obj("Incident flow and postmortem evidence."),
+    resilience: obj("Backups and silent-failure evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateObservabilityAndRunbookDesign,
+  stampFn: stampObservabilityAndRunbookDesign
+});
+
+const offlineFirstPwaEngineeringPack = manifestAtom({
+  serviceName: "offline-first-pwa-engineering-pack",
+  namespace: "offline_first_pwa_engineering_pack",
+  displayName: "Offline first pwa engineering pack",
+  description:
+    "Submits an offline-first PWA engineering record (offline-first architecture, service worker discipline, storage engineering, sync and honest state, installability/encryption/UX, testing and quality gates, red lines) and returns a deterministic OFFLINE_FIRST_PWA_SOUND / OFFLINE_FIRST_PWA_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across seven sections, including computed per-core-flow offline-coverage checks, with per-check evidence. Audits the declared engineering record; it builds no PWA and runs no browser test.",
+  schemaDescription: "The offline first pwa engineering pack manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    app: str("PWA under engineering review."),
+    architecture: obj("Offline-first architecture evidence."),
+    core_flows: arr("Declared core flows: {name, works_fully_offline}."),
+    service_worker: obj("Service worker discipline evidence."),
+    storage: obj("Storage engineering evidence."),
+    sync: obj("Sync and honest-state evidence."),
+    installability: obj("Installability evidence."),
+    encryption: obj("Encryption and UX evidence."),
+    testing: obj("Testing and quality-gates evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluateOfflineFirstPwaEngineeringPack,
+  stampFn: stampOfflineFirstPwaEngineeringPack
+});
+
+const personalFinancialSnapshot = manifestAtom({
+  serviceName: "personal-financial-snapshot",
+  namespace: "personal_financial_snapshot",
+  displayName: "Personal financial snapshot",
+  description:
+    "Submits a personal financial snapshot record (snapshot completeness, balance-sheet arithmetic, cash-flow and fees arithmetic, lenses and costs, traceability and the advice boundary) and returns a deterministic SNAPSHOT_SOUND / SNAPSHOT_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed row-sum and net-worth arithmetic checks over the declared figures, with per-check evidence. Audits the declared snapshot record; it gives no financial advice, recommendation or projection.",
+  schemaDescription: "The personal financial snapshot manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    subject: str("Snapshot subject label."),
+    snapshot: obj("Snapshot completeness evidence."),
+    figures: obj("Declared headline figures."),
+    assets: arr("Declared asset rows: {name, category, amount}."),
+    liabilities: arr("Declared liability rows: {name, amount}."),
+    fees: arr("Declared fee rows: {name, amount}."),
+    lenses: obj("Lens statements (risk, liquidity, tax-efficiency, time horizon)."),
+    costs: obj("Costs and drag evidence."),
+    traceability: obj("Traceability and advice-boundary evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluatePersonalFinancialSnapshot,
+  stampFn: stampPersonalFinancialSnapshot
+});
+
+const personalWebPresenceAudit = manifestAtom({
+  serviceName: "personal-web-presence-audit",
+  namespace: "personal_web_presence_audit",
+  displayName: "Personal web presence audit",
+  description:
+    "Submits a personal web-presence record (hub and spokes, identity facts and structured data, content standards and name SEO, cadence/contact/measurement, red lines) and returns a deterministic PERSONAL_PRESENCE_CONSISTENT / PERSONAL_PRESENCE_INCONSISTENT / INSUFFICIENT_EVIDENCE verdict across five sections, including computed per-spoke and per-profile consistency checks, with per-check evidence. Audits the declared presence record; it fetches nothing and verifies no live page.",
+  schemaDescription: "The personal web presence audit manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    person: str("Person whose presence record is audited."),
+    hub: obj("Canonical hub evidence."),
+    spokes: arr("Declared spokes: {domain, redirects_to_hub_or_purpose_page, title_description_consistent_with_hub}."),
+    identity: obj("Identity facts evidence."),
+    structured_data: obj("Structured-data evidence."),
+    profiles: arr("Declared profiles: {platform, bio_matches_canonical, links_to_hub}."),
+    content: obj("Content standards evidence."),
+    name_seo: obj("Name-search evidence."),
+    cadence: obj("Refresh cadence evidence."),
+    contact: obj("Contact-path evidence."),
+    measurement: obj("Measurement evidence."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluatePersonalWebPresenceAudit,
+  stampFn: stampPersonalWebPresenceAudit
+});
+
+const pocDesignKillCriteriaVerdict = manifestAtom({
+  serviceName: "poc-design-kill-criteria-verdict",
+  namespace: "poc_design_kill_criteria_verdict",
+  displayName: "Poc design kill criteria verdict",
+  description:
+    "Submits a proof-of-concept design record (design premise, criteria-row consistency, timebox window, scope-row consistency, production boundary by design) and returns a deterministic POC_DESIGN_SOUND / POC_DESIGN_NOT_SOUND / INSUFFICIENT_EVIDENCE verdict across five sections, including computed criteria-kind and row-consistency checks over the declared rows and window, with per-check evidence. Audits the declared design record made before the run; it runs no POC and judges no idea's worth.",
+  schemaDescription: "The poc design kill criteria verdict manifest (see the atom's SERVICE.md for the field table and row schemas).",
+  properties: {
+    poc: str("Proof of concept under design review."),
+    design: obj("Design premise evidence."),
+    criteria: arr("Declared criteria rows: {name, kind, condition_stated, declared_before_run, assesses_house_stack_fit}."),
+    timebox: obj("Timebox window evidence."),
+    scope_items: arr("Declared scope items: {name, on_critical_path}."),
+    red_lines: obj("Red-line evidence.")
+  },
+  evaluateFn: evaluatePocDesignKillCriteriaVerdict,
+  stampFn: stampPocDesignKillCriteriaVerdict
+});
+
+
+const markdownSanitizer = manifestAtom({
+  serviceName: "markdown-sanitizer",
+  namespace: "markdown_sanitizer",
+  displayName: "Markdown sanitizer",
+  description:
+    "Submit raw markdown text; get the sanitized text back with a per-rule removal report — active blocks (script, style, iframe, object, embed, form) removed whole, raw HTML stripped, comments removed, dangerous link targets (javascript:, data:, vbscript:, file:) neutralized, whitespace tidied. Fenced and inline code are protected; wording is never edited.",
+  schemaDescription: "The sanitization payload (see the atom's SERVICE.md for the field table).",
+  properties: {
+    text: str("Raw markdown text to sanitize."),
+    options: obj("Options: {strip_html, strip_images, collapse_blank_lines} (all optional, safe defaults)."),
+  },
+  evaluateFn: evaluateMarkdownSanitizer,
+  stampFn: stampMarkdownSanitizer
+});
+
+const tokenEstimator = manifestAtom({
+  serviceName: "token-estimator",
+  namespace: "token_estimator",
+  displayName: "Token estimator",
+  description:
+    "Submit text or a chat messages list; get a deterministic token estimate with its range, the measured char/word counts, and the method and factor-table version stated on the result. A segment-weighted heuristic for pre-flight budget and context-fit checks — an estimate, never a tokenizer count.",
+  schemaDescription: "The estimation payload (see the atom's SERVICE.md for the field table).",
+  properties: {
+    text: str("Text to estimate (give text or messages, not both)."),
+    messages: arr("Chat messages: [{role, content}]."),
+    model_family: str("gpt | claude | llama | generic (default generic)."),
+  },
+  evaluateFn: evaluateTokenEstimator,
+  stampFn: stampTokenEstimator
+});
+
+const jsonSchemaEnforcer = manifestAtom({
+  serviceName: "json-schema-enforcer",
+  namespace: "json_schema_enforcer",
+  displayName: "JSON schema enforcer",
+  description:
+    "Submit a JSON payload and a JSON Schema; get a validity verdict with every violation listed by path, rule, expected and found, over a documented schema subset — with any keyword outside the subset named as unsupported, never silently ignored.",
+  schemaDescription: "The enforcement payload (see the atom's SERVICE.md for the field table).",
+  properties: {
+    payload: { description: "The JSON payload under test (any JSON value)." },
+    schema: obj("The schema object, over the documented subset."),
+  },
+  evaluateFn: evaluateJsonSchemaEnforcer,
+  stampFn: stampJsonSchemaEnforcer
+});
+
 const HANDLERS: Record<string, AtomHandler> = {
+  [markdownSanitizer.serviceName]: markdownSanitizer,
+  [tokenEstimator.serviceName]: tokenEstimator,
+  [jsonSchemaEnforcer.serviceName]: jsonSchemaEnforcer,
   [cicdPipelineDesign.serviceName]: cicdPipelineDesign,
   [claimEvaluationReview.serviceName]: claimEvaluationReview,
   [codeReviewService.serviceName]: codeReviewService,
@@ -2334,6 +3753,16 @@ const HANDLERS: Record<string, AtomHandler> = {
   [fullStackAppBuildPack.serviceName]: fullStackAppBuildPack,
   [grpcServiceDesign.serviceName]: grpcServiceDesign,
   [homeShortlistCarryingCostComparison.serviceName]: homeShortlistCarryingCostComparison,
+  [honestSeoAuditIntentMap.serviceName]: honestSeoAuditIntentMap,
+  [javascriptReviewAndBuild.serviceName]: javascriptReviewAndBuild,
+  [jsonSchemaDesignCheck.serviceName]: jsonSchemaDesignCheck,
+  [knowledgeGraphDesign.serviceName]: knowledgeGraphDesign,
+  [localFirstSyncDesign.serviceName]: localFirstSyncDesign,
+  [localLlmServingSetup.serviceName]: localLlmServingSetup,
+  [localVoiceStackEngineeringPack.serviceName]: localVoiceStackEngineeringPack,
+  [productionRustEngineeringPackExpert.serviceName]: productionRustEngineeringPackExpert,
+  [quantMathDerivationSanityCheck.serviceName]: quantMathDerivationSanityCheck,
+  [releasePackChangelogSealRollback.serviceName]: releasePackChangelogSealRollback,
   [releaseReadiness.serviceName]: releaseReadiness,
   [agentSafetyGuardrailAudit.serviceName]: agentSafetyGuardrailAudit,
   [appendOnlyLedgerDesignAudit.serviceName]: appendOnlyLedgerDesignAudit,
@@ -2357,19 +3786,64 @@ const HANDLERS: Record<string, AtomHandler> = {
   [forecastWithRangesAndScorecard.serviceName]: forecastWithRangesAndScorecard,
   [lean4FormalProof.serviceName]: lean4FormalProof,
   [linkRotScanAndNotarizedArchive.serviceName]: linkRotScanAndNotarizedArchive,
+  [localizationReadinessReview.serviceName]: localizationReadinessReview,
+  [longFormAuthoringPipeline.serviceName]: longFormAuthoringPipeline,
+  [mcpServerDesignAndReview.serviceName]: mcpServerDesignAndReview,
+  [meaningFirstTranslationWithToneNote.serviceName]: meaningFirstTranslationWithToneNote,
+  [meetingDecisionsAndActionsExtract.serviceName]: meetingDecisionsAndActionsExtract,
+  [mlProjectFramingReview.serviceName]: mlProjectFramingReview,
+  [multiplatformCoreDesign.serviceName]: multiplatformCoreDesign,
+  [nativeMobileBuildPlan.serviceName]: nativeMobileBuildPlan,
+  [negotiationPreparationPack.serviceName]: negotiationPreparationPack,
   [networkExposureAudit.serviceName]: networkExposureAudit,
+  [observabilityAndRunbookDesign.serviceName]: observabilityAndRunbookDesign,
+  [offlineFirstPwaEngineeringPack.serviceName]: offlineFirstPwaEngineeringPack,
+  [personalFinancialSnapshot.serviceName]: personalFinancialSnapshot,
+  [personalWebPresenceAudit.serviceName]: personalWebPresenceAudit,
+  [pocDesignKillCriteriaVerdict.serviceName]: pocDesignKillCriteriaVerdict,
   [portfolioRiskAnalyticsReport.serviceName]: portfolioRiskAnalyticsReport,
+  [prdWithTestableAcceptanceCriteria.serviceName]: prdWithTestableAcceptanceCriteria,
   [predictionModelLeakageCalibrationAudit.serviceName]: predictionModelLeakageCalibrationAudit,
   [predictiveMaintenanceFailureRiskAssessment.serviceName]: predictiveMaintenanceFailureRiskAssessment,
+  [pricingUnitEconomicsPack.serviceName]: pricingUnitEconomicsPack,
+  [processWasteReviewCoaching.serviceName]: processWasteReviewCoaching,
+  [productMetricsEventTaxonomyPack.serviceName]: productMetricsEventTaxonomyPack,
+  [productionPythonEngineeringPack.serviceName]: productionPythonEngineeringPack,
+  [productionPythonEngineeringPackExpert.serviceName]: productionPythonEngineeringPackExpert,
+  [productionRustEngineeringPack.serviceName]: productionRustEngineeringPack,
   [pumpConveyorMotorSuitabilityCheck.serviceName]: pumpConveyorMotorSuitabilityCheck,
   [ragRetrievalEvaluationTuning.serviceName]: ragRetrievalEvaluationTuning,
   [reconciledPortfolioPerformanceReport.serviceName]: reconciledPortfolioPerformanceReport,
   [semanticCodeTaintAnalysisReport.serviceName]: semanticCodeTaintAnalysisReport,
+  [semanticHtmlReview.serviceName]: semanticHtmlReview,
+  [serviceIsolationHardeningReview.serviceName]: serviceIsolationHardeningReview,
+  [singleLivingTripItinerary.serviceName]: singleLivingTripItinerary,
+  [smartGridDerDesignPack.serviceName]: smartGridDerDesignPack,
+  [sourcedPodcastEpisodeProduction.serviceName]: sourcedPodcastEpisodeProduction,
+  [sourcedVisualReferenceSearch.serviceName]: sourcedVisualReferenceSearch,
+  [sqlSchemaQueryEngineeringPack.serviceName]: sqlSchemaQueryEngineeringPack,
+  [statisticalStudyDesignReport.serviceName]: statisticalStudyDesignReport,
+  [strictTypescriptEngineeringPack.serviceName]: strictTypescriptEngineeringPack,
+  [structuredDecisionMaking.serviceName]: structuredDecisionMaking,
+  [structuredRootCauseAnalysis.serviceName]: structuredRootCauseAnalysis,
   [strategyBacktestValidation.serviceName]: strategyBacktestValidation,
+  [systemDesignFailureModePack.serviceName]: systemDesignFailureModePack,
+  [techStackDecisionMemo.serviceName]: techStackDecisionMemo,
+  [technicalDocumentationPack.serviceName]: technicalDocumentationPack,
+  [technicalExplainerContentPack.serviceName]: technicalExplainerContentPack,
   [testedAuthorizationPolicyPack.serviceName]: testedAuthorizationPolicyPack,
+  [testingStrategyRegressionPack.serviceName]: testingStrategyRegressionPack,
+  [uatScenarioSignOffPack.serviceName]: uatScenarioSignOffPack,
+  [uxFlowComponentSpecPack.serviceName]: uxFlowComponentSpecPack,
+[validatedSimulationScenarioPack.serviceName]: validatedSimulationScenarioPack,
+  [vendorEvaluationThreeWayMatchPack.serviceName]: vendorEvaluationThreeWayMatchPack,
+  [verifiedPlaceShortlist.serviceName]: verifiedPlaceShortlist,
   [vfdApplicationEngineeringCheck.serviceName]: vfdApplicationEngineeringCheck,
+  [voiceNoteNarrationAudio.serviceName]: voiceNoteNarrationAudio,
   [vulnerabilityTriageVerifiedClosure.serviceName]: vulnerabilityTriageVerifiedClosure,
   [zeroKnowledgeClaimAudit.serviceName]: zeroKnowledgeClaimAudit,
+  [zeroKnowledgeSystemDesignPack.serviceName]: zeroKnowledgeSystemDesignPack,
+  [zeroTrustArchitectureDesignPack.serviceName]: zeroTrustArchitectureDesignPack,
   [zeroTrustEvaluationVerdict.serviceName]: zeroTrustEvaluationVerdict,
   [acpProtocolIntegrationReview.serviceName]: acpProtocolIntegrationReview,
   [agentContextPackaging.serviceName]: agentContextPackaging,
