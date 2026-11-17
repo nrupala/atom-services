@@ -73,7 +73,7 @@ Request — `POST /v1/claim-verification-fact-check-stamp`:
       "material": true,
       "label": "verified",
       "independent_sources": 2,
-      "primary_source": "nasa.gov",
+      "primary_source": true,
       "sources_archived": true,
       "source_metadata_recorded": true,
       "independence_checked": true,

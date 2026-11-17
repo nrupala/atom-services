@@ -140,3 +140,24 @@ F1 disposition: **closed / not applicable as a defect here** — this atom alrea
 **Tester errors this wave:** Gemini re-listed the two Wave 1 tester errors (the original `violations` expectation of `no_path` and the original `sparse` expectation of an `insufficient_evidence` status) — both were already corrected in `cases.json` before Wave 1 closed, the recorded expects are the corrected ones, and the atom matches them. They are carry-over re-flags, not new tester errors and not atom findings. No new tester errors this wave.
 
 **Retest verdict: PASS**
+
+---
+
+## Wave 8 supplementary battery — intent/status completion (2026-11-15)
+
+The original battery exercised only the `descendants` and `path` intents and the `ok` / `not_found` statuses (the WS1 documentation record named this gap). This supplementary battery exercises the remaining vocabulary over one shared graph (nodes A module, B function, C function, D module, E external, F module; edges A→B calls, A→C calls, B→D references, C→D references, D→E imports). Cases: `verification/work/codebase-structural-query/cases-supplementary.json`; evidence: `verification/work/codebase-structural-query/evidence-supplementary.json` (gateway v1.1.0, deployment 5cf70cb60526415d89b4db5e5cd02744, tested 2026-11-16T04:31Z).
+
+| Case | Intent | Status exercised | Result |
+|---|---|---|---|
+| supp-ancestors | `ancestors` of D (expand) | `ok` — {A, B, C}, total 3 | HTTP 200, oracle match, expectation match — PASS |
+| supp-blast-radius | `blast_radius` of B (expand) | `ok` — {A, D, E}, total 3 | HTTP 200, oracle match, expectation match — PASS |
+| supp-stats | `stats` | `ok` — 6 nodes / 5 edges, edges_by_kind {calls 2, imports 1, references 2} | HTTP 200, oracle match, expectation match — PASS |
+| supp-snapshot | `snapshot` | `ok` — nodes A–F canonically sorted, 5 edges | HTTP 200, oracle match, expectation match — PASS |
+| supp-no-path | `path` A→F | `no_path` | HTTP 200, oracle match, expectation match — PASS |
+| supp-stale-index | `descendants` of A with `index.stale: true` | `stale_index` | HTTP 200, oracle match, expectation match — PASS |
+
+MCP↔REST parity on the ancestors case: structured-equal true. Every live artifact (minus the gateway-added `stamp`) deep-equals the atom oracle's own result for the same input, computed independently before the calls.
+
+**Exercised set is now complete: 6/6 intents** (ancestors, blast_radius, descendants, path, snapshot, stats) **and 4/4 statuses** (not_found, no_path, ok, stale_index).
+
+Validator note (recorded in the evidence's `case_validation` block): the Wave 7 mechanical validator cannot run on this atom — its register extraction executes the oracle's `evaluate({})`, which raises `query must be an object` by design (exit 2), because this computed atom has no checks register. The supplementary battery therefore used documented-shape pre-flight plus independent oracle pre-computation in place of the validator; the limitation is the validator's, not the atom's, and is named here rather than silently skipped.

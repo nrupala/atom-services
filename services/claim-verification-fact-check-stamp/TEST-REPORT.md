@@ -95,3 +95,19 @@ Tester errors this wave: 0 — Gemini's judgment recorded no tester-error entrie
 The Wave 1 FAIL on this atom's verdict cases was a tester-design error under the now-explicit contract: the Wave 1 cases carried URL strings (`"nasa.gov"` / `"blog.com"`) for `primary_source`, a field SERVICE.md's blanket boolean default always made boolean and which SERVICE.md now declares explicitly as `primary_source (boolean)`. The battery was redesigned to that explicit contract, not the atom relaxed — validation was not loosened, and the new 5th case proves a string `primary_source` is still rejected with HTTP 422 naming `claims[0].primary_source`. F4 disposition: **closed under ruling (a)** — all pass marks hold on the corrected battery.
 
 **Wave 3 verdict: PASS** — full-pass STAMPED with all 16 checks passing, violations NOT_STAMPED with exactly the expected failing checks, sparse INSUFFICIENT_EVIDENCE, both malformed cases rejected 422 invalid_input with the correct fields named, and determinism and MCP/REST parity both true.
+
+## Addendum — Wave 8 (2026-11-15): USER-GUIDE worked-example correction
+
+The USER-GUIDE's worked-example request showed `"primary_source":
+"nasa.gov"` (a string) — the exact value shape the recorded battery
+rejects. The recorded case `primary-source-string`
+(`verification/work/claim-verification-fact-check-stamp/evidence.json`,
+tested 2026-11-16T00:43:04Z) returns HTTP 422
+`{"ok":false,"error":"invalid_input","field":"claims[0].primary_source","detail":"claims[0].primary_source must be a boolean"}`,
+and the recorded full-pass case in the same battery
+(`verification/work/claim-verification-fact-check-stamp/cases.json`)
+carries `"primary_source": true` and returns STAMPED. The guide
+example is corrected to the recorded boolean shape
+(`"primary_source": true`). No atom behavior changed — this was a
+guide-content error, flagged in the WS1 documentation record
+(named open item 1) and closed here by the verification lane.
