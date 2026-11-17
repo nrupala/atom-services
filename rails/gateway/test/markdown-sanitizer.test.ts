@@ -95,3 +95,15 @@ for (const file of fixtureFiles) {
     assert.deepStrictEqual(evaluate(fixture.manifest), fixture.expected);
   });
 }
+
+test("nested tag re-formation removed by fixpoint", () => {
+  // Removing the inner pairs joins the outer fragments into a whole
+  // new active block; the fixpoint pass must remove that one too,
+  // whole. Count: 2 inner pairs in pass one + 1 re-formed block.
+  const r = evaluate({
+    text: "<scri<script></script>pt>alert(1)</scri<script></script>pt>",
+  });
+  assert.equal(r.sanitized_text, "");
+  assert.equal(r.counts.active_blocks_removed, 3);
+  assert.equal(r.counts.html_tags_removed, 0);
+});

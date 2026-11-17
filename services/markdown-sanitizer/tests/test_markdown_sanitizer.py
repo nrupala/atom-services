@@ -136,3 +136,14 @@ def test_stamp_renders():
     s = stamp(evaluate({"text": "<script>x</script>hi"}))
     assert s.startswith("MARKDOWN SANITIZER")
     assert "active_blocks_removed" in s
+
+
+def test_nested_tag_reformation_removed_by_fixpoint():
+    # Removing the inner pair joins the outer fragments into a whole
+    # new active block; the fixpoint pass must remove that one too,
+    # whole — not spill its content as text via the tag stripper.
+    # Count: 2 inner pairs in pass one + 1 re-formed block in pass two.
+    r = evaluate({"text": "<scri<script></script>pt>alert(1)</scri<script></script>pt>"})
+    assert r["sanitized_text"] == ""
+    assert r["counts"]["active_blocks_removed"] == 3
+    assert r["counts"]["html_tags_removed"] == 0

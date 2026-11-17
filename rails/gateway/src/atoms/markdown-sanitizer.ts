@@ -108,7 +108,7 @@ interface Options {
   collapse_blank_lines: boolean;
 }
 
-function sanitizeProse(
+function sanitizePass(
   segment: string,
   opts: Options,
   counts: SanitizeCounts,
@@ -162,6 +162,24 @@ function sanitizeProse(
       counts.html_tags_removed += 1;
       return "";
     });
+  }
+  return segment;
+}
+
+function sanitizeProse(
+  segment: string,
+  opts: Options,
+  counts: SanitizeCounts,
+): string {
+  // Fixpoint: a removal can join the surrounding text into a new
+  // active tag (nested-tag re-formation), so repeat the pass until
+  // the segment is stable. Benign input is idempotent — the second
+  // pass changes nothing and the loop exits — so counts and output
+  // for ordinary text are exactly the single-pass results.
+  for (let i = 0; i < 8; i++) {
+    const next = sanitizePass(segment, opts, counts);
+    if (next === segment) break;
+    segment = next;
   }
   return segment;
 }

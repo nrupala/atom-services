@@ -135,7 +135,7 @@ def _scheme_of(target):
     return head[0].strip().lower()
 
 
-def _sanitize_prose(segment, opts, counts):
+def _sanitize_pass(segment, opts, counts):
     # 1. Active blocks, whole. An unclosed active tag removes to the
     # end of the segment — conservative on doubt.
     segment, n = _ACTIVE_BLOCK_RE.subn("", segment)
@@ -172,6 +172,20 @@ def _sanitize_prose(segment, opts, counts):
     if opts["strip_html"]:
         segment, n = _TAG_RE.subn("", segment)
         counts["html_tags_removed"] += n
+    return segment
+
+
+def _sanitize_prose(segment, opts, counts):
+    # Fixpoint: a removal can join the surrounding text into a new
+    # active tag (nested-tag re-formation), so repeat the pass until
+    # the segment is stable. Benign input is idempotent — the second
+    # pass changes nothing and the loop exits — so counts and output
+    # for ordinary text are exactly the single-pass results.
+    for _ in range(8):
+        nxt = _sanitize_pass(segment, opts, counts)
+        if nxt == segment:
+            return segment
+        segment = nxt
     return segment
 
 
