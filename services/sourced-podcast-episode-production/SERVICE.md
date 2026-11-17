@@ -4,9 +4,9 @@
 
 ## What it delivers
 
-Bound capability (from the skill): Research, script, and produce a podcast episode or narrated briefing grounded in traceable sources
+Bound capability (from the skill): research, script, and produce a podcast episode or narrated briefing grounded in traceable sources — scope, script, narrate, and document an episode where every claim traces to a source in the notes.
 
-A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared episode production record** and receives the production audit verdict as the deliverable: the atom produces no audio, writes no script, fetches no source and publishes nothing (see Honest scoping).
 
 ## Buyer
 
@@ -16,10 +16,345 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Narrated briefings for content sites**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the episode production manifest
+
+The caller submits one JSON manifest: a declared podcast
+episode production record for one episode, made from the
+production as actually carried out. Every field below is read
+by the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`EPISODE_PRODUCTION_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `episode_title` (string; carried into the verdict output, not itself checked) | — |
+| `scoping.topic_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.audience_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.target_length_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.main_point_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.distribution_intent_confirmed` (boolean) | episode_scoping_and_outline |
+| `scoping.scoped_before_writing` (boolean) | episode_scoping_and_outline |
+| `episode_sections` (list of outline-section-row objects, each with the entry fields below; computed, see below) | episode_scoping_and_outline |
+| `episode_sections[].section_id` (string; must be unique per row) | episode_scoping_and_outline |
+| `episode_sections[].purpose` (non-empty string) | episode_scoping_and_outline |
+| `episode_sections[].supports_main_point` (boolean) | episode_scoping_and_outline |
+| `source_work.sources_collected_before_writing` (boolean) | sources_and_claim_traceability |
+| `source_work.source_list_kept_beside_draft` (boolean) | sources_and_claim_traceability |
+| `source_work.script_checked_claim_by_claim_against_sources` (boolean) | sources_and_claim_traceability |
+| `source_work.unsupported_claims_cut_or_softened` (boolean) | sources_and_claim_traceability |
+| `sources` (list of source-row objects, each with the entry fields below; computed, see below) | sources_and_claim_traceability |
+| `sources[].source_id` (string; must be unique per row) | sources_and_claim_traceability |
+| `sources[].citation` (non-empty string; the citation or link as recorded) | sources_and_claim_traceability |
+| `claims` (list of claim-row objects, each with the entry fields below; computed, see below) | sources_and_claim_traceability |
+| `claims[].claim_id` (string; must be unique per row) | sources_and_claim_traceability |
+| `claims[].claim_kind` (string; one of `quote`, `statistic`) | sources_and_claim_traceability |
+| `claims[].source_id` (string; computed — must name a declared source, see below) | sources_and_claim_traceability |
+| `claims[].source_marked_in_script` (boolean) | sources_and_claim_traceability |
+| `script.written_for_the_ear` (boolean) | script_for_listening |
+| `script.uses_short_sentences` (boolean) | script_for_listening |
+| `script.uses_signposts` (boolean) | script_for_listening |
+| `script.has_no_visual_references` (boolean) | script_for_listening |
+| `script.opens_with_main_point` (boolean) | script_for_listening |
+| `script.supports_point_in_order` (boolean) | script_for_listening |
+| `script.closes_with_what_matters` (boolean) | script_for_listening |
+| `script.approved_before_narration` (boolean) | script_for_listening |
+| `narration.voice_confirmed` (boolean) | narration_and_assembly_qc |
+| `narration.pace_confirmed` (boolean) | narration_and_assembly_qc |
+| `narration.long_script_chunked_at_section_breaks_where_long` (boolean) | narration_and_assembly_qc |
+| `narration.audio_assembled` (boolean) | narration_and_assembly_qc |
+| `narration.opening_listen_back_checked` (boolean) | narration_and_assembly_qc |
+| `narration.section_joins_listen_back_checked` (boolean) | narration_and_assembly_qc |
+| `narration.misreads_and_awkward_joins_fixed` (boolean) | narration_and_assembly_qc |
+| `narration.ai_narrated` (boolean; gates the disclosure check below) | publishing_and_disclosure |
+| `show_notes.summary_included` (boolean) | show_notes_and_rights |
+| `show_notes.main_points_included` (boolean) | show_notes_and_rights |
+| `show_notes.complete_source_list_included` (boolean) | show_notes_and_rights |
+| `show_notes.source_ids_included` (list of strings; computed — must be exactly the declared source ids, see below) | show_notes_and_rights |
+| `rights.copyrighted_audio_or_music_used` (boolean; gates the rights check below) | show_notes_and_rights |
+| `rights.right_to_copyrighted_audio_or_music_cleared` (boolean; required when copyrighted audio/music use is declared; otherwise the check passes as not applicable) | show_notes_and_rights |
+| `guests.guest_voices_present` (boolean; gates the guest-release check below) | show_notes_and_rights |
+| `guests.releases_recorded_for_all_guests` (boolean; required when guest voices are declared present; otherwise the check passes as not applicable) | show_notes_and_rights |
+| `publishing.publishing_or_scheduling_planned` (boolean; gates the three publishing checks below) | publishing_and_disclosure |
+| `publishing.authorization_recorded_for_this_episode` (boolean; required when publishing/scheduling is declared planned; otherwise the check passes as not applicable) | publishing_and_disclosure |
+| `publishing.destination_matches_authorized_scope` (boolean; gated as above) | publishing_and_disclosure |
+| `publishing.timing_matches_authorized_scope` (boolean; gated as above) | publishing_and_disclosure |
+| `publishing.ai_narration_disclosure_made` (boolean; required when AI narration is declared; otherwise the check passes as not applicable) | publishing_and_disclosure |
+| `red_lines.fabricated_quote_statistic_or_source_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.words_attributed_beyond_source_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.publishing_beyond_authorized_scope_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.ai_narration_presented_as_human_without_disclosure_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.copyrighted_audio_without_clear_right_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Thirteen checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Outline sections declared:** the declared
+  `episode_sections` list passes when it is present and names
+  at least one section. An absent list is missing evidence; an
+  empty list fails — it declares no outline at all.
+- **Outline section ids unique:** no declared `section_id` may
+  appear on more than one row. A row with `section_id` absent
+  is missing evidence for this check.
+- **Purpose per outline section:** every declared section row
+  declares a non-empty `purpose` (the skill: outline the
+  episode so each section earns its place). A row with the
+  field absent is missing evidence; a row declaring an empty
+  purpose fails and is named in
+  `episode_outline_sections_without_purpose`.
+- **Every section supports the main point:** every declared
+  section row declares `supports_main_point: true`. A row with
+  the field absent is missing evidence; a row declaring it
+  false fails and is named in
+  `episode_outline_sections_not_supporting_main_point`.
+- **Sources declared:** the declared `sources` list passes
+  when it is present and names at least one source. An absent
+  list is missing evidence; an empty list fails — it declares
+  no sourced episode at all (the skill: collect sources before
+  writing anything).
+- **Source ids unique:** no declared `source_id` may appear on
+  more than one source row.
+- **Citation per source:** every declared source row declares
+  a non-empty `citation` — the link or citation as recorded. A
+  row with the field absent is missing evidence; a row
+  declaring an empty citation fails and is named in
+  `podcast_sources_without_citation`.
+- **Claims declared:** the declared `claims` list passes when
+  it is present and names at least one quote/statistic claim
+  row. An absent list is missing evidence; an empty list
+  fails — in this record format it declares no traced claims
+  at all (see Honest scoping for the no-quote/no-statistic
+  episode boundary).
+- **Claim ids unique:** no declared `claim_id` may appear on
+  more than one claim row.
+- **Claim kind recognised:** every declared claim's
+  `claim_kind` is one of `quote`, `statistic` — the two kinds
+  the skill names for source-marking ("mark every quote and
+  statistic"). Any other value fails and is named in
+  `podcast_claims_with_invalid_kind`.
+- **Every claim traced to a declared source:** every declared
+  claim's `source_id` names one of the declared sources. A
+  claim with `source_id` absent, or a record with the sources
+  list absent, is missing evidence; a claim naming an
+  undeclared source fails and is named in
+  `podcast_claims_with_unknown_source_reference`.
+- **Every claim's source marked in the script:** every
+  declared claim row declares `source_marked_in_script: true`.
+  A row with the field absent is missing evidence; a row
+  declaring it false fails and is named in
+  `podcast_claims_with_unmarked_source`.
+- **Show-notes source ids match the declared sources:** the
+  declared `show_notes.source_ids_included` list must be
+  exactly the declared source ids — none missing
+  (`podcast_sources_missing_from_show_notes`), none extra
+  (`show_notes_source_ids_not_declared_as_sources`). Either
+  list absent, or a source row without a `source_id`, is
+  missing evidence.
+
+Six further checks are gated on the record's own declared
+gate fields, following the skill's own conditional scope —
+when the gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **Copyrighted-audio rights:** a clear right is required
+  only where `rights.copyrighted_audio_or_music_used` is
+  declared `true`.
+- **Guest releases:** releases recorded for all guests are
+  required only where `guests.guest_voices_present` is
+  declared `true`.
+- **Publishing authorization, destination and timing:** each
+  is required only where
+  `publishing.publishing_or_scheduling_planned` is declared
+  `true` (the skill: publish or schedule only if authorized
+  for this episode, and confirm destination and timing match
+  that authorization exactly).
+- **AI-narration disclosure:** disclosure is required only
+  where `narration.ai_narrated` is declared `true` (the skill
+  red line: never present an AI-narrated episode as a human
+  recording without disclosure).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the thirteen primary computed checks above cannot be
+completed), `episode_outline_sections_count`,
+`podcast_sources_count` and `podcast_claims_count` (the
+declared list lengths, or null when a list is not declared —
+counts are reported as integers, exactly), the duplicate-id
+lists `duplicate_episode_outline_section_ids`,
+`duplicate_podcast_source_ids` and `duplicate_podcast_claim_ids`,
+the row-name lists named in the computed checks above, and
+the ratios `outline_section_support_ratio` (sections declared
+to support the main point ÷ declared sections),
+`source_citation_ratio` (sources with a recorded citation ÷
+declared sources), `traced_claim_ratio` (claims both traced
+to a declared source and marked in the script ÷ declared
+claims) and `show_notes_source_coverage_ratio` (declared
+sources appearing in the show-notes source list ÷ declared
+sources). **Fixed serialization rule:** computed ratios are
+reported as strings with exactly six decimal places, produced
+in both implementations by the same rule — round half up to
+6dp, `floor(v * 1000000 + 0.5) / 1000000`, then format with
+exactly six decimals. A ratio is null when its denominator
+list is absent or empty (the show-notes coverage ratio is
+also null when the show-notes source list is not declared).
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are scoping, traceability, listening-form, listen-back QC,
+complete show notes and authorized publishing, not bars the
+atom can set. Quantities are computed and reported; the only
+bars on the computed rows are exact traceability and
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a target episode
+length in minutes or words, or a tolerance around it (length
+is checked as scoped, never measured); a minimum or maximum
+number of sources, claims or outline sections beyond at
+least one each; a source-quality, authority or recency bar
+for declared sources (a citation is checked as recorded,
+never graded); a quote/statistic accuracy bar beyond declared
+traceability to a declared source (the atom receives no
+source text and verifies nothing against the world); a
+sentence-length, signpost-density or reading-level bar for
+"written for the ear" (checked as declarations only); a
+loudness, sample-rate, bitrate or any other audio-quality bar
+for the assembled audio; a listen-back coverage bar beyond
+the opening and the section joins the skill names; a
+narration pace in words per minute; a publishing-window or
+scheduling-lead-time bar; any judgment that the episode is
+good, interesting or worth publishing (only that its declared
+production record contains what the skill requires).
+
+The verdict is one of `EPISODE_PRODUCTION_SOUND` (all 52
+checks pass), `EPISODE_PRODUCTION_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections:
+episode_scoping_and_outline, sources_and_claim_traceability,
+script_for_listening, narration_and_assembly_qc,
+show_notes_and_rights, publishing_and_disclosure, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `long-form-authoring-pipeline` (a
+declared long-form written work — approved outline, drafting
+loop, review passes, versioning and publishing of prose),
+`local-voice-stack-engineering-pack` (the engineering of a
+local TTS/STT voice stack itself — engine selection, cloning
+consent, latency and accessibility of the stack) and
+`meeting-decisions-and-actions-extract` (decisions, owned
+action items and open questions extracted from one meeting's
+notes or transcript). This atom shares **zero checks** with
+any of them (verified mechanically by enumerating
+`evaluate({})` check names from every atom oracle in
+`services/*/src/*.py` and comparing, with a grep of check
+strings over the same files as the fallback for oracles whose
+`evaluate({})` raises or returns a different shape — zero
+overlap by both methods): every check here is an
+episode-production question — an episode scoped (topic,
+audience, length, single main point, distribution intent)
+before writing, sources collected before writing and kept
+beside the draft, every declared quote/statistic claim marked
+in the script and tracing to a declared source with
+unsupported claims cut or softened, a script written for the
+ear that opens with the point and closes with what matters,
+narration of the approved script listened back at the opening
+and the section joins with misreads fixed, show notes whose
+declared source list is exactly the declared sources,
+copyrighted-audio rights and guest releases where declared,
+and publishing kept inside its exact authorized scope. The
+boundary is: one sourced episode's production record here; a
+written work's authoring pipeline, a voice stack's
+engineering, and a meeting's extraction there.
+
+## Honest scoping
+
+This atom reviews a **declared** episode production record —
+it researches nothing, writes no script, narrates nothing,
+assembles no audio, fetches or opens no source, verifies no
+citation, quote or statistic against the world, listens to
+nothing, and publishes or schedules nothing. An episode is
+sound *on the caller's declared evidence*: a record that
+declares its claims traced, its joins listened back and its
+publishing authorized passes those checks even if the real
+production did none of it. It is a completeness and
+consistency audit of the production record the skill
+requires, **not a production service, a fact-check, or a
+guarantee that the episode is accurate or good**: it never
+judges whether a declared citation actually supports the
+claim that cites it, whether the script is well written,
+whether the narration sounds right, or whether the episode
+should be published — only that the record contains what the
+skill's method, quality gates and red lines demand, and that
+its declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never performed or judged): the skill's
+research step itself (collecting and reading sources);
+script writing itself, including the related
+`authoring-pipeline` discipline the skill writes under;
+narration generation itself, including the related
+`voice-notes-and-narration` production step; audio assembly
+and editing itself; working through long source documents
+(the related `document-reader` step); and publishing or
+scheduling execution itself — each is EXCLUDED by name from
+this atom, which audits only the declared record of those
+steps. Boundary cases, named: an episode with genuinely no
+quote and no statistic cannot pass this record format's
+claims-declared check (the format requires at least one
+traced claim row — such an episode is outside this atom's
+computed reach, not failed on its merits); guest releases
+are a gated declaration in this record (the bound skill
+names no guest step — releases are required only where the
+caller declares guest voices present, and the atom judges no
+release's legal sufficiency); rights clearances likewise are
+declared presence only, never a legal judgment.
+
+## U-13 regulatory screen
+
+Screen classification: **(a) — No outright.** Keyword screen:
+the bound skill and this record name podcast production,
+narration, publishing, citations and copyrighted audio — no
+engineering-practice, securities/financial-advice or
+psychology-adjacent subject, and no regulated profession's
+vocabulary. Substance screen: this atom's output could not
+read as regulated professional advice — it audits a
+caller-**declared** episode production record for
+completeness and internal consistency only (scoping, outline,
+source/claim traceability recomputed over the declared rows,
+listening-form, listen-back, show-notes, rights, guest-release
+and publishing declarations, and the red lines refused);
+every output is a pass / fail / missing verdict on the record
+or a ratio recomputed from the caller's own declared rows.
+Named controls: (1) it produces **no episode content and no
+advice of any kind** — no script, no narration, no audio, no
+recommendation about any topic; the skill's creative and
+production steps (research, scripting, narration, assembly,
+publishing) are excluded from production by name above — this
+atom performs none of them; (2) it sets **no threshold** on
+any subject matter (see the declined list); (3) the episode's
+topic is whatever the caller declares — the atom receives no
+script text, takes no position on the episode's subject, and
+no output is addressed to any regulated decision; (4) the
+rights, guest-release and AI-disclosure checks judge declared
+presence only, never legal sufficiency — copyright and
+disclosure compliance remain the caller's responsibility, on
+their record. This is not the census class (no regulated
+adjacency to flag) and not the genuinely-open
+personal-financial-snapshot class (no personal position of
+any kind is handled). No deploy happens on this atom without
+the owner's explicit per-unit ruling in any case.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

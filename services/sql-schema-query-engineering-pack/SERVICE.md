@@ -1,4 +1,4 @@
-# Sql schema query engineering pack — `sql-schema-query-engineering-pack`
+# SQL schema & query engineering pack — `sql-schema-query-engineering-pack`
 
 **Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
 
@@ -6,7 +6,7 @@
 
 Bound capability (from the skill): Design and write SQL that scales — schema constraints, indexes, transactions, safe migrations, no N+1.
 
-A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+A caller submits a declared SQL schema + query engineering record and receives one deliverable back: a deterministic verdict over that record, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. The atom connects to **no database**, executes **no SQL** against any live system, and reviews **no live codebase** — it audits the record the caller declares.
 
 ## Buyer
 
@@ -16,10 +16,294 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Product database design and migrations**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the SQL schema & query engineering manifest
+
+The caller submits one JSON manifest: a declared SQL schema +
+query engineering record for one database and its application
+queries, made from the system's actual practice. Every field
+below is read by the named section's checks. A field **absent**
+= evidence missing (`INSUFFICIENT_EVIDENCE`); a field present
+but false / invalid = the check fails
+(`SQL_SCHEMA_QUERY_ENGINEERING_PACK_NOT_READY`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `schema_design.precise_column_types_declared` (boolean) | schema_constraints_and_naming |
+| `schema_design.not_null_default_with_nullable_exceptions_explicit` (boolean) | schema_constraints_and_naming |
+| `schema_design.check_and_foreign_key_constraints_in_database` (boolean) | schema_constraints_and_naming |
+| `schema_design.snake_case_naming_consistent` (boolean) | schema_constraints_and_naming |
+| `tables` (list of table-row objects, each with the entry fields below; computed, see below) | schema_constraints_and_naming |
+| `tables[].name` (string; names the row in the computed outputs; also computed for snake_case and duplication) | schema_constraints_and_naming |
+| `tables[].primary_key_declared` (boolean; must be `true` per row) | schema_constraints_and_naming |
+| `tables[].schema_constraints_declared` (boolean; must be `true` per row) | schema_constraints_and_naming |
+| `tables[].not_null_default_declared` (boolean; must be `true` per row) | schema_constraints_and_naming |
+| `index_design.indexes_derived_from_real_access_patterns` (boolean) | index_design_from_access_patterns |
+| `index_design.composite_index_column_order_follows_query_order` (boolean) | index_design_from_access_patterns |
+| `index_design.index_write_cost_measured_before_adding` (boolean) | index_design_from_access_patterns |
+| `indexes` (list of index-row objects, each with the entry fields below; computed, see below) | index_design_from_access_patterns |
+| `indexes[].name` (string; the name a query's `supporting_index_name` must equal to match) | index_design_from_access_patterns |
+| `indexes[].table` (string; must equal the query's declared table to match) | index_design_from_access_patterns |
+| `indexes[].columns` (list of strings; must be present and non-empty per row) | index_design_from_access_patterns |
+| `queries` (list of query-row objects, each with the entry fields below; computed, see below) | query_construction_pagination_and_n_plus_one_prevention, sql_safety_and_bounded_writes |
+| `queries[].name` (string; names the row in the computed outputs) | query_construction_pagination_and_n_plus_one_prevention |
+| `queries[].table` (string; a supporting index matches only on the same declared table) | index_design_from_access_patterns |
+| `queries[].supporting_index_name` (string; must name a declared index on the same table) | index_design_from_access_patterns |
+| `queries[].explicit_column_list_declared` (boolean; must be `true` per row) | query_construction_pagination_and_n_plus_one_prevention |
+| `queries[].bounded_or_paginated_declared` (boolean; must be `true` per row) | query_construction_pagination_and_n_plus_one_prevention |
+| `queries[].parameterized_inputs_declared` (boolean; must be `true` per row) | sql_safety_and_bounded_writes |
+| `queries[].n_plus_one_avoidance_declared` (boolean; must be `true` per row) | query_construction_pagination_and_n_plus_one_prevention |
+| `query_practice.set_based_queries_preferred` (boolean) | query_construction_pagination_and_n_plus_one_prevention |
+| `query_practice.complex_reads_use_ctes_or_window_functions` (boolean) | query_construction_pagination_and_n_plus_one_prevention |
+| `query_practice.large_results_paginated` (boolean) | query_construction_pagination_and_n_plus_one_prevention |
+| `query_practice.related_data_joined_batched_or_preloaded` (boolean) | query_construction_pagination_and_n_plus_one_prevention |
+| `query_practice.query_count_tests_verify_no_n_plus_one` (boolean) | query_construction_pagination_and_n_plus_one_prevention |
+| `transactions.transactions_kept_short` (boolean) | transactions_and_concurrency |
+| `transactions.isolation_level_known` (boolean) | transactions_and_concurrency |
+| `transactions.deadlock_retry_with_backoff_declared` (boolean) | transactions_and_concurrency |
+| `sql_safety.all_external_input_bound_as_parameters` (boolean) | sql_safety_and_bounded_writes |
+| `sql_safety.update_and_delete_statements_all_carry_where` (boolean) | sql_safety_and_bounded_writes |
+| `sql_safety.bounded_writes_rehearsed_before_execution` (boolean) | sql_safety_and_bounded_writes |
+| `migrations.forward_and_rollback_scripts_present` (boolean) | migrations_and_migration_safety |
+| `migrations.migrations_tested_on_a_copy` (boolean) | migrations_and_migration_safety |
+| `migrations.expand_migrate_contract_for_zero_downtime` (boolean) | migrations_and_migration_safety |
+| `migrations.one_logical_change_per_migration` (boolean) | migrations_and_migration_safety |
+| `performance_evidence.explain_analyze_captured_before_and_after_heavy_changes` (boolean) | performance_evidence_and_plan_regression |
+| `performance_evidence.query_plan_regressions_watched` (boolean) | performance_evidence_and_plan_regression |
+| `sql_red_lines.string_concatenated_sql_with_user_input_present` (boolean; must be `false` to pass — skill red line) | sql_red_lines |
+| `sql_red_lines.unreviewed_migration_on_live_data_present` (boolean; must be `false` to pass — skill red line) | sql_red_lines |
+| `sql_red_lines.direct_to_production_schema_edit_present` (boolean; must be `false` to pass — skill red line) | sql_red_lines |
+| `sql_red_lines.unbounded_write_without_where_present` (boolean; must be `false` to pass — skill safety rule) | sql_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Tables, indexes and queries declared:** each declared list
+  passes only when present and non-empty; an absent list is
+  missing evidence, an empty list fails (a SQL engineering
+  record with no tables, no indexes or no queries declares
+  nothing the skill can audit).
+- **Primary key / schema constraints / NOT NULL default per
+  table:** every declared table row must declare each field
+  true (the skill: precise schema first, `NOT NULL` by default,
+  `CHECK`/`FK` constraints in the database). A row with the
+  field absent is missing evidence; a row declaring it false
+  fails and is named in the corresponding `tables_without_*`
+  output.
+- **Snake_case per table name:** every declared table `name`
+  must match the fixed pattern `[a-z][a-z0-9_]*` in full —
+  computed over the declared string itself, not attested. A row
+  with `name` absent is missing evidence; a non-matching name
+  fails and is named in `tables_with_non_snake_case_names`.
+- **No table / index / query name duplicated:** no declared
+  `name` may appear on more than one row of its list. A row
+  with `name` absent is missing evidence for this check.
+- **Columns per index:** every declared index row must declare
+  a present, non-empty `columns` list of strings. A row with
+  the field absent is missing evidence; an empty list fails.
+- **Matching index per query:** every declared query must name
+  a supporting index that is actually declared — an index
+  matches only when its `name` equals the query's
+  `supporting_index_name` **and** its declared `table` equals
+  the query's declared `table`. A query with
+  `supporting_index_name` or `table` absent is missing
+  evidence; an unmatched query is named in
+  `uncovered_sql_queries`.
+- **Per-query declarations:** every declared query row must
+  declare an explicit column list (no `SELECT *` in app code),
+  bounded or paginated access (no unbounded scan), N+1
+  avoidance, and — read by the safety section — parameterized
+  inputs, each true per row under the same absent/false rules.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the sixteen primary computed checks above cannot be completed),
+`tables_count`, `indexes_count` and `queries_count` (the
+declared list lengths, or null when the list is not declared —
+counts are reported as integers, exactly), the row-name lists
+`tables_without_primary_key`,
+`tables_without_schema_constraints`,
+`tables_without_not_null_default`,
+`tables_with_non_snake_case_names`,
+`duplicate_sql_table_names`, `indexes_without_columns`,
+`duplicate_sql_index_names`,
+`queries_without_explicit_column_list`,
+`queries_without_bounded_or_paginated_access`,
+`queries_without_parameterized_inputs`,
+`queries_without_n_plus_one_avoidance`,
+`uncovered_sql_queries` and `duplicate_sql_query_names`
+(each null when its underlying list — or, for uncovered
+queries, either list — is not declared; a row whose field is
+absent is missing evidence and does not appear in a
+`without_*` list), and the coverage ratios
+`table_primary_key_coverage`,
+`table_schema_constraints_coverage`,
+`table_not_null_default_coverage`, `index_columns_coverage`,
+`query_explicit_column_list_coverage`,
+`query_bounded_or_paginated_coverage`,
+`query_parameterized_inputs_coverage`,
+`query_n_plus_one_avoidance_coverage` and
+`query_index_support_coverage`. **Fixed serialization rule:**
+computed ratios are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp, `floor(v * 1000000 + 0.5) /
+1000000`, then format with exactly six decimals; comparisons
+use the unrounded values. A ratio is null when its denominator
+list is absent or empty (and, for query index support, when
+the indexes list is absent). That fixed serialization is what
+makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric threshold — no table, index or
+query count, no coverage percentage below completeness, no
+transaction duration for "short", no page size for "large
+results", no deadlock retry count or backoff interval, no
+plan-cost figure — so no numeric threshold check is invented.
+Quantities are computed and reported; the only bar on the
+computed rows is completeness over the caller's own declared
+rows, exactly as stated above. Declined thresholds, named: a
+minimum or maximum table/index/query count; a coverage
+percentage below completeness over the declared rows; a
+numeric transaction-length limit for "short"; a numeric
+result-set size or page size that makes a result "large"; a
+deadlock retry count, backoff base or backoff cap; an
+isolation-level vocabulary (the skill requires the level be
+*known*, and names no allowed values, so only that attestation
+is checked); a query-plan cost, row-estimate or timing figure
+an `EXPLAIN ANALYZE` capture must show (only that the evidence
+is captured before and after is checked); a composite-index
+column-count limit; a snake_case rule beyond the fixed
+`[a-z][a-z0-9_]*` pattern the skill's "snake_case" naming
+itself defines (no length limit, no reserved-word list is
+invented).
+
+The verdict is one of
+`SQL_SCHEMA_QUERY_ENGINEERING_PACK_READY` (all 44 checks pass),
+`SQL_SCHEMA_QUERY_ENGINEERING_PACK_NOT_READY` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across eight sections:
+schema_constraints_and_naming,
+index_design_from_access_patterns,
+query_construction_pagination_and_n_plus_one_prevention,
+transactions_and_concurrency, sql_safety_and_bounded_writes,
+migrations_and_migration_safety,
+performance_evidence_and_plan_regression, sql_red_lines.
+
+## Distinct ground
+
+The nearest siblings are `database-design-review`,
+`production-python-engineering-pack` and
+`codebase-structural-query`, and this atom shares **zero
+checks** with every other atom — verified mechanically by
+enumerating `evaluate({})` check names from every
+`services/*/src/*.py` oracle and intersecting (this atom's 44
+names overlap none of the 4,087 names in the other registers).
+The boundaries are:
+
+- **`database-design-review`** (REVIEW) judges a *design*
+  before it is built: store selection from access patterns,
+  normalization to 3NF and denormalization reasons, covering
+  indexes and keyset-vs-offset pagination, money types,
+  consistency/availability trade-offs for distributed stores,
+  least-privilege users, encryption at rest, backups and
+  restores. This atom never chooses a store, never asks about
+  3NF, backups or store fit: it audits the *SQL engineering
+  record of a schema and its queries as written* — per-table
+  primary-key/constraint/NOT-NULL completeness, computed
+  snake_case table names, per-query explicit column lists,
+  bounded access, parameterization and N+1 avoidance over the
+  declared query rows, matching declared indexes on the same
+  table, transaction/deadlock practice, bounded-write
+  rehearsal, forward+rollback migration scripts tested on a
+  copy, and `EXPLAIN ANALYZE` evidence with plan-regression
+  watching.
+- **`production-python-engineering-pack`** audits a declared
+  production *Python* record (typing, packaging, pytest,
+  stdlib-first practice). It asks no SQL question at all; any
+  Python data-layer code is judged there as Python, and the
+  SQL it emits is judged here as declared query rows, never as
+  source code.
+- **`codebase-structural-query`** computes structural answers
+  over a submitted code-graph index (descendants, ancestors,
+  blast radius, paths). It indexes no database schema, checks
+  no constraints and audits no engineering practice; this atom
+  takes no code graph and answers no structural query.
+
+In short: design choice and store fit in
+`database-design-review`; SQL-as-written schema/query/migration
+engineering completeness here; application-language practice
+and code structure in their own atoms.
+
+## Honest scoping
+
+This atom reviews a **declared** SQL schema + query
+engineering record — it connects to no database, executes no
+SQL, runs no `EXPLAIN ANALYZE`, inspects no repository,
+migration file or query plan, and does not verify that
+declared practice was ever carried out. A record is ready *on
+the caller's declared evidence*: a manifest that declares
+every query parameterized and every migration rollback-tested
+passes those checks even if the real system does none of it.
+It is a completeness and consistency audit of the engineering
+record the skill requires, **not a database, a query
+optimizer, a migration runner, a security audit, or a
+guarantee that the schema is correct or the queries are
+fast**: it never judges whether a declared constraint is the
+right constraint, whether a declared index will actually be
+used by the planner, whether the declared isolation level is
+adequate, or whether a declared column type is correct in the
+real DDL — only that the record contains what the skill's
+practice demands, and that its declared table, index and query
+rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): designing a schema for the
+caller, writing or rewriting SQL for the caller, choosing
+indexes for a real workload, and running or reviewing live
+migrations are all **excluded by name** — the skill's
+prescriptive moves are checked only as declared
+presence/consistency, never emitted as design advice; no live
+execution of any kind (no connection, no query, no plan
+capture — `EXPLAIN ANALYZE` is checked only as declared
+evidence); no numeric thresholds at all (the skill states
+none — see the declined list above); no judgment of practice
+*quality* beyond the declared record's completeness and the
+computed row consistency stated above.
+
+## U-13 regulatory screen
+
+Classification: **(b) screen-NO — flag-with-controls (census
+class).** This atom's output could not read as regulated
+professional advice — it audits a declared SQL
+software-engineering record for completeness and consistency
+against a SQL practice skill; it offers no engineering-practice
+advice in the APEGA sense (no design, stamping, or safety
+judgment over physical systems), no financial or securities
+advice, and nothing psychology-adjacent. Its subject is
+software practice only, the same class as the
+software-engineering titles that stayed live at the census
+pending the owner's review. Named controls: (1)
+declared-record audit only — the atom audits the record the
+caller declares, never connects to a database, executes no
+SQL and never verifies practice; (2) advice-shaped skill steps
+are excluded as red lines / named exclusions — the skill's
+prescriptive moves (how to design a schema, how to write a
+query, how to sequence a migration) are never emitted as
+advice; the atom only checks declared presence/consistency and
+refuses the skill's anti-patterns as red-line declarations;
+(3) no numeric threshold is invented — every bar is the
+skill's own stated rule or completeness over the caller's
+declared rows.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

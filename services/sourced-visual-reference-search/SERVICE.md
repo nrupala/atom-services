@@ -4,9 +4,11 @@
 
 ## What it delivers
 
-Bound capability (from the skill): Search the web by description for images — returning each image with its source page so it can be judged, cited, and used as a reliable reference
+Bound capability (from the skill): search the web by description for images — returning each image with its source page so it can be judged, cited, and used as a reliable reference. The skill is a finding skill, not a creation skill: the results are existing images from the web, with their provenance kept, framed honestly about what they prove and what rights they carry.
 
 A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one query.
+
+This atom audits a **declared** visual-reference search record — it performs no live search, fetches no image, and identifies no person (see Honest scoping). The deliverable is the audit verdict over that declared record: whether the search record the skill requires is present, sourced, relevant, contextualised and honestly licensed on the caller's declared evidence.
 
 ## Buyer
 
@@ -16,14 +18,316 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Research brief visual reference sourcing**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the visual-reference search record
+
+The caller submits one JSON manifest: a declared visual-reference
+search record for one search, made from the search as actually
+carried out. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`VISUAL_REFERENCE_SET_NOT_SOUND`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `search_title` (string; carried into the verdict output, not itself checked) | — |
+| `brief.target_restated_in_searchable_terms` (boolean) | search_brief_and_query |
+| `brief.subject_stated` (boolean) | search_brief_and_query |
+| `brief.setting_stated` (boolean) | search_brief_and_query |
+| `brief.angle_or_style_stated` (boolean) | search_brief_and_query |
+| `brief.must_have_and_must_avoid_details_stated` (boolean) | search_brief_and_query |
+| `search.terms_adjusted_when_first_pass_off_topic` (boolean; declared where it applied) | search_brief_and_query |
+| `results` (list of result-row objects, each with the entry fields below; computed, see below) | source_provenance, relevance_and_quality, context_and_selection, licensing_and_attribution |
+| `results[].result_id` (string; must be unique per row) | source_provenance |
+| `results[].direct_image_url` (non-empty string; must be unique per row, computed) | source_provenance, context_and_selection |
+| `results[].source_page_url` (non-empty string) | source_provenance |
+| `results[].source_page_verified` (boolean) | source_provenance |
+| `results[].matches_brief_by_viewing` (boolean) | relevance_and_quality |
+| `results[].shows_subject_clearly` (boolean) | relevance_and_quality |
+| `results[].usable_resolution_declared` (boolean) | relevance_and_quality |
+| `results[].misleading_cropping_present` (boolean; must be `false` per row) | relevance_and_quality |
+| `results[].watermark_present` (boolean; must be `false` per row) | relevance_and_quality |
+| `results[].caption_product_mismatch_present` (boolean; must be `false` per row) | relevance_and_quality |
+| `results[].depiction_noted` (boolean) | context_and_selection |
+| `results[].publisher_noted` (boolean) | context_and_selection |
+| `results[].caption_date_or_credit_noted` (boolean) | context_and_selection |
+| `results[].licence_status` (string; one of `explicitly_licensed`, `reference_only_no_licence_stated`, `licence_unknown`) | licensing_and_attribution |
+| `results[].licence_note_present` (boolean) | licensing_and_attribution |
+| `results[].credit_noted` (boolean) | licensing_and_attribution |
+| `results[].claimed_cleared_for_commercial_use` (boolean; may be `true` only when `licence_status` is `explicitly_licensed`, computed) | licensing_and_attribution |
+| `quality.relevance_checked_by_viewing_not_title_alone` (boolean) | relevance_and_quality |
+| `quality.weak_duplicate_or_misleading_filtered_out` (boolean) | relevance_and_quality |
+| `selection.involves_choice` (boolean; gates the choice-set computed check, see below) | context_and_selection |
+| `selection.strongest_match_called_out_first` (boolean) | context_and_selection |
+| `selection.similar_candidates_grouped` (boolean) | context_and_selection |
+| `selection.evidence_use_paired_with_facts_where_used_as_evidence` (boolean; declared where it applied) | context_and_selection |
+| `licensing.licensing_caution_stated_plainly` (boolean) | licensing_and_attribution |
+| `red_lines.person_identified_in_found_photo_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.found_image_presented_as_own_or_generated_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.found_image_presented_as_licensed_without_explicit_grant_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.unsourced_image_returned_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.altered_image_passed_as_original_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Seventeen checks are computed from the declared rows, using
+only the skill's own stated method and quality gates plus the
+consistency of the declared record itself — no outside
+threshold is imported:
+
+- **Results list declared:** the declared `results` list passes
+  when it is present and names at least one result. An absent
+  list is missing evidence; an empty list fails — it declares
+  no reference set at all, and the skill returns a set or says
+  plainly that nothing good was found.
+- **Result ids unique:** no declared `result_id` may appear on
+  more than one row. A row with `result_id` absent is missing
+  evidence for this check.
+- **Every result has direct image and source page links:** every
+  declared row declares both `direct_image_url` and
+  `source_page_url`, neither empty (the skill: record the direct
+  image link and the page it came from together; never return an
+  image without its source page). A row with a link field absent
+  is missing evidence; a row declaring an empty link fails, and
+  is named in `visual_reference_results_missing_source_pair`.
+- **Every result source page verified:** every declared row
+  declares `source_page_verified` true — its source page was
+  opened or verified. A row with the field absent is missing
+  evidence.
+- **Direct image URLs unique:** no declared `direct_image_url`
+  may appear on more than one row — duplicate results were
+  filtered out. Duplicates are named in
+  `duplicate_visual_reference_direct_image_urls`. A row with the
+  field absent is missing evidence; a row declaring an empty
+  URL fails.
+- **Every result matches the brief by viewing:** every declared
+  row declares `matches_brief_by_viewing` true.
+- **Every result shows the subject clearly:** every declared row
+  declares `shows_subject_clearly` true.
+- **Every result usable resolution declared:** every declared
+  row declares `usable_resolution_declared` true. No pixel bar
+  is set — see the declined thresholds.
+- **No result carries a quality defect:** no declared row
+  declares `misleading_cropping_present`,
+  `watermark_present` or `caption_product_mismatch_present`
+  true.
+- **Every result depiction noted:** every declared row declares
+  `depiction_noted` true — what the image depicts, from its
+  source page.
+- **Every result publisher noted:** every declared row declares
+  `publisher_noted` true.
+- **Every result caption/date/credit context noted:** every
+  declared row declares `caption_date_or_credit_noted` true.
+- **Choice set has several distinct candidates when a choice is
+  involved:** where the record declares
+  `selection.involves_choice` true, the set carries at least
+  three distinct declared direct image URLs — the minimum of
+  the skill's stated "typically three to six varied options"
+  range; where no choice is involved, at least one distinct
+  candidate. The declared `involves_choice` field or any row's
+  `direct_image_url` absent is missing evidence.
+- **Every result licence note present:** every declared row
+  declares `licence_note_present` true.
+- **Every result licence status recognised:** every declared
+  row's `licence_status` is one of `explicitly_licensed`,
+  `reference_only_no_licence_stated` or `licence_unknown`.
+- **Every result credit noted:** every declared row declares
+  `credit_noted` true.
+- **No result claimed cleared without an explicit licence:** no
+  declared row declares `claimed_cleared_for_commercial_use`
+  true while its `licence_status` is not `explicitly_licensed`.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the seventeen computed checks above cannot be completed),
+`visual_reference_results_count` (the declared list length, or
+null when the list is not declared — counts are reported as
+integers, exactly), `duplicate_visual_reference_result_ids`
+(ids declared on more than one row, in the order their second
+occurrence appears), `duplicate_visual_reference_direct_image_urls`
+(URLs declared on more than one row, in the order their second
+occurrence appears), `visual_reference_results_missing_source_pair`
+(rows without both a non-empty direct image URL and a non-empty
+source page URL), `visual_reference_results_with_incomplete_licence_attribution`
+(rows whose licence note, recognised licence status and credit
+note are not all present and true), and the ratios
+`sourced_pair_coverage_ratio` (rows with both links present ÷
+declared rows), `licence_attribution_coverage_ratio` (rows with
+complete licence/attribution declarations ÷ declared rows) and
+`visual_reference_match_ratio` (rows declared to match the brief
+by viewing ÷ declared rows). **Fixed serialization rule:**
+computed ratios are reported as strings with exactly six decimal
+places, produced in both implementations by the same rule —
+round half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`, then
+format with exactly six decimals. A ratio is null when its
+denominator list is absent or empty. That fixed serialization
+is what makes the Python and TypeScript outputs byte-identical.
+
+The skill states its choice-set size as a typical range and no
+other numeric threshold at all — its demands are sourced
+pairing, viewed relevance, noted context, a plainly stated
+licensing caution and the red lines, not bars the atom can set.
+Quantities are computed and reported; the only bars on the
+computed rows are the minimum of the skill's own stated
+choice range and completeness and consistency over the
+caller's own declared rows, exactly as stated above. Declined
+thresholds, named: a maximum choice-set size of six as a hard
+cap (the skill says "typically three to six" — the six is a
+typical upper end, not a bar, so a larger distinct set does not
+fail); a minimum or exact resolution in pixels, megapixels or
+file size for "usable resolution" (the skill states none, so
+usability is a caller declaration, never re-measured — the atom
+fetches no image); a relevance, similarity or quality score for
+a candidate (checked by viewing is a declaration, never scored);
+a search-result rank, search-engine or source-domain whitelist
+or blacklist (the skill names no source as authoritative or
+forbidden); a licence-validity, licence-compatibility or
+fair-use determination (the atom checks only that a status is
+declared in its recognised vocabulary, a note is present and a
+credit is noted — whether a declared licence actually applies
+to an image or a use is a legal question it does not answer);
+an attribution-text format or completeness standard beyond a
+credit being noted; a freshness or publication-date window for
+results; a count of searches, query reformulations or sources
+searched beyond the declared terms-adjustment attestation; any
+judgment that a returned image is in fact the strongest match
+(only that a strongest match is declared called out first is
+checked).
+
+The verdict is one of `VISUAL_REFERENCE_SET_SOUND` (all 34
+checks pass), `VISUAL_REFERENCE_SET_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across six sections: search_brief_and_query,
+source_provenance, relevance_and_quality, context_and_selection,
+licensing_and_attribution, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `link-rot-scan-and-notarized-archive`
+(a declared scan/archive manifest over link rows — observed
+link statuses, WARC captures with hashes and timestamps,
+canonicalization, notarization and repair of rotted citations;
+it fetches nothing) and
+`brand-mention-monitoring-triage-digest` (a declared
+brand-mention record — mention rows triaged into a digest).
+This atom shares **zero checks** with any of them (verified
+mechanically by enumerating `evaluate({})` check names from
+every atom oracle in `services/*/src/*.py` and comparing, plus
+a grep of check strings across all oracle sources — zero
+overlap): every check here is a visual-reference question — a
+search target restated in searchable terms with subject,
+setting, angle/style and must-have/must-avoid details, every
+returned image paired with both its direct image link and its
+source page link with the source page verified, relevance
+checked by viewing rather than title with the subject shown
+clearly and no misleading cropping, watermark or caption
+mismatch, depiction/publisher/caption-date-credit context noted
+per image, a several-distinct-candidate choice set with the
+strongest match called out first, per-image licence status in
+a recognised vocabulary with a licence note and a credit noted
+and no image claimed cleared without an explicit licence, and
+the image-search red lines (person identification, a found
+image presented as one's own or generated, a found image
+presented as licensed without an explicit grant, an unsourced
+image returned, an altered image passed as the original). The
+boundary is: the sourced, licensed-honestly record of a set of
+found reference images here; link integrity and notarized
+archiving of citations, and brand-mention triage, there.
+
+## Honest scoping
+
+This atom reviews a **declared** visual-reference search
+record — it searches nothing itself, fetches no image or source
+page, opens no link, runs no image recognition, and does not
+verify that any declared check (of source verification,
+viewed relevance, resolution, context or licensing) was ever
+actually carried out. A reference set is sound *on the caller's
+declared evidence*: a record that declares every source page
+verified, every image matching by viewing and every licence
+noted passes those checks even if the real search did none of
+it. It is a completeness and consistency audit of the search
+record the skill requires, **not a search engine, an image
+verifier, a rights-clearance service, or a guarantee that any
+image may be republished or used commercially**: it never
+judges whether a declared image actually shows the subject,
+whether a declared licence status is correct for that image,
+whether a source page says what the record claims, or whether
+a chosen image is the right reference for the brief — only
+that the record contains what the skill's method, quality
+gates and red lines demand, and that its declared rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): live web or image search by
+any engine (the skill's Method step 2 — excluded by name; the
+atom receives the search's declared record only); opening,
+fetching or verifying any image or source page (Method step 3's
+verification is a caller declaration, never performed here);
+identifying any person in a found photo (excluded absolutely —
+it is a red line, not a capability); generating, altering or
+editing any image (the skill is a finding skill, not a creation
+skill, and an altered image passed as original evidence is a
+red line); determining that any image is licensed, cleared or
+safe for any use (see the declined licence-validity threshold);
+no numeric thresholds beyond the minimum of the skill's stated
+choice range (see the declined list above); no live
+verification of any declared fact; no judgment of search
+*quality* — whether the search found the best references is
+the caller's work, checked only for declared presence and
+internal consistency.
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO with flag-with-controls
+(census class).** This atom is image-licensing- and
+copyright-adjacent by keyword and by substance — its bound
+skill requires a licensing note on every set, a credit noted
+from the source, and a refusal to present any found image as
+licensed without an explicit grant — so the screen was applied
+strictly, in the Regulators style: what matters is not the
+keyword but what the artifact could be read as doing, and an
+artifact that pronounced an image "cleared" would read as a
+rights determination. The atom is flagged for the owner's
+per-unit ruling queue under U-13 on that adjacency. What
+prevents a rights-clearance reading, as named controls:
+(1) the atom audits a caller-**declared** search record for
+completeness and internal consistency only — source pairing,
+row identity and dedupe, declared relevance/quality/context
+attestations, and declared licence/attribution completeness;
+every output is a pass / fail / missing verdict on the record
+or a ratio recomputed from the caller's own declared rows;
+(2) it gives **no legal advice, no licence determination, no
+rights clearance and no permission** — it never says an image
+is licensed, may be republished, or may be used commercially;
+the computed bar runs the other way: a row claimed cleared
+*without* a declared `explicitly_licensed` status fails, and
+the licence-validity determination is named as a declined
+threshold above; (3) it **fetches and reproduces nothing** —
+no image, thumbnail or source page is retrieved, stored or
+served, so the artifact itself carries no copyrighted image;
+(4) the record's images are whatever the caller declares —
+the atom takes no position on any image's ownership, licence
+or permitted use, and no output is addressed to one. Residual
+risk, stated plainly: a caller could paste the verdict into
+their own publishing work as if it cleared an image — that is
+their misreading, contradicted by the verdict's own scoping;
+the artifact clears nothing. This is the same class as the
+quant-math-derivation-sanity-check precedent (declared-record
+audit, advice-shaped skill steps excluded as controls); it is
+not the genuinely-open personal-financial-snapshot class,
+because no personal position is handled and the skill carries
+no advice-shaped step that this atom performs — its one
+rights-shaped step (presenting an image as licensed) is a red
+line this atom checks *against*, never performs. Flagging
+never blocks authoring; no deploy happens on this atom without
+the owner's explicit per-unit ruling after the screen.
+
 ## Pricing
 
 Pricing unit: **query**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
-
-## Named doubt (from the register)
-
-Commodity search; licensing caution
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

@@ -4,7 +4,7 @@
 
 ## What it delivers
 
-Bound capability (from the skill): Run statistics engagements - problem framing, study design, assumption checks, reports clients can act on.
+Bound capability (from the skill): run statistics engagements — problem framing, study design, assumption checks, reports clients can act on. Its method is this atom's frame: statistics fails when the analysis starts before the decision is defined, so the engagement runs frame → design → analyze → validate → deliver, with an audit trail; power/precision analysis happens before collection and the analysis plan is pre-registered.
 
 A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
 
@@ -16,10 +16,341 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Studies behind RA and product decisions**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the study design manifest
+
+The caller submits one JSON manifest: a declared statistical
+study design record for one study, made from the design as
+actually planned. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`STUDY_DESIGN_NOT_READY`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `study_title` (string; carried into the verdict output, not itself checked) | — |
+| `framing.decision_stated` (boolean) | decision_framing |
+| `framing.research_question_stated` (boolean) | decision_framing |
+| `framing.outcome_defined` (boolean) | decision_framing |
+| `framing.unit_of_analysis_defined` (boolean) | decision_framing |
+| `framing.population_defined` (boolean) | decision_framing |
+| `framing.timeframe_defined` (boolean) | decision_framing |
+| `design.design_type` (string; computed — must be a recognised design type, see below) | design_and_variables |
+| `design.assignment_mechanism_stated` (boolean) | design_and_variables |
+| `design.estimand_stated` (boolean) | design_and_variables |
+| `design.confounders_identified` (boolean) | design_and_variables |
+| `variables` (list of variable-row objects, each with the entry fields below; computed, see below) | design_and_variables |
+| `variables[].variable_id` (string; must be unique per row) | design_and_variables |
+| `variables[].role` (string; one of `outcome`, `exposure`, `predictor`, `confounder`, `covariate`, `stratification`) | design_and_variables |
+| `sampling.sampling_frame_defined` (boolean) | sampling_and_power |
+| `sampling.sampling_method_stated` (boolean) | sampling_and_power |
+| `sampling.inclusion_exclusion_criteria_stated` (boolean) | sampling_and_power |
+| `sampling.power_analysis_done_before_collection` (boolean) | sampling_and_power |
+| `sampling.declared_total_sample_size` (number; computed — must equal the sum of the declared group sizes, see below) | sampling_and_power |
+| `sampling.declared_alpha` (number; computed — must lie strictly between 0 and 1, see below) | sampling_and_power |
+| `sampling.declared_target_power` (number; computed — must lie strictly between 0 and 1, see below) | sampling_and_power |
+| `sampling.declared_effect_size` (number; computed — must be non-zero, see below) | sampling_and_power |
+| `groups` (list of group-row objects, each with the entry fields below; computed, see below) | sampling_and_power |
+| `groups[].group_id` (string; must be unique per row) | sampling_and_power |
+| `groups[].declared_size` (number; must be a positive whole number) | sampling_and_power |
+| `analysis.plan_written_before_collection` (boolean) | analysis_plan |
+| `analysis.plan_preregistered` (boolean) | analysis_plan |
+| `analysis.primary_method_named` (boolean) | analysis_plan |
+| `analysis.assumption_checks_planned` (boolean) | analysis_plan |
+| `analysis.effect_size_with_uncertainty_planned` (boolean) | analysis_plan |
+| `analysis.multiple_comparison_discipline_planned` (boolean) | analysis_plan |
+| `analysis.deviations_logging_planned` (boolean) | analysis_plan |
+| `validation.sensitivity_analyses_planned` (boolean) | validation_and_bias_controls |
+| `validation.robustness_checks_planned` (boolean) | validation_and_bias_controls |
+| `validation.leakage_audit_planned` (boolean) | validation_and_bias_controls |
+| `validation.limitations_section_planned` (boolean) | validation_and_bias_controls |
+| `validation.what_would_change_conclusion_stated` (boolean) | validation_and_bias_controls |
+| `delivery.executive_summary_planned` (boolean) | delivery_and_reproducibility |
+| `delivery.methods_memo_planned` (boolean) | delivery_and_reproducibility |
+| `delivery.reproducible_appendix_planned` (boolean) | delivery_and_reproducibility |
+| `delivery.pipeline_sealed_for_rerun` (boolean) | delivery_and_reproducibility |
+| `red_lines.significance_without_effect_size_and_uncertainty_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.p_hacking_or_selective_reporting_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.causal_language_from_observational_without_design_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.unredacted_pii_or_unapproved_reuse_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.outcome_guarantee_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Twelve checks are computed from the declared rows and values,
+using only the skill's own stated method plus the consistency
+of the declared record itself — no outside threshold is
+imported:
+
+- **Design type recognised:** the declared `design.design_type`
+  is one of `randomized_experiment`, `factorial_experiment`,
+  `sequential_experiment`, `quasi_experiment`, `observational`
+  — the record format's types for the skill's design step
+  (experimental: randomization, factorial/DOE, sequential
+  testing; observational; and quasi-experimental designs
+  between them). An absent type is missing evidence; any other
+  value fails.
+- **Variables list declared:** the declared `variables` list
+  passes when it is present and names at least one variable.
+  An absent list is missing evidence; an empty list fails — it
+  declares no variables at all, and the skill's intake defines
+  the outcome before design begins.
+- **Variable ids unique:** no declared `variable_id` may appear
+  on more than one row. A row with `variable_id` absent is
+  missing evidence for this check.
+- **Variable roles recognised:** every declared variable's
+  `role` is one of `outcome`, `exposure`, `predictor`,
+  `confounder`, `covariate`, `stratification`. A row with
+  `role` absent is missing evidence; any other value fails,
+  and the row is named in `variables_with_unrecognised_role`.
+- **At least one outcome variable:** at least one declared
+  variable has the `outcome` role — the intake outcome is
+  among the declared variables. Rows without a `role` are
+  missing evidence for this check.
+- **Groups list declared:** the declared `groups` list passes
+  when it is present and names at least one group. An absent
+  list is missing evidence; an empty list fails.
+- **Group ids unique:** no declared `group_id` may appear on
+  more than one row. A row with `group_id` absent is missing
+  evidence for this check.
+- **Group sizes positive whole numbers:** every declared
+  group's `declared_size` is a whole number of at least one —
+  a group size is a count of units. A row missing its size is
+  missing evidence; a zero, negative or fractional size fails.
+- **Total sample size matches the group sum:** the declared
+  `sampling.declared_total_sample_size` must equal the sum of
+  the declared group sizes, compared on the fixed 6dp
+  serialization below. Missing groups, a missing total, or a
+  group without a numeric size is missing evidence; a
+  differing total fails.
+- **Alpha in the valid probability range:** the declared
+  `sampling.declared_alpha` lies strictly between 0 and 1 —
+  alpha is a probability. Absent is missing evidence; 0, 1 or
+  anything outside fails. No significance level is prescribed:
+  any value inside the range passes.
+- **Target power in the valid probability range:** the
+  declared `sampling.declared_target_power` lies strictly
+  between 0 and 1 — power is a probability. Absent is missing
+  evidence; 0, 1 or anything outside fails. No minimum power
+  is imposed: a declared target power of 0.2 passes exactly as
+  0.8 does — the value is reported, never graded.
+- **Effect size non-zero:** the declared
+  `sampling.declared_effect_size` is not zero — a zero effect
+  is the null the design exists to detect a departure from.
+  Absent is missing evidence; zero fails; any non-zero value,
+  positive or negative, of any magnitude, passes.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twelve computed checks above cannot be completed),
+`variables_count` and `groups_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), `outcome_variable_count`,
+`duplicate_variable_ids` and `duplicate_group_ids` (ids
+declared on more than one row, in the order their second
+occurrence appears), `variables_with_unrecognised_role`,
+`computed_total_sample_size` (the sum of the declared group
+sizes, or null when it cannot be computed),
+`declared_total_sample_size` (the declared total, or null),
+`total_sample_size_difference` (declared total minus computed
+total, or null), the declared power inputs reported verbatim
+(`declared_alpha`, `declared_target_power`,
+`declared_effect_size`, each null when not declared as a
+number), and `largest_group_share` (the largest declared
+group size ÷ the computed total sample size). **Fixed
+serialization rule:** `largest_group_share` is reported as a
+string with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; the total sample-size comparison is made on the
+same 6dp serializations of the declared and recomputed
+values. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no sample-size or power adequacy threshold
+at all — its demands are a power/precision analysis done
+before collection, a pre-registered plan, declared assumption
+checks and qualitative declarations the record makes, not bars
+the atom can set. Quantities are computed and reported; the
+only bars on the computed rows are the valid probability
+ranges, non-zero effect, positive whole group counts, exact
+recomputation of the declared total from the declared groups,
+and completeness over the caller's own declared record,
+exactly as stated above. Declined thresholds, named: a
+sample-size adequacy bar (no minimum total or per-group
+sample size beyond a positive whole count — a design with
+tiny groups passes the computed checks if its arithmetic
+agrees; adequacy for the caller's question is not judged);
+a minimum target power (the conventional 0.8 is **not**
+imposed — power is reported verbatim, never graded); a
+prescribed significance level / alpha (no 0.05 or any other
+level is required — any alpha strictly between 0 and 1
+passes); an effect-size magnitude bar (no small/medium/large
+grading — only non-zero is checked, because zero is the
+null); a required number of groups, variables or outcomes
+beyond at least one variable, one group and one outcome
+variable; an allocation-ratio or group-balance bar (unequal
+groups are reported via `largest_group_share`, never failed);
+a precision or confidence-interval width bar; a required
+sample-size / power formula (no z-test, t-test or any other
+closed-form recomputation of required sample size is
+performed — the skill names no formula, and choosing one
+would import a distributional assumption the record does not
+declare); any judgment that the chosen design type, sampling
+method or primary analysis method is the right one for the
+caller's actual study (only that a recognised type is
+declared, the method is named, and the plan is pre-registered
+is checked).
+
+The verdict is one of `STUDY_DESIGN_READY` (all 46 checks
+pass), `STUDY_DESIGN_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: decision_framing,
+design_and_variables, sampling_and_power, analysis_plan,
+validation_and_bias_controls, delivery_and_reproducibility,
+red_lines.
+
+## Distinct ground
+
+The nearest siblings are `bias-controlled-quant-study-pack`
+(a declared market quant study pack — hypothesis
+pre-registration before looking at results, market-data
+hygiene: adjusted prices, delisted names, point-in-time
+fundamentals; distribution reality, stability across periods,
+multiple-testing counts, stated trading costs, and
+reproducibility of a market study), `quant-math-derivation-sanity-check`
+(a declared mathematical derivation — every declared step
+recomputing from its operands with a declared unit algebra,
+and a final result equal to its last step), and
+`forecast-with-ranges-and-scorecard` (a declared forecast
+artifact — baselines, a declared low/base/high range,
+base/best/worst scenarios with triggers, and a
+forecast-vs-actual scorecard whose declared MAE, MAPE and
+bias are recomputed from the declared history). This atom
+shares **zero checks** with any of them (verified mechanically
+by enumerating `evaluate({})` check names from every atom
+oracle in `services/*/src/*.py` and comparing, with a grep of
+the check strings as fallback for oracles that do not answer
+`evaluate({})` — zero overlap): every check here is a
+study-design question — a decision framed and written before
+the design with its research question, outcome, unit of
+analysis, population and timeframe defined; a recognised
+design type with assignment mechanism, target estimand and
+confounders stated; declared variables with unique ids,
+recognised roles and at least one outcome; a sampling plan
+whose declared group sizes are positive whole numbers summing
+exactly to the declared total, with declared alpha and target
+power in the valid probability range and a non-zero declared
+effect size; a pre-registered analysis plan reporting effect
+sizes with uncertainty under multiple-comparison discipline,
+with deviations logged; sensitivity, robustness and leakage
+controls with an honest limitations section; a reproducible
+delivery with a sealed pipeline; and the consulting red lines
+(significance without effect and uncertainty, p-hacking or
+selective reporting, unsupported causal language, unredacted
+PII or unapproved reuse, outcome guarantees). The boundary
+is: the internal consistency of a declared statistical study
+design record here; a market quant study pack, a mathematical
+derivation, and a forecast artifact there.
+
+## Honest scoping
+
+This atom reviews a **declared** study design record — it
+runs no study, collects or analyses no data, performs no
+power calculation of its own, tests no hypothesis, and does
+not verify that any declared plan (of randomization, sampling,
+assumption checks, sensitivity analyses or a reproducible
+pipeline) was ever actually carried out. A design is ready
+*on the caller's declared evidence*: a record that declares
+its plan pre-registered, its confounders identified and its
+group sizes summing to its total passes those checks even if
+the real study did none of it. It is a completeness and
+consistency audit of the study design record the skill
+requires, **not a study, a statistical analysis, a peer
+review, or a guarantee that the design will answer the
+research question**: it never judges whether the declared
+design can identify the declared estimand, whether the
+declared sample size is adequate for the caller's question,
+whether the named method's assumptions will hold, or whether
+any future result is true — only that the record contains
+what the skill's method, quality gates and red lines demand,
+and that its declared numbers are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged or performed):
+recommending a design for the caller's actual study —
+choosing between experimental and observational designs,
+recommending a sample size, a significance level, a target
+power or an analysis method for a real question is
+advice-shaped work this atom **does not do**; interpreting
+results — no dataset is received, no estimate, interval,
+p-value or finding is produced or interpreted, and no
+conclusion about any real-world claim is given; running the
+skill's Analyze step itself (EDA, assumption tests on data,
+the model ladder, effect-size estimation) — the atom checks
+only that those steps are *planned* in the declared record;
+executing the skill's Validate step on real results
+(sensitivity and robustness are checked as planned
+declarations only); writing the caller's executive summary,
+methods memo or report — delivery artifacts are checked as
+planned, never authored; any numeric adequacy bar (see the
+declined list above).
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO with flag-with-controls
+(census class).** This atom sits near research/statistics
+advice by keyword and by substance — its bound skill is a
+consulting engagement discipline, and a study design record
+could concern a regulated domain (a clinical, engineering or
+financial study) — so the screen was applied strictly, and
+the atom is flagged for the owner's per-unit ruling queue
+under U-13 on that adjacency. What prevents an advice
+reading, as named controls: (1) the atom audits a
+caller-**declared** study design record for completeness and
+internal consistency only — declared-framing, design,
+sampling, analysis-plan, validation and delivery attestations,
+plus recomputation of the caller's own declared group sizes
+against the caller's own declared total and the valid
+probability ranges of the caller's own declared alpha and
+power; every output is a pass / fail / missing verdict on the
+record or a quantity recomputed from it; (2) it gives **no
+statistical advice, no design recommendation, no analysis, no
+interpretation and no conclusion about any real-world
+claim** — it never says what design, sample size, method or
+level the caller should use, whether a study is well designed
+for its actual question, or what any result means; the
+skill's advice-shaped and execution-shaped steps (designing
+the caller's study, analysing their data, interpreting
+findings, delivering the engagement's own report) are
+excluded from production and named as exclusions above —
+this atom performs none of them, it only audits a declared
+record of a design; (3) it sets **no adequacy threshold** —
+no sample-size, power, significance, effect-size or precision
+bar against which a caller's design could be graded as good
+or bad (see the declined list); (4) the record's subject is
+whatever study the caller declares — the atom takes no
+position on any clinical, engineering, financial or other
+regulated decision, and no output is addressed to one.
+Residual risk, stated plainly: a caller could paste the
+verdict into their own study documentation — that is their
+decision, made on their record; the artifact itself
+recommends nothing. This is the same class as the
+quant-math-derivation-sanity-check precedent (declared-record
+audit, advice-shaped skill steps excluded as controls); it is
+not the genuinely-open personal-financial-snapshot class,
+because no personal position or regulated subject matter is
+handled and the skill carries no advice-shaped step that this
+atom performs. Flagging never blocks authoring; no deploy
+happens on this atom without the owner's explicit per-unit
+ruling after the screen.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
