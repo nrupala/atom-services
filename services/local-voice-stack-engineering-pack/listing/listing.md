@@ -1,6 +1,6 @@
-# Listing (STUB) — Local voice stack engineering pack
+# Listing — Local voice stack engineering pack
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: built-locally — NOT deployed; do not submit.** Deterministic core built and parity-proven locally; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `local-voice-stack-engineering-pack` (Tier B), an independent atom service listed on Conduit.
 

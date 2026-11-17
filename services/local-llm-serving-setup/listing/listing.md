@@ -1,6 +1,6 @@
 # Listing (STUB) — Local llm serving setup
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: built-locally — NOT deployed; do not submit.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `local-llm-serving-setup` (Tier B), an independent atom service listed on Conduit.
 

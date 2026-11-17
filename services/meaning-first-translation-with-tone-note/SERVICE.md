@@ -16,13 +16,218 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Translating family and travel messages**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the translation-record manifest
+
+The caller submits one JSON manifest: a declared translation
+record for one document — the source/translation pair's method
+evidence, declared segment by segment. Every field below is
+read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but
+false / invalid = the check fails
+(`MEANING_FIRST_TRANSLATION_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `document` (string; carried into the verdict output, not itself checked) | — |
+| `context.source_language_identified` (boolean) | context_and_meaning_first_method |
+| `context.target_language_identified` (boolean) | context_and_meaning_first_method |
+| `context.purpose_identified` (boolean) | context_and_meaning_first_method |
+| `context.whole_text_read_before_translation` (boolean) | context_and_meaning_first_method |
+| `context.translated_for_meaning_not_word_for_word` (boolean) | context_and_meaning_first_method |
+| `context.everyday_scope_not_software_localisation` (boolean) | context_and_meaning_first_method |
+| `tone.register_preserved` (boolean) | register_tone_and_send_readiness |
+| `tone.tone_and_intent_preserved` (boolean) | register_tone_and_send_readiness |
+| `tone.tone_note_provided_for_sends` (boolean) | register_tone_and_send_readiness |
+| `tone.tone_variant_offered_only_when_real_choice` (boolean) | register_tone_and_send_readiness |
+| `tone.could_offend_or_mislead_phrases_flagged_first` (boolean) | register_tone_and_send_readiness |
+| `tone.honorifics_and_family_terms_matched_to_relationship` (boolean) | register_tone_and_send_readiness |
+| `tone.voice_preserved` (boolean) | register_tone_and_send_readiness |
+| `tone.translation_ready_to_paste_or_speak_for_sends` (boolean) | register_tone_and_send_readiness |
+| `handling.idioms_flagged_and_explained` (boolean) | idiom_ambiguity_and_uncertainty |
+| `handling.ambiguities_named_with_both_readings` (boolean) | idiom_ambiguity_and_uncertainty |
+| `handling.flagged_items_given_short_note_not_lecture` (boolean) | idiom_ambiguity_and_uncertainty |
+| `handling.uncertain_or_illegible_passages_marked_as_uncertain` (boolean) | idiom_ambiguity_and_uncertainty |
+| `handling.source_unclear_uncertainty_and_reason_stated` (boolean) | idiom_ambiguity_and_uncertainty |
+| `segments` (list of segment-row objects, each with the entry fields below; computed, see below) | context_and_meaning_first_method, idiom_ambiguity_and_uncertainty, exact_carryover_and_segment_coverage |
+| `segments[].name` (string; names the row in the computed outputs) | context_and_meaning_first_method, idiom_ambiguity_and_uncertainty, exact_carryover_and_segment_coverage |
+| `segments[].has_translation` (boolean) | exact_carryover_and_segment_coverage |
+| `segments[].meaning_preserved` (boolean) | context_and_meaning_first_method |
+| `segments[].idiom_ambiguity_handling_complete` (boolean) | idiom_ambiguity_and_uncertainty |
+| `segments[].exact_carryover_checked` (boolean) | exact_carryover_and_segment_coverage |
+| `carryover.names_numbers_dates_figures_checked_one_by_one` (boolean) | exact_carryover_and_segment_coverage |
+| `carryover_items` (list of carryover-item objects, each with the entry fields below; computed, see below) | exact_carryover_and_segment_coverage |
+| `carryover_items[].name` (string; names the row in the computed outputs) | exact_carryover_and_segment_coverage |
+| `carryover_items[].kind` (string; must be one of `name`, `number`, `date`, `place`, `figure` — the skill's own set) | exact_carryover_and_segment_coverage |
+| `carryover_items[].matches_original_exactly` (boolean) | exact_carryover_and_segment_coverage |
+| `sensitive.sensitive_category_identified` (boolean) | sensitive_documents_and_red_lines |
+| `sensitive.translated_faithfully_and_completely_when_sensitive` (boolean) | sensitive_documents_and_red_lines |
+| `sensitive.nothing_summarised_away_when_sensitive` (boolean) | sensitive_documents_and_red_lines |
+| `sensitive.certified_translation_flag_raised_when_sensitive` (boolean) | sensitive_documents_and_red_lines |
+| `red_lines.draft_upgraded_to_official_present` (boolean; must be `false` to pass — skill red line) | sensitive_documents_and_red_lines |
+| `red_lines.idiom_flattened_or_firm_message_softened_silently_present` (boolean; must be `false` to pass — skill red line) | sensitive_documents_and_red_lines |
+| `red_lines.illegible_text_guessed_present` (boolean; must be `false` to pass — skill red line) | sensitive_documents_and_red_lines |
+| `red_lines.name_number_date_or_figure_changed_present` (boolean; must be `false` to pass — skill red line) | sensitive_documents_and_red_lines |
+| `red_lines.meaning_added_beyond_original_present` (boolean; must be `false` to pass — skill red line) | sensitive_documents_and_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Segments declared:** the declared `segments` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Translation per segment:** every declared segment row must
+  declare `has_translation: true`. A row with the field absent
+  is missing evidence.
+- **Meaning preserved per segment:** every declared segment row
+  must declare `meaning_preserved: true` (the skill: translate
+  what the writer intends). A row with the field absent is
+  missing evidence.
+- **Idiom/ambiguity handling per segment:** every declared
+  segment row must declare
+  `idiom_ambiguity_handling_complete: true` (the skill: idiom
+  flagged and explained, ambiguity named, never flattened). A
+  row with the field absent is missing evidence.
+- **Exact-carryover check per segment:** every declared
+  segment row must declare `exact_carryover_checked: true`
+  (method step 5: names, numbers, dates and figures checked
+  against the original one by one). A row with the field absent
+  is missing evidence.
+- **Carryover items declared:** the declared `carryover_items`
+  list passes when it is present at any length; an explicitly
+  empty list declares there was nothing to carry over and the
+  two per-item checks below pass vacuously. An absent list is
+  missing evidence.
+- **Exact match per carryover item:** every declared carryover
+  item must declare `matches_original_exactly: true` (the
+  skill: names, numbers, dates and places are carried across
+  exactly, never localised away). A row with the field absent
+  is missing evidence.
+- **Kind per carryover item:** every declared carryover item
+  must declare `kind` from the skill's own set — `name`,
+  `number`, `date`, `place`, `figure` (principles name names,
+  numbers, dates and places; method step 5 names names,
+  numbers, dates and figures). A row with the field absent is
+  missing evidence; a row declaring any other value fails and
+  is named.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the eight primary computed checks above cannot be completed),
+`segments_count` and `carryover_items_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), the row-name lists
+`segments_without_translation`, `segments_without_meaning_preserved`,
+`segments_without_idiom_ambiguity_handling` and
+`segments_without_exact_carryover_check` (segments whose field
+is present but not true; a segment with the field absent is
+missing evidence and does not appear),
+`carryover_items_not_matching` (items whose field is present
+but not true) and `carryover_items_with_invalid_kind` (items
+whose `kind` is present but not in the skill's set), and the
+six coverage ratios `translation_coverage` (segments with a
+translation ÷ declared segments), `meaning_preserved_coverage`,
+`idiom_ambiguity_handling_coverage`,
+`exact_carryover_check_coverage`, `exact_match_coverage`
+(carryover items matching exactly ÷ declared carryover items)
+and `valid_kind_coverage`. **Fixed serialization rule:**
+computed ratios are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp, `floor(v * 1000000 + 0.5) /
+1000000`, then format with exactly six decimals; comparisons
+use the unrounded values. A ratio is null when its denominator
+list is absent or empty. That fixed serialization is what
+makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric pass/fail threshold — no accuracy
+or fluency bar: its targets are qualitative attestations the
+record declares, not bars the atom can set. Quantities are
+computed and reported; the only bar on the computed rows is
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a translation
+accuracy, adequacy, fluency, BLEU / COMET or any other MT
+quality score cutoff (the skill states no score of any kind);
+a word, character or segment count a record must contain; a
+coverage percentage below completeness over the declared rows;
+a tone or register scale or numeric tone rating (the skill's
+tone note is one line — warm, neutral, formal, firm — as it
+will be received, not a number); a number of idioms,
+ambiguities or uncertain passages that must be flagged (the
+bar is that the ones present are flagged, as declared); a
+reading-level, length-ratio or expansion/contraction bound
+between source and translation; a turnaround time.
+
+The verdict is one of `MEANING_FIRST_TRANSLATION_SOUND` (all
+37 checks pass), `MEANING_FIRST_TRANSLATION_NOT_SOUND` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across five sections:
+context_and_meaning_first_method,
+register_tone_and_send_readiness,
+idiom_ambiguity_and_uncertainty,
+exact_carryover_and_segment_coverage,
+sensitive_documents_and_red_lines.
+
+## Distinct ground
+
+No live or staged sibling atom audits a declared translation
+record. The nearest sibling, `localization-readiness-review`,
+is a scaffolded review of software localisation readiness —
+externalised strings, ICU formats, RTL and locale handling in a
+product UI — and the bound skill itself rules that ground
+distinct ("This is everyday translation, distinct from
+software localisation work"); zero checks are shared with this
+atom. The boundary is: software strings and locale mechanics
+there, everyday messages / documents / travel text — meaning,
+register, tone note, idiom and ambiguity flagging, exact
+carryover, certified-translation flag — here.
+
+## Honest scoping
+
+This atom audits a **declared** translation record — it
+performs no translation, calls no model, reads neither the
+source text nor the translation, and does not verify that a
+declared control actually happened. A record is sound *on the
+caller's declared evidence*: a manifest that declares the whole
+text was read first, the tone note was given and every name and
+figure matches passes those checks even if the real translation
+did none of it. It is a completeness and consistency audit of
+the record the skill requires, **not a translation service, a
+translation-quality judgment, or a certification**: it never
+judges whether a rendering is actually faithful, idiomatic or
+well-toned, whether a flagged ambiguity truly has two readings,
+or whether an honorific truly fits the relationship — only
+that the record contains what the skill's sections and red
+lines demand, and that its declared rows are internally
+consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no text inspection —
+the source and target texts are never submitted to or read by
+this atom, so flattened idioms, softened firm messages and
+changed figures are caller-declared present/absent flags, and
+segment and carryover rows are caller declarations of coverage
+and checking, not text the atom compared itself; linguistic
+quality and cultural fit are caller declarations — the atom
+checks only that meaning, register, tone-note, flagging and
+exact-carryover evidence is declared and consistent; the
+certified-translation flag is a declared attestation that the
+flag was raised — this atom certifies nothing and its verdict
+is never a certified translation.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
 
 ## Named doubt (from the register)
 

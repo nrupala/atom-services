@@ -16,10 +16,214 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Book and course authoring**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the authoring-pipeline manifest
+
+The caller submits one JSON manifest: a declared long-form
+authoring record for one work (book, course, guide or long
+document). Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`AUTHORING_PIPELINE_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `work` (string; carried into the verdict output, not itself checked) | — |
+| `outline.toc_approved_before_drafting` (boolean) | outline_as_contract |
+| `outline.chapters_or_modules_defined` (boolean) | outline_as_contract |
+| `outline.scope_fences_defined` (boolean) | outline_as_contract |
+| `units` (list of unit-row objects, each with the entry fields below; computed, see below) | outline_as_contract |
+| `units[].name` (string; names the row in the computed outputs) | outline_as_contract |
+| `units[].point_or_outcome` (string; the unit's point or its claim / learning outcome; must be non-empty, see below) | outline_as_contract |
+| `units[].has_single_point` (boolean) | outline_as_contract |
+| `drafting.small_units_used` (boolean) | drafting_loop |
+| `drafting.examples_before_abstractions` (boolean) | drafting_loop |
+| `drafting.style_sheet_maintained` (boolean) | drafting_loop |
+| `drafting.glossary_maintained` (boolean) | drafting_loop |
+| `review.comments_triaged_not_blind_applied` (boolean) | review_passes |
+| `review_passes` (list of review-pass-row objects, each with the entry fields below; computed, see below) | review_passes |
+| `review_passes[].name` (string; names the row in the computed outputs) | review_passes |
+| `review_passes[].pass_type` (string; must be one of `structure`, `technical_accuracy`, `style_read_aloud`, `facts_attribution` — the skill's own set) | review_passes |
+| `review_passes[].recorded` (boolean) | review_passes |
+| `versioning.sources_in_git_markdown` (boolean) | versioning_and_builds |
+| `versioning.research_kept_separate_from_prose` (boolean) | versioning_and_builds |
+| `versioning.editions_tagged` (boolean) | versioning_and_builds |
+| `versioning.changelog_per_edition` (boolean) | versioning_and_builds |
+| `builds.deterministic_pipeline` (boolean) | versioning_and_builds |
+| `builds.templates_pinned` (boolean) | versioning_and_builds |
+| `builds.preview_builds_for_reviewers` (boolean) | versioning_and_builds |
+| `builds.artifacts_hashed` (boolean) | versioning_and_builds |
+| `builds.artifacts_signed` (boolean) | versioning_and_builds |
+| `publishing.distribution_channels_defined` (boolean) | publishing |
+| `publishing.metadata_or_platform_setup_complete` (boolean) | publishing |
+| `publishing.launch_checklist_completed` (boolean) | publishing |
+| `publishing.sample_and_errata_pages_published` (boolean) | publishing |
+| `feedback.reader_learner_feedback_collected` (boolean) | feedback_loop_and_red_lines |
+| `feedback.corrections_list_maintained` (boolean) | feedback_loop_and_red_lines |
+| `feedback.corrections_feed_next_edition` (boolean) | feedback_loop_and_red_lines |
+| `feedback.errata_visible` (boolean) | feedback_loop_and_red_lines |
+| `feedback.drop_off_analytics_reviewed` (boolean) | feedback_loop_and_red_lines |
+| `red_lines.published_without_accuracy_pass_present` (boolean; must be `false` to pass — skill red line) | feedback_loop_and_red_lines |
+| `red_lines.silent_edition_edits_present` (boolean; must be `false` to pass — skill red line) | feedback_loop_and_red_lines |
+| `red_lines.unverified_quotes_or_attributions_present` (boolean; must be `false` to pass — skill red line) | feedback_loop_and_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Units declared:** the declared `units` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Single point per unit:** every declared unit row must
+  declare `has_single_point: true` (the skill: "each unit has
+  one point"). A row with the field absent is missing evidence.
+- **Point or outcome per unit:** every declared unit row must
+  declare a non-empty `point_or_outcome` string (quality gate:
+  "units map to outcomes/claims"). A row with the field absent
+  is missing evidence; a row declaring an empty string fails
+  and is named.
+- **Review passes declared:** the declared `review_passes`
+  list passes only when it is present and non-empty; an absent
+  list is missing evidence, an empty list fails.
+- **Every review pass recorded:** every declared pass row must
+  declare `recorded: true` (quality gate: "Review passes
+  recorded (who, when, what changed)"). A row with the field
+  absent is missing evidence.
+- **Pass type per review pass:** every declared pass row must
+  declare `pass_type` from the skill's own set — `structure`,
+  `technical_accuracy`, `style_read_aloud`,
+  `facts_attribution`. A row with the field absent is missing
+  evidence; a row declaring any other value fails and is named.
+- **All required pass types present:** the declared pass rows
+  must cover all four of the skill's pass types (the skill's
+  review sequence: structure → technical/accuracy →
+  style/read-aloud → facts/attribution). A missing type fails
+  and is named in `missing_review_pass_types`.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the seven primary computed checks above cannot be completed),
+`units_count` and `review_passes_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), the row-name lists
+`units_without_single_point` (units whose field is present but
+not true; a unit with the field absent is missing evidence and
+does not appear), `units_without_point_or_outcome` (units whose
+`point_or_outcome` is present but empty),
+`review_passes_without_record` (passes whose field is present
+but not true), `review_passes_with_invalid_type` (passes whose
+`pass_type` is present but not in the skill's set),
+`missing_review_pass_types` (the skill's pass types not declared
+by any row, in the skill's order; null when the list is not
+declared), and the four coverage ratios `single_point_coverage`
+(units with a single point ÷ declared units),
+`point_or_outcome_coverage` (units with a non-empty point or
+outcome ÷ declared units), `recorded_review_pass_coverage`
+(recorded passes ÷ declared passes) and
+`valid_review_pass_type_coverage` (passes with a valid type ÷
+declared passes).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no length,
+speed or quality bar: its gates are qualitative attestations the
+record declares, not bars the atom can set. Quantities are
+computed and reported; the only bar on the computed rows is
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a word count, page
+count or length minimum or maximum per unit or per work (the
+skill says only "small units" and states no size); a number of
+chapters, modules or units a work must contain; a number of
+review passes beyond the skill's own four named pass types, a
+reviewer count, or a reviewer-qualification bar (the skill says
+only that the technical/accuracy pass is by a domain expert —
+caller attestation); a drafting schedule, velocity or deadline;
+a readability, style or quality score; an accuracy error rate
+or a number of corrections tolerated; a build time, a hash
+algorithm, or a signing standard (the skill names hashing and
+signing, not a method); an ISBN or metadata-completeness score
+beyond the declared complete flag; a sales, enrolment or
+completion target; a feedback volume, response rate or
+correction turnaround; a drop-off percentage for courses; an
+edition frequency or changelog length; a coverage percentage
+below completeness.
+
+The verdict is one of `AUTHORING_PIPELINE_SOUND` (all 36 checks
+pass), `AUTHORING_PIPELINE_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across six sections: outline_as_contract, drafting_loop,
+review_passes, versioning_and_builds, publishing,
+feedback_loop_and_red_lines.
+
+## Distinct ground
+
+No live or staged sibling atom audits a declared long-form
+authoring-pipeline record. The nearest siblings are
+`document-operations-service`, which audits a single document
+operation — one read / revise / convert job, its findings tied
+to source locations and its output reopened and checked — and
+`release-readiness`, which audits a software release (version,
+tag, changelog, rollout and rollback) rather than a work's
+editions. Zero checks are shared with either; the boundary is:
+single-document operations and output verification there,
+software release control there, and here the whole authoring
+pipeline for a long-form work — outline-as-contract and unit
+mapping, the drafting loop, the four recorded review passes,
+manuscript versioning and deterministic builds, book/course
+publishing, and the feedback-to-next-edition loop with the
+skill's red lines.
+
+## Honest scoping
+
+This atom audits a **declared** authoring-pipeline record — it
+writes, drafts and edits no prose, reads no manuscript, runs no
+build, checks no hash or signature, and does not verify that a
+declared pass, approval or changelog entry actually happened. A
+record is sound *on the caller's declared evidence*: a manifest
+that declares an approved outline, recorded review passes and
+signed artifacts passes those checks even if the real pipeline
+did none of it. It is a completeness and consistency audit of
+the record the skill requires, **not an authoring, editing or
+publishing service, and not a judgment that the work itself is
+good**: it never judges prose quality, whether an outline is the
+right structure, whether a unit's point is worth making, or
+whether a review was competent — only that the record contains
+what the skill's sections and red lines demand, and that its
+declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no text inspection —
+the prose, the outline, the style sheet and the glossary are
+never read, and unverified quotes or attributions are a
+caller-declared present/absent flag; review quality and domain
+accuracy in substance (whether the accuracy pass genuinely
+caught errors, whether a domain expert really reviewed) are
+caller declarations — only their declared presence and record
+are checked; the recorded detail of a pass (who, when, what
+changed) is carried in the caller's own records — the atom
+checks only the declared `recorded` flag, not the record's
+contents.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+(none recorded in the scaffold for this atom)

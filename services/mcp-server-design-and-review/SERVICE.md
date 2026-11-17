@@ -16,13 +16,215 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Conduit MCP server builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the MCP server design manifest
+
+The caller submits one JSON manifest: a declared design-and-review
+record for one MCP server. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`MCP_SERVER_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `server` (string; carried into the verdict output, not itself checked) | — |
+| `tool_design.names_are_verb_noun` (boolean) | tool_design_and_budget |
+| `tool_design.typed_json_schemas` (boolean) | tool_design_and_budget |
+| `tool_design.descriptions_state_when_to_use` (boolean) | tool_design_and_budget |
+| `tool_design.errors_teach_fix` (boolean) | tool_design_and_budget |
+| `tool_design.one_job_per_tool` (boolean) | tool_design_and_budget |
+| `tool_design.god_tools_present` (boolean; must be `false` to pass) | tool_design_and_budget |
+| `budget.smallest_set_covers_job` (boolean) | tool_design_and_budget |
+| `budget.related_operations_grouped` (boolean) | tool_design_and_budget |
+| `tools` (list of tool-row objects, each with the entry fields below; computed, see below) | tool_design_and_budget, safety_rails_and_injection_awareness, versioning_contract_tests_and_observability |
+| `tools[].name` (string; names the row in the computed outputs; duplicate names are computed, see below) | tool_design_and_budget |
+| `tools[].operation` (string; must be one of `read`, `write`, `destructive` — the skill's read-vs-write separation set) | tool_design_and_budget, safety_rails_and_injection_awareness |
+| `tools[].has_typed_schema` (boolean) | tool_design_and_budget |
+| `tools[].single_job` (boolean) | tool_design_and_budget |
+| `tools[].has_negative_test` (boolean) | versioning_contract_tests_and_observability |
+| `tools[].approval_or_scope_gate_present` (boolean; required `true` on every `destructive` row, see below; not read for other rows) | safety_rails_and_injection_awareness |
+| `transport.transport_matches_deployment` (boolean) | transports_and_auth |
+| `transport.handlers_stateless_where_possible` (boolean) | transports_and_auth |
+| `transport.boundary_validation_applied` (boolean) | transports_and_auth |
+| `auth.remote_transports_authenticated` (boolean) | transports_and_auth |
+| `auth.remote_tls_present` (boolean) | transports_and_auth |
+| `auth.least_privilege_tokens_per_server` (boolean) | transports_and_auth |
+| `safety.destructive_actions_gated_by_approval_or_scope` (boolean) | safety_rails_and_injection_awareness |
+| `safety.read_and_write_separated` (boolean) | safety_rails_and_injection_awareness |
+| `injection.tool_results_treated_as_untrusted` (boolean) | safety_rails_and_injection_awareness |
+| `injection.fetched_text_never_treated_as_instructions` (boolean) | safety_rails_and_injection_awareness |
+| `injection.response_sizes_capped` (boolean) | safety_rails_and_injection_awareness |
+| `injection.outputs_sanitized_before_echoing` (boolean) | safety_rails_and_injection_awareness |
+| `versioning.capabilities_negotiated` (boolean) | versioning_contract_tests_and_observability |
+| `versioning.changes_additive` (boolean) | versioning_contract_tests_and_observability |
+| `versioning.deprecations_announced_loudly` (boolean) | versioning_contract_tests_and_observability |
+| `versioning.protocol_versions_pinned` (boolean) | versioning_contract_tests_and_observability |
+| `tests.handshake_smoke_in_ci` (boolean) | versioning_contract_tests_and_observability |
+| `tests.per_tool_happy_and_error_cases_covered` (boolean) | versioning_contract_tests_and_observability |
+| `tests.malformed_input_tests_present` (boolean) | versioning_contract_tests_and_observability |
+| `tests.schema_valid_tool_definitions` (boolean) | versioning_contract_tests_and_observability |
+| `observability.calls_logged_with_tool_duration_outcome` (boolean) | versioning_contract_tests_and_observability |
+| `observability.error_rate_spike_alerts_present` (boolean) | versioning_contract_tests_and_observability |
+| `observability.secrets_or_sensitive_payloads_logged_present` (boolean; must be `false` to pass) | versioning_contract_tests_and_observability |
+| `red_lines.shell_passthrough_without_sandboxing_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.secrets_echoed_back_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.unbounded_resource_reads_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Tools declared:** the declared `tools` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Typed schema per tool:** every declared tool row must
+  declare `has_typed_schema: true` (the skill: "typed JSON
+  schemas"; quality gate: "Schema-valid tool definitions"). A
+  row with the field absent is missing evidence.
+- **Single job per tool:** every declared tool row must declare
+  `single_job: true` (the skill: "one job per tool; no
+  god-tools"). A row with the field absent is missing evidence.
+- **Operation per tool:** every declared tool row must declare
+  `operation` from the skill's own separation set — `read`,
+  `write`, `destructive` (the skill: "read vs write separated",
+  destructive actions gated). A row with the field absent is
+  missing evidence; a row declaring any other value fails and
+  is named.
+- **No tool name duplicated:** no declared tool `name` string
+  may appear on more than one tool row — tool names identify
+  tools, so a duplicated name is an internally inconsistent
+  record. A row with `name` absent is missing evidence for this
+  check.
+- **Every destructive tool gated:** every declared tool row
+  whose `operation` is `destructive` must declare
+  `approval_or_scope_gate_present: true` (the skill:
+  destructive actions "gated by human approval or explicit
+  scopes"; quality gate: "Destructive tools carry
+  approval/scope gates"). A destructive row with the field
+  absent is missing evidence; a record with no destructive rows
+  passes this check vacuously.
+- **Negative test per tool:** every declared tool row must
+  declare `has_negative_test: true` (quality gate: "negative
+  tests per tool"). A row with the field absent is missing
+  evidence.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the seven primary computed checks above cannot be completed),
+`tools_count` (the declared list length, or null when the list
+is not declared — counts are reported as integers, exactly),
+the row-name lists `tools_without_typed_schema` (tools whose
+field is present but not true; a tool with the field absent is
+missing evidence and does not appear),
+`tools_not_single_job`, `tools_with_invalid_operation` (tools
+whose `operation` is present but not in the skill's set),
+`duplicate_tool_names` (tool names declared on more than one
+row, in the order their second occurrence appears),
+`destructive_tools_without_gate` (destructive tools whose gate
+field is present but not true) and `tools_without_negative_test`,
+and the five coverage ratios `typed_schema_coverage` (tools
+with a typed schema ÷ declared tools), `single_job_coverage`,
+`valid_operation_coverage`, `destructive_gate_coverage`
+(gated destructive tools ÷ declared destructive tools; null
+when there are no destructive rows, or the tools list is absent
+or empty) and `negative_test_coverage`. **Fixed serialization
+rule:** computed ratios are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp, `floor(v * 1000000 + 0.5) /
+1000000`, then format with exactly six decimals; comparisons use
+the unrounded values. A ratio is null when its denominator list
+is absent or empty. That fixed serialization is what makes the
+Python and TypeScript outputs byte-identical.
+
+The skill states no numeric pass/fail threshold — no tool-count
+cap, response-size cap or error-rate bar: its targets are
+qualitative attestations the record declares addressed, not
+bars the atom can set. Quantities are computed and reported; the
+only bar on the computed rows is completeness over the caller's
+own declared rows, exactly as stated above. Declined thresholds,
+named: a maximum tool count (the skill says "aim for the
+smallest set that covers the job" and asks "why does it have 40
+tools?" as a review question — it states no cap number); a
+response-size byte or token cap (the skill says "cap response
+sizes" but states no size); an error-rate spike percentage or
+alert threshold; a test-coverage percentage; a handshake or
+call timeout or latency bound; a deprecation notice period in
+days (the skill says "deprecate loudly", no period); a mandated
+protocol version number (the skill says pin the versions your
+clients speak, it names none); a log-retention period.
+
+The verdict is one of `MCP_SERVER_SOUND` (all 41 checks pass),
+`MCP_SERVER_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: tool_design_and_budget,
+transports_and_auth, safety_rails_and_injection_awareness,
+versioning_contract_tests_and_observability, red_lines.
+
+## Distinct ground
+
+No live or staged sibling atom reviews a single MCP server's
+design against the MCP engineering skill. The nearest siblings:
+`acp-protocol-integration-review` audits ACP (Agent Client /
+Agent Communication Protocol) integrations — session and run
+lifecycles, adapters and streaming — not MCP servers;
+`agent-interoperability-design` audits multi-protocol
+interoperability designs across the MCP / ACP / A2A landscape —
+which protocol to bridge and how handoffs are contracted — not
+one MCP server's own tool-by-tool design;
+`agent-safety-guardrail-audit` audits agent guardrails in
+general, not MCP tool surfaces; `json-schema-design-check`
+audits standalone JSON Schema documents, not schemas as MCP
+tool definitions inside a server record; and
+`grpc-service-design` audits gRPC services, a different RPC
+surface entirely. Zero checks are shared with any of them; the
+boundary is: this atom alone checks an MCP server's declared
+record — verb_noun tool names, one job per tool, per-tool typed
+schemas, negative tests and destructive gates, stdio-vs-HTTP
+transport fit, injection-aware tool-result handling, MCP
+versioning and handshake contract tests, and the MCP red lines
+(no unsandboxed shell passthrough, no secrets echoed, no
+unbounded reads).
+
+## Honest scoping
+
+This atom audits a **declared** MCP server record — it connects
+to no server, runs no handshake, calls no tool, reads no live
+traffic or logs, and does not verify that a declared control
+actually works. A record is sound *on the caller's declared
+evidence*: a manifest that declares remote transports
+authenticated, destructive tools gated and no shell passthrough
+passes those checks even if the real server does none of it. It
+is a completeness and consistency audit of the record the skill
+requires, **not an MCP implementation service, a penetration
+test, or a protocol-compliance certification**: it never judges
+whether a tool's schema is well designed in detail, whether a
+description is genuinely clear, whether a sandbox actually
+contains a shell tool, or whether a gate genuinely stops a
+destructive call — only that the record contains what the
+skill's sections and red lines demand, and that its declared
+rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no inspection of actual
+tool names, descriptions or schema bodies — verb_noun naming,
+when-to-use descriptions and schema validity are caller-declared
+flags, the atom reads no tool definitions; the quality of a
+sandbox, a sanitizer or an approval flow in substance is a
+caller declaration — only its declared presence is checked.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
 
 ## Named doubt (from the register)
 

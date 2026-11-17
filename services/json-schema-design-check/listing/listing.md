@@ -1,6 +1,6 @@
-# Listing (STUB) — Json schema design check
+# Listing — Json schema design check
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: built-locally — NOT deployed; do not submit.** The remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `json-schema-design-check` (Tier B), an independent atom service listed on Conduit.
 
