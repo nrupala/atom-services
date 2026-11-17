@@ -1,6 +1,6 @@
 # Listing (STUB) — Testing strategy regression pack
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: staged, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `testing-strategy-regression-pack` (Tier B), an independent atom service listed on Conduit.
 

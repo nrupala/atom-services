@@ -1,6 +1,6 @@
 # Listing (STUB) — Zero knowledge system design pack
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: built-locally — NOT deployed; do not submit.** Authored and staged locally; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `zero-knowledge-system-design-pack` (Tier B), an independent atom service listed on Conduit.
 

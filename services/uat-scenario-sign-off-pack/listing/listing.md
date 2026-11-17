@@ -1,6 +1,6 @@
-# Listing (STUB) — Uat scenario sign off pack
+# Listing (STAGED) — Uat scenario sign off pack
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: AUTHORED + STAGED — NOT deployed.** Authored locally and parity-proven; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint. Do not submit.
 
 **Which atom:** `uat-scenario-sign-off-pack` (Tier B), an independent atom service listed on Conduit.
 

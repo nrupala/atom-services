@@ -1,6 +1,6 @@
 # Listing (STUB) — Ux flow component spec pack
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: AUTHORED + STAGED — NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `ux-flow-component-spec-pack` (Tier B), an independent atom service listed on Conduit.
 

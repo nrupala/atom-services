@@ -1,6 +1,6 @@
 # Listing (STUB) — Voice note narration audio
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: built-locally — NOT deployed; do not submit.** The remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `voice-note-narration-audio` (Tier B), an independent atom service listed on Conduit.
 

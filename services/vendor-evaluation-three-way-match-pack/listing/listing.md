@@ -1,6 +1,6 @@
 # Listing (STUB) — Vendor evaluation three way match pack
 
-**Status: scaffolded, NOT deployed.** Generated from the register; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
+**Status: built-locally — NOT deployed; do not submit.** Deterministic core, Python oracle and TypeScript port built and parity-proven locally; the remote URL in `server.json` is the proposed endpoint shape, not a live endpoint.
 
 **Which atom:** `vendor-evaluation-three-way-match-pack` (Tier B), an independent atom service listed on Conduit.
 

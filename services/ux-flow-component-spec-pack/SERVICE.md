@@ -6,7 +6,7 @@
 
 Bound capability (from the skill): Design user flows and interfaces — tokens, component specs, states, and accessibility — before implementation.
 
-A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared UX flow + component specification record** and receives the spec audit verdict as the deliverable: the atom designs no interface, builds no frontend, renders nothing, measures no contrast, tests no keyboard path and certifies no accessibility conformance (see Honest scoping).
 
 ## Buyer
 
@@ -16,10 +16,329 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Designing product interfaces before build**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the UX flow + component specification manifest
+
+The caller submits one JSON manifest: a declared UX flow and
+component specification record for one product surface, made
+from the specification as actually produced. Every field below
+is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but
+false / invalid = the check fails (`UX_SPEC_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `spec_title` (string; carried into the verdict output, not itself checked) | — |
+| `flow_design.flows_designed_before_implementation` (boolean) | ux_flows_and_hierarchy |
+| `flow_design.primary_journeys_documented_as_step_diagrams` (boolean) | ux_flows_and_hierarchy |
+| `flow_design.information_hierarchy_defined_per_screen` (boolean) | ux_flows_and_hierarchy |
+| `flow_design.content_before_decoration` (boolean) | ux_flows_and_hierarchy |
+| `flow_steps` (list of flow-step-row objects, each with the entry fields below; computed, see below) | ux_flows_and_hierarchy |
+| `flow_steps[].step_id` (string; must be unique per row) | ux_flows_and_hierarchy |
+| `flow_steps[].intent` (non-empty string; one intent per step) | ux_flows_and_hierarchy |
+| `flow_steps[].entry_condition` (non-empty string) | ux_flows_and_hierarchy |
+| `flow_steps[].exit_condition` (non-empty string) | ux_flows_and_hierarchy |
+| `flow_steps[].next_step_ids` (list of strings; computed — every id must name a declared step, see below; an empty list declares a terminal step) | ux_flows_and_hierarchy |
+| `design_tokens.tokens_single_source_declared` (boolean) | ux_design_tokens |
+| `design_tokens.color_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.type_scale_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.spacing_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.radius_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.elevation_tokens_defined` (boolean) | ux_design_tokens |
+| `components` (list of component-row objects, each with the entry fields below; computed, see below) | ux_component_inventory_and_states |
+| `components[].component_id` (string; must be unique per row) | ux_component_inventory_and_states |
+| `components[].purpose` (non-empty string) | ux_component_inventory_and_states |
+| `components[].variants_declared` (non-empty string) | ux_component_inventory_and_states |
+| `components[].interactive` (boolean; gates the state-inventory and decorative-only checks below) | ux_component_inventory_and_states |
+| `components[].decorative_only` (boolean; must not be `true` on an interactive row) | ux_component_inventory_and_states |
+| `components[].states_declared` (list of strings; computed for interactive rows — must contain all seven skill-named states, see below) | ux_component_inventory_and_states |
+| `screens` (list of screen-row objects, each with the entry fields below; computed, see below) | ux_data_surface_states, ux_accessibility_declarations |
+| `screens[].screen_id` (string; must be unique per row) | ux_data_surface_states |
+| `screens[].is_data_surface` (boolean; gates the empty/loading/error checks below) | ux_data_surface_states |
+| `screens[].empty_state_designed` (boolean; required when the screen is declared a data surface; otherwise not applicable) | ux_data_surface_states |
+| `screens[].loading_state_designed` (boolean; gated as above) | ux_data_surface_states |
+| `screens[].error_state_designed` (boolean; gated as above) | ux_data_surface_states |
+| `screens[].contrast_check_noted` (boolean) | ux_accessibility_declarations |
+| `screens[].keyboard_check_noted` (boolean) | ux_accessibility_declarations |
+| `accessibility.wcag_target_declared` (non-empty string; declaration only — no conformance is certified, see below) | ux_accessibility_declarations |
+| `accessibility.keyboard_reachable_declared` (boolean) | ux_accessibility_declarations |
+| `accessibility.labels_on_all_fields_declared` (boolean) | ux_accessibility_declarations |
+| `accessibility.visible_focus_declared` (boolean) | ux_accessibility_declarations |
+| `accessibility.reduced_motion_respected_declared` (boolean) | ux_accessibility_declarations |
+| `microcopy.buttons_say_what_they_do` (boolean) | ux_microcopy_and_critique |
+| `microcopy.errors_say_how_to_fix` (boolean) | ux_microcopy_and_critique |
+| `microcopy.empty_states_say_what_to_do_next` (boolean) | ux_microcopy_and_critique |
+| `microcopy.microcopy_reviewed_for_clarity` (boolean) | ux_microcopy_and_critique |
+| `critique.compared_against_brief` (boolean) | ux_microcopy_and_critique |
+| `critique.compared_against_domain_conventions` (boolean) | ux_microcopy_and_critique |
+| `critique.non_orienting_decoration_cut` (boolean) | ux_microcopy_and_critique |
+| `red_lines.placeholder_lorem_shipped_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.dead_controls_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.accessibility_traded_for_aesthetics_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.aesthetics_traded_for_accessibility_present` (boolean; must be `false` to pass — skill red line, vice-versa direction) | red_lines |
+
+Twenty checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Flow steps declared:** the declared `flow_steps` list
+  passes when it is present and names at least one step. An
+  absent list is missing evidence; an empty list fails — it
+  declares no flow at all.
+- **Flow step ids unique:** no declared `step_id` may appear
+  on more than one row. A row with `step_id` absent is missing
+  evidence for this check.
+- **Intent / entry / exit per flow step:** every declared
+  step row declares a non-empty `intent` (each step carries
+  one intent), a non-empty `entry_condition` and a non-empty
+  `exit_condition`. A row with the field absent is missing
+  evidence; a row declaring it empty fails and is named in
+  `ux_flow_steps_without_intent`,
+  `ux_flow_steps_without_entry_condition` or
+  `ux_flow_steps_without_exit_condition`.
+- **Every next-step reference resolves:** every id in every
+  row's `next_step_ids` names a declared `step_id`. An empty
+  list declares a terminal step and resolves vacuously. A row
+  with the field absent is missing evidence; a row naming an
+  undeclared step fails and is named in
+  `ux_flow_steps_with_unresolved_next_step_references`.
+- **Components declared:** the declared `components` list
+  passes when it is present and names at least one component.
+  An absent list is missing evidence; an empty list fails.
+- **Component ids unique:** no declared `component_id` may
+  appear on more than one row.
+- **Purpose and variants per component:** every declared
+  component row declares a non-empty `purpose` and a
+  non-empty `variants_declared`. Absent is missing evidence;
+  empty fails and is named in `ux_components_without_purpose`
+  or `ux_components_without_variants`.
+- **Interactive state inventory complete:** every row
+  declared `interactive: true` has a `states_declared` list
+  containing all seven states the skill names — `default`,
+  `hover`, `active`, `disabled`, `focus`, `loading`, `error`.
+  An interactive row with the field absent is missing
+  evidence; an incomplete inventory fails and is named in
+  `interactive_ux_components_with_incomplete_states`.
+  Non-interactive rows are not required to carry the seven.
+- **No interactive component decorative-only:** no row
+  declared interactive may also declare
+  `decorative_only: true` (quality gate: none decorative-only).
+  A row missing either field is missing evidence; a violating
+  row fails and is named in
+  `interactive_ux_components_declared_decorative_only`.
+- **Screens declared:** the declared `screens` list passes
+  when it is present and names at least one screen. An absent
+  list is missing evidence; an empty list fails.
+- **Screen ids unique:** no declared `screen_id` may appear
+  on more than one row.
+- **Empty / loading / error per data surface:** for every
+  screen row declared `is_data_surface: true`, each of
+  `empty_state_designed`, `loading_state_designed` and
+  `error_state_designed` must be declared `true` (quality
+  gate: empty, loading and error states designed for every
+  data surface). A data-surface row with a field absent is
+  missing evidence; a field declared false fails and the
+  screen is named in the matching
+  `ux_data_surfaces_without_*_state` list. Non-data-surface
+  screens pass these checks as not applicable.
+- **Accessibility target declared:** `accessibility.wcag_target_declared`
+  must be a non-empty string. The skill names WCAG AA; this
+  check verifies only that a target is **declared** — it
+  imposes no conformance level of its own and certifies none.
+  An absent field is missing evidence; an empty string fails.
+- **Contrast / keyboard check noted per screen:** every
+  declared screen row declares `contrast_check_noted: true`
+  and `keyboard_check_noted: true` (quality gate: contrast +
+  keyboard checks noted per screen). A row with a field absent
+  is missing evidence; a row declaring it false fails and is
+  named in `ux_screens_without_contrast_check` or
+  `ux_screens_without_keyboard_check`. Noted is a declaration
+  only — no contrast is measured and no keyboard path is tested.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twenty primary computed checks above cannot be
+completed), `ux_flow_steps_count`, `ux_components_count`,
+`ux_screens_count`, `ux_interactive_components_count` and
+`ux_data_surfaces_count` (the declared list lengths / gated
+row counts, or null when the parent list is not declared —
+counts are reported as integers, exactly), the duplicate-id
+lists `duplicate_ux_flow_step_ids`,
+`duplicate_ux_component_ids` and `duplicate_ux_screen_ids`,
+the row-name lists named in the computed checks above, and
+the ratios `flow_step_reference_resolution_ratio` (steps
+whose declared next-step references all resolve ÷ declared
+steps), `interactive_component_complete_state_ratio`
+(interactive components with a complete seven-state inventory
+÷ interactive components; null when there are none),
+`data_surface_complete_state_ratio` (data surfaces with all
+three of empty/loading/error designed ÷ data surfaces; null
+when there are none) and `screen_accessibility_check_ratio`
+(screens with both contrast and keyboard checks noted ÷
+declared screens). **Fixed serialization rule:** computed
+ratios are reported as strings with exactly six decimal
+places, produced in both implementations by the same rule —
+round half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`,
+then format with exactly six decimals. A ratio is null when
+its denominator list is absent or empty (or, for the gated
+ratios, when no row falls under the gate). That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are flows-first, hierarchy, single-source tokens, complete
+state inventories, per-surface states, noted accessibility
+checks and clear microcopy, not bars the atom can set.
+Quantities are computed and reported; the only bars on the
+computed rows are exact completeness and reference resolution
+over the caller's own declared rows, exactly as stated above.
+Declined thresholds, named: any external accessibility
+conformance level imposed as a pass bar — including treating
+the skill's named WCAG AA as a certification (the atom checks
+only that a target is declared, plus the per-screen and
+per-component declarations; it never certifies conformance);
+a measured contrast ratio (no contrast is measured); a
+keyboard-traversal time, tab-count or focus-order bar beyond
+the declared per-screen keyboard check; a minimum or maximum
+number of flow steps, components or screens beyond at least
+one each; a token count, type-scale ratio, spacing unit or
+elevation scale bar (tokens are checked as defined and
+single-source, never graded); a state list beyond the seven
+states the skill itself names for interactive components; a
+requirement that every product carry every component type the
+skill lists as examples (inputs, buttons, cards, tables, nav,
+lists — a component row is checked on its own declarations,
+not on a universal inventory); any judgment that the flow is
+usable, the interface is beautiful, or the design is good
+(only that its declared specification record contains what
+the skill requires).
+
+The verdict is one of `UX_SPEC_SOUND` (all 45 checks pass),
+`UX_SPEC_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: ux_flows_and_hierarchy,
+ux_design_tokens, ux_component_inventory_and_states,
+ux_data_surface_states, ux_accessibility_declarations,
+ux_microcopy_and_critique, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `frontend-implementation` (building
+the frontend itself — implemented views, states in code,
+performance and shipped behaviour), `semantic-html-review`
+(the built markup's semantics — landmarks, headings and
+labels in actual HTML) and `audience-contract-design` (an
+audience/offer contract — who it is for and what is promised,
+a different artifact). This atom shares **zero checks** with
+any of them (verified mechanically by enumerating
+`evaluate({})` check names from every atom oracle in
+`services/*/src/*.py` and comparing, with a grep of check
+strings over the same files as the fallback for oracles whose
+`evaluate({})` raises or returns a different shape — zero
+overlap by both methods): every check here is a
+pre-implementation specification question — a flow step with
+one intent, an entry and an exit, whose next-step references
+resolve; a single-source token set covering color, type
+scale, spacing, radius and elevation; a component inventory
+where every interactive component declares all seven
+skill-named states and none is decorative-only; a data
+surface with empty, loading and error states designed; an
+accessibility target merely declared with contrast and
+keyboard checks noted per screen; microcopy and critique
+declared. The boundary is: the flow/component specification
+record here; the built frontend, the built markup's
+semantics, and the audience contract there.
+
+## Honest scoping
+
+This atom reviews a **declared** UX flow + component
+specification record — it designs no interface, produces no
+flow diagram, token file or component spec, builds no
+frontend, renders nothing, opens no screen, measures no
+contrast, traverses no keyboard path, and **certifies no
+accessibility conformance of any kind, to WCAG or to any
+other standard**: a declared target, a noted contrast check
+and a noted keyboard check are declarations in the record,
+not findings about a real interface. A spec is sound *on the
+caller's declared evidence*: a record that declares its steps
+resolving, its interactive states complete and its checks
+noted passes those checks even if the real specification does
+none of it. It is a completeness and consistency audit of the
+specification record the skill requires, **not a design
+service, a usability test, or an accessibility audit or
+certification**: it never judges whether a flow is usable,
+whether a hierarchy is right, whether the declared contrast
+actually holds, or whether the design should be built — only
+that the record contains what the skill's method, quality
+gates and red lines demand, and that its declared rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never performed or judged): the design
+work itself (drawing flows, defining tokens, specifying
+components); usability testing with real users; accessibility
+testing, measurement and conformance evaluation of any built
+or unbuilt interface; frontend implementation (the sibling
+`frontend-implementation` ground); and review of built markup
+(the sibling `semantic-html-review` ground) — each is
+EXCLUDED by name from this atom, which audits only the
+declared record of the specification step. Boundary case,
+named: a specification with genuinely no interactive
+component and no data surface passes the gated state checks
+vacuously on its declared rows, and its gated ratios are null
+— the atom reports that shape honestly rather than failing a
+static specification on gates that do not apply to it.
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO, with the
+accessibility boundary as the named control.** Keyword
+screen: the bound skill and this record name accessibility
+and WCAG — no engineering-practice, securities/financial-
+advice or psychology-adjacent subject, and no regulated
+profession's advice vocabulary; the adjacency is not a
+regulated-advice subject but a legal-conformance adjacency:
+accessibility conformance can carry legal weight for a caller
+in some jurisdictions, so an output that read as certifying
+conformance would be an exposure. Substance screen: this
+atom's output does not and cannot certify any such thing —
+it audits a caller-**declared** specification record for
+completeness and internal consistency only (flow, hierarchy,
+token, component-state, data-surface-state, accessibility,
+microcopy and critique declarations, computed row consistency
+recomputed over the declared rows, and the red lines refused);
+every output is a pass / fail / missing verdict on the record
+or a ratio recomputed from the caller's own declared rows.
+Named control: (1) the atom **certifies NO legal or
+accessibility conformance** — the WCAG check verifies only
+that a non-empty target is declared in the record, plus that
+per-screen contrast/keyboard checks are declared noted and
+per-component state inventories are declared; it measures no
+contrast, tests no keyboard path, evaluates no interface, and
+no output states or implies that any product meets WCAG, any
+accessibility law, or any other standard — conformance, and
+any legal reliance on it, remain the caller's responsibility,
+on their own testing; (2) it produces **no design and no
+advice of any kind** — no flow, no token set, no component
+spec, no recommendation about any interface; the skill's
+design steps are excluded from production by name above —
+this atom performs none of them; (3) it sets **no threshold**
+on any subject matter beyond the skill's own stated lists
+(see the declined list). Subject to that named control, the
+screen outcome is NO: the output could not read as regulated
+professional advice, and with control (1) in force it does
+not read as an accessibility-conformance certification
+either. No deploy happens on this atom without the owner's
+explicit per-unit ruling in any case.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

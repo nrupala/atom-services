@@ -4,7 +4,9 @@
 
 ## What it delivers
 
-A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+Bound capability (from the skill): choose technology stacks for the requirement and the team that must run them — decided like one-way doors, not fashion — framed by hard constraints, access/usage patterns, operability cost and exit cost, under a boring-technology bias and a total-cost-of-ownership weighing, with reversibility kept.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared tech-stack decision memo record** and receives the memo audit verdict as the deliverable: the atom recommends no stack, picks no stack, ranks no candidate and applies no default stack (see Honest scoping).
 
 ## Buyer
 
@@ -14,14 +16,349 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Stack choices for new products**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the tech-stack decision memo manifest
+
+The caller submits one JSON manifest: a declared tech-stack
+decision memo record for one stack selection, made from the
+memo as actually written. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`TECH_STACK_DECISION_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `memo_title` (string; carried into the verdict output, not itself checked) | — |
+| `context.hard_constraints_declared` (boolean) | context_and_constraints |
+| `context.security_model_constraint_addressed` (boolean) | context_and_constraints |
+| `context.regulatory_constraint_addressed` (boolean) | context_and_constraints |
+| `context.performance_constraint_addressed` (boolean) | context_and_constraints |
+| `context.offline_constraint_addressed` (boolean) | context_and_constraints |
+| `context.access_patterns_declared` (boolean) | context_and_constraints |
+| `context.usage_patterns_declared` (boolean) | context_and_constraints |
+| `context.team_operability_context_declared` (boolean) | context_and_constraints |
+| `context.decision_framed_as_sticky` (boolean) | context_and_constraints |
+| `candidate_work.candidates_compared_against_same_hard_constraints` (boolean) | candidates_and_boring_technology |
+| `candidate_work.boring_technology_bias_addressed` (boolean) | candidates_and_boring_technology |
+| `candidate_work.novelty_budget_allocation_declared` (boolean) | candidates_and_boring_technology |
+| `candidate_work.novelty_spend_tied_to_differentiation_declared` (boolean) | candidates_and_boring_technology |
+| `candidates` (list of candidate-row objects, each with the entry fields below; computed, see below) | candidates_and_boring_technology, evaluation_criteria_and_evidence, decision_and_rationale |
+| `candidates[].candidate_id` (string; must be unique per row) | candidates_and_boring_technology |
+| `candidates[].stack_name` (non-empty string) | candidates_and_boring_technology |
+| `candidates[].novelty_classification` (string; one of `proven`, `novel`) | candidates_and_boring_technology |
+| `candidates[].evidence_note` (non-empty string) | candidates_and_boring_technology |
+| `candidates[].scores` (list of score-row objects, each with the entry fields below; computed, see below) | evaluation_criteria_and_evidence |
+| `candidates[].scores[].criterion_id` (string; computed — must name a declared criterion, see below) | evaluation_criteria_and_evidence |
+| `candidates[].scores[].score` (number) | evaluation_criteria_and_evidence |
+| `candidates[].weighted_total_declared` (number; computed — must recompute from the declared weights and scores, see below) | evaluation_criteria_and_evidence |
+| `evaluation.evidence_basis_recorded` (boolean) | evaluation_criteria_and_evidence |
+| `evaluation.evaluation_applied_consistently_across_candidates` (boolean) | evaluation_criteria_and_evidence |
+| `criteria` (list of criterion-row objects, each with the entry fields below; computed, see below) | evaluation_criteria_and_evidence |
+| `criteria[].criterion_id` (string; must be unique per row) | evaluation_criteria_and_evidence |
+| `criteria[].criterion_name` (non-empty string) | evaluation_criteria_and_evidence |
+| `criteria[].weight` (number; must be non-negative) | evaluation_criteria_and_evidence |
+| `tco.licensing_cost_addressed` (boolean) | total_cost_and_operability |
+| `tco.operations_burden_addressed` (boolean) | total_cost_and_operability |
+| `tco.learning_curve_addressed` (boolean) | total_cost_and_operability |
+| `tco.lock_in_cost_addressed` (boolean) | total_cost_and_operability |
+| `tco.operability_cost_addressed` (boolean) | total_cost_and_operability |
+| `tco.on_call_operability_owner_declared` (boolean) | total_cost_and_operability |
+| `tco.team_can_operate_declared_stack` (boolean) | total_cost_and_operability |
+| `tco.free_tier_or_free_choice_used` (boolean; gates the hidden-fragility check below) | total_cost_and_operability |
+| `tco.hidden_fragility_cost_named` (boolean; required when a free-tier/free choice is declared used; otherwise the check passes as not applicable) | total_cost_and_operability |
+| `decision.decision_recorded` (boolean) | decision_and_rationale |
+| `decision.chosen_candidate_id` (string; computed — must name a declared candidate, see below) | decision_and_rationale |
+| `decision.rationale_recorded` (boolean) | decision_and_rationale |
+| `decision.rationale_tied_to_hard_constraints` (boolean) | decision_and_rationale |
+| `decision.rationale_tied_to_evaluation_criteria` (boolean) | decision_and_rationale |
+| `decision.tradeoffs_of_decision_recorded` (boolean) | decision_and_rationale |
+| `decision.declared_ranking_candidate_ids` (list of strings; computed — must be exactly the declared candidate ids, see below) | decision_and_rationale |
+| `reversibility.exit_cost_assessed` (boolean) | reversibility_and_exit |
+| `reversibility.exit_path_kept` (boolean) | reversibility_and_exit |
+| `reversibility.vendor_specific_pieces_isolated_behind_interfaces` (boolean) | reversibility_and_exit |
+| `reversibility.reversibility_assessed` (boolean) | reversibility_and_exit |
+| `red_lines.framework_of_the_week_chosen_for_novelty_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.microservices_for_solo_project_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.docker_by_default_choice_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.lock_in_with_no_exit_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.technology_chosen_to_pad_cv_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+
+Fourteen checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Candidates declared:** the declared `candidates` list
+  passes when it is present and names at least two
+  candidates. An absent list is missing evidence; a list of
+  fewer than two fails — a memo that selects between stacks
+  is comparative by its own framing, and one row compares
+  nothing.
+- **Candidate ids unique:** no declared `candidate_id` may
+  appear on more than one row. A row with `candidate_id`
+  absent is missing evidence for this check.
+- **Stack name per candidate:** every declared candidate row
+  declares a non-empty `stack_name`. A row with the field
+  absent is missing evidence; a row declaring an empty name
+  fails and is named in
+  `tech_stack_candidates_without_stack_name`.
+- **Novelty classification recognised:** every declared
+  candidate's `novelty_classification` is one of `proven`,
+  `novel` — the two classes the skill's boring-technology
+  bias works with. Any other value fails and is named in
+  `tech_stack_candidates_with_invalid_novelty_classification`.
+- **Evidence note per candidate:** every declared candidate
+  row declares a non-empty `evidence_note`. A row with the
+  field absent is missing evidence; a row declaring an empty
+  note fails and is named in
+  `tech_stack_candidates_without_evidence_note`.
+- **Criteria declared:** the declared `criteria` list passes
+  when it is present and names at least one criterion. An
+  absent list is missing evidence; an empty list fails — it
+  declares no evaluation at all.
+- **Criterion ids unique:** no declared `criterion_id` may
+  appear on more than one criterion row.
+- **Criterion name per criterion:** every declared criterion
+  row declares a non-empty `criterion_name`, named in
+  `tech_stack_criteria_without_name` when empty.
+- **Criterion weights non-negative:** every declared
+  criterion declares a non-negative `weight`. A row with the
+  field absent is missing evidence; a negative weight fails
+  and is named in `tech_stack_criteria_with_invalid_weight`.
+- **Criterion weights sum positive:** the declared weights
+  sum to a positive total (reported as
+  `tech_stack_criteria_weights_sum`). A memo whose weights
+  sum to zero scores nothing — internal consistency of the
+  declared rows, not an imported target; the skill states no
+  weight-sum target such as 1 or 100, so none is checked.
+- **Every candidate scores every declared criterion:** every
+  declared candidate's `scores` list names every declared
+  criterion and no other criterion, exactly once. A candidate
+  with `scores` absent, or a criterion row without a
+  `criterion_id`, is missing evidence; a candidate scoring
+  incompletely, extra, or twice fails and is named in
+  `tech_stack_candidates_with_incomplete_or_extra_scores`.
+- **Every candidate's weighted total recomputes:** every
+  declared candidate's `weighted_total_declared` recomputes
+  as sum(declared weight × declared score) over its declared
+  scores, compared on the fixed 6dp serialization below. A
+  candidate with the total or its scores absent is missing
+  evidence; a mismatch fails and is named in
+  `tech_stack_candidates_with_weighted_total_mismatch`.
+- **Chosen candidate resolves:** the declared
+  `decision.chosen_candidate_id` names one of the declared
+  candidates. An absent chosen id, or a record with the
+  candidates list absent, is missing evidence; an id naming
+  no declared candidate fails. The atom checks **only** that
+  the reference resolves — it never checks that the chosen
+  candidate is the top-ranked or highest-scoring one.
+- **Declared ranking matches the declared candidates:** the
+  declared `decision.declared_ranking_candidate_ids` list
+  must be exactly the declared candidate ids — none missing
+  (`tech_stack_candidates_missing_from_declared_ranking`),
+  none extra
+  (`declared_ranking_ids_not_declared_as_candidates`), none
+  duplicated (`duplicate_declared_ranking_candidate_ids`).
+  Either list absent, or a candidate row without a
+  `candidate_id`, is missing evidence. Checking a **declared**
+  ranking's internal consistency is audit, not advice: the
+  atom produces no ranking of its own.
+
+One further check is gated on the record's own declared gate
+field, following the skill's own conditional scope — when the
+gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **Hidden fragility cost:** the hidden fragility cost is
+  named explicitly only where
+  `tco.free_tier_or_free_choice_used` is declared `true` (the
+  skill: for free-tier choices, name the hidden fragility
+  cost explicitly so the trade-off is chosen knowingly).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the fourteen primary computed checks above cannot be
+completed), `tech_stack_candidates_count` and
+`tech_stack_criteria_count` (the declared list lengths, or
+null when a list is not declared — counts are reported as
+integers, exactly), the duplicate-id lists
+`duplicate_tech_stack_candidate_ids`,
+`duplicate_tech_stack_criterion_ids` and
+`duplicate_declared_ranking_candidate_ids`, the row-name lists
+named in the computed checks above,
+`tech_stack_criteria_weights_sum` (the sum of the declared
+criterion weights), and the ratios
+`candidate_score_coverage_ratio` (candidates scoring every
+declared criterion exactly ÷ declared candidates),
+`candidate_weighted_total_match_ratio` (candidates whose
+declared weighted total recomputes ÷ declared candidates) and
+`candidate_evidence_note_ratio` (candidates with a recorded
+evidence note ÷ declared candidates). **Fixed serialization
+rule:** computed quantities and ratios are reported as strings
+with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals. A ratio is null when its denominator list is
+absent or empty (the score-coverage and weighted-total ratios
+are also null when the criteria list is not declared). That
+fixed serialization is what makes the Python and TypeScript
+outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are framing, comparison, total-cost weighing and
+reversibility, not bars the atom can set. Quantities are
+computed and reported; the only bars on the computed rows are
+exact recomputation and completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a minimum team size or a team-capability bar (the team
+is checked as declared in context, never measured); a cost
+ceiling for licensing, operations or total cost of ownership;
+an exit-cost amount or ceiling; a score scale of the atom's
+own (scores are caller-declared numbers, checked only for
+coverage and arithmetic — no scale is imposed and no score is
+judged good or bad); a minimum winning margin between
+candidates, or any check that the chosen candidate scored
+highest or ranked first (that check would be the atom
+choosing, and it is declined by name); a novelty-budget
+percentage or a maximum number or share of novel candidates;
+a candidate-count maximum, or a criterion-count bar beyond at
+least one criterion and at least two candidates; a conformity
+bar against any house or default stack (the skill's house
+stack defaults are a prescription for one house, not a bar
+this atom sets — see Honest scoping); any judgment that the
+chosen stack is right, good or advisable (only that its
+declared memo record contains what the skill requires).
+
+The verdict is one of `TECH_STACK_DECISION_SOUND` (all 51
+checks pass), `TECH_STACK_DECISION_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections:
+context_and_constraints, candidates_and_boring_technology,
+evaluation_criteria_and_evidence, total_cost_and_operability,
+decision_and_rationale, reversibility_and_exit, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `architecture-decision-record` (a
+single decision's ADR — context, decision, consequences,
+status and one-page form), `framework-adoption-adr` (the
+adoption record for taking on one framework — fit criteria,
+house-stack conformity and version pinning) and
+`structured-decision-making` (a general decision process —
+frame, options, criteria, evaluate, commit and review for any
+decision). This atom shares **zero checks** with any of them
+(verified mechanically by enumerating `evaluate({})` check
+names from every atom oracle in `services/*/src/*.py` and
+comparing — zero overlap): every check here is a tech-stack
+memo question — hard constraints (security model, regulatory,
+performance, offline), access/usage patterns and team-of-one
+operability framing for a stack choice, candidate stacks
+classified proven or novel under a declared novelty budget
+with the boring-technology bias addressed, stack-evaluation
+criteria with declared weights and per-candidate stack scores
+whose declared weighted totals recompute exactly, licensing /
+operations / learning-curve / lock-in total cost with the
+hidden fragility cost of a free choice named, a declared stack
+ranking that matches the declared candidates exactly, and exit
+cost / exit path / vendor isolation for the stack. The
+boundary is: one comparative stack-selection memo here; a
+single decision's ADR, one framework's adoption record, and a
+general decision process there.
+
+## Honest scoping
+
+This atom reviews a **declared** tech-stack decision memo
+record — it researches no technology, evaluates no stack
+itself, verifies no candidate claim against the world, and
+recommends, chooses and ranks nothing. A memo is sound *on
+the caller's declared evidence*: a record that declares its
+constraints addressed, its candidates evidenced and its exit
+path kept passes those checks even if the real memo did none
+of it. It is a completeness and consistency audit of the memo
+record the skill requires, **not a stack recommendation, an
+architecture review, or a guarantee that the chosen stack is
+right**: it never judges whether a declared score is fair,
+whether the evidence note actually supports the candidate,
+whether the chosen stack will perform, or whether the
+decision should stand — only that the record contains what
+the skill's method and anti-patterns demand, and that its
+declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (excluded by name,
+never performed): choosing a stack for a requirement;
+recommending a candidate to the caller; ranking candidates as
+the atom's own output; applying the skill's house stack
+defaults (vanilla TypeScript + Web Components frontend; Rust /
+Python / C backend; SQLite/relational data; sovereign-first /
+Fly.io / Render / Cloudflare hosting; zero-knowledge /
+zero-trust security) as a prescription or as a conformity bar
+— the scaffold's named doubt, "house stack defaults inside",
+is resolved exactly here: the defaults stay inside the skill
+as one house's prescription and are **not** imported into this
+atom, whose callers declare their own candidates; judging that
+the chosen candidate is the best, top-ranked or
+highest-scoring candidate; and assessing any stack's real
+performance, security or cost — each is EXCLUDED by name from
+this atom, which audits only the declared record. Boundary
+case, named: a memo selecting a stack with genuinely only one
+candidate ever considered cannot pass this record format's
+candidates-declared check (the format requires at least two
+compared candidates — such a memo is outside this atom's
+computed reach, not failed on its merits).
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO, flag-with-controls
+(census class).** Keyword screen: the bound skill and this
+record name technology stacks, security models and regulatory
+constraints as *context a memo must address* — no
+engineering-practice, securities/financial-advice or
+psychology-adjacent subject is the atom's output, but a stack
+memo sits adjacent to professional engineering judgment: a
+naive version of this atom that recommended or chose a stack
+for a caller's system could read as professional advice.
+Substance screen: this atom's output could not itself read as
+regulated professional advice **while the controls below
+hold** — it audits a caller-**declared** memo record for
+completeness and internal consistency only (constraints,
+candidate/criteria/score rows recomputed over the declared
+rows, total-cost and operability declarations, decision /
+rationale / declared-ranking consistency, reversibility
+declarations, and the anti-pattern red lines refused); every
+output is a pass / fail / missing verdict on the record or a
+quantity recomputed from the caller's own declared rows.
+Named controls: (1) it produces **no recommendation and no
+choice** — the skill's recommending, choosing and
+default-applying steps are excluded by name in Honest scoping
+above; the atom never names a stack the caller should adopt;
+(2) it **never ranks candidates as its own output** and never
+checks that the chosen candidate is top-ranked or
+highest-scoring — checking a **declared** ranking's internal
+consistency (it lists exactly the declared candidates) is
+audit, not advice, and that boundary is stated in the check
+itself; (3) it sets **no threshold** on any technology (see
+the declined list) and imports no house stack default as a
+bar; (4) the regulatory-constraint check judges only that the
+memo *addresses* a regulatory constraint the caller declares —
+it states no regulatory requirement and judges no compliance;
+professional stack decisions for regulated systems remain the
+caller's responsible professionals, on their record. Because
+the adjacency is real (stack choice for a regulated or
+safety-relevant system is professional work) this is the
+census flag-with-controls class, not class (a); it is not the
+genuinely-open personal-financial-snapshot class (no personal
+position of any kind is handled). No deploy happens on this
+atom without the owner's explicit per-unit ruling in any case.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
-
-## Named doubt (from the register)
-
-House stack defaults inside
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

@@ -65,12 +65,22 @@ Family counts for this unit: PROVEN 12 / N/A 1 / NOT RUN 4 of 17.
 
 ## Findings carried (fleet-level, apply to this unit)
 
-- **F-G1 (must-gate, repo level):** the release-gate scanner at repo root
-  returns BLOCKED on the CI check — no root `.github/workflows`; CI is
-  defined in the gateway subtree but has never run, and the repo is
-  unpublished (local-only) pending the owner's publication decision.
-  Substance unchanged since the atoms-gateway v1.0.0 gate (its F1).
-  Owner-decision-blocked; named here, never silently passed.
+- **F-G1 (must-gate, repo level) — CLOSED 2026-11-15:** CI was
+  defined only at the nested path `rails/gateway/.github/workflows/ci.yml`,
+  which GitHub never discovers, and had never run; the repo was at the
+  time unpublished. Closure, all on record in pack.md's F-G1 CI run
+  record: (1) the owner approved publication and the repo is live and
+  public at github.com/nrupala/atom-services; the defined steps were
+  run verbatim on a pristine clone of the published tree — GREEN,
+  npm test 3689/3689; (2) the workflow was placed at the repo root
+  (`.github/workflows/ci.yml`, local commit `8455857`, with
+  `workflow_dispatch` declared) and HEAD was pushed as remote commit
+  `3875c3ab` (read-back verified 3,437/3,437 files); (3) the push
+  triggered hosted GitHub Actions run `43804573774` on HEAD — job
+  `test` completed `success`, every step success (`npm ci` →
+  `npm test` → `npm run build`). **F-G1 is CLOSED**; future pushes to
+  `main` run this workflow hosted by construction. GMSI-170 (a verdict
+  must bind to a CI run that actually ran) stands as filed.
 - **F-G2 (Low, carried from v1.0.0/v1.1.0):** top-level docs do not yet
   describe a data export/deletion path (scanner user-protection signal).
 - **F-G3 (Low, CONFIRMED this run — §8 disproof pass by a separate
