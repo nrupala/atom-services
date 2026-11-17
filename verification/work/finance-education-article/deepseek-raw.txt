@@ -1,0 +1,111 @@
+# Independent recompute — finance-education-article
+
+## Computed quantities per SERVICE.md
+
+SERVICE.md marks exactly two checks as **computed** (not declared):
+1. `section_order_matches_skill` — declared `section_order` must equal exactly `["concept", "worked_example", "what_to_watch"]`.
+2. `worked_example_arithmetic_correct` — every complete step re-derived from operands/operation, compared to `declared_result` at 6-decimal formatting.
+
+It also reports `steps_evaluated` and `steps_incomplete` counts, and the headline `verdict` / `summary` / section rollups.
+
+---
+
+## Case 1: `full-pass`
+
+### section_order_matches_skill
+Declared: `["concept", "worked_example", "what_to_watch"]`
+Expected: `["concept", "worked_example", "what_to_watch"]`
+Element-wise equal → **pass**. Artifact: `pass` → **MATCH**.
+
+### worked_example_arithmetic_correct
+Step 1: operation `multiply`, operands `[100, 1.05]`, declared_result `105.0`.
+- Re-derive: 100 × 1.05 = 105.0
+- Format at 6 decimals: `105.000000`
+- Declared at 6 decimals: `105.000000`
+- Equal → step correct.
+
+All steps correct → **pass**. Artifact: `pass` → **MATCH**.
+
+### steps_evaluated / steps_incomplete
+- Steps present: 1. Complete (has operation, operands, declared_result; multiply needs ≥1 operand, has 2; no zero divisor) → evaluated = 1, incomplete = 0.
+- Artifact: `steps_evaluated: 1`, `steps_incomplete: 0` → **MATCH**.
+
+### Declared checks (spot-verify they should pass)
+- topic "Compound Interest" non-empty → topic_stated pass ✓
+- concept_explained true ✓; framework_taught_not_answer true ✓; what_to_watch_close_present true ✓
+- worked_example.present true ✓; steps_complete: step has all three fields ✓
+- signals all false → no_buy_sell_signals, no_implied_trade, no_trade_execution all pass ✓
+- disclosure.uses_data_or_assumptions true → all four disclosure checks required and all true / data_as_of "2026-11-01" non-empty → pass ✓
+- review all four true → pass ✓
+
+### Rollup
+19 checks: all pass. Fail = 0, missing = 0.
+- verdict: nothing fails, nothing missing → **ARTICLE_READY**. Artifact: `ARTICLE_READY` → **MATCH**.
+- sections: all five `pass`. Artifact: all `pass` → **MATCH**.
+- summary: "19 pass, 0 fail, 0 missing of 19 checks across five sections." Artifact identical → **MATCH**.
+
+---
+
+## Case 2: `violations`
+
+### section_order_matches_skill
+Declared: `["concept", "what_to_watch", "worked_example"]`
+Expected: `["concept", "worked_example", "what_to_watch"]`
+Position 2: `what_to_watch` ≠ `worked_example` → not equal → **fail**. Artifact: `fail` → **MATCH**.
+
+### worked_example_arithmetic_correct
+Step 1: operation `add`, operands `[1, 1]`, declared_result `999.0`.
+- Re-derive: 1 + 1 = 2.0
+- Format at 6 decimals: `2.000000`
+- Declared at 6 decimals: `999.000000`
+- `2.000000` ≠ `999.000000` → step incorrect.
+
+All steps correct? No → **fail**. Artifact: `fail` → **MATCH**.
+
+### steps_evaluated / steps_incomplete
+- Step is complete (operation `add` valid, operands `[1,1]` ≥1, no zero divisor, declared_result present) → evaluated = 1, incomplete = 0.
+- Artifact: `steps_evaluated: 1`, `steps_incomplete: 0` → **MATCH**.
+
+### Declared checks
+- topic non-empty → pass ✓
+- concept_explained true ✓; framework_taught_not_answer true ✓; what_to_watch_close_present true ✓
+- worked_example.present true ✓; steps_complete: step complete → pass ✓
+- signals: buy_sell_signals_present **true** → no_buy_sell_signals **fail**; implied_trade_present false → pass; trade_execution_present false → pass ✓
+- disclosures: uses_data_or_assumptions true, all four true / date non-empty → all pass ✓
+- review: all four true → all pass ✓
+
+### Confirm failing checks are exactly the planted wrong values
+Planted wrong values:
+1. `section_order` reordered → should fail `section_order_matches_skill` ✓ (fails)
+2. `declared_result` 999.0 vs true 2.0 → should fail `worked_example_arithmetic_correct` ✓ (fails)
+3. `buy_sell_signals_present: true` → should fail `no_buy_sell_signals` ✓ (fails)
+
+Failing checks in artifact: `section_order_matches_skill`, `worked_example_arithmetic_correct`, `no_buy_sell_signals` — **exactly these three, no others**. ✓
+
+### Rollup
+19 checks: 16 pass, 3 fail, 0 missing.
+- verdict: any fail → **NOT_ARTICLE_READY**. Artifact: `NOT_ARTICLE_READY` → **MATCH**.
+- sections: article_structure fail (section_order), worked_example fail (arithmetic), no_signals fail (buy_sell), disclosures pass, review pass. Artifact matches exactly → **MATCH**.
+- summary: "16 pass, 3 fail, 0 missing of 19 checks across five sections." Artifact identical → **MATCH**.
+
+---
+
+## Summary of comparisons
+
+| Quantity | Case | Recomputed | Artifact | Result |
+|---|---|---|---|---|
+| section_order_matches_skill | full-pass | pass | pass | MATCH |
+| worked_example_arithmetic_correct | full-pass | pass (105.000000=105.000000) | pass | MATCH |
+| steps_evaluated / incomplete | full-pass | 1 / 0 | 1 / 0 | MATCH |
+| verdict | full-pass | ARTICLE_READY | ARTICLE_READY | MATCH |
+| summary | full-pass | 19/0/0 | 19/0/0 | MATCH |
+| section_order_matches_skill | violations | fail | fail | MATCH |
+| worked_example_arithmetic_correct | violations | fail (2.000000≠999.000000) | fail | MATCH |
+| steps_evaluated / incomplete | violations | 1 / 0 | 1 / 0 | MATCH |
+| no_buy_sell_signals | violations | fail | fail | MATCH |
+| verdict | violations | NOT_ARTICLE_READY | NOT_ARTICLE_READY | MATCH |
+| summary | violations | 16/3/0 | 16/3/0 | MATCH |
+
+All computed quantities and headline values re-derive to the recorded artifacts. The violations case fails exactly the three checks its planted wrong values target, and no others.
+
+AGREEMENT: full

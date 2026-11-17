@@ -1,0 +1,184 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "subject": "Q1 2024 Revenue",
+        "record": {
+          "resolution_criteria_predeclared": true,
+          "forecasts_recorded_before_resolution": true,
+          "unresolved_forecasts_excluded": true
+        },
+        "forecasts": [
+          {
+            "forecaster": "Alice",
+            "claim": "Revenue > 1M",
+            "stated_probability": 0.8,
+            "outcome": 1
+          },
+          {
+            "forecaster": "Bob",
+            "claim": "Revenue > 1M",
+            "stated_probability": 0.4,
+            "outcome": 1
+          }
+        ],
+        "scoreboard": [
+          {
+            "forecaster": "Alice",
+            "forecasts_count": 1,
+            "mean_stated_probability": 0.8,
+            "hit_rate": 1.0,
+            "calibration_gap": 0.2,
+            "brier_score": 0.04,
+            "rank": 1
+          },
+          {
+            "forecaster": "Bob",
+            "forecasts_count": 1,
+            "mean_stated_probability": 0.4,
+            "hit_rate": 1.0,
+            "calibration_gap": 0.6,
+            "brier_score": 0.36,
+            "rank": 2
+          }
+        ],
+        "confidence_reporting": {
+          "calibration_reported_per_forecaster": true,
+          "outputs_are_probabilities": true,
+          "calibration_reported_not_just_ranking": true,
+          "worst_forecaster_surfaced": true
+        },
+        "scoreboard_use": {
+          "decision_stated": true,
+          "decision_costs_considered": true
+        },
+        "honesty": {
+          "metric_chosen_to_flatter_present": false,
+          "silent_score_rewrites_present": false,
+          "scores_refreshed_as_outcomes_resolve": true
+        }
+      },
+      "expect": {
+        "outcome": "CONFIDENCE_SCOREBOARD_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. Alice: prob 0.8 outcome 1 mean 0.8 hit 1.0 gap 0.2 Brier (0.8-1)^2=0.04. Bob: prob 0.4 outcome 1 mean 0.4 hit 1.0 gap 0.6 Brier (0.4-1)^2=0.36. Overall mean (0.8+0.4)/2=0.6, hit 1.0, gap 0.4, Brier (0.04+0.36)/2=0.2, direction underconfident (0.6<1.0), worst Bob (gap 0.6). Rank 1=Alice (lower Brier), 2=Bob.",
+        "computed_spot_checks": {
+          "forecasts_count": 2,
+          "forecasters_count": 2,
+          "overall_mean_stated_probability": "0.600000",
+          "overall_hit_rate": "1.000000",
+          "overall_calibration_gap": "0.400000",
+          "overall_brier_score": "0.200000",
+          "calibration_direction": "underconfident",
+          "worst_calibrated_forecaster": "Bob",
+          "forecasters_without_scoreboard_row": [],
+          "scoreboard_rows_without_forecasts": [],
+          "mismatched_scoreboard_rows": [],
+          "forecasters_with_wrong_rank": [],
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "subject": "Q1 2024 Revenue",
+        "record": {
+          "resolution_criteria_predeclared": true,
+          "forecasts_recorded_before_resolution": true,
+          "unresolved_forecasts_excluded": true
+        },
+        "forecasts": [
+          {
+            "forecaster": "Alice",
+            "claim": "Revenue > 1M",
+            "stated_probability": 0.8,
+            "outcome": 1
+          }
+        ],
+        "scoreboard": [
+          {
+            "forecaster": "Alice",
+            "forecasts_count": 99,
+            "mean_stated_probability": 0.8,
+            "hit_rate": 1.0,
+            "calibration_gap": 0.2,
+            "brier_score": 0.04,
+            "rank": 1
+          }
+        ],
+        "confidence_reporting": {
+          "calibration_reported_per_forecaster": true,
+          "outputs_are_probabilities": true,
+          "calibration_reported_not_just_ranking": true,
+          "worst_forecaster_surfaced": true
+        },
+        "scoreboard_use": {
+          "decision_stated": true,
+          "decision_costs_considered": true
+        },
+        "honesty": {
+          "metric_chosen_to_flatter_present": false,
+          "silent_score_rewrites_present": false,
+          "scores_refreshed_as_outcomes_resolve": true
+        }
+      },
+      "expect": {
+        "outcome": "CONFIDENCE_SCOREBOARD_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_scoreboard_forecast_count_matches_ledger"
+        ],
+        "notes": "Full manifest with same key paths as full-pass; scoreboard claims 99 forecasts for Alice but ledger contains 1, failing exactly every_scoreboard_forecast_count_matches_ledger. Alice aggregates otherwise correct: mean 0.8 hit 1.0 gap 0.2 Brier 0.04.",
+        "computed_spot_checks": {
+          "forecasts_count": 1,
+          "forecasters_count": 1,
+          "overall_mean_stated_probability": "0.800000",
+          "overall_hit_rate": "1.000000",
+          "overall_calibration_gap": "0.200000",
+          "overall_brier_score": "0.040000",
+          "calibration_direction": "underconfident",
+          "worst_calibrated_forecaster": "Alice",
+          "forecasters_without_scoreboard_row": [],
+          "scoreboard_rows_without_forecasts": [],
+          "mismatched_scoreboard_rows": [
+            "Alice"
+          ],
+          "forecasters_with_wrong_rank": [],
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "subject": "Minimal Record"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists 'forecasts' and 'scoreboard'."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "subject": "Bad Types",
+        "forecasts": "not-a-list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: forecasts field expects a list, received a string. Exactly one type violation."
+      }
+    }
+  ]
+}

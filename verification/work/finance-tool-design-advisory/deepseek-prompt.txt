@@ -1,0 +1,847 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: finance-tool-design-advisory
+
+=== contract.yaml ===
+service_name: finance-tool-design-advisory
+display_name: Finance tool design advisory
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:financial-innovation-expert
+binding:
+  skill: financial-innovation-expert
+  skill_path: workspace/mymilo-build/skills/financial-innovation-expert/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: finance_tool_design_advisory
+  prefix: atm_1_finance_tool_design_advisory_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: PAE feature design work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Finance tool design advisory — `finance-tool-design-advisory`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Designs finance tools and ideas that make people smarter about money without crossing into advice — quant rigor with a privacy-first ethos.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **PAE feature design work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the finance-tool-design manifest
+
+The caller submits one JSON manifest: a declared finance-tool
+design record for one tool. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`FINANCE_TOOL_DESIGN_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `tool` (string; carried into the verdict output, not itself checked) | — |
+| `compliance.tool_calculates_user_decides` (boolean) | compliance_and_advice_boundary |
+| `compliance.recommendation_language_present` (boolean; must be `false` to pass — skill compliance line) | compliance_and_advice_boundary |
+| `compliance.disclaimers_carried` (boolean) | compliance_and_advice_boundary |
+| `compliance.finra_2214_and_csa_framing_addressed` (boolean) | compliance_and_advice_boundary |
+| `compliance.advice_like_language_redesigned_to_scenarios` (boolean) | compliance_and_advice_boundary |
+| `margin.margin_features_present` (boolean; gates the margin-disclosure check below) | compliance_and_advice_boundary |
+| `margin.margin_disclosure_carried` (boolean; required when margin features are declared present; otherwise the check passes as not applicable) | compliance_and_advice_boundary |
+| `quant.risk_and_return_presented_together` (boolean) | quant_fundamentals |
+| `quant.diversification_and_correlation_addressed` (boolean) | quant_fundamentals |
+| `quant.mpt_limits_disclosed` (boolean) | quant_fundamentals |
+| `quant.factor_thinking_addressed` (boolean) | quant_fundamentals |
+| `quant.regime_awareness_addressed` (boolean) | quant_fundamentals |
+| `quant.tax_and_fee_aware_returns` (boolean) | quant_fundamentals |
+| `features` (list of feature-row objects, each with the entry fields below; computed, see below) | compliance_and_advice_boundary, reproducibility_privacy_and_open_finance, anti_patterns |
+| `features[].name` (string; names the row in the computed outputs) | compliance_and_advice_boundary, reproducibility_privacy_and_open_finance, anti_patterns |
+| `features[].shows_scenarios_and_tradeoffs` (boolean) | compliance_and_advice_boundary |
+| `features[].implies_advice_present` (boolean; must be `false` per row to pass the computed advice check) | compliance_and_advice_boundary |
+| `features[].figures_traceable` (boolean) | reproducibility_privacy_and_open_finance |
+| `features[].is_backtest` (boolean; gates the overfit/survivorship check below) | anti_patterns |
+| `features[].overfit_and_survivorship_addressed` (boolean; required when the row is a backtest; otherwise the check passes as not applicable to that row) | anti_patterns |
+| `open_building_blocks.open_data_sources_used` (boolean) | reproducibility_privacy_and_open_finance |
+| `open_building_blocks.open_source_analytics_used` (boolean) | reproducibility_privacy_and_open_finance |
+| `open_building_blocks.every_number_reproducible_and_auditable` (boolean) | reproducibility_privacy_and_open_finance |
+| `privacy.zero_knowledge_design` (boolean) | reproducibility_privacy_and_open_finance |
+| `privacy.user_held_keys` (boolean) | reproducibility_privacy_and_open_finance |
+| `privacy.data_selling_present` (boolean; must be `false` to pass — skill privacy line) | reproducibility_privacy_and_open_finance |
+| `business_model.monetization_via_certification_membership_or_developer_licenses` (boolean) | business_model_and_behavioral_design |
+| `business_model.core_features_gated_present` (boolean; must be `false` to pass — skill FOSS model) | business_model_and_behavioral_design |
+| `behavioral.biases_accounted_for` (boolean) | business_model_and_behavioral_design |
+| `behavioral.decision_history_used_as_insight` (boolean) | business_model_and_behavioral_design |
+| `anti_patterns.guaranteed_or_return_promising_language_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_patterns |
+| `anti_patterns.black_box_risk_numbers_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_patterns |
+| `anti_patterns.fees_taxes_slippage_ignored_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_patterns |
+| `anti_patterns.overfit_backtests_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_patterns |
+| `anti_patterns.survivorship_bias_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_patterns |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Features declared:** the declared `features` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Scenarios per feature:** every declared feature row must
+  declare `shows_scenarios_and_tradeoffs: true` (the skill:
+  "Surface analytics, scenarios, and trade-offs"). A row with
+  the field absent is missing evidence.
+- **No feature implies advice:** no declared feature row may
+  declare `implies_advice_present: true` (the skill: never a
+  recommendation to buy/sell/hold; implying advice is an
+  anti-pattern to refuse). A row with the field absent is
+  missing evidence.
+- **Figures traceable per feature:** every declared feature row
+  must declare `figures_traceable: true` (the skill:
+  "Reproducibility and auditability of every number shown").
+- **Backtest discipline per backtest feature:** every row with
+  `is_backtest: true` must declare
+  `overfit_and_survivorship_addressed: true` (the skill's
+  anti-patterns: overfit backtests, survivorship bias). A row
+  with `is_backtest` absent, or a backtest row with the target
+  field absent, is missing evidence; designs with no backtest
+  rows pass as not applicable.
+
+One check group is conditional, following the skill's own
+scoping — computed from the declared gate field:
+
+- **Margin disclosure:** FINRA Rule 2214 is the skill's margin
+  disclosure frame. `margin_disclosure_carried` is therefore
+  required only when `margin.margin_features_present` is
+  declared `true`; when no margin features are declared, the
+  check passes as not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`features_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers, exactly),
+the row-name lists `features_without_scenarios_and_tradeoffs`
+(features whose field is present but not true; a feature with
+the field absent is missing evidence and does not appear),
+`features_implying_advice` (features declaring
+`implies_advice_present: true`), `features_without_traceable_figures`
+(features whose field is present but not true) and
+`backtest_features_without_overfit_survivorship_address`
+(backtest features whose field is present but not true), and
+the two coverage ratios `scenario_coverage` (features showing
+scenarios and trade-offs ÷ declared features) and
+`traceability_coverage` (features with traceable figures ÷
+declared features).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no risk-measure
+cutoff, no position-size percentage, no coverage percentage: its
+risk measures and quant concepts are design content the record
+attests to addressing, not bars the atom can set. Quantities are
+computed and reported; the only bar on the computed rows is
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a VaR or CVaR
+confidence level or time horizon (the skill names VaR / CVaR as
+risk measures but states no level or horizon — caller
+attestation only); a volatility, max-drawdown, Sharpe or Sortino
+cutoff; a position-sizing percentage or rebalancing band or
+frequency (the skill names "position sizing and rebalancing
+discipline" but states no number); a correlation or
+anti-correlation threshold for discovery; a fee, tax or slippage
+allowance in basis points or percent; a backtest length, sample
+size or significance bar; a number of PAE "beyond Aladdin" themes
+or first-principles capabilities a design must include (the
+skill lists themes as a menu, not a quota); a coverage
+percentage below completeness; a mandatory risk-measure set
+(the skill lists volatility, VaR / CVaR, max drawdown and
+Sharpe / Sortino as the risk-measure vocabulary, but does not
+state that every tool must show every measure — which measures
+a tool shows is a caller declaration, never judged here).
+
+The verdict is one of `FINANCE_TOOL_DESIGN_SOUND` (all 32 checks
+pass), `FINANCE_TOOL_DESIGN_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: compliance_and_advice_boundary,
+quant_fundamentals, reproducibility_privacy_and_open_finance,
+business_model_and_behavioral_design, anti_patterns.
+
+## Honest scoping
+
+This atom audits a **declared** finance-tool design record — it
+designs no tool, runs no calculation, reads no market data,
+probes no live product, and does not verify that a declared
+control actually works. A design is sound *on the caller's
+declared evidence*: a manifest that declares tool-calculates /
+user-decides, disclaimers carried, and every figure traceable
+passes those checks even if the real tool does none of it. It is
+a completeness and consistency audit of the record the skill
+requires, **not a finance design service, investment advice, or
+a regulatory certification**: it never judges whether the quant
+formulas are correct, whether a risk measure is the right one
+for a feature, whether language in a real interface actually
+implies advice, whether a backtest is really overfit, or whether
+the business model is viable — only that the record contains
+what the skill's sections and anti-patterns demand, and that its
+declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no text inspection —
+recommendation, guaranteed-return and advice-like language are
+caller-declared present/absent flags, the atom reads no copy;
+quant correctness (formula choice, estimation, MPT application,
+factor or regime identification) is a caller declaration — the
+atom checks only that the concepts are declared addressed and
+their limits disclosed; PAE theme selection (which "beyond
+Aladdin" themes or first-principles capabilities a design
+pursues, and whether they are genuinely novel or institutionally
+hard to build) is a caller declaration, not re-audited here;
+behavioral effectiveness (whether a bias counter actually
+changes behaviour) is a caller declaration; privacy engineering
+(whether the zero-knowledge and user-held-key design actually
+achieves those properties) is a caller declaration — only its
+declared presence is checked; legal sufficiency of disclaimers
+or of the FINRA 2214 / CSA framing for any jurisdiction is not
+judged — only that the record declares them addressed.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+PAE-tied; generic design advice
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "tool": "AlphaOptimizer",
+      "compliance": {
+        "tool_calculates_user_decides": true,
+        "recommendation_language_present": false,
+        "disclaimers_carried": true,
+        "finra_2214_and_csa_framing_addressed": true,
+        "advice_like_language_redesigned_to_scenarios": true
+      },
+      "margin": {
+        "margin_features_present": true,
+        "margin_disclosure_carried": true
+      },
+      "quant": {
+        "risk_and_return_presented_together": true,
+        "diversification_and_correlation_addressed": true,
+        "mpt_limits_disclosed": true,
+        "factor_thinking_addressed": true,
+        "regime_awareness_addressed": true,
+        "tax_and_fee_aware_returns": true
+      },
+      "features": [
+        {
+          "name": "BacktestEngine",
+          "shows_scenarios_and_tradeoffs": true,
+          "implies_advice_present": false,
+          "figures_traceable": true,
+          "is_backtest": true,
+          "overfit_and_survivorship_addressed": true
+        }
+      ],
+      "open_building_blocks": {
+        "open_data_sources_used": true,
+        "open_source_analytics_used": true,
+        "every_number_reproducible_and_auditable": true
+      },
+      "privacy": {
+        "zero_knowledge_design": true,
+        "user_held_keys": true,
+        "data_selling_present": false
+      },
+      "business_model": {
+        "monetization_via_certification_membership_or_developer_licenses": true,
+        "core_features_gated_present": false
+      },
+      "behavioral": {
+        "biases_accounted_for": true,
+        "decision_history_used_as_insight": true
+      },
+      "anti_patterns": {
+        "guaranteed_or_return_promising_language_present": false,
+        "black_box_risk_numbers_present": false,
+        "fees_taxes_slippage_ignored_present": false,
+        "overfit_backtests_present": false,
+        "survivorship_bias_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "finance-tool-design-advisory",
+      "atom_version": "0.1.0",
+      "tool": "AlphaOptimizer",
+      "verdict": "FINANCE_TOOL_DESIGN_SOUND",
+      "sections": {
+        "compliance_and_advice_boundary": "pass",
+        "quant_fundamentals": "pass",
+        "reproducibility_privacy_and_open_finance": "pass",
+        "business_model_and_behavioral_design": "pass",
+        "anti_patterns": "pass"
+      },
+      "checks": [
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "tool_calculates_user_decides",
+          "status": "pass",
+          "evidence": "compliance line: the tool calculates, the user decides \u2014 analytics, scenarios and trade-offs are surfaced, never a decision for the user"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "no_recommendation_language",
+          "status": "pass",
+          "evidence": "compliance line: no recommendation to buy, sell or hold is present in the declared design"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "disclaimers_carried",
+          "status": "pass",
+          "evidence": "compliance line: clear disclaimers are carried"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "finra_2214_and_csa_framing_addressed",
+          "status": "pass",
+          "evidence": "compliance line: FINRA Rule 2214 (margin disclosure) and CSA framing are addressed \u2014 the design stays out of registered-adviser territory"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "advice_like_language_redesigned_to_scenarios",
+          "status": "pass",
+          "evidence": "compliance line: anything that starts to sound like \"you should\u2026\" is redesigned into \"here's what the numbers show, and what would have to be true\""
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "margin_disclosure_when_margin_features",
+          "status": "pass",
+          "evidence": "compliance line: margin disclosure is carried when margin features are declared present"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "every_feature_shows_scenarios_and_tradeoffs",
+          "status": "pass",
+          "evidence": "compliance line: every declared feature row shows scenarios and trade-offs"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "no_feature_implies_advice",
+          "status": "pass",
+          "evidence": "anti-pattern: no declared feature row implies advice"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "risk_and_return_presented_together",
+          "status": "pass",
+          "evidence": "quant fundamentals: risk and return are presented together"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "diversification_and_correlation_addressed",
+          "status": "pass",
+          "evidence": "quant fundamentals: diversification and correlation / anti-correlation are addressed"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "mpt_limits_disclosed",
+          "status": "pass",
+          "evidence": "quant fundamentals: MPT and its real-world limits are disclosed \u2014 fat tails, unstable correlations"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "factor_thinking_addressed",
+          "status": "pass",
+          "evidence": "quant fundamentals: factor thinking is addressed"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "regime_awareness_addressed",
+          "status": "pass",
+          "evidence": "quant fundamentals: regime awareness is addressed"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "tax_and_fee_aware_returns",
+          "status": "pass",
+          "evidence": "quant fundamentals: returns are tax- and fee-aware \u2014 gross is not net"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "open_data_sources_used",
+          "status": "pass",
+          "evidence": "open finance building blocks: open data \u2014 rates, FX, fundamentals \u2014 is used"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "open_source_analytics_used",
+          "status": "pass",
+          "evidence": "open finance building blocks: reproducible open-source analytics are used"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "every_number_reproducible_and_auditable",
+          "status": "pass",
+          "evidence": "open finance building blocks: every number shown is reproducible and auditable \u2014 a figure the user can't trace is a liability"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "zero_knowledge_design",
+          "status": "pass",
+          "evidence": "data integrity & privacy: the design is zero-knowledge"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "user_held_keys",
+          "status": "pass",
+          "evidence": "data integrity & privacy: keys are user-held"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "no_data_selling",
+          "status": "pass",
+          "evidence": "data integrity & privacy: no data selling \u2014 trust and security are the moat"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "features_declared",
+          "status": "pass",
+          "evidence": "the declared record names its features \u2014 the features list is present and non-empty"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "every_feature_figures_traceable",
+          "status": "pass",
+          "evidence": "open finance building blocks: every declared feature row declares its figures traceable"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "monetization_via_ecosystem_not_gating",
+          "status": "pass",
+          "evidence": "FOSS business model: monetization is via certification, membership and developer licenses \u2014 the ecosystem and credentialing"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "no_core_features_gated",
+          "status": "pass",
+          "evidence": "FOSS business model: the core is kept open \u2014 features are not gated"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "biases_accounted_for",
+          "status": "pass",
+          "evidence": "behavioral finance: biases \u2014 loss aversion, recency, overconfidence \u2014 are accounted for"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "decision_history_used_as_insight",
+          "status": "pass",
+          "evidence": "behavioral finance: decision archaeology and conviction-weighting turn the user's own history into insight"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_guaranteed_or_return_promising_language",
+          "status": "pass",
+          "evidence": "anti-pattern: no \"guaranteed\" or return-promising language is present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_black_box_risk_numbers",
+          "status": "pass",
+          "evidence": "anti-pattern: no black-box risk numbers are present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_fees_taxes_slippage_ignored",
+          "status": "pass",
+          "evidence": "anti-pattern: fees, taxes and slippage are not ignored"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_overfit_backtests",
+          "status": "pass",
+          "evidence": "anti-pattern: no overfit backtests are present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_survivorship_bias",
+          "status": "pass",
+          "evidence": "anti-pattern: no survivorship bias is present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "every_backtest_feature_addresses_overfit_and_survivorship",
+          "status": "pass",
+          "evidence": "anti-pattern: every feature row declared as a backtest declares overfit and survivorship bias addressed"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "features_count": 1,
+      "features_without_scenarios_and_tradeoffs": [],
+      "scenario_coverage": "1.000000",
+      "features_implying_advice": [],
+      "features_without_traceable_figures": [],
+      "traceability_coverage": "1.000000",
+      "backtest_features_without_overfit_survivorship_address": [],
+      "summary": "32 pass, 0 fail, 0 missing of 32 checks across five sections.",
+      "stamp": "FINANCE TOOL DESIGN ADVISORY\ntool: AlphaOptimizer\nVERDICT: FINANCE_TOOL_DESIGN_SOUND\n  compliance_and_advice_boundary       pass\n  quant_fundamentals                   pass\n  reproducibility_privacy_and_open_finance pass\n  business_model_and_behavioral_design pass\n  anti_patterns                        pass\n32 pass, 0 fail, 0 missing of 32 checks across five sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "tool": "AlphaOptimizer",
+      "compliance": {
+        "tool_calculates_user_decides": true,
+        "recommendation_language_present": true,
+        "disclaimers_carried": true,
+        "finra_2214_and_csa_framing_addressed": true,
+        "advice_like_language_redesigned_to_scenarios": true
+      },
+      "margin": {
+        "margin_features_present": true,
+        "margin_disclosure_carried": true
+      },
+      "quant": {
+        "risk_and_return_presented_together": true,
+        "diversification_and_correlation_addressed": true,
+        "mpt_limits_disclosed": true,
+        "factor_thinking_addressed": true,
+        "regime_awareness_addressed": true,
+        "tax_and_fee_aware_returns": true
+      },
+      "features": [
+        {
+          "name": "BacktestEngine",
+          "shows_scenarios_and_tradeoffs": true,
+          "implies_advice_present": true,
+          "figures_traceable": true,
+          "is_backtest": true,
+          "overfit_and_survivorship_addressed": true
+        }
+      ],
+      "open_building_blocks": {
+        "open_data_sources_used": true,
+        "open_source_analytics_used": true,
+        "every_number_reproducible_and_auditable": true
+      },
+      "privacy": {
+        "zero_knowledge_design": true,
+        "user_held_keys": true,
+        "data_selling_present": false
+      },
+      "business_model": {
+        "monetization_via_certification_membership_or_developer_licenses": true,
+        "core_features_gated_present": false
+      },
+      "behavioral": {
+        "biases_accounted_for": true,
+        "decision_history_used_as_insight": true
+      },
+      "anti_patterns": {
+        "guaranteed_or_return_promising_language_present": false,
+        "black_box_risk_numbers_present": false,
+        "fees_taxes_slippage_ignored_present": false,
+        "overfit_backtests_present": false,
+        "survivorship_bias_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "finance-tool-design-advisory",
+      "atom_version": "0.1.0",
+      "tool": "AlphaOptimizer",
+      "verdict": "FINANCE_TOOL_DESIGN_NOT_SOUND",
+      "sections": {
+        "compliance_and_advice_boundary": "fail",
+        "quant_fundamentals": "pass",
+        "reproducibility_privacy_and_open_finance": "pass",
+        "business_model_and_behavioral_design": "pass",
+        "anti_patterns": "pass"
+      },
+      "checks": [
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "tool_calculates_user_decides",
+          "status": "pass",
+          "evidence": "compliance line: the tool calculates, the user decides \u2014 analytics, scenarios and trade-offs are surfaced, never a decision for the user"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "no_recommendation_language",
+          "status": "fail",
+          "evidence": "compliance line: no recommendation to buy, sell or hold is present in the declared design"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "disclaimers_carried",
+          "status": "pass",
+          "evidence": "compliance line: clear disclaimers are carried"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "finra_2214_and_csa_framing_addressed",
+          "status": "pass",
+          "evidence": "compliance line: FINRA Rule 2214 (margin disclosure) and CSA framing are addressed \u2014 the design stays out of registered-adviser territory"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "advice_like_language_redesigned_to_scenarios",
+          "status": "pass",
+          "evidence": "compliance line: anything that starts to sound like \"you should\u2026\" is redesigned into \"here's what the numbers show, and what would have to be true\""
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "margin_disclosure_when_margin_features",
+          "status": "pass",
+          "evidence": "compliance line: margin disclosure is carried when margin features are declared present"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "every_feature_shows_scenarios_and_tradeoffs",
+          "status": "pass",
+          "evidence": "compliance line: every declared feature row shows scenarios and trade-offs"
+        },
+        {
+          "section": "compliance_and_advice_boundary",
+          "check": "no_feature_implies_advice",
+          "status": "fail",
+          "evidence": "anti-pattern: no declared feature row implies advice"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "risk_and_return_presented_together",
+          "status": "pass",
+          "evidence": "quant fundamentals: risk and return are presented together"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "diversification_and_correlation_addressed",
+          "status": "pass",
+          "evidence": "quant fundamentals: diversification and correlation / anti-correlation are addressed"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "mpt_limits_disclosed",
+          "status": "pass",
+          "evidence": "quant fundamentals: MPT and its real-world limits are disclosed \u2014 fat tails, unstable correlations"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "factor_thinking_addressed",
+          "status": "pass",
+          "evidence": "quant fundamentals: factor thinking is addressed"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "regime_awareness_addressed",
+          "status": "pass",
+          "evidence": "quant fundamentals: regime awareness is addressed"
+        },
+        {
+          "section": "quant_fundamentals",
+          "check": "tax_and_fee_aware_returns",
+          "status": "pass",
+          "evidence": "quant fundamentals: returns are tax- and fee-aware \u2014 gross is not net"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "open_data_sources_used",
+          "status": "pass",
+          "evidence": "open finance building blocks: open data \u2014 rates, FX, fundamentals \u2014 is used"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "open_source_analytics_used",
+          "status": "pass",
+          "evidence": "open finance building blocks: reproducible open-source analytics are used"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "every_number_reproducible_and_auditable",
+          "status": "pass",
+          "evidence": "open finance building blocks: every number shown is reproducible and auditable \u2014 a figure the user can't trace is a liability"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "zero_knowledge_design",
+          "status": "pass",
+          "evidence": "data integrity & privacy: the design is zero-knowledge"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "user_held_keys",
+          "status": "pass",
+          "evidence": "data integrity & privacy: keys are user-held"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "no_data_selling",
+          "status": "pass",
+          "evidence": "data integrity & privacy: no data selling \u2014 trust and security are the moat"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "features_declared",
+          "status": "pass",
+          "evidence": "the declared record names its features \u2014 the features list is present and non-empty"
+        },
+        {
+          "section": "reproducibility_privacy_and_open_finance",
+          "check": "every_feature_figures_traceable",
+          "status": "pass",
+          "evidence": "open finance building blocks: every declared feature row declares its figures traceable"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "monetization_via_ecosystem_not_gating",
+          "status": "pass",
+          "evidence": "FOSS business model: monetization is via certification, membership and developer licenses \u2014 the ecosystem and credentialing"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "no_core_features_gated",
+          "status": "pass",
+          "evidence": "FOSS business model: the core is kept open \u2014 features are not gated"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "biases_accounted_for",
+          "status": "pass",
+          "evidence": "behavioral finance: biases \u2014 loss aversion, recency, overconfidence \u2014 are accounted for"
+        },
+        {
+          "section": "business_model_and_behavioral_design",
+          "check": "decision_history_used_as_insight",
+          "status": "pass",
+          "evidence": "behavioral finance: decision archaeology and conviction-weighting turn the user's own history into insight"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_guaranteed_or_return_promising_language",
+          "status": "pass",
+          "evidence": "anti-pattern: no \"guaranteed\" or return-promising language is present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_black_box_risk_numbers",
+          "status": "pass",
+          "evidence": "anti-pattern: no black-box risk numbers are present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_fees_taxes_slippage_ignored",
+          "status": "pass",
+          "evidence": "anti-pattern: fees, taxes and slippage are not ignored"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_overfit_backtests",
+          "status": "pass",
+          "evidence": "anti-pattern: no overfit backtests are present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "no_survivorship_bias",
+          "status": "pass",
+          "evidence": "anti-pattern: no survivorship bias is present"
+        },
+        {
+          "section": "anti_patterns",
+          "check": "every_backtest_feature_addresses_overfit_and_survivorship",
+          "status": "pass",
+          "evidence": "anti-pattern: every feature row declared as a backtest declares overfit and survivorship bias addressed"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "features_count": 1,
+      "features_without_scenarios_and_tradeoffs": [],
+      "scenario_coverage": "1.000000",
+      "features_implying_advice": [
+        "BacktestEngine"
+      ],
+      "features_without_traceable_figures": [],
+      "traceability_coverage": "1.000000",
+      "backtest_features_without_overfit_survivorship_address": [],
+      "summary": "30 pass, 2 fail, 0 missing of 32 checks across five sections.",
+      "stamp": "FINANCE TOOL DESIGN ADVISORY\ntool: AlphaOptimizer\nVERDICT: FINANCE_TOOL_DESIGN_NOT_SOUND\n  compliance_and_advice_boundary       fail\n  quant_fundamentals                   pass\n  reproducibility_privacy_and_open_finance pass\n  business_model_and_behavioral_design pass\n  anti_patterns                        pass\n30 pass, 2 fail, 0 missing of 32 checks across five sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

@@ -1,0 +1,114 @@
+# Independent recompute — forecast-confidence-scoreboard
+
+## Serialization rule (applied throughout)
+`round_half_up_6dp(v) = floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals.
+
+---
+
+## CASE 1: `full-pass`
+
+### Ledger
+- Alice: p=0.8, outcome=1
+- Bob: p=0.4, outcome=1
+
+### Per-forecaster aggregates
+
+**Alice** (1 row)
+- forecasts_count = 1
+- mean_stated_probability = 0.8 / 1 = 0.8 → `0.800000`
+- hit_rate = 1 / 1 = 1.0 → `1.000000`
+- calibration_gap = |0.8 − 1.0| = 0.2 → `0.200000`
+- brier = (0.8−1)² / 1 = (−0.2)² = 0.04 → `0.040000`
+
+**Bob** (1 row)
+- forecasts_count = 1
+- mean_stated_probability = 0.4 → `0.400000`
+- hit_rate = 1.0 → `1.000000`
+- calibration_gap = |0.4 − 1.0| = 0.6 → `0.600000`
+- brier = (0.4−1)² = (−0.6)² = 0.36 → `0.360000`
+
+Declared scoreboard: Alice {1, 0.8, 1.0, 0.2, 0.04, rank 1}, Bob {1, 0.4, 1.0, 0.6, 0.36, rank 2}. All agree at 6dp. **MATCH** (all aggregate checks pass).
+
+### Ranking
+Brier order ascending: Alice 0.04 < Bob 0.36 → Alice rank 1, Bob rank 2. Ranks = {1,2} = 1..N. **MATCH** (ranking checks pass).
+
+### Overall aggregates (over stats-valid entries: both rows valid)
+- overall_mean_stated_probability = (0.8 + 0.4)/2 = 1.2/2 = 0.6 → `0.600000` — artifact `0.600000` **MATCH**
+- overall_hit_rate = (1 + 1)/2 = 1.0 → `1.000000` — artifact `1.000000` **MATCH**
+- overall_calibration_gap = |0.6 − 1.0| = 0.4 → `0.400000` — artifact `0.400000` **MATCH**
+- overall_brier_score = (0.04 + 0.36)/2 = 0.40/2 = 0.20 → `0.200000` — artifact `0.200000` **MATCH**
+
+### calibration_direction
+mean stated (0.6) < hit rate (1.0) → `underconfident`. Artifact: `underconfident` **MATCH**
+
+### worst_calibrated_forecaster
+Gaps: Alice 0.2, Bob 0.6. Highest = Bob. Artifact: `Bob` **MATCH**
+
+### Counts / lists
+- forecasts_count = 2 — artifact `2` **MATCH**
+- forecasters_count = 2 distinct (Alice, Bob) — artifact `2` **MATCH**
+- forecasters_without_scoreboard_row = [] **MATCH**
+- scoreboard_rows_without_forecasts = [] **MATCH**
+- mismatched_scoreboard_rows = [] **MATCH**
+- forecasters_with_wrong_rank = [] **MATCH**
+
+### Checks / verdict
+All 26 checks pass (all declared booleans true, honesty red-lines false, aggregates & ranks agree). computed_status = `within_stated_limits_on_declared_evidence` **MATCH**; verdict `CONFIDENCE_SCOREBOARD_SOUND` **MATCH**; summary "26 pass, 0 fail, 0 missing" **MATCH**.
+
+---
+
+## CASE 2: `violations`
+
+### Ledger
+- Alice: p=0.8, outcome=1 (single row)
+
+### Per-forecaster aggregates (recomputed)
+- forecasts_count = 1
+- mean_stated_probability = 0.8 → `0.800000`
+- hit_rate = 1.0 → `1.000000`
+- calibration_gap = |0.8 − 1.0| = 0.2 → `0.200000`
+- brier = (0.8−1)² = 0.04 → `0.040000`
+
+Declared scoreboard: Alice {forecasts_count=**99**, mean 0.8, hit 1.0, gap 0.2, brier 0.04, rank 1}.
+
+### Check-by-check on the planted wrong value
+- **every_scoreboard_forecast_count_matches_ledger**: declared 99 vs recomputed 1 → **FAIL**. Artifact: `fail` **MATCH**.
+- mean_stated_probability: 0.8 vs 0.8 → pass. Artifact pass **MATCH**.
+- hit_rate: 1.0 vs 1.0 → pass. Artifact pass **MATCH**.
+- brier_score: 0.04 vs 0.04 → pass. Artifact pass **MATCH**.
+- calibration_gap: 0.2 vs 0.2 → pass. Artifact pass **MATCH**.
+
+So exactly one aggregate check fails — the count check — which is precisely the field that was planted wrong (99). The other four aggregate fields were left correct and correctly pass. **Confirmed: the failing check is exactly the one the planted wrong value should fail.**
+
+### Ranking
+Single row, rank 1 = 1..N; Brier order trivially Alice rank 1. Ranks complete & in order → both ranking checks pass. Artifact pass **MATCH**.
+
+### Overall aggregates
+- overall_mean_stated_probability = 0.8 → `0.800000` — artifact `0.800000` **MATCH**
+- overall_hit_rate = 1.0 → `1.000000` — artifact `1.000000` **MATCH**
+- overall_calibration_gap = |0.8 − 1.0| = 0.2 → `0.200000` — artifact `0.200000` **MATCH**
+- overall_brier_score = 0.04 → `0.040000` — artifact `0.040000` **MATCH**
+
+### calibration_direction
+0.8 < 1.0 → `underconfident`. Artifact `underconfident` **MATCH**
+
+### worst_calibrated_forecaster
+Only Alice, gap 0.2 → `Alice`. Artifact `Alice` **MATCH**
+
+### Counts / lists
+- forecasts_count = 1 — artifact `1` **MATCH**
+- forecasters_count = 1 — artifact `1` **MATCH**
+- forecasters_without_scoreboard_row = [] **MATCH**
+- scoreboard_rows_without_forecasts = [] **MATCH**
+- mismatched_scoreboard_rows = ["Alice"] (count field disagrees) — artifact `["Alice"]` **MATCH**
+- forecasters_with_wrong_rank = [] **MATCH**
+
+### Checks / verdict
+25 pass, 1 fail (the count check), 0 missing. computed_status = `outside_stated_limits_on_declared_evidence` **MATCH**; verdict `CONFIDENCE_SCOREBOARD_NOT_SOUND` **MATCH**; summary "25 pass, 1 fail, 0 missing" **MATCH**.
+
+---
+
+## Summary of findings
+Every computed quantity in both artifacts — per-forecaster aggregates, overall aggregates, calibration direction, worst-calibrated forecaster, counts, name lists, mismatched rows, wrong-rank list, computed_status, verdict, and check tallies — reproduces exactly from the recorded inputs under the stated 6dp round-half-up rule. In the violations case the single failing check (`every_scoreboard_forecast_count_matches_ledger`) is exactly the one the planted `forecasts_count: 99` should fail, and no other check spuriously fails.
+
+AGREEMENT: full

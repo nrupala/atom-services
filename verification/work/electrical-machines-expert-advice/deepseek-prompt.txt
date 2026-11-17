@@ -1,0 +1,879 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: electrical-machines-expert-advice
+
+=== contract.yaml ===
+service_name: electrical-machines-expert-advice
+display_name: Electrical machines expert advice
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:electrical-machines-sme
+binding:
+  skill: electrical-machines-sme
+  skill_path: workspace/mymilo-build/skills/electrical-machines-sme/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- MCP
+- agent
+- human
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/electrical_machines_expert_advice.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_electrical_machines_expert_advice.py — 26 tests, all passing 2026-11-15
+keys:
+  namespace: electrical_machines_expert_advice
+  prefix: atm_1_electrical_machines_expert_advice_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: tokens
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: EE peer consultation work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Electrical machines expert advice — `electrical-machines-expert-advice`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): a peer-level expert in motors, drives, and power systems — rigorous, assumptions shown, protection and safety never hand-waved.
+
+A caller submits a declared expert-advice record — the record of one piece of SME advice / assessment — and receives one audit of that record back. **This atom gives no engineering advice itself.** It audits the declared advice record against the deterministic rules the bound skill (`electrical-machines-sme`) itself states: whether the record shows its assumptions, addresses the machine-family topics the skill names for the declared family, addresses drives / protection / standards / calculation topics where the record declares them in scope, defers final protection settings to a documented study, and never publishes settings as fact. One unit of sale = tokens.
+
+**Distinct ground vs the live sibling `electrical-machinery-engineering-check`:** the sibling audits a *machinery engineering manifest* for one machine — duty, sizing against ratings, specification completeness, acceptance tests, failure analysis, trending, and nameplate records, under the `electrical-machinery-engineering` skill. This atom audits an *SME advice / assessment record* under the different `electrical-machines-sme` skill: engagement posture (assumptions shown, protection never hand-waved), family-gated machine analysis across induction / synchronous / transformer / DC machines, VFD control and power-quality topics, protection philosophy (ANSI device vocabulary, settings deferred to a study, never published as fact), hazardous-area classification, the skill's honesty list of calculations, and industrial document workflows (SoW / SDRL / SQRL). The two check sets do not overlap: no duty / sizing / spec / acceptance-test / trending / nameplate check from the sibling is repeated here, and none of this atom's advice-record checks appears in the sibling.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Electrical & energy who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **EE peer consultation work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the expert-advice record manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_SOUND`). **All fields are booleans unless a type is
+explicitly noted in the table**; every non-boolean field carries an
+explicit type note. Section fields themselves (`engagement`,
+`machine`, `drives`, `protection`, `standards`, `calculations`,
+`documents`) are objects holding the fields listed under them.
+
+| Field | Read by |
+|---|---|
+| `advice_id` (string; carried into the verdict output, not itself checked) | — |
+| `engagement.question_or_problem_stated` | engagement |
+| `engagement.operating_context_stated` | engagement |
+| `engagement.assumptions_stated_explicitly` | engagement |
+| `engagement.protection_and_safety_not_handwaved` | engagement |
+| `machine.machine_family` (string; one of `induction` / `synchronous` / `transformer` / `dc`; gates the family-specific checks below) | machine_analysis |
+| `machine.full_load_current_a` (number; computed with `machine.starting_current_a` — the declared starting-current multiple of FLA is recorded to six decimals, never graded) | machine_analysis |
+| `machine.starting_current_a` (number; computed with `machine.full_load_current_a` — see above) | machine_analysis |
+| `machine.induction_slip_or_equivalent_circuit_addressed` (required when the family is induction; otherwise the check passes as not applicable) | machine_analysis |
+| `machine.induction_torque_speed_addressed` (required when the family is induction; otherwise not applicable) | machine_analysis |
+| `machine.induction_losses_or_efficiency_addressed` (required when the family is induction; otherwise not applicable) | machine_analysis |
+| `machine.synchronous_excitation_or_avr_addressed` (required when the family is synchronous; otherwise not applicable) | machine_analysis |
+| `machine.synchronous_capability_or_power_angle_addressed` (required when the family is synchronous; otherwise not applicable) | machine_analysis |
+| `machine.synchronous_synchronization_addressed` (required when the family is synchronous; otherwise not applicable) | machine_analysis |
+| `machine.transformer_vector_group_or_impedance_addressed` (required when the family is transformer; otherwise not applicable) | machine_analysis |
+| `machine.transformer_inrush_tap_cooling_addressed` (required when the family is transformer; otherwise not applicable) | machine_analysis |
+| `machine.transformer_thermal_aging_addressed` (required when the family is transformer; otherwise not applicable) | machine_analysis |
+| `machine.dc_excitation_type` (string; one of `separately_excited` / `series` / `shunt`; required when the family is dc, otherwise not applicable) | machine_analysis |
+| `machine.dc_retrofit_or_legacy_context_addressed` (required when the family is dc; otherwise not applicable) | machine_analysis |
+| `drives.vfd_involved` (gates the five drive checks below) | drives |
+| `drives.control_mode` (string; one of `vf` / `sensorless_vector` / `closed_loop_vector`; required when a VFD is involved, otherwise not applicable) | drives |
+| `drives.harmonics_addressed` (required when a VFD is involved; otherwise not applicable) | drives |
+| `drives.reflected_wave_dvdt_addressed` (required when a VFD is involved; otherwise not applicable) | drives |
+| `drives.bearing_currents_addressed` (required when a VFD is involved; otherwise not applicable) | drives |
+| `drives.cable_charging_addressed` (required when a VFD is involved; otherwise not applicable) | drives |
+| `protection.protection_in_scope` (gates the five in-scope protection checks below; the two standing-rule checks bind regardless) | protection |
+| `protection.selectivity_coordination_addressed` (required when protection is in scope; otherwise not applicable) | protection |
+| `protection.primary_and_backup_addressed` (required when protection is in scope; otherwise not applicable) | protection |
+| `protection.ansi_device_numbers` (list of strings; every entry must be in the skill's own list — `50`, `51`, `87`, `27`, `59`, `81`, `49`, `46`, `32`, `25`, `86` — and the list must be non-empty; required when protection is in scope, otherwise not applicable) | protection |
+| `protection.ct_pt_selection_saturation_burden_addressed` (required when protection is in scope; otherwise not applicable) | protection |
+| `protection.idmt_curves_and_grading_addressed` (required when protection is in scope; otherwise not applicable) | protection |
+| `protection.final_settings_deferred_to_study` | protection |
+| `protection.settings_published_as_fact` (must be `false` to pass) | protection |
+| `standards.applicable_standards_named` | standards_and_hazloc |
+| `standards.standards_applicability_reasons_stated` | standards_and_hazloc |
+| `standards.hazardous_area_involved` (gates the three hazloc checks below) | standards_and_hazloc |
+| `standards.hazloc_zone_or_division_stated` (required when a hazardous area is involved; otherwise not applicable) | standards_and_hazloc |
+| `standards.hazloc_gas_group_and_temp_class_stated` (required when a hazardous area is involved; otherwise not applicable) | standards_and_hazloc |
+| `standards.hazloc_ex_method_and_certification_stated` (required when a hazardous area is involved; otherwise not applicable) | standards_and_hazloc |
+| `calculations.calculations_relied_upon` (gates the five calculation checks below) | calculations |
+| `calculations.short_circuit_addressed` (required when calculations are relied upon; otherwise not applicable) | calculations |
+| `calculations.motor_starting_voltage_dip_addressed` (required when calculations are relied upon; otherwise not applicable) | calculations |
+| `calculations.grounding_addressed` (required when calculations are relied upon; otherwise not applicable) | calculations |
+| `calculations.load_flow_addressed` (required when calculations are relied upon; otherwise not applicable) | calculations |
+| `calculations.arc_flash_addressed` (required when calculations are relied upon; otherwise not applicable) | calculations |
+| `documents.document_review_in_scope` (gates the four document-workflow checks below) | documents_and_disclosure |
+| `documents.sow_addressed` (required when a document review is in scope; otherwise not applicable) | documents_and_disclosure |
+| `documents.sdrl_addressed` (required when a document review is in scope; otherwise not applicable) | documents_and_disclosure |
+| `documents.sqrl_addressed` (required when a document review is in scope; otherwise not applicable) | documents_and_disclosure |
+| `documents.supplier_qualification_addressed` (required when a document review is in scope; otherwise not applicable) | documents_and_disclosure |
+| `documents.going_public` (gates the sanitization check below) | documents_and_disclosure |
+| `documents.public_sanitization_applied` (required when the content is going public; otherwise not applicable) | documents_and_disclosure |
+
+The verdict is one of `SOUND` (all 44 checks pass), `NOT_SOUND`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections: engagement,
+machine_analysis, drives, protection, standards_and_hazloc,
+calculations, documents_and_disclosure.
+
+## Declined thresholds — named, not invented
+
+The skill states exactly one numeric reference and no numeric
+acceptance thresholds, so none beyond it are applied:
+
+- **Induction starting current ~6x FLA** — the skill states this
+  as an approximation ("~6x") with no tolerance band. The
+  declared multiple (`starting_current_a` / `full_load_current_a`)
+  is therefore *recorded* in the check evidence to six decimals,
+  never graded pass/fail against 6.
+- **Motor-starting voltage dip** — no permissible dip percentage
+  is stated; declined. The calculation is checked as addressed.
+- **Short-circuit, grounding, load flow, arc-flash** — no fault
+  level, resistance, loading, or incident-energy limit is stated;
+  all declined. Each is checked as addressed.
+- **Harmonics** — no THD or distortion limit is stated; declined.
+- **Reflected wave / dV/dt and cable charging** — no dV/dt limit
+  and no "long cable" length threshold is stated; both declined.
+- **Protection grading** — no IDMT grading margin, CT saturation
+  or burden limit, or dependability/security ratio is stated;
+  all declined. Relay setting values themselves are never graded:
+  the skill defers final settings to a documented coordination /
+  arc-flash study.
+- **Machine quantities** — no slip, efficiency, loss, capability,
+  impedance, inrush, or thermal-aging limit is stated for any
+  family; all declined. Family topics are checked as addressed.
+
+## Non-reducible parts — stated plainly
+
+This atom does not judge the advice. Whether the advice is
+technically correct, whether the stated assumptions are the right
+ones, whether a protection scheme actually coordinates, whether a
+calculation was performed correctly, and whether the engagement
+was genuinely peer-level and rigorous are judgment — carried only
+as caller declarations in the record (for example
+`engagement.protection_and_safety_not_handwaved`), never judged
+by the atom. The atom audits the record's declared completeness
+and vocabulary against the skill; it is not a substitute for the
+SME, a coordination study, or an arc-flash study.
+
+## Pricing
+
+Pricing unit: **tokens**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
+
+## Named doubt (from the register)
+
+Expert persona, no bounded deliverable — answered by construction: the deliverable is the audit of a declared advice record, bounded to the 44 checks above; the persona itself is not sold.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "advice_id": "test-001",
+      "engagement": {
+        "question_or_problem_stated": true,
+        "operating_context_stated": true,
+        "assumptions_stated_explicitly": true,
+        "protection_and_safety_not_handwaved": true
+      },
+      "machine": {
+        "machine_family": "induction",
+        "full_load_current_a": 100.0,
+        "starting_current_a": 600.0,
+        "induction_slip_or_equivalent_circuit_addressed": true,
+        "induction_torque_speed_addressed": true,
+        "induction_losses_or_efficiency_addressed": true
+      },
+      "drives": {
+        "vfd_involved": false
+      },
+      "protection": {
+        "protection_in_scope": false,
+        "final_settings_deferred_to_study": true,
+        "settings_published_as_fact": false
+      },
+      "standards": {
+        "applicable_standards_named": true,
+        "standards_applicability_reasons_stated": true,
+        "hazardous_area_involved": false
+      },
+      "calculations": {
+        "calculations_relied_upon": false
+      },
+      "documents": {
+        "document_review_in_scope": false,
+        "going_public": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "electrical-machines-expert-advice",
+      "atom_version": "0.1.0",
+      "advice_id": "test-001",
+      "verdict": "SOUND",
+      "sections": {
+        "engagement": "pass",
+        "machine_analysis": "pass",
+        "drives": "pass",
+        "protection": "pass",
+        "standards_and_hazloc": "pass",
+        "calculations": "pass",
+        "documents_and_disclosure": "pass"
+      },
+      "checks": [
+        {
+          "section": "engagement",
+          "check": "question_or_problem_stated",
+          "status": "pass",
+          "evidence": "the question or problem the advice answers is stated"
+        },
+        {
+          "section": "engagement",
+          "check": "operating_context_stated",
+          "status": "pass",
+          "evidence": "the operating context the advice applies to is stated"
+        },
+        {
+          "section": "engagement",
+          "check": "assumptions_stated_explicitly",
+          "status": "pass",
+          "evidence": "assumptions are stated explicitly \u2014 the skill requires assumptions shown, never buried"
+        },
+        {
+          "section": "engagement",
+          "check": "protection_and_safety_not_handwaved",
+          "status": "pass",
+          "evidence": "protection and safety are addressed, never hand-waved (caller declaration; the atom does not judge the advice itself)"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "machine_family_named",
+          "status": "pass",
+          "evidence": "machine family is one of induction / synchronous / transformer / dc \u2014 the skill's own machine vocabulary"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_slip_or_equivalent_circuit_addressed",
+          "status": "pass",
+          "evidence": "induction machines: equivalent circuit and slip are addressed"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_torque_speed_addressed",
+          "status": "pass",
+          "evidence": "induction machines: the torque-speed curve is addressed"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_starting_current_multiple_recorded",
+          "status": "pass",
+          "evidence": "induction starting current recorded as a multiple of FLA (the skill states ~6x FLA as an approximation with no tolerance band, so the multiple is recorded, not graded): 6.000000 x FLA declared"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_losses_or_efficiency_addressed",
+          "status": "pass",
+          "evidence": "induction machines: efficiency and the loss breakdown (copper, iron, windage / friction, stray) are addressed"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "synchronous_excitation_or_avr_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not synchronous"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "synchronous_capability_or_power_angle_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not synchronous"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "synchronous_synchronization_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not synchronous"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "transformer_vector_group_or_impedance_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not transformer"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "transformer_inrush_tap_cooling_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not transformer"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "transformer_thermal_aging_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not transformer"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "dc_excitation_type_named",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not dc"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "dc_retrofit_or_legacy_context_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not dc"
+        },
+        {
+          "section": "drives",
+          "check": "control_mode_named",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "harmonics_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "reflected_wave_dvdt_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "bearing_currents_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "cable_charging_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "protection",
+          "check": "selectivity_coordination_addressed",
+          "status": "pass",
+          "evidence": "not applicable: protection not declared in scope"
+        },
+        {
+          "section": "protection",
+          "check": "primary_and_backup_addressed",
+          "status": "pass",
+          "evidence": "not applicable: protection not declared in scope"
+        },
+        {
+          "section": "protection",
+          "check": "ansi_device_numbers_valid",
+          "status": "pass",
+          "evidence": "not applicable: protection not declared in scope"
+        },
+        {
+          "section": "protection",
+          "check": "ct_pt_selection_saturation_burden_addressed",
+          "status": "pass",
+          "evidence": "not applicable: protection not declared in scope"
+        },
+        {
+          "section": "protection",
+          "check": "idmt_curves_and_grading_addressed",
+          "status": "pass",
+          "evidence": "not applicable: protection not declared in scope"
+        },
+        {
+          "section": "protection",
+          "check": "final_settings_deferred_to_study",
+          "status": "pass",
+          "evidence": "standing rule: final settings are deferred to a documented coordination / arc-flash study"
+        },
+        {
+          "section": "protection",
+          "check": "settings_not_published_as_fact",
+          "status": "pass",
+          "evidence": "standing rule: settings are not published as fact \u2014 assumptions are stated explicitly instead"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "applicable_standards_named",
+          "status": "pass",
+          "evidence": "applicable standards are named (IEEE, IEC, CSA, the Canadian Electrical Code, APEGA obligations in the skill)"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "standards_applicability_reasons_stated",
+          "status": "pass",
+          "evidence": "which standards do / do not apply to the scope, and why, is stated"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "hazloc_zone_or_division_stated",
+          "status": "pass",
+          "evidence": "not applicable: no hazardous area declared involved"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "hazloc_gas_group_and_temp_class_stated",
+          "status": "pass",
+          "evidence": "not applicable: no hazardous area declared involved"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "hazloc_ex_method_and_certification_stated",
+          "status": "pass",
+          "evidence": "not applicable: no hazardous area declared involved"
+        },
+        {
+          "section": "calculations",
+          "check": "short_circuit_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "motor_starting_voltage_dip_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "grounding_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "load_flow_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "arc_flash_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "sow_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "sdrl_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "sqrl_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "supplier_qualification_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "public_sanitization_applied",
+          "status": "pass",
+          "evidence": "not applicable: content not declared as going public"
+        }
+      ],
+      "summary": "44 pass, 0 fail, 0 missing of 44 checks across seven sections.",
+      "stamp": "ELECTRICAL-MACHINES EXPERT ADVICE\nadvice_id: test-001\nVERDICT: SOUND\n  engagement               pass\n  machine_analysis         pass\n  drives                   pass\n  protection               pass\n  standards_and_hazloc     pass\n  calculations             pass\n  documents_and_disclosure pass\n44 pass, 0 fail, 0 missing of 44 checks across seven sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "advice_id": "test-002",
+      "engagement": {
+        "question_or_problem_stated": true,
+        "operating_context_stated": true,
+        "assumptions_stated_explicitly": true,
+        "protection_and_safety_not_handwaved": true
+      },
+      "machine": {
+        "machine_family": "induction",
+        "full_load_current_a": 100.0,
+        "starting_current_a": 600.0,
+        "induction_slip_or_equivalent_circuit_addressed": true,
+        "induction_torque_speed_addressed": true,
+        "induction_losses_or_efficiency_addressed": true
+      },
+      "drives": {
+        "vfd_involved": false
+      },
+      "protection": {
+        "protection_in_scope": true,
+        "selectivity_coordination_addressed": true,
+        "primary_and_backup_addressed": true,
+        "ansi_device_numbers": [
+          "999"
+        ],
+        "ct_pt_selection_saturation_burden_addressed": true,
+        "idmt_curves_and_grading_addressed": true,
+        "final_settings_deferred_to_study": true,
+        "settings_published_as_fact": true
+      },
+      "standards": {
+        "applicable_standards_named": true,
+        "standards_applicability_reasons_stated": true,
+        "hazardous_area_involved": false
+      },
+      "calculations": {
+        "calculations_relied_upon": false
+      },
+      "documents": {
+        "document_review_in_scope": false,
+        "going_public": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "electrical-machines-expert-advice",
+      "atom_version": "0.1.0",
+      "advice_id": "test-002",
+      "verdict": "NOT_SOUND",
+      "sections": {
+        "engagement": "pass",
+        "machine_analysis": "pass",
+        "drives": "pass",
+        "protection": "fail",
+        "standards_and_hazloc": "pass",
+        "calculations": "pass",
+        "documents_and_disclosure": "pass"
+      },
+      "checks": [
+        {
+          "section": "engagement",
+          "check": "question_or_problem_stated",
+          "status": "pass",
+          "evidence": "the question or problem the advice answers is stated"
+        },
+        {
+          "section": "engagement",
+          "check": "operating_context_stated",
+          "status": "pass",
+          "evidence": "the operating context the advice applies to is stated"
+        },
+        {
+          "section": "engagement",
+          "check": "assumptions_stated_explicitly",
+          "status": "pass",
+          "evidence": "assumptions are stated explicitly \u2014 the skill requires assumptions shown, never buried"
+        },
+        {
+          "section": "engagement",
+          "check": "protection_and_safety_not_handwaved",
+          "status": "pass",
+          "evidence": "protection and safety are addressed, never hand-waved (caller declaration; the atom does not judge the advice itself)"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "machine_family_named",
+          "status": "pass",
+          "evidence": "machine family is one of induction / synchronous / transformer / dc \u2014 the skill's own machine vocabulary"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_slip_or_equivalent_circuit_addressed",
+          "status": "pass",
+          "evidence": "induction machines: equivalent circuit and slip are addressed"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_torque_speed_addressed",
+          "status": "pass",
+          "evidence": "induction machines: the torque-speed curve is addressed"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_starting_current_multiple_recorded",
+          "status": "pass",
+          "evidence": "induction starting current recorded as a multiple of FLA (the skill states ~6x FLA as an approximation with no tolerance band, so the multiple is recorded, not graded): 6.000000 x FLA declared"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "induction_losses_or_efficiency_addressed",
+          "status": "pass",
+          "evidence": "induction machines: efficiency and the loss breakdown (copper, iron, windage / friction, stray) are addressed"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "synchronous_excitation_or_avr_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not synchronous"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "synchronous_capability_or_power_angle_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not synchronous"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "synchronous_synchronization_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not synchronous"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "transformer_vector_group_or_impedance_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not transformer"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "transformer_inrush_tap_cooling_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not transformer"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "transformer_thermal_aging_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not transformer"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "dc_excitation_type_named",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not dc"
+        },
+        {
+          "section": "machine_analysis",
+          "check": "dc_retrofit_or_legacy_context_addressed",
+          "status": "pass",
+          "evidence": "not applicable: declared machine family is not dc"
+        },
+        {
+          "section": "drives",
+          "check": "control_mode_named",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "harmonics_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "reflected_wave_dvdt_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "bearing_currents_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "drives",
+          "check": "cable_charging_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no VFD declared involved"
+        },
+        {
+          "section": "protection",
+          "check": "selectivity_coordination_addressed",
+          "status": "pass",
+          "evidence": "selectivity / coordination is addressed"
+        },
+        {
+          "section": "protection",
+          "check": "primary_and_backup_addressed",
+          "status": "pass",
+          "evidence": "primary + backup protection and the fail-safe / dependability-vs-security balance are addressed"
+        },
+        {
+          "section": "protection",
+          "check": "ansi_device_numbers_valid",
+          "status": "fail",
+          "evidence": "every declared ANSI device number is in the skill's own list (50/51, 87, 27/59, 81, 49, 46, 32, 25, 86)"
+        },
+        {
+          "section": "protection",
+          "check": "ct_pt_selection_saturation_burden_addressed",
+          "status": "pass",
+          "evidence": "CT / PT selection, saturation and burden are addressed"
+        },
+        {
+          "section": "protection",
+          "check": "idmt_curves_and_grading_addressed",
+          "status": "pass",
+          "evidence": "IDMT curves and grading are addressed (differential and distance principles where relied upon)"
+        },
+        {
+          "section": "protection",
+          "check": "final_settings_deferred_to_study",
+          "status": "pass",
+          "evidence": "standing rule: final settings are deferred to a documented coordination / arc-flash study"
+        },
+        {
+          "section": "protection",
+          "check": "settings_not_published_as_fact",
+          "status": "fail",
+          "evidence": "standing rule: settings are not published as fact \u2014 assumptions are stated explicitly instead"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "applicable_standards_named",
+          "status": "pass",
+          "evidence": "applicable standards are named (IEEE, IEC, CSA, the Canadian Electrical Code, APEGA obligations in the skill)"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "standards_applicability_reasons_stated",
+          "status": "pass",
+          "evidence": "which standards do / do not apply to the scope, and why, is stated"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "hazloc_zone_or_division_stated",
+          "status": "pass",
+          "evidence": "not applicable: no hazardous area declared involved"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "hazloc_gas_group_and_temp_class_stated",
+          "status": "pass",
+          "evidence": "not applicable: no hazardous area declared involved"
+        },
+        {
+          "section": "standards_and_hazloc",
+          "check": "hazloc_ex_method_and_certification_stated",
+          "status": "pass",
+          "evidence": "not applicable: no hazardous area declared involved"
+        },
+        {
+          "section": "calculations",
+          "check": "short_circuit_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "motor_starting_voltage_dip_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "grounding_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "load_flow_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "calculations",
+          "check": "arc_flash_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no calculations declared relied upon"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "sow_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "sdrl_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "sqrl_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "supplier_qualification_addressed",
+          "status": "pass",
+          "evidence": "not applicable: no document review declared in scope"
+        },
+        {
+          "section": "documents_and_disclosure",
+          "check": "public_sanitization_applied",
+          "status": "pass",
+          "evidence": "not applicable: content not declared as going public"
+        }
+      ],
+      "summary": "42 pass, 2 fail, 0 missing of 44 checks across seven sections.",
+      "stamp": "ELECTRICAL-MACHINES EXPERT ADVICE\nadvice_id: test-002\nVERDICT: NOT_SOUND\n  engagement               pass\n  machine_analysis         pass\n  drives                   pass\n  protection               fail\n  standards_and_hazloc     pass\n  calculations             pass\n  documents_and_disclosure pass\n42 pass, 2 fail, 0 missing of 44 checks across seven sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

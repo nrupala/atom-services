@@ -1,0 +1,113 @@
+# Independent recompute — frontend-implementation
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md.
+
+## Computed quantities defined by SERVICE.md
+
+The computed outputs are: `computed_status`, `data_views_count`, `data_views_without_complete_states`, `state_coverage`, plus the two primary computed checks (`data_views_declared`, `every_data_view_has_all_four_states`) and the two conditional checks (`new_framework_has_adr`, `nothing_hidden_behind_fixed_bars`). The verdict and per-section rollups are derived from the 39 checks.
+
+---
+
+## Case 1: `full-pass`
+
+### `data_views_declared`
+Input `data_views` = list of 1 row → present and non-empty → **pass**. Artifact: pass. **MATCH**
+
+### `every_data_view_has_all_four_states`
+Row `UserList`: loading=true, empty=true, error=true, success=true → all four true → **pass**. Artifact: pass. **MATCH**
+
+### `data_views_count`
+Length of declared list = 1. Artifact: `1`. **MATCH**
+
+### `data_views_without_complete_states`
+Rows whose four state fields are all present but not all true. `UserList` has all four present and all true → not listed. Result = `[]`. Artifact: `[]`. **MATCH**
+
+### `state_coverage`
+Rule: (data views declaring all four states implemented) ÷ (declared data views).
+- Numerator: 1 (UserList complete)
+- Denominator: 1
+- v = 1/1 = 1.0
+- Serialization: `floor(1.0 * 1000000 + 0.5) / 1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → format 6dp → `"1.000000"`.
+
+Artifact: `"1.000000"`. **MATCH**
+
+### `computed_status`
+Both primary computed checks completed and pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Conditional checks
+- `new_framework_has_adr`: `new_framework_introduced`=true → ADR required; `adr_recorded`=true → **pass**. Artifact: pass. **MATCH**
+- `nothing_hidden_behind_fixed_bars`: `has_fixed_bars`=true → required; `nothing_hidden_behind_fixed_bars`=true → **pass**. Artifact: pass. **MATCH**
+
+### Verdict / rollup
+All 39 checks pass (I verified each declared field is true, and each "must be false" field — god_components, dead_controls, silent_failures, whole_screen_blocked, overflow, overlap, console_spam, secrets — is false). → `FRONTEND_SOUND`, all sections pass, summary "39 pass, 0 fail, 0 missing of 39". Artifact matches. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### `data_views_declared`
+List of 1 row → present, non-empty → **pass**. Artifact: pass. **MATCH**
+
+### `every_data_view_has_all_four_states`
+Row `BrokenView`: loading=true, empty=**false**, error=true, success=true → not all true → **fail**. Artifact: fail. **MATCH**
+
+### `data_views_count`
+Length = 1. Artifact: `1`. **MATCH**
+
+### `data_views_without_complete_states`
+`BrokenView`: all four fields present, not all true → listed. Result = `["BrokenView"]`. Artifact: `["BrokenView"]`. **MATCH**
+
+### `state_coverage`
+- Numerator: 0 (BrokenView incomplete)
+- Denominator: 1
+- v = 0/1 = 0.0
+- Serialization: `floor(0.0 * 1000000 + 0.5)/1000000 = floor(0.5)/1000000 = 0/1000000 = 0.0` → `"0.000000"`.
+
+Artifact: `"0.000000"`. **MATCH**
+
+### `computed_status`
+Both primary checks completed; `every_data_view_has_all_four_states` fails → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Conditional checks
+- `new_framework_has_adr`: introduced=true, adr_recorded=true → **pass**. Artifact: pass. **MATCH**
+- `nothing_hidden_behind_fixed_bars`: has_fixed_bars=true, nothing_hidden=true → **pass**. Artifact: pass. **MATCH**
+
+### Planted wrong values → expected failing checks
+The input plants these wrong values; each should fail exactly its check:
+
+| Planted field | Value | Check | Expected |
+|---|---|---|---|
+| `structure.god_components_present` | true | no_god_components | fail |
+| `data_views[0].empty_implemented` | false | every_data_view_has_all_four_states | fail |
+| `interactions.dead_controls_present` | true | no_dead_controls | fail |
+| `data_layer.whole_screen_blocked_by_single_widget_present` | true | no_whole_screen_blocked_by_single_widget | fail |
+| `responsive.overflow_present` | true | no_overflow | fail |
+| `responsive.overlap_present` | true | no_overlap | fail |
+| `errors.console_spam_present` | true | no_console_spam | fail |
+| `security.secrets_in_frontend_code_present` | true | no_secrets_in_frontend_code | fail |
+
+That is **8 planted wrong values → 8 failing checks**. The artifact's failing checks are exactly: no_god_components, every_data_view_has_all_four_states, no_dead_controls, no_whole_screen_blocked_by_single_widget, no_overflow, no_overlap, no_console_spam, no_secrets_in_frontend_code — **exactly the 8 expected, no more, no fewer.** **MATCH**
+
+### Verdict / rollup
+8 fails → `FRONTEND_NOT_SOUND`. Section rollups: structure (1 fail) → fail; states_and_data_layer (3 fails) → fail; responsive_and_accessibility (2 fails) → fail; performance_and_errors (0 fails) → pass; verification_and_red_lines (2 fails) → fail. Summary: 39−8 = 31 pass, 8 fail, 0 missing. Artifact: "31 pass, 8 fail, 0 missing of 39", sections fail/fail/fail/pass/fail. **MATCH**
+
+---
+
+## Summary of all computed comparisons
+
+| Quantity | Case 1 artifact | Recompute | Case 2 artifact | Recompute |
+|---|---|---|---|---|
+| data_views_declared | pass | pass ✓ | pass | pass ✓ |
+| every_data_view_has_all_four_states | pass | pass ✓ | fail | fail ✓ |
+| data_views_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| data_views_without_complete_states | [] | [] ✓ | ["BrokenView"] | ["BrokenView"] ✓ |
+| state_coverage | 1.000000 | 1.000000 ✓ | 0.000000 | 0.000000 ✓ |
+| computed_status | within… | within… ✓ | outside… | outside… ✓ |
+| new_framework_has_adr | pass | pass ✓ | pass | pass ✓ |
+| nothing_hidden_behind_fixed_bars | pass | pass ✓ | pass | pass ✓ |
+| verdict | FRONTEND_SOUND | ✓ | FRONTEND_NOT_SOUND | ✓ |
+| summary counts | 39/0/0 | ✓ | 31/8/0 | ✓ |
+
+Every computed quantity and every check status matches the recorded artifacts in both cases. The violations case's 8 failing checks are exactly the 8 checks targeted by the planted wrong values.
+
+AGREEMENT: full

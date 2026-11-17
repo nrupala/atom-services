@@ -1,0 +1,105 @@
+# Independent recompute — fare-construction-savings-strategy
+
+## Serialization rule (applied to every computed amount)
+
+Per SERVICE.md: round half up to 6dp via `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. Comparisons compare the fixed-6dp difference to zero.
+
+---
+
+## Case 1: `full-pass`
+
+### Total cost
+- headline_fare = 500.0, fees = 50.0, baggage_fees = 20.0, seat_fees = 30.0
+- computed = 500 + 50 + 20 + 30 = **600.0**
+- serialize: floor(600.0 × 1e6 + 0.5)/1e6 = 600.000000 → `"600.000000"`
+- declared_total_cost = 600.0
+- difference = 600.0 − 600.0 = 0.0 → `"0.000000"` → equals zero → **check passes**
+
+Artifact: `computed_total_cost = "600.000000"`, `total_cost_difference = "0.000000"`, check `total_cost_matches_headline_plus_fees_bags_seats = pass`. **MATCH**
+
+### Constructed total
+- legs: 300.0 + 250.0 = **550.0**; legs_evaluated = 2 (both have non-empty label + numeric price)
+- serialize → `"550.000000"`
+- declared_constructed_total = 550.0
+- difference = 550.0 − 550.0 = 0.0 → `"0.000000"` → **check passes**
+
+Artifact: `legs_evaluated = 2`, `computed_constructed_total = "550.000000"`, `constructed_total_difference = "0.000000"`, check `constructed_total_matches_sum_of_leg_prices = pass`. **MATCH**
+
+### Declared savings
+- baseline_direct_fare − declared_constructed_total = 600.0 − 550.0 = **50.0**
+- serialize → `"50.000000"`
+- declared_savings = 50.0
+- difference = 50.0 − 50.0 = 0.0 → `"0.000000"` → **check passes** (no minimum imposed; arithmetic only)
+
+Artifact: `computed_savings = "50.000000"`, `savings_difference = "0.000000"`, check `declared_savings_matches_baseline_minus_constructed_total = pass`. **MATCH**
+
+### computed_status
+All four computed checks complete and pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Verdict / summary
+All 21 checks pass (4 trip + 4 drivers + 2 strategy + 3 total-cost + 4 construction + 4 integrity = 21). Verdict `..._READY`, summary "21 pass, 0 fail, 0 missing". Artifact: same. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+Inputs differ from full-pass only in: `declared_total_cost = 999.0`, `declared_savings = 100.0`.
+
+### Total cost
+- computed = 500 + 50 + 20 + 30 = **600.0** → `"600.000000"`
+- declared = 999.0
+- difference = 999.0 − 600.0 = **399.0** → `"399.000000"` → ≠ 0 → **check FAILS**
+
+Artifact: `computed_total_cost = "600.000000"`, `total_cost_difference = "399.000000"`, check `total_cost_matches_headline_plus_fees_bags_seats = fail`. **MATCH**
+
+### Constructed total
+- legs 300.0 + 250.0 = **550.0** → `"550.000000"`; declared = 550.0; difference = 0.0 → `"0.000000"` → **check passes**
+
+Artifact: `legs_evaluated = 2`, `computed_constructed_total = "550.000000"`, `constructed_total_difference = "0.000000"`, check = pass. **MATCH**
+
+### Declared savings
+- computed = baseline − declared_constructed_total = 600.0 − 550.0 = **50.0** → `"50.000000"`
+- declared = 100.0
+- difference = 100.0 − 50.0 = **50.0** → `"50.000000"` → ≠ 0 → **check FAILS**
+
+Artifact: `computed_savings = "50.000000"`, `savings_difference = "50.000000"`, check `declared_savings_matches_baseline_minus_constructed_total = fail`. **MATCH**
+
+### computed_status
+At least one computed check fails → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Which checks fail — planted-value confirmation
+The two planted wrong values are `declared_total_cost = 999.0` and `declared_savings = 100.0`. These should fail exactly:
+- `total_cost_matches_headline_plus_fees_bags_seats` (driven by 999.0) → artifact: **fail** ✓
+- `declared_savings_matches_baseline_minus_constructed_total` (driven by 100.0) → artifact: **fail** ✓
+
+All other 19 checks depend on unchanged inputs and should pass. Artifact shows exactly these 2 fails, 19 pass, 0 missing. **MATCH** — the failing set is exactly the two checks the planted values should break.
+
+### Verdict / summary
+Any fail → `FARE_CONSTRUCTION_SAVINGS_STRATEGY_NOT_READY`; summary "19 pass, 2 fail, 0 missing of 21". Artifact: same. **MATCH**
+
+---
+
+## Summary of all computed quantities
+
+| Quantity | Case | Recomputed | Artifact | Result |
+|---|---|---|---|---|
+| computed_total_cost | full-pass | 600.000000 | 600.000000 | MATCH |
+| total_cost_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| computed_constructed_total | full-pass | 550.000000 | 550.000000 | MATCH |
+| constructed_total_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| computed_savings | full-pass | 50.000000 | 50.000000 | MATCH |
+| savings_difference | full-pass | 0.000000 | 0.000000 | MATCH |
+| legs_evaluated | full-pass | 2 | 2 | MATCH |
+| computed_status | full-pass | within_stated_limits | within_stated_limits | MATCH |
+| computed_total_cost | violations | 600.000000 | 600.000000 | MATCH |
+| total_cost_difference | violations | 399.000000 | 399.000000 | MATCH |
+| computed_constructed_total | violations | 550.000000 | 550.000000 | MATCH |
+| constructed_total_difference | violations | 0.000000 | 0.000000 | MATCH |
+| computed_savings | violations | 50.000000 | 50.000000 | MATCH |
+| savings_difference | violations | 50.000000 | 50.000000 | MATCH |
+| legs_evaluated | violations | 2 | 2 | MATCH |
+| computed_status | violations | outside_stated_limits | outside_stated_limits | MATCH |
+
+Every computed quantity and every check status reproduces exactly from the recorded inputs under the stated 6dp half-up serialization rule. The violations case fails exactly the two checks its planted values should break.
+
+AGREEMENT: full

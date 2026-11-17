@@ -1,0 +1,104 @@
+# Independent recompute — framework-adoption-adr
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass` (Alpha / React)
+
+### Inputs relevant to computed quantities
+- `candidates`: 1 row — `{name:"React", all five fit = true, selected:true}`
+- `plugins.plugins_present`: `false`; `plugins.items` absent
+- `house_stack.is_mid_project_change`: `false`
+- `versions.major_upgrade_planned`: `false`
+
+### Computed checks (the five primary computed checks)
+
+1. **candidates_declared** — list present and non-empty. Length = 1 ≥ 1 → **pass**.
+2. **every_candidate_names_framework** — 1 row, name "React" non-empty → **pass**.
+3. **every_candidate_fit_fully_assessed** — row has all five fit fields = true → **pass**.
+4. **exactly_one_candidate_selected** — count of `selected:true` = 1 → **pass**.
+5. **every_plugin_reviewed_and_pinned** — `plugins_present=false` → not applicable → **pass**.
+
+### Conditional checks
+- Mid-project: `is_mid_project_change=false` → both migration checks N/A → **pass, pass**.
+- Major upgrade: `major_upgrade_planned=false` → both upgrade checks N/A → **pass, pass**.
+- Plugins: `plugins_present=false` → `unused_plugins_removed` N/A → **pass**.
+
+### Reported computed values
+- **candidates_count** = length of candidates = **1**. Artifact: `1` → **MATCH**.
+- **selected_count** = rows with selected:true = **1**. Artifact: `1` → **MATCH**.
+- **selected_candidate** = sole selected row's name = **"React"**. Artifact: `"React"` → **MATCH**.
+- **candidates_without_name** = rows with name present-but-empty (none) = **[]**. Artifact: `[]` → **MATCH**.
+- **candidates_without_fit_assessment** = rows with ≥1 fit field present but not all five true (none) = **[]**. Artifact: `[]` → **MATCH**.
+- **fit_assessment_coverage** = candidates with all five assessed ÷ declared = 1 ÷ 1 = 1.0.
+  - Serialization: `floor(1.0 * 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → format 6dp = **"1.000000"**. Artifact: `"1.000000"` → **MATCH**.
+- **plugins_count** = plugins list absent → **null**. Artifact: `null` → **MATCH**.
+- **plugins_without_review_or_pin** = list absent → **null**. Artifact: `null` → **MATCH**.
+- **plugin_compliance_coverage** = denominator absent → **null**. Artifact: `null` → **MATCH**.
+
+### Verdict / status / summary
+- All 30 checks pass, 0 fail, 0 missing → verdict **FRAMEWORK_ADOPTION_SOUND**. Artifact: `FRAMEWORK_ADOPTION_SOUND` → **MATCH**.
+- **computed_status**: all five primary computed checks completed and all pass → `within_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**.
+- **summary**: "30 pass, 0 fail, 0 missing of 30 checks". Count of checks in artifact = 30; statuses: 30 pass. → **MATCH**.
+- Section statuses: all five sections contain only pass → all `pass`. Artifact: all `pass` → **MATCH**.
+
+## Case 2: `violations` (Beta / Vue)
+
+### Inputs relevant to computed quantities
+- `candidates`: 2 rows — Vue (all fit true, selected:true), Angular (all fit true, selected:true)
+- `versions.unpinned_latest_in_production_present`: `true`
+- `plugins.plugins_present`: `false`; `plugins.items` absent
+- `is_mid_project_change`: `false`; `major_upgrade_planned`: `false`
+
+### Computed checks
+1. **candidates_declared** — length 2 ≥ 1 → **pass**.
+2. **every_candidate_names_framework** — both names non-empty → **pass**.
+3. **every_candidate_fit_fully_assessed** — both rows all five true → **pass**.
+4. **exactly_one_candidate_selected** — count selected:true = 2 ≠ 1 → **fail**.
+5. **every_plugin_reviewed_and_pinned** — plugins_present=false → N/A → **pass**.
+
+### Conditional checks
+- Mid-project false → both migration checks **pass** (N/A).
+- Major upgrade false → both upgrade checks **pass** (N/A).
+- Plugins false → `unused_plugins_removed` **pass** (N/A).
+
+### Reported computed values
+- **candidates_count** = 2. Artifact: `2` → **MATCH**.
+- **selected_count** = 2. Artifact: `2` → **MATCH**.
+- **selected_candidate** = not exactly one selected row → **null**. Artifact: `null` → **MATCH**.
+- **candidates_without_name** = none → **[]**. Artifact: `[]` → **MATCH**.
+- **candidates_without_fit_assessment** = none (both fully assessed) → **[]**. Artifact: `[]` → **MATCH**.
+- **fit_assessment_coverage** = 2 ÷ 2 = 1.0 → `floor(1000000.5)/1000000 = 1.0` → **"1.000000"**. Artifact: `"1.000000"` → **MATCH**.
+- **plugins_count** = absent → **null**. Artifact: `null` → **MATCH**.
+- **plugins_without_review_or_pin** = absent → **null**. Artifact: `null` → **MATCH**.
+- **plugin_compliance_coverage** = absent denominator → **null**. Artifact: `null` → **MATCH**.
+
+### Verdict / status / summary
+- Failing checks: `exactly_one_candidate_selected` (adr_and_fit) and `no_unpinned_latest_in_production` (pinning_and_upgrades). That is 2 fails, 28 pass, 0 missing.
+- Verdict: any fail → **FRAMEWORK_ADOPTION_NOT_SOUND**. Artifact: same → **MATCH**.
+- **computed_status**: all five primary computed checks completed; at least one fails → `outside_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**.
+- **summary**: "28 pass, 2 fail, 0 missing of 30". Artifact: same → **MATCH**.
+- Section statuses: adr_and_fit has a fail → `fail`; pinning_and_upgrades has a fail → `fail`; other three all pass → `pass`. Artifact: `adr_and_fit: fail`, `pinning_and_upgrades: fail`, others `pass` → **MATCH**.
+
+### Confirming the planted wrong values fail exactly the right checks
+The two planted wrong values are:
+1. **Two candidates both `selected:true`** (Vue and Angular). This should trip only `exactly_one_candidate_selected`. Recompute: selected_count = 2 → check fails. It does **not** affect `candidates_declared` (2≥1 pass), `every_candidate_names_framework` (both named), or `every_candidate_fit_fully_assessed` (both fully assessed). → exactly one fail, in adr_and_fit. **Confirmed.**
+2. **`unpinned_latest_in_production_present: true`**. This should trip only `no_unpinned_latest_in_production` (must be false to pass). Recompute: value true → check fails. It does not touch `exact_versions_pinned` (still true → pass), `changelogs_read`, or `updates_batched`. → exactly one fail, in pinning_and_upgrades. **Confirmed.**
+
+No other check is affected: all other declared booleans are in their passing polarity, both conditional gates are false (so their dependent checks are N/A-pass), and plugins are absent (so plugin checks are N/A-pass). The failing set is exactly {`exactly_one_candidate_selected`, `no_unpinned_latest_in_production`} — matching the artifact's two fails and the two failing sections.
+
+## Cross-check of headline values
+| Quantity | Case 1 recomputed | Artifact | Case 2 recomputed | Artifact |
+|---|---|---|---|---|
+| candidates_count | 1 | 1 ✓ | 2 | 2 ✓ |
+| selected_count | 1 | 1 ✓ | 2 | 2 ✓ |
+| selected_candidate | "React" | "React" ✓ | null | null ✓ |
+| fit_assessment_coverage | "1.000000" | "1.000000" ✓ | "1.000000" | "1.000000" ✓ |
+| plugins_count | null | null ✓ | null | null ✓ |
+| plugin_compliance_coverage | null | null ✓ | null | null ✓ |
+| computed_status | within… | within… ✓ | outside… | outside… ✓ |
+| verdict | SOUND | SOUND ✓ | NOT_SOUND | NOT_SOUND ✓ |
+| summary counts | 30/0/0 | 30/0/0 ✓ | 28/2/0 | 28/2/0 ✓ |
+
+Every computed quantity and every check status I recomputed matches the recorded artifacts, and the violations case fails exactly the two checks its planted wrong values should fail.
+
+AGREEMENT: full

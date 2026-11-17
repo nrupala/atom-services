@@ -1,0 +1,100 @@
+# Independent recompute — engineering-work-package-structuring
+
+I recompute every computed quantity from the recorded inputs, using only SERVICE.md's stated rules. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass` (EE-2026-001)
+
+### Inputs (relevant)
+- `deliverables`: 1 row `{name:"Main Calc", kind:"calc package"}`
+- `documents`: 1 row `Calc-001`, kind `calc package`, status `For Approval`, revision `"A"`, designer `Alice`, checker `Bob`, prepared/reviewed/approved = `Alice`/`Charlie`/`Dave` (all non-empty), all quality/assumption/signature flags true, revision_reason & history true.
+- `transmittals`: 1 row `{document:"Calc-001", recipient:"Client", revision:"A", date:"2026-11-20", return_status_declared:true}`
+- `definition.deliverables_list_agreed: true`, `deliverable_gaps_documented: false`
+
+### Counts
+- `deliverables_count` = length of deliverables list = **1**. Artifact: 1 → MATCH
+- `documents_count` = **1**. Artifact: 1 → MATCH
+- `transmittals_count` = **1**. Artifact: 1 → MATCH
+
+### Row-name lists (all should be empty)
+- `deliverables_with_invalid_kind`: "calc package" ∈ vocabulary → none. Artifact `[]` → MATCH
+- `documents_with_invalid_status`: "For Approval" ∈ flow → none. Artifact `[]` → MATCH
+- `documents_without_revision`: revision "A" non-empty → none. Artifact `[]` → MATCH
+- `documents_without_revision_reason`: flag true → none. Artifact `[]` → MATCH
+- `documents_without_revision_history`: flag true → none. Artifact `[]` → MATCH
+- `documents_with_incomplete_signoff`: all three non-empty → none. Artifact `[]` → MATCH
+- `calculations_not_independently_checked`: calc row, designer Alice ≠ checker Bob, both non-empty → none. Artifact `[]` → MATCH
+- `documents_missing_quality_elements`: all five true → none. Artifact `[]` → MATCH
+- `documents_missing_assumptions_or_signature`: both true → none. Artifact `[]` → MATCH
+- `transmittals_with_unknown_document`: "Calc-001" resolves → none. Artifact `[]` → MATCH
+- `transmittals_without_recipient`: "Client" non-empty → none. Artifact `[]` → MATCH
+- `transmittals_with_revision_mismatch`: transmittal rev "A" == doc rev "A" → none. Artifact `[]` → MATCH
+- `transmittals_with_invalid_date`: "2026-11-20" is a real calendar date → none. Artifact `[]` → MATCH
+- `transmittals_without_return_status`: flag true → none. Artifact `[]` → MATCH
+
+### Ratios (rule: `floor(v*1000000 + 0.5)/1000000`, 6dp)
+- `signoff_coverage` = complete-signoff docs ÷ declared docs = 1 ÷ 1 = 1.0 → floor(1000000.5)/1000000 = 1.000000. Artifact `"1.000000"` → MATCH
+- `independent_check_coverage` = independently-checked calc docs ÷ calc docs = 1 ÷ 1 = 1.000000. Artifact `"1.000000"` → MATCH
+- `transmittal_document_coverage` = transmittals naming declared doc ÷ transmittals = 1 ÷ 1 = 1.000000. Artifact `"1.000000"` → MATCH
+
+### Verdict / status
+- All 42 checks pass (every declared row is complete and consistent). `computed_status` = `within_stated_limits_on_declared_evidence`. Artifact matches → MATCH
+- `verdict` = `WORK_PACKAGE_STRUCTURED`. MATCH
+- Summary "42 pass, 0 fail, 0 missing of 42" — I count 42 check entries, all pass. MATCH
+
+**Case 1: all computed quantities MATCH.**
+
+## Case 2: `violations` (EE-2026-002)
+
+### Inputs (relevant)
+- `deliverables`: 1 row `{name:"Main Calc", kind:"invalid_kind"}`
+- `documents`: 1 row `Calc-001`, kind `calc package`, status `InvalidStatus`, revision `""`, revision_reason false, revision_history false, designer `Alice`, checker `Bob`, prepared/reviewed/approved all `""`, all quality flags false, assumptions false, check_signature false.
+- `transmittals`: 1 row `{document:"NonExistent", recipient:"Client", revision:"B", date:"2027-02-30", return_status_declared:false}`
+
+### Counts
+- `deliverables_count` = **1**. Artifact 1 → MATCH
+- `documents_count` = **1**. Artifact 1 → MATCH
+- `transmittals_count` = **1**. Artifact 1 → MATCH
+
+### Row-name lists
+- `deliverables_with_invalid_kind`: "invalid_kind" ∉ vocabulary → `["Main Calc"]`. Artifact `["Main Calc"]` → MATCH
+- `documents_with_invalid_status`: "InvalidStatus" ∉ flow → `["Calc-001"]`. Artifact `["Calc-001"]` → MATCH
+- `documents_without_revision`: revision `""` empty → `["Calc-001"]`. Artifact `["Calc-001"]` → MATCH
+- `documents_without_revision_reason`: flag false → `["Calc-001"]`. Artifact `["Calc-001"]` → MATCH
+- `documents_without_revision_history`: flag false → `["Calc-001"]`. Artifact `["Calc-001"]` → MATCH
+- `documents_with_incomplete_signoff`: prepared/reviewed/approved all empty → `["Calc-001"]`. Artifact `["Calc-001"]` → MATCH
+- `calculations_not_independently_checked`: calc row, designer Alice ≠ checker Bob, both non-empty → **none**. Artifact `[]` → MATCH (correctly not flagged — the planted wrong values did not touch designer/checker)
+- `documents_missing_quality_elements`: all five false → `["Calc-001"]`. Artifact `["Calc-001"]` → MATCH
+- `documents_missing_assumptions_or_signature`: both false → `["Calc-001"]`. Artifact `["Calc-001"]` → MATCH
+- `transmittals_with_unknown_document`: "NonExistent" not a declared doc → `["NonExistent"]`. Artifact `["NonExistent"]` → MATCH
+- `transmittals_without_recipient`: "Client" non-empty → none. Artifact `[]` → MATCH
+- `transmittals_with_revision_mismatch`: transmittal rev "B" vs doc rev `""` — mismatch. **But** SERVICE.md: "The check is missing evidence when any transmittal lacks `document` or `revision`, or any document lacks `revision`." The document's revision is `""` (empty). Is empty "lacks revision"? The revision-match check is one of the six primary computed checks; the doc has an empty revision string. Under the missing-evidence rule, an empty revision on the document means the revision-match check cannot be completed → missing evidence, and the list is null. The artifact reports `[]` (empty list, not null). This is a discrepancy in *representation*: the artifact treats it as "no mismatch" rather than "missing evidence." I'll flag this below.
+- `transmittals_with_invalid_date`: "2027-02-30" — February 2027 has 28 days (2027 not a leap year), so day 30 is impossible → `["NonExistent"]`. Artifact `["NonExistent"]` → MATCH
+- `transmittals_without_return_status`: flag false → `["NonExistent"]`. Artifact `["NonExistent"]` → MATCH
+
+### Ratios
+- `signoff_coverage` = complete-signoff docs ÷ declared docs = 0 ÷ 1 = 0.0 → 0.000000. Artifact `"0.000000"` → MATCH
+- `independent_check_coverage` = independently-checked calc docs ÷ calc docs = 1 ÷ 1 = 1.000000. Artifact `"1.000000"` → MATCH
+- `transmittal_document_coverage` = transmittals naming declared doc ÷ transmittals = 0 ÷ 1 = 0.000000. Artifact `"0.000000"` → MATCH
+
+### Verdict / status
+- Failing checks I count: `every_deliverable_has_skill_kind`, `every_document_has_flow_status`, `every_document_has_revision`, `every_document_declares_revision_reason`, `every_document_has_revision_history`, `every_document_signoff_complete`, `every_transmittal_names_declared_document`, `every_transmittal_revision_matches_document`, `every_transmittal_has_valid_date`, `every_transmittal_declares_return_status`, `every_document_declares_quality_elements`, `every_document_declares_assumptions_and_check_signature` = **12 fails**. Artifact: 12 fail → MATCH
+- Passing: 42 − 12 = 30 pass. Artifact "30 pass, 12 fail, 0 missing" → MATCH on counts.
+- `computed_status` = `outside_stated_limits_on_declared_evidence` (fails present). Artifact matches → MATCH
+- `verdict` = `WORK_PACKAGE_NOT_STRUCTURED`. MATCH
+
+### Planted-wrong-value confirmation
+The planted wrong values are: invalid deliverable kind, invalid status, empty revision, false revision_reason, false revision_history, empty sign-off names, false quality flags, false assumptions/signature, unknown transmittal document, impossible date, false return status. Each maps to exactly one failing check above — **12 planted defects → 12 failing checks, one-to-one**. The designer/checker pair (Alice/Bob) was left valid, so `every_calculation_independently_checked` correctly passes. Confirmed: the failing checks are exactly the ones the planted wrong values should fail.
+
+## The one discrepancy
+
+`transmittals_with_revision_mismatch` in case 2. SERVICE.md states the revision-match check "is missing evidence when any transmittal lacks `document` or `revision`, or any document lacks `revision`." The document `Calc-001` has `revision: ""` — an empty revision string. Under the stated rule this makes the revision-match check **missing evidence**, so the list should be `null` (and the check status `missing`, not `fail`). The artifact instead reports `[]` and marks the check `fail`.
+
+Two readings are possible:
+- If "lacks revision" means the field is *absent* (not empty), then an empty string is a present-but-invalid revision, the check completes, and "B" ≠ "" is a genuine mismatch → `["NonExistent"]` and `fail`. Under this reading the artifact's `[]` is still wrong (it should list the mismatch), but the check status `fail` is right.
+- If "lacks revision" includes empty string (consistent with the revision check treating empty as failing), the check is missing evidence → `null` and `missing`.
+
+Either way the artifact's `[]` for `transmittals_with_revision_mismatch` does not follow from the stated rule: it is neither the mismatch list (`["NonExistent"]`) nor `null`. The artifact's `fail` status is defensible only under the first reading, but its empty list is not. This is a genuine disagreement between my recompute and the artifact on one computed quantity.
+
+Everything else — all counts, all other row-name lists, all three ratios, both verdicts, both computed_status values, and the 12-fail/30-pass tally — matches.
+
+AGREEMENT: partial — `transmittals_with_revision_mismatch` in case `violations`: artifact reports `[]` (with check status `fail`); my recompute gives either `["NonExistent"]` (if empty revision counts as a present-but-invalid revision, mismatch "B" ≠ "") or `null` (if empty revision counts as missing evidence per the stated rule) — the artifact's empty list matches neither.

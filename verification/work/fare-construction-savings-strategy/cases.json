@@ -1,0 +1,176 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "trip_label": "NYC-LON-2025",
+        "trip": {
+          "origin": "JFK",
+          "destination": "LHR",
+          "travel_dates": "2025-06-01",
+          "flexibility": "low"
+        },
+        "drivers": {
+          "advance_purchase_explained": true,
+          "day_of_week_explained": true,
+          "nearby_airports_considered": true,
+          "split_tickets_considered": true
+        },
+        "strategy": {
+          "search_strategy_given": true,
+          "price_only_without_strategy": false
+        },
+        "total_cost": {
+          "headline_fare": 500.0,
+          "fees": 50.0,
+          "baggage_fees": 20.0,
+          "seat_fees": 30.0,
+          "declared_total_cost": 600.0,
+          "total_cost_surfaced": true,
+          "headline_presented_as_total_cost": false
+        },
+        "construction": {
+          "legs": [
+            {
+              "label": "Leg1",
+              "price": 300.0
+            },
+            {
+              "label": "Leg2",
+              "price": 250.0
+            }
+          ],
+          "declared_constructed_total": 550.0,
+          "baseline_direct_fare": 600.0,
+          "declared_savings": 50.0,
+          "constructed_option_compared_to_direct": true
+        },
+        "integrity": {
+          "prices_invented": false,
+          "quoted_fare_presented_as_starting_point": true,
+          "recheck_before_booking_advised": true,
+          "uncheckable_items_disclosed": true
+        }
+      },
+      "expect": {
+        "outcome": "FARE_CONSTRUCTION_SAVINGS_STRATEGY_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Full-pass: headline 500 + fees 50 + baggage 20 + seat 30 = 600 total; legs 300+250=550 constructed; baseline 600 - constructed 550 = 50 savings; all differences 0.000000; legs_evaluated 2. [Tester correction R2: designer carried computed quantities only in prose notes - added structured computed_spot_checks with hand-recomputed values.]",
+        "computed_spot_checks": {
+          "computed_total_cost": "600.000000",
+          "total_cost_difference": "0.000000",
+          "computed_constructed_total": "550.000000",
+          "constructed_total_difference": "0.000000",
+          "computed_savings": "50.000000",
+          "savings_difference": "0.000000",
+          "legs_evaluated": 2,
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "trip_label": "NYC-LON-2025",
+        "trip": {
+          "origin": "JFK",
+          "destination": "LHR",
+          "travel_dates": "2025-06-01",
+          "flexibility": "low"
+        },
+        "drivers": {
+          "advance_purchase_explained": true,
+          "day_of_week_explained": true,
+          "nearby_airports_considered": true,
+          "split_tickets_considered": true
+        },
+        "strategy": {
+          "search_strategy_given": true,
+          "price_only_without_strategy": false
+        },
+        "total_cost": {
+          "headline_fare": 500.0,
+          "fees": 50.0,
+          "baggage_fees": 20.0,
+          "seat_fees": 30.0,
+          "declared_total_cost": 999.0,
+          "total_cost_surfaced": true,
+          "headline_presented_as_total_cost": false
+        },
+        "construction": {
+          "legs": [
+            {
+              "label": "Leg1",
+              "price": 300.0
+            },
+            {
+              "label": "Leg2",
+              "price": 250.0
+            }
+          ],
+          "declared_constructed_total": 550.0,
+          "baseline_direct_fare": 600.0,
+          "declared_savings": 100.0,
+          "constructed_option_compared_to_direct": true
+        },
+        "integrity": {
+          "prices_invented": false,
+          "quoted_fare_presented_as_starting_point": true,
+          "recheck_before_booking_advised": true,
+          "uncheckable_items_disclosed": true
+        }
+      },
+      "expect": {
+        "outcome": "FARE_CONSTRUCTION_SAVINGS_STRATEGY_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "total_cost_matches_headline_plus_fees_bags_seats",
+          "declared_savings_matches_baseline_minus_constructed_total"
+        ],
+        "notes": "Full manifest copy of full-pass with exactly 2 planted violations: total_cost.declared_total_cost=999 fails total_cost_matches_headline_plus_fees_bags_seats (computed 600, diff 399); construction.declared_savings=100 fails declared_savings_matches_baseline_minus_constructed_total (computed 600-550=50, diff 50). Legs unchanged (300+250=550, constructed diff 0). [Tester corrections: R1 designer named sections total_cost_surface/fare_construction instead of exact check names - corrected to the 2 exact register names; R2 designer carried quantities only in prose - added structured computed_spot_checks hand-recomputed; violations input designer dropped Leg2 (legs reduced to one entry, savings failure incidental to that structural change) - rebuilt as a full copy of full-pass with only the two declared values changed.]",
+        "computed_spot_checks": {
+          "computed_total_cost": "600.000000",
+          "total_cost_difference": "399.000000",
+          "computed_constructed_total": "550.000000",
+          "constructed_total_difference": "0.000000",
+          "computed_savings": "50.000000",
+          "savings_difference": "50.000000",
+          "legs_evaluated": 2,
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "trip_label": "Minimal"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required fields for trip_definition and other sections."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "trip_label": "Malformed",
+        "total_cost": {
+          "headline_fare": "should-be-a-number"
+        }
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Exactly one type violation of a documented typed field: total_cost.headline_fare expects a number, received a string. Expect HTTP 422 invalid_input on field total_cost.headline_fare. [Tester correction R4: designer used trip as a string instead of an object - an object-type violation on a container whose documented typed fields are its subfields, making the expected 422 field less precise; changed to exactly one violation on the documented number field total_cost.headline_fare.]"
+      }
+    }
+  ]
+}

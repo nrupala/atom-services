@@ -1,0 +1,141 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "entity": "Project Alpha",
+        "basis": {
+          "document_present": true,
+          "scope_of_estimate_stated": true,
+          "assumptions_stated": true,
+          "exclusions_stated": true,
+          "quote_validity_stated": true,
+          "fx_escalation_stated": true,
+          "estimator_named": true
+        },
+        "build": {
+          "labor_costed_rate_times_hours": true,
+          "indirects_included": true
+        },
+        "line_items": [
+          {
+            "label": "Wiring",
+            "category": "Labor",
+            "pricing_basis": "quote_based",
+            "quantity": 10.0,
+            "unit_rate": 50.0,
+            "declared_amount": 500.0
+          }
+        ],
+        "contingency": {
+          "risks_listed_for_contingency": true,
+          "management_reserve_held_separately": true,
+          "padding_buried_in_estimate": false
+        },
+        "totals": {
+          "declared_subtotal": 500.0,
+          "contingency_percent": 10.0,
+          "declared_contingency_amount": 50.0,
+          "declared_management_reserve_amount": 100.0,
+          "declared_total_budget": 650.0,
+          "declared_total_change_impact": 0.0,
+          "declared_revised_budget": 650.0
+        },
+        "approval": {
+          "approval_recorded": true,
+          "baseline_from_approved_amount": true,
+          "revisions_reapproved": true,
+          "work_without_approved_estimate_or_po": false
+        },
+        "changes": {
+          "log_maintained": true,
+          "verbal_change_orders_used": false
+        },
+        "change_entries": [],
+        "tracking": {
+          "commitments_vs_actuals_tracked": true,
+          "invoice_reconciliation_against_delivery": true,
+          "monthly_report_issued": true,
+          "variance_reported_with_reasons": true,
+          "commitments_amount": 500.0,
+          "actuals_amount": 400.0,
+          "forecast_to_complete_amount": 100.0,
+          "declared_total_forecast_amount": 500.0,
+          "declared_forecast_variance_amount": -150.0
+        },
+        "closeout": {
+          "final_cost_reconciled": true,
+          "variance_explained": true,
+          "lessons_captured": true,
+          "contingency_disposition_stated": true,
+          "unspent_contingency_released_explicitly": true,
+          "declared_final_cost": 600.0,
+          "declared_final_variance_amount": -50.0,
+          "contingency_used_amount": 20.0,
+          "declared_unspent_contingency_amount": 30.0
+        }
+      },
+      "expect": {
+        "outcome": "BUDGET_PACK_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All arithmetic checks pass: subtotal (500), contingency (500*0.1=50), total (500+50+100=650), forecast variance (500-650=-150), final variance (600-650=-50), unspent contingency (50-20=30). computed_spot_checks: [500.000000, 50.000000, 650.000000]"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "line_items": [
+          {
+            "label": "Item",
+            "category": "Labor",
+            "pricing_basis": "invalid_token",
+            "quantity": 1.0,
+            "unit_rate": 10.0,
+            "declared_amount": 10.0
+          }
+        ],
+        "totals": {
+          "declared_subtotal": 999.0
+        }
+      },
+      "expect": {
+        "outcome": "BUDGET_PACK_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "Line-item pricing basis",
+          "Subtotal"
+        ],
+        "notes": "pricing_basis is not in [quote_based, allowance]; declared_subtotal does not match sum of line items."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "entity": "Minimal Project"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing all required boolean flags and numeric fields; atom cannot perform any checks."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "basis": "not_an_object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: 'basis' expected to be an object, received string."
+      }
+    }
+  ]
+}

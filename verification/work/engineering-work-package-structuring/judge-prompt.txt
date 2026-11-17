@@ -1,0 +1,1575 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: engineering-work-package-structuring
+
+=== contract.yaml ===
+service_name: engineering-work-package-structuring
+display_name: Engineering work package structuring
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:engineering-work-packages
+binding:
+  skill: engineering-work-packages
+  skill_path: workspace/mymilo-build/skills/engineering-work-packages/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- MCP
+- agent
+- human
+keys:
+  namespace: engineering_work_package_structuring
+  prefix: atm_1_engineering_work_package_structuring_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: EE consulting work package structuring
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Engineering work package structuring — `engineering-work-package-structuring`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Run engineering work packages — scope, deliverables, document control, revisions, checks, transmittals, handover.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Electrical & energy who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **EE consulting work package structuring**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the work-package manifest
+
+The caller submits one JSON manifest: a declared work-package
+structure record for one engineering work package. Every field
+below is read by the named section's checks. A field **absent**
+= evidence missing (`INSUFFICIENT_EVIDENCE`); a field present
+but false / invalid = the check fails
+(`WORK_PACKAGE_NOT_STRUCTURED`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `package` (string; carried into the verdict output, not itself checked) | — |
+| `definition.objective_declared` | package_definition |
+| `definition.scope_in_declared` | package_definition |
+| `definition.scope_out_declared` | package_definition |
+| `definition.standards_declared` | package_definition |
+| `definition.site_rules_declared` | package_definition |
+| `definition.interfaces_declared` | package_definition |
+| `definition.budget_link_declared` | package_definition |
+| `definition.schedule_declared` | package_definition |
+| `definition.acceptance_criteria_declared` | package_definition |
+| `definition.deliverables_list_agreed` | package_definition |
+| `definition.deliverable_gaps_documented` | package_definition |
+| `deliverables` (list of deliverable-row objects, each `{name, kind}` — see the two entry fields below; computed, see below) | package_definition |
+| `deliverables[].name` (string; names the row in the computed outputs) | package_definition |
+| `deliverables[].kind` (string; must be one of the skill's own deliverables vocabulary — `calc package`, `datasheet`, `drawing`, `test plan`, `procedure`, `BOM` or `report` — for the row to pass the computed kind check; any other string fails, an absent field is missing evidence) | package_definition |
+| `documents` (list of controlled-document-row objects, each `{name, kind, status, revision, revision_reason_declared, revision_history_present, designer, checker, prepared_by, reviewed_by, approved_by, purpose_declared, inputs_declared, assumptions_declared, standards_cited_declared, units_declared, results_declared, check_signature_declared}` — see the entry fields below; computed, see below) | document_control_and_revisions, check_discipline_and_transmittals, delivery_quality_and_handover |
+| `documents[].name` (string; names the row in the computed outputs and is the name transmittal rows' `document` fields must equal to resolve) | document_control_and_revisions, check_discipline_and_transmittals, delivery_quality_and_handover |
+| `documents[].kind` (string; the row's deliverable kind — the value `calc package` marks the row as a calculation for the computed independent-check; any other value is not a calculation row. The kind string itself is not vocabulary-checked on document rows — the vocabulary check applies to the `deliverables` list) | check_discipline_and_transmittals |
+| `documents[].status` (string; must be one of the skill's own status flow — `Draft`, `For Review`, `For Approval`, `For Construction` or `As-Built` — for the row to pass the computed status check; any other string fails, an absent field is missing evidence) | document_control_and_revisions |
+| `documents[].revision` (string; must be a non-empty string for the row to pass the computed revision check — an absent field is missing evidence, an empty string fails) | document_control_and_revisions, check_discipline_and_transmittals |
+| `documents[].revision_reason_declared` | document_control_and_revisions |
+| `documents[].revision_history_present` | document_control_and_revisions |
+| `documents[].designer` (string; must be a non-empty string, and different from `checker`, for a `calc package` row to pass the computed independent-check — an absent field on a calculation row is missing evidence, an empty string or a value equal to the checker fails. Read only for `calc package` rows) | check_discipline_and_transmittals |
+| `documents[].checker` (string; same rule as `designer`, mirrored) | check_discipline_and_transmittals |
+| `documents[].prepared_by` (string; must be a non-empty string for the row to pass the computed sign-off check — an absent field is missing evidence, an empty string fails) | check_discipline_and_transmittals |
+| `documents[].reviewed_by` (string; same rule as `prepared_by`) | check_discipline_and_transmittals |
+| `documents[].approved_by` (string; same rule as `prepared_by`) | check_discipline_and_transmittals |
+| `documents[].purpose_declared` | delivery_quality_and_handover |
+| `documents[].inputs_declared` | delivery_quality_and_handover |
+| `documents[].assumptions_declared` | delivery_quality_and_handover |
+| `documents[].standards_cited_declared` | delivery_quality_and_handover |
+| `documents[].units_declared` | delivery_quality_and_handover |
+| `documents[].results_declared` | delivery_quality_and_handover |
+| `documents[].check_signature_declared` | delivery_quality_and_handover |
+| `document_control.numbering_naming_convention_declared` | document_control_and_revisions |
+| `document_control.status_flow_declared` | document_control_and_revisions |
+| `document_control.unapproved_revision_used_for_construction_present` (must be `false` to pass — skill red line) | document_control_and_revisions |
+| `document_control.untraceable_changes_present` (must be `false` to pass — skill red line) | document_control_and_revisions |
+| `document_control.superseded_versions_deleted_present` (must be `false` to pass — skill red line: superseded versions are retained (marked), never deleted) | document_control_and_revisions |
+| `document_control.uncontrolled_copies_present` (must be `false` to pass — quality gate: no uncontrolled copies floating) | document_control_and_revisions |
+| `check_discipline.redline_backcheck_process_declared` | check_discipline_and_transmittals |
+| `transmittals` (list of transmittal-row objects, each `{document, recipient, revision, date, return_status_declared}` — see the five entry fields below; computed, see below) | check_discipline_and_transmittals |
+| `transmittals[].document` (string; must name a declared document for the row to pass the computed document-resolution and revision-match checks, and names the row in the computed outputs) | check_discipline_and_transmittals |
+| `transmittals[].recipient` (string; must be a non-empty string for the row to pass the computed recipient check — an absent field is missing evidence, an empty string fails) | check_discipline_and_transmittals |
+| `transmittals[].revision` (string; must equal the named document's declared `revision` string for the row to pass the computed revision-match check; an absent field is missing evidence) | check_discipline_and_transmittals |
+| `transmittals[].date` (string; strict ISO `YYYY-MM-DD` — must parse as a real calendar date for the row to pass the computed date check; an absent field is missing evidence, an unparseable or impossible date such as `2027-02-30` fails) | check_discipline_and_transmittals |
+| `transmittals[].return_status_declared` | check_discipline_and_transmittals |
+| `transmittal_log.log_current_declared` | check_discipline_and_transmittals |
+| `transmittal_log.verbal_issue_present` (must be `false` to pass — the skill: nothing is issued verbally) | check_discipline_and_transmittals |
+| `handover.as_built_marked` | delivery_quality_and_handover |
+| `handover.om_references_declared` | delivery_quality_and_handover |
+| `handover.spares_list_declared` | delivery_quality_and_handover |
+| `handover.test_records_pointer_declared` | delivery_quality_and_handover |
+| `handover.training_notes_declared` | delivery_quality_and_handover |
+| `handover.closeout_checklist_signed` | delivery_quality_and_handover |
+
+Most checks are computed from the declared rows, using only
+the consistency of the declared record itself — no outside
+threshold is imported:
+
+- **Deliverables agreed or gaps documented:** the skill's
+  quality gate is a disjunction — the deliverables list is
+  agreed and complete, *or* its gaps are documented. The check
+  passes when either `deliverables_list_agreed` or
+  `deliverable_gaps_documented` is declared true; it fails
+  when at least one of the two fields is present and neither
+  is true; it is missing evidence when both are absent.
+- **Deliverables declared:** the declared `deliverables` list
+  passes only when it is present and non-empty; an absent list
+  is missing evidence, an empty list fails.
+- **Kind per deliverable:** every declared deliverable row
+  must carry a kind from the skill's own deliverables list —
+  `calc package`, `datasheet`, `drawing`, `test plan`,
+  `procedure`, `BOM` or `report`. Any other string fails; a
+  row with the field absent is missing evidence.
+- **Documents declared:** the declared `documents` list passes
+  only when it is present and non-empty.
+- **Status per document:** every declared document row must
+  carry a status from the skill's own status flow — `Draft`,
+  `For Review`, `For Approval`, `For Construction` or
+  `As-Built`. Any other string fails.
+- **Revision per document:** every declared document row must
+  carry a non-empty `revision` string (the skill's rev letter).
+  A row with the field absent is missing evidence; an empty
+  string fails.
+- **Revision reason and history per document:** every declared
+  document row must declare `revision_reason_declared: true`
+  (revisions carry a rev letter + reason) and
+  `revision_history_present: true` (a revision-history table
+  on every controlled document).
+- **Independent check per calculation:** every declared
+  document row of kind `calc package` must name a non-empty
+  `designer` and a non-empty `checker`, and the two must
+  differ (the skill: every calculation independently checked,
+  designer ≠ checker). Only `calc package` rows are read; a
+  package declaring no calculation rows passes this check on
+  its declared documents. A calculation row with either field
+  absent is missing evidence.
+- **Sign-off per document:** every declared document row must
+  name non-empty `prepared_by`, `reviewed_by` and
+  `approved_by` strings (the skill's sign-off blocks:
+  prepared/reviewed/approved).
+- **Transmittals declared:** the declared `transmittals` list
+  passes only when it is present and non-empty.
+- **Transmittal document resolution:** every declared
+  transmittal's `document` string must name a declared
+  document (matched on the document rows' `name` strings). An
+  unresolvable name fails and is reported in
+  `transmittals_with_unknown_document`.
+- **Recipient per transmittal:** every declared transmittal
+  row must name a non-empty `recipient` string (the skill's
+  log shape: what was issued, *to whom*).
+- **Transmittal revision match:** every declared
+  transmittal's `revision` string must equal the named
+  document's declared current `revision`. A mismatch fails
+  and is reported in `transmittals_with_revision_mismatch`.
+  The check is missing evidence when any transmittal lacks
+  `document` or `revision`, or any document lacks `revision`.
+- **Transmittal date valid:** every declared transmittal row
+  must carry a `date` that parses as a strict ISO calendar
+  date. An unparseable or impossible date fails and the row
+  is reported in `transmittals_with_invalid_date`.
+- **Return status per transmittal:** every declared
+  transmittal row must declare
+  `return_status_declared: true`.
+- **Delivery-quality elements per document:** every declared
+  document row must declare `purpose_declared`,
+  `inputs_declared`, `standards_cited_declared`,
+  `units_declared` and `results_declared` all true (the
+  skill: each document states purpose, inputs, standards
+  cited, units, results).
+- **Assumptions and check signature per document:** every
+  declared document row must declare
+  `assumptions_declared: true` (assumptions explicit, never
+  embedded) and `check_signature_declared: true`.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the six primary computed checks — documents declared,
+every document has flow status, every document has revision,
+every calculation independently checked, every transmittal
+names a declared document, every transmittal revision matches
+document — cannot be completed), the counts
+`deliverables_count`, `documents_count` and
+`transmittals_count` (the declared list lengths, or null when
+the list is not declared — counts are reported as integers,
+exactly), the row-name lists
+`deliverables_with_invalid_kind`,
+`documents_with_invalid_status`, `documents_without_revision`,
+`documents_without_revision_reason`,
+`documents_without_revision_history`,
+`documents_with_incomplete_signoff`,
+`calculations_not_independently_checked`,
+`documents_missing_quality_elements`,
+`documents_missing_assumptions_or_signature`,
+`transmittals_with_unknown_document`,
+`transmittals_without_recipient`,
+`transmittals_with_revision_mismatch`,
+`transmittals_with_invalid_date` and
+`transmittals_without_return_status` (each null when its
+underlying list — or, for the transmittal-document lists,
+either list — is not declared), and the three coverage ratios
+`signoff_coverage` (documents with a complete sign-off block
+÷ declared documents), `independent_check_coverage`
+(calculation documents independently checked ÷ declared
+calculation documents) and `transmittal_document_coverage`
+(transmittals naming a declared document ÷ declared
+transmittals).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio
+is null when its denominator list is absent or empty (and,
+for independent check coverage, when no declared document is
+a calculation; for transmittal document coverage, when either
+list is absent). That fixed serialization is what makes the
+Python and TypeScript outputs byte-identical.
+
+The skill states no numeric threshold — no deliverable,
+document or transmittal count, no revision count, and no
+budget or schedule limit — so no numeric threshold check is
+invented. Quantities are computed and reported; the only bar
+on the computed rows is completeness and internal consistency
+over the caller's own declared rows (every declared
+deliverable, document and transmittal), exactly as stated
+above. Declined thresholds, named: a minimum or maximum
+deliverable count; a minimum or maximum controlled-document
+count; a minimum or maximum transmittal count; a minimum
+revision count or a required current revision letter (the
+skill requires revisions be controlled with a letter +
+reason and a history table, and names no minimum depth); a
+budget amount or budget-variance limit (the skill requires a
+budget *link*, and states no figure — only that the link is
+declared is checked); a schedule duration or milestone-date
+limit (the skill requires a schedule be declared, and states
+no dates for the package itself — only that the declaration
+is present is checked); a handover deadline after close-out;
+a checker-qualification or independence standard beyond
+designer ≠ checker (the skill states the inequality and no
+credential bar).
+
+The verdict is one of `WORK_PACKAGE_STRUCTURED` (all 42
+checks pass), `WORK_PACKAGE_NOT_STRUCTURED` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across four sections:
+package_definition, document_control_and_revisions,
+check_discipline_and_transmittals,
+delivery_quality_and_handover.
+
+## Honest scoping
+
+This atom audits a **declared** work-package structure
+record — it structures no work package, writes, checks or
+issues no document, keeps no transmittal log, reads no
+project files or document-management system, and does not
+verify that a declared control actually happens. A package
+is structured *on the caller's declared evidence*: a
+manifest that declares an agreed deliverables list,
+controlled documents with signed checks, and a complete
+handover pack passes those checks even if the real package
+has none of it. It is a completeness and consistency audit
+of the record the skill requires, **not an engineering
+service or a package certification**: it never judges
+whether the scope is the right scope, whether a calculation
+is correct, whether a check was competently performed, or
+whether the handover pack would actually serve operations —
+only that the record contains what the skill's method,
+quality gates and red lines demand, and that its declared
+rows are internally consistent over the declared revisions.
+
+Non-reducible parts, named — these remain caller declarations
+only, and the atom states plainly that it does not judge
+them: whether the objective is the right objective; whether
+the scope split (in/out) is correct or complete for the real
+job; whether the cited standards and site rules are the
+applicable ones; whether a deliverable the package needs is
+missing from the list entirely (only declared rows are
+checked, and the agreed/gaps gate is itself a declaration);
+whether a document's content is technically correct;
+whether the named checker is genuinely independent in fact
+or competent to check (only that designer ≠ checker is
+declared by name); whether a revision reason is the true
+reason; whether the return status recorded for a transmittal
+is accurate; whether as-built marks reflect the field state;
+and whether the spares list would cover real failures (only
+that the handover elements are declared present). Named
+exclusions: no numeric thresholds (see the declined list
+above); no check that a `For Construction` document's
+revision is the latest issued beyond the declared
+transmittal-revision match; no live verification of any
+declared fact.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "engineering-work-package-structuring",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "WORK_PACKAGE_STRUCTURED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid per SERVICE.md: definition complete, deliverable kind 'calc package' in vocabulary, document status 'For Approval' in flow, revision 'A', designer Alice != checker Bob, sign-off complete, transmittal names Calc-001 with matching revision A and valid date 2026-11-20. [Tester correction R2: designer carried computed quantities only in prose notes; added structured computed_spot_checks.]",
+        "computed_spot_checks": {
+          "deliverables_count": 1,
+          "documents_count": 1,
+          "transmittals_count": 1,
+          "signoff_coverage": "1.000000",
+          "independent_check_coverage": "1.000000",
+          "transmittal_document_coverage": "1.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "deliverables_with_invalid_kind": [],
+          "documents_with_invalid_status": [],
+          "documents_without_revision": [],
+          "documents_without_revision_reason": [],
+          "documents_without_revision_history": [],
+          "documents_with_incomplete_signoff": [],
+          "calculations_not_independently_checked": [],
+          "documents_missing_quality_elements": [],
+          "documents_missing_assumptions_or_signature": [],
+          "transmittals_with_unknown_document": [],
+          "transmittals_without_recipient": [],
+          "transmittals_with_revision_mismatch": [],
+          "transmittals_with_invalid_date": [],
+          "transmittals_without_return_status": []
+        }
+      },
+      "input": {
+        "package": "EE-2026-001",
+        "definition": {
+          "objective_declared": true,
+          "scope_in_declared": true,
+          "scope_out_declared": true,
+          "standards_declared": true,
+          "site_rules_declared": true,
+          "interfaces_declared": true,
+          "budget_link_declared": true,
+          "schedule_declared": true,
+          "acceptance_criteria_declared": true,
+          "deliverables_list_agreed": true,
+          "deliverable_gaps_documented": false
+        },
+        "deliverables": [
+          {
+            "name": "Main Calc",
+            "kind": "calc package"
+          }
+        ],
+        "documents": [
+          {
+            "name": "Calc-001",
+            "kind": "calc package",
+            "status": "For Approval",
+            "revision": "A",
+            "revision_reason_declared": true,
+            "revision_history_present": true,
+            "designer": "Alice",
+            "checker": "Bob",
+            "prepared_by": "Alice",
+            "reviewed_by": "Charlie",
+            "approved_by": "Dave",
+            "purpose_declared": true,
+            "inputs_declared": true,
+            "assumptions_declared": true,
+            "standards_cited_declared": true,
+            "units_declared": true,
+            "results_declared": true,
+            "check_signature_declared": true
+          }
+        ],
+        "document_control": {
+          "numbering_naming_convention_declared": true,
+          "status_flow_declared": true,
+          "unapproved_revision_used_for_construction_present": false,
+          "untraceable_changes_present": false,
+          "superseded_versions_deleted_present": false,
+          "uncontrolled_copies_present": false
+        },
+        "check_discipline": {
+          "redline_backcheck_process_declared": true
+        },
+        "transmittals": [
+          {
+            "document": "Calc-001",
+            "recipient": "Client",
+            "revision": "A",
+            "date": "2026-11-20",
+            "return_status_declared": true
+          }
+        ],
+        "transmittal_log": {
+          "log_current_declared": true,
+          "verbal_issue_present": false
+        },
+        "handover": {
+          "as_built_marked": true,
+          "om_references_declared": true,
+          "spares_list_declared": true,
+          "test_records_pointer_declared": true,
+          "training_notes_declared": true,
+          "closeout_checklist_signed": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "engineering-work-package-structuring",
+        "atom_version": "0.1.0",
+        "package": "EE-2026-001",
+        "verdict": "WORK_PACKAGE_STRUCTURED",
+        "sections": {
+          "package_definition": "pass",
+          "document_control_and_revisions": "pass",
+          "check_discipline_and_transmittals": "pass",
+          "delivery_quality_and_handover": "pass"
+        },
+        "checks": [
+          {
+            "section": "package_definition",
+            "check": "objective_declared",
+            "status": "pass",
+            "evidence": "define the package: the objective is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "scope_in_declared",
+            "status": "pass",
+            "evidence": "define the package: the scope \u2014 what is in \u2014 is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "scope_out_declared",
+            "status": "pass",
+            "evidence": "define the package: the scope \u2014 what is out \u2014 is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "standards_declared",
+            "status": "pass",
+            "evidence": "define the package: the standards are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "site_rules_declared",
+            "status": "pass",
+            "evidence": "define the package: the site rules are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "interfaces_declared",
+            "status": "pass",
+            "evidence": "define the package: the interfaces are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "budget_link_declared",
+            "status": "pass",
+            "evidence": "define the package: the budget link is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "schedule_declared",
+            "status": "pass",
+            "evidence": "define the package: the schedule is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "acceptance_criteria_declared",
+            "status": "pass",
+            "evidence": "define the package: the acceptance criteria are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "deliverables_agreed_or_gaps_documented",
+            "status": "pass",
+            "evidence": "quality gate: the deliverables list is agreed and complete \u2014 or its gaps are documented"
+          },
+          {
+            "section": "package_definition",
+            "check": "deliverables_declared",
+            "status": "pass",
+            "evidence": "define the package: the declared package record names its deliverables \u2014 the deliverables list is present and non-empty"
+          },
+          {
+            "section": "package_definition",
+            "check": "every_deliverable_has_skill_kind",
+            "status": "pass",
+            "evidence": "define the package: every declared deliverable row carries a kind from the skill's own deliverables vocabulary \u2014 calc package, datasheet, drawing, test plan, procedure, BOM or report"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "numbering_naming_convention_declared",
+            "status": "pass",
+            "evidence": "document control: the numbering/naming convention is declared"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "status_flow_declared",
+            "status": "pass",
+            "evidence": "document control: the status flow \u2014 Draft, For Review, For Approval, For Construction, As-Built \u2014 is declared"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_unapproved_revision_used_for_construction",
+            "status": "pass",
+            "evidence": "red line: no unapproved revision is used for construction"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_untraceable_changes",
+            "status": "pass",
+            "evidence": "red line: no untraceable changes"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "superseded_versions_retained_not_deleted",
+            "status": "pass",
+            "evidence": "red line: superseded versions are retained (marked), never deleted"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_uncontrolled_copies",
+            "status": "pass",
+            "evidence": "quality gate: no uncontrolled copies are floating"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "documents_declared",
+            "status": "pass",
+            "evidence": "document control: the declared package record names its controlled documents \u2014 the documents list is present and non-empty"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_flow_status",
+            "status": "pass",
+            "evidence": "document control: every declared document row carries a status from the skill's own status flow \u2014 Draft, For Review, For Approval, For Construction or As-Built"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_revision",
+            "status": "pass",
+            "evidence": "document control: revisions \u2014 every declared document row carries a non-empty revision"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_declares_revision_reason",
+            "status": "pass",
+            "evidence": "document control: revisions carry a reason \u2014 every declared document row declares its revision reason"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_revision_history",
+            "status": "pass",
+            "evidence": "document control: a revision-history table is present on every controlled document"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "redline_backcheck_process_declared",
+            "status": "pass",
+            "evidence": "check discipline: the red-line/back-check process is declared"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_calculation_independently_checked",
+            "status": "pass",
+            "evidence": "check discipline: every calculation is independently checked \u2014 every declared calc package row names a designer and a checker, and designer != checker"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_document_signoff_complete",
+            "status": "pass",
+            "evidence": "check discipline: sign-off blocks \u2014 every declared document row names who prepared, reviewed and approved it"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "transmittals_declared",
+            "status": "pass",
+            "evidence": "transmittals: the declared package record names its transmittals \u2014 the transmittals list is present and non-empty"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_names_declared_document",
+            "status": "pass",
+            "evidence": "transmittals: every declared transmittal names a document the package declares \u2014 what was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_has_recipient",
+            "status": "pass",
+            "evidence": "transmittals: every declared transmittal row names a non-empty recipient \u2014 to whom it was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_revision_matches_document",
+            "status": "pass",
+            "evidence": "transmittals: every declared transmittal carries the named document's declared current revision \u2014 which revision was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_has_valid_date",
+            "status": "pass",
+            "evidence": "transmittals: every declared transmittal row carries a valid ISO issue date \u2014 when it was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_declares_return_status",
+            "status": "pass",
+            "evidence": "transmittals: every declared transmittal row declares its return status"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "transmittal_log_current_declared",
+            "status": "pass",
+            "evidence": "quality gate: the transmittal log is current"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "no_verbal_issue",
+            "status": "pass",
+            "evidence": "transmittals: nothing is issued verbally"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "every_document_declares_quality_elements",
+            "status": "pass",
+            "evidence": "delivery quality: each document states purpose, inputs, standards cited, units and results \u2014 declared on every document row"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "every_document_declares_assumptions_and_check_signature",
+            "status": "pass",
+            "evidence": "delivery quality: assumptions are explicit, never embedded, and a check signature is stated \u2014 declared on every document row"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_as_built_marked",
+            "status": "pass",
+            "evidence": "handover: as-built is marked"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_om_references_declared",
+            "status": "pass",
+            "evidence": "handover: O&M references are declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_spares_list_declared",
+            "status": "pass",
+            "evidence": "handover: the spares list is declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_test_records_pointer_declared",
+            "status": "pass",
+            "evidence": "handover: the test-records pointer is declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_training_notes_declared",
+            "status": "pass",
+            "evidence": "handover: training notes are declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_closeout_checklist_signed",
+            "status": "pass",
+            "evidence": "handover: the close-out checklist is signed \u2014 the handover pack is complete at close-out"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "deliverables_count": 1,
+        "deliverables_with_invalid_kind": [],
+        "documents_count": 1,
+        "documents_with_invalid_status": [],
+        "documents_without_revision": [],
+        "documents_without_revision_reason": [],
+        "documents_without_revision_history": [],
+        "documents_with_incomplete_signoff": [],
+        "signoff_coverage": "1.000000",
+        "calculations_not_independently_checked": [],
+        "independent_check_coverage": "1.000000",
+        "documents_missing_quality_elements": [],
+        "documents_missing_assumptions_or_signature": [],
+        "transmittals_count": 1,
+        "transmittals_with_unknown_document": [],
+        "transmittals_without_recipient": [],
+        "transmittals_with_revision_mismatch": [],
+        "transmittals_with_invalid_date": [],
+        "transmittals_without_return_status": [],
+        "transmittal_document_coverage": "1.000000",
+        "summary": "42 pass, 0 fail, 0 missing of 42 checks across four sections.",
+        "stamp": "ENGINEERING WORK PACKAGE STRUCTURING\npackage: EE-2026-001\nVERDICT: WORK_PACKAGE_STRUCTURED\n  package_definition                   pass\n  document_control_and_revisions       pass\n  check_discipline_and_transmittals    pass\n  delivery_quality_and_handover        pass\n42 pass, 0 fail, 0 missing of 42 checks across four sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "WORK_PACKAGE_NOT_STRUCTURED",
+        "http": 200,
+        "failing_checks": [
+          "every_deliverable_has_skill_kind",
+          "every_document_has_flow_status",
+          "every_document_has_revision",
+          "every_document_declares_revision_reason",
+          "every_document_has_revision_history",
+          "every_document_signoff_complete",
+          "every_document_declares_quality_elements",
+          "every_document_declares_assumptions_and_check_signature",
+          "every_transmittal_names_declared_document",
+          "every_transmittal_revision_matches_document",
+          "every_transmittal_has_valid_date",
+          "every_transmittal_declares_return_status"
+        ],
+        "notes": "Full manifest (same key paths as full-pass) carrying planted violations only: deliverable kind invalid_kind; document status InvalidStatus, revision empty, revision_reason_declared and revision_history_present false, sign-off prepared/reviewed/approved empty, quality elements and assumptions/check_signature false; transmittal document NonExistent (unknown, which also fails revision-match per oracle logic requiring unknown set empty), revision B, date 2027-02-30 invalid, return_status_declared false. Note the single descriptive raw entry 'Revision reason and history per document' maps to two exact register checks. [Tester corrections: R1 raw failing_checks used descriptive prose names not in register - corrected to 12 exact register names; R2 added structured computed_spot_checks; R3 rebuilt sparse input as full manifest.]",
+        "computed_spot_checks": {
+          "deliverables_count": 1,
+          "documents_count": 1,
+          "transmittals_count": 1,
+          "signoff_coverage": "0.000000",
+          "independent_check_coverage": "1.000000",
+          "transmittal_document_coverage": "0.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "deliverables_with_invalid_kind": [
+            "Main Calc"
+          ],
+          "documents_with_invalid_status": [
+            "Calc-001"
+          ],
+          "documents_without_revision": [
+            "Calc-001"
+          ],
+          "documents_without_revision_reason": [
+            "Calc-001"
+          ],
+          "documents_without_revision_history": [
+            "Calc-001"
+          ],
+          "documents_with_incomplete_signoff": [
+            "Calc-001"
+          ],
+          "calculations_not_independently_checked": [],
+          "documents_missing_quality_elements": [
+            "Calc-001"
+          ],
+          "documents_missing_assumptions_or_signature": [
+            "Calc-001"
+          ],
+          "transmittals_with_unknown_document": [
+            "NonExistent"
+          ],
+          "transmittals_without_recipient": [],
+          "transmittals_with_revision_mismatch": [],
+          "transmittals_with_invalid_date": [
+            "NonExistent"
+          ],
+          "transmittals_without_return_status": [
+            "NonExistent"
+          ]
+        }
+      },
+      "input": {
+        "package": "EE-2026-002",
+        "definition": {
+          "objective_declared": true,
+          "scope_in_declared": true,
+          "scope_out_declared": true,
+          "standards_declared": true,
+          "site_rules_declared": true,
+          "interfaces_declared": true,
+          "budget_link_declared": true,
+          "schedule_declared": true,
+          "acceptance_criteria_declared": true,
+          "deliverables_list_agreed": true,
+          "deliverable_gaps_documented": false
+        },
+        "deliverables": [
+          {
+            "name": "Main Calc",
+            "kind": "invalid_kind"
+          }
+        ],
+        "documents": [
+          {
+            "name": "Calc-001",
+            "kind": "calc package",
+            "status": "InvalidStatus",
+            "revision": "",
+            "revision_reason_declared": false,
+            "revision_history_present": false,
+            "designer": "Alice",
+            "checker": "Bob",
+            "prepared_by": "",
+            "reviewed_by": "",
+            "approved_by": "",
+            "purpose_declared": false,
+            "inputs_declared": false,
+            "assumptions_declared": false,
+            "standards_cited_declared": false,
+            "units_declared": false,
+            "results_declared": false,
+            "check_signature_declared": false
+          }
+        ],
+        "document_control": {
+          "numbering_naming_convention_declared": true,
+          "status_flow_declared": true,
+          "unapproved_revision_used_for_construction_present": false,
+          "untraceable_changes_present": false,
+          "superseded_versions_deleted_present": false,
+          "uncontrolled_copies_present": false
+        },
+        "check_discipline": {
+          "redline_backcheck_process_declared": true
+        },
+        "transmittals": [
+          {
+            "document": "NonExistent",
+            "recipient": "Client",
+            "revision": "B",
+            "date": "2027-02-30",
+            "return_status_declared": false
+          }
+        ],
+        "transmittal_log": {
+          "log_current_declared": true,
+          "verbal_issue_present": false
+        },
+        "handover": {
+          "as_built_marked": true,
+          "om_references_declared": true,
+          "spares_list_declared": true,
+          "test_records_pointer_declared": true,
+          "training_notes_declared": true,
+          "closeout_checklist_signed": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "engineering-work-package-structuring",
+        "atom_version": "0.1.0",
+        "package": "EE-2026-002",
+        "verdict": "WORK_PACKAGE_NOT_STRUCTURED",
+        "sections": {
+          "package_definition": "fail",
+          "document_control_and_revisions": "fail",
+          "check_discipline_and_transmittals": "fail",
+          "delivery_quality_and_handover": "fail"
+        },
+        "checks": [
+          {
+            "section": "package_definition",
+            "check": "objective_declared",
+            "status": "pass",
+            "evidence": "define the package: the objective is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "scope_in_declared",
+            "status": "pass",
+            "evidence": "define the package: the scope \u2014 what is in \u2014 is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "scope_out_declared",
+            "status": "pass",
+            "evidence": "define the package: the scope \u2014 what is out \u2014 is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "standards_declared",
+            "status": "pass",
+            "evidence": "define the package: the standards are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "site_rules_declared",
+            "status": "pass",
+            "evidence": "define the package: the site rules are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "interfaces_declared",
+            "status": "pass",
+            "evidence": "define the package: the interfaces are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "budget_link_declared",
+            "status": "pass",
+            "evidence": "define the package: the budget link is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "schedule_declared",
+            "status": "pass",
+            "evidence": "define the package: the schedule is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "acceptance_criteria_declared",
+            "status": "pass",
+            "evidence": "define the package: the acceptance criteria are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "deliverables_agreed_or_gaps_documented",
+            "status": "pass",
+            "evidence": "quality gate: the deliverables list is agreed and complete \u2014 or its gaps are documented"
+          },
+          {
+            "section": "package_definition",
+            "check": "deliverables_declared",
+            "status": "pass",
+            "evidence": "define the package: the declared package record names its deliverables \u2014 the deliverables list is present and non-empty"
+          },
+          {
+            "section": "package_definition",
+            "check": "every_deliverable_has_skill_kind",
+            "status": "fail",
+            "evidence": "define the package: every declared deliverable row carries a kind from the skill's own deliverables vocabulary \u2014 calc package, datasheet, drawing, test plan, procedure, BOM or report"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "numbering_naming_convention_declared",
+            "status": "pass",
+            "evidence": "document control: the numbering/naming convention is declared"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "status_flow_declared",
+            "status": "pass",
+            "evidence": "document control: the status flow \u2014 Draft, For Review, For Approval, For Construction, As-Built \u2014 is declared"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_unapproved_revision_used_for_construction",
+            "status": "pass",
+            "evidence": "red line: no unapproved revision is used for construction"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_untraceable_changes",
+            "status": "pass",
+            "evidence": "red line: no untraceable changes"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "superseded_versions_retained_not_deleted",
+            "status": "pass",
+            "evidence": "red line: superseded versions are retained (marked), never deleted"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_uncontrolled_copies",
+            "status": "pass",
+            "evidence": "quality gate: no uncontrolled copies are floating"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "documents_declared",
+            "status": "pass",
+            "evidence": "document control: the declared package record names its controlled documents \u2014 the documents list is present and non-empty"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_flow_status",
+            "status": "fail",
+            "evidence": "document control: every declared document row carries a status from the skill's own status flow \u2014 Draft, For Review, For Approval, For Construction or As-Built"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_revision",
+            "status": "fail",
+            "evidence": "document control: revisions \u2014 every declared document row carries a non-empty revision"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_declares_revision_reason",
+            "status": "fail",
+            "evidence": "document control: revisions carry a reason \u2014 every declared document row declares its revision reason"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_revision_history",
+            "status": "fail",
+            "evidence": "document control: a revision-history table is present on every controlled document"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "redline_backcheck_process_declared",
+            "status": "pass",
+            "evidence": "check discipline: the red-line/back-check process is declared"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_calculation_independently_checked",
+            "status": "pass",
+            "evidence": "check discipline: every calculation is independently checked \u2014 every declared calc package row names a designer and a checker, and designer != checker"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_document_signoff_complete",
+            "status": "fail",
+            "evidence": "check discipline: sign-off blocks \u2014 every declared document row names who prepared, reviewed and approved it"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "transmittals_declared",
+            "status": "pass",
+            "evidence": "transmittals: the declared package record names its transmittals \u2014 the transmittals list is present and non-empty"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_names_declared_document",
+            "status": "fail",
+            "evidence": "transmittals: every declared transmittal names a document the package declares \u2014 what was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_has_recipient",
+            "status": "pass",
+            "evidence": "transmittals: every declared transmittal row names a non-empty recipient \u2014 to whom it was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_revision_matches_document",
+            "status": "fail",
+            "evidence": "transmittals: every declared transmittal carries the named document's declared current revision \u2014 which revision was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_has_valid_date",
+            "status": "fail",
+            "evidence": "transmittals: every declared transmittal row carries a valid ISO issue date \u2014 when it was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_declares_return_status",
+            "status": "fail",
+            "evidence": "transmittals: every declared transmittal row declares its return status"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "transmittal_log_current_declared",
+            "status": "pass",
+            "evidence": "quality gate: the transmittal log is current"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "no_verbal_issue",
+            "status": "pass",
+            "evidence": "transmittals: nothing is issued verbally"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "every_document_declares_quality_elements",
+            "status": "fail",
+            "evidence": "delivery quality: each document states purpose, inputs, standards cited, units and results \u2014 declared on every document row"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "every_document_declares_assumptions_and_check_signature",
+            "status": "fail",
+            "evidence": "delivery quality: assumptions are explicit, never embedded, and a check signature is stated \u2014 declared on every document row"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_as_built_marked",
+            "status": "pass",
+            "evidence": "handover: as-built is marked"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_om_references_declared",
+            "status": "pass",
+            "evidence": "handover: O&M references are declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_spares_list_declared",
+            "status": "pass",
+            "evidence": "handover: the spares list is declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_test_records_pointer_declared",
+            "status": "pass",
+            "evidence": "handover: the test-records pointer is declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_training_notes_declared",
+            "status": "pass",
+            "evidence": "handover: training notes are declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_closeout_checklist_signed",
+            "status": "pass",
+            "evidence": "handover: the close-out checklist is signed \u2014 the handover pack is complete at close-out"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "deliverables_count": 1,
+        "deliverables_with_invalid_kind": [
+          "Main Calc"
+        ],
+        "documents_count": 1,
+        "documents_with_invalid_status": [
+          "Calc-001"
+        ],
+        "documents_without_revision": [
+          "Calc-001"
+        ],
+        "documents_without_revision_reason": [
+          "Calc-001"
+        ],
+        "documents_without_revision_history": [
+          "Calc-001"
+        ],
+        "documents_with_incomplete_signoff": [
+          "Calc-001"
+        ],
+        "signoff_coverage": "0.000000",
+        "calculations_not_independently_checked": [],
+        "independent_check_coverage": "1.000000",
+        "documents_missing_quality_elements": [
+          "Calc-001"
+        ],
+        "documents_missing_assumptions_or_signature": [
+          "Calc-001"
+        ],
+        "transmittals_count": 1,
+        "transmittals_with_unknown_document": [
+          "NonExistent"
+        ],
+        "transmittals_without_recipient": [],
+        "transmittals_with_revision_mismatch": [],
+        "transmittals_with_invalid_date": [
+          "NonExistent"
+        ],
+        "transmittals_without_return_status": [
+          "NonExistent"
+        ],
+        "transmittal_document_coverage": "0.000000",
+        "summary": "30 pass, 12 fail, 0 missing of 42 checks across four sections.",
+        "stamp": "ENGINEERING WORK PACKAGE STRUCTURING\npackage: EE-2026-002\nVERDICT: WORK_PACKAGE_NOT_STRUCTURED\n  package_definition                   fail\n  document_control_and_revisions       fail\n  check_discipline_and_transmittals    fail\n  delivery_quality_and_handover        fail\n30 pass, 12 fail, 0 missing of 42 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists and definition fields."
+      },
+      "input": {
+        "package": "Minimal"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "engineering-work-package-structuring",
+        "atom_version": "0.1.0",
+        "package": "Minimal",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "package_definition": "insufficient_evidence",
+          "document_control_and_revisions": "insufficient_evidence",
+          "check_discipline_and_transmittals": "insufficient_evidence",
+          "delivery_quality_and_handover": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "package_definition",
+            "check": "objective_declared",
+            "status": "missing",
+            "evidence": "define the package: the objective is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "scope_in_declared",
+            "status": "missing",
+            "evidence": "define the package: the scope \u2014 what is in \u2014 is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "scope_out_declared",
+            "status": "missing",
+            "evidence": "define the package: the scope \u2014 what is out \u2014 is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "standards_declared",
+            "status": "missing",
+            "evidence": "define the package: the standards are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "site_rules_declared",
+            "status": "missing",
+            "evidence": "define the package: the site rules are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "interfaces_declared",
+            "status": "missing",
+            "evidence": "define the package: the interfaces are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "budget_link_declared",
+            "status": "missing",
+            "evidence": "define the package: the budget link is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "schedule_declared",
+            "status": "missing",
+            "evidence": "define the package: the schedule is declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "acceptance_criteria_declared",
+            "status": "missing",
+            "evidence": "define the package: the acceptance criteria are declared"
+          },
+          {
+            "section": "package_definition",
+            "check": "deliverables_agreed_or_gaps_documented",
+            "status": "missing",
+            "evidence": "quality gate: the deliverables list is agreed and complete \u2014 or its gaps are documented"
+          },
+          {
+            "section": "package_definition",
+            "check": "deliverables_declared",
+            "status": "missing",
+            "evidence": "define the package: the declared package record names its deliverables \u2014 the deliverables list is present and non-empty"
+          },
+          {
+            "section": "package_definition",
+            "check": "every_deliverable_has_skill_kind",
+            "status": "missing",
+            "evidence": "define the package: every declared deliverable row carries a kind from the skill's own deliverables vocabulary \u2014 calc package, datasheet, drawing, test plan, procedure, BOM or report"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "numbering_naming_convention_declared",
+            "status": "missing",
+            "evidence": "document control: the numbering/naming convention is declared"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "status_flow_declared",
+            "status": "missing",
+            "evidence": "document control: the status flow \u2014 Draft, For Review, For Approval, For Construction, As-Built \u2014 is declared"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_unapproved_revision_used_for_construction",
+            "status": "missing",
+            "evidence": "red line: no unapproved revision is used for construction"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_untraceable_changes",
+            "status": "missing",
+            "evidence": "red line: no untraceable changes"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "superseded_versions_retained_not_deleted",
+            "status": "missing",
+            "evidence": "red line: superseded versions are retained (marked), never deleted"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "no_uncontrolled_copies",
+            "status": "missing",
+            "evidence": "quality gate: no uncontrolled copies are floating"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "documents_declared",
+            "status": "missing",
+            "evidence": "document control: the declared package record names its controlled documents \u2014 the documents list is present and non-empty"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_flow_status",
+            "status": "missing",
+            "evidence": "document control: every declared document row carries a status from the skill's own status flow \u2014 Draft, For Review, For Approval, For Construction or As-Built"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_revision",
+            "status": "missing",
+            "evidence": "document control: revisions \u2014 every declared document row carries a non-empty revision"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_declares_revision_reason",
+            "status": "missing",
+            "evidence": "document control: revisions carry a reason \u2014 every declared document row declares its revision reason"
+          },
+          {
+            "section": "document_control_and_revisions",
+            "check": "every_document_has_revision_history",
+            "status": "missing",
+            "evidence": "document control: a revision-history table is present on every controlled document"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "redline_backcheck_process_declared",
+            "status": "missing",
+            "evidence": "check discipline: the red-line/back-check process is declared"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_calculation_independently_checked",
+            "status": "missing",
+            "evidence": "check discipline: every calculation is independently checked \u2014 every declared calc package row names a designer and a checker, and designer != checker"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_document_signoff_complete",
+            "status": "missing",
+            "evidence": "check discipline: sign-off blocks \u2014 every declared document row names who prepared, reviewed and approved it"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "transmittals_declared",
+            "status": "missing",
+            "evidence": "transmittals: the declared package record names its transmittals \u2014 the transmittals list is present and non-empty"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_names_declared_document",
+            "status": "missing",
+            "evidence": "transmittals: every declared transmittal names a document the package declares \u2014 what was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_has_recipient",
+            "status": "missing",
+            "evidence": "transmittals: every declared transmittal row names a non-empty recipient \u2014 to whom it was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_revision_matches_document",
+            "status": "missing",
+            "evidence": "transmittals: every declared transmittal carries the named document's declared current revision \u2014 which revision was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_has_valid_date",
+            "status": "missing",
+            "evidence": "transmittals: every declared transmittal row carries a valid ISO issue date \u2014 when it was issued"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "every_transmittal_declares_return_status",
+            "status": "missing",
+            "evidence": "transmittals: every declared transmittal row declares its return status"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "transmittal_log_current_declared",
+            "status": "missing",
+            "evidence": "quality gate: the transmittal log is current"
+          },
+          {
+            "section": "check_discipline_and_transmittals",
+            "check": "no_verbal_issue",
+            "status": "missing",
+            "evidence": "transmittals: nothing is issued verbally"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "every_document_declares_quality_elements",
+            "status": "missing",
+            "evidence": "delivery quality: each document states purpose, inputs, standards cited, units and results \u2014 declared on every document row"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "every_document_declares_assumptions_and_check_signature",
+            "status": "missing",
+            "evidence": "delivery quality: assumptions are explicit, never embedded, and a check signature is stated \u2014 declared on every document row"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_as_built_marked",
+            "status": "missing",
+            "evidence": "handover: as-built is marked"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_om_references_declared",
+            "status": "missing",
+            "evidence": "handover: O&M references are declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_spares_list_declared",
+            "status": "missing",
+            "evidence": "handover: the spares list is declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_test_records_pointer_declared",
+            "status": "missing",
+            "evidence": "handover: the test-records pointer is declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_training_notes_declared",
+            "status": "missing",
+            "evidence": "handover: training notes are declared"
+          },
+          {
+            "section": "delivery_quality_and_handover",
+            "check": "handover_closeout_checklist_signed",
+            "status": "missing",
+            "evidence": "handover: the close-out checklist is signed \u2014 the handover pack is complete at close-out"
+          }
+        ],
+        "computed_status": null,
+        "deliverables_count": null,
+        "deliverables_with_invalid_kind": null,
+        "documents_count": null,
+        "documents_with_invalid_status": null,
+        "documents_without_revision": null,
+        "documents_without_revision_reason": null,
+        "documents_without_revision_history": null,
+        "documents_with_incomplete_signoff": null,
+        "signoff_coverage": null,
+        "calculations_not_independently_checked": null,
+        "independent_check_coverage": null,
+        "documents_missing_quality_elements": null,
+        "documents_missing_assumptions_or_signature": null,
+        "transmittals_count": null,
+        "transmittals_with_unknown_document": null,
+        "transmittals_without_recipient": null,
+        "transmittals_with_revision_mismatch": null,
+        "transmittals_with_invalid_date": null,
+        "transmittals_without_return_status": null,
+        "transmittal_document_coverage": null,
+        "summary": "0 pass, 0 fail, 42 missing of 42 checks across four sections.",
+        "stamp": "ENGINEERING WORK PACKAGE STRUCTURING\npackage: Minimal\nVERDICT: INSUFFICIENT_EVIDENCE\n  package_definition                   insufficient_evidence\n  document_control_and_revisions       insufficient_evidence\n  check_discipline_and_transmittals    insufficient_evidence\n  delivery_quality_and_handover        insufficient_evidence\n0 pass, 0 fail, 42 missing of 42 checks across four sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: deliverables expected to be a list, received string."
+      },
+      "input": {
+        "package": "Malformed",
+        "deliverables": "not_a_list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "deliverables",
+        "detail": "deliverables must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

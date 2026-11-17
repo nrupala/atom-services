@@ -1,0 +1,104 @@
+# Independent recompute — full-stack-app-build-pack
+
+## Computed quantities defined by SERVICE.md
+
+The computed quantities are: `slices_declared`, `every_slice_end_to_end`, `computed_status`, `slices_count`, `slices_not_end_to_end`, `slice_end_to_end_coverage`, plus the conditional checks (zero-knowledge pair, direct-to-prod bridge) and the overall verdict/summary counts.
+
+---
+
+## Case 1: `full-pass`
+
+### `slices_declared`
+Input `slices` = `[{name:"slice-1", end_to_end_complete:true}]`.
+- Present? yes. Non-empty? length = 1 ≥ 1 → **pass**.
+- Artifact: `slices_declared` = pass → **MATCH**.
+
+### `every_slice_end_to_end`
+Row 1: `end_to_end_complete` present and `true` → passes. All rows pass → **pass**.
+- Artifact: pass → **MATCH**.
+
+### `slices_count`
+Declared list length = **1** (integer).
+- Artifact: `1` → **MATCH**.
+
+### `slices_not_end_to_end`
+Rows whose field is present but not true: none (row 1 is true). → `[]`.
+- Artifact: `[]` → **MATCH**.
+
+### `slice_end_to_end_coverage`
+End-to-end slices = 1; declared slices = 1.
+- v = 1/1 = 1.0
+- Serialization: `floor(1.0 * 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → format 6dp → `"1.000000"`.
+- Artifact: `"1.000000"` → **MATCH**.
+
+### Conditional checks
+- `security.zero_knowledge_required` = false → `client_side_encryption_applied` and `user_held_keys` pass as not-applicable. Artifact: both pass → **MATCH**.
+- `deploy.direct_to_production_used` = false → `direct_to_prod_named_bridge_with_end_date` passes as not-applicable. Artifact: pass → **MATCH**.
+
+### `computed_status`
+Both primary computed checks (`slices_declared`, `every_slice_end_to_end`) completed and pass → `within_stated_limits_on_declared_evidence`.
+- Artifact: `within_stated_limits_on_declared_evidence` → **MATCH**.
+
+### Check count / verdict
+Count the checks in the artifact: approach_and_contracts 8, frontend 13, backend_and_data 13, security 9, testing_and_quality 8, deploy_and_delivery 7 = **58**? Let me recount from the artifact list:
+- approach: problem, user_visible, source_of_truth, contract_first, data_shape, vertical_slice, slices_declared, every_slice = **8**
+- frontend: vanilla, progressive, dependency, mobile, viewport, touch, semantic, keyboard, aria, contrast, boundaries, undefined, no_framework_bloat = **13**
+- backend_and_data: api_versioned, input_validated, stateless, idempotency, error_taxonomy, structured_errors, no_bare_500, health, schema_sot, fwd_only, backward_compat, parametrized, no_string_sql = **13**
+- security: authn_authz, least_priv, secrets_env, secrets_rotatable, no_secrets_repo, owasp, client_side_enc, user_held_keys = **8**
+- testing: unit, integration, e2e, contract_not_impl, no_tests_deferred, observability, graceful, stranger = **8**
+- deploy: no_docker, direct_or_native, staging_first, direct_to_prod_bridge, repo_in_sync, no_big_bang, no_premature = **7**
+
+Total = 8+13+13+8+8+7 = **57**. Matches the stated "57 checks." All 57 pass, 0 fail, 0 missing.
+- Artifact summary: "57 pass, 0 fail, 0 missing of 57" → **MATCH**.
+- Verdict: all pass → `FULL_STACK_BUILD_SOUND` → **MATCH**.
+
+---
+
+## Case 2: `violations`
+
+Input differs from full-pass in these planted fields:
+- `frontend.framework_bloat_present` = **true** (must be false → fail)
+- `backend.bare_500_responses_present` = **true** (must be false → fail)
+- `data.string_concatenated_sql_present` = **true** (must be false → fail)
+- `security.secrets_in_repo_present` = **true** (must be false → fail)
+- `testing.tests_deferred_present` = **true** (must be false → fail)
+- `deploy.docker_used_present` = **true** (must be false → fail)
+- `deploy.big_bang_release_present` = **true** (must be false → fail)
+- `deploy.premature_optimization_present` = **true** (must be false → fail)
+
+That is **8** planted wrong values, each mapping to exactly one anti-pattern check.
+
+### Computed quantities (unchanged from case 1)
+- `slices_declared`: present, length 1 → pass → **MATCH**.
+- `every_slice_end_to_end`: row true → pass → **MATCH**.
+- `slices_count` = 1 → **MATCH**.
+- `slices_not_end_to_end` = `[]` → **MATCH**.
+- `slice_end_to_end_coverage` = 1/1 → `"1.000000"` → **MATCH**.
+- Conditional checks: zero_knowledge_required=false → both pass; direct_to_production_used=false → bridge passes → **MATCH**.
+- `computed_status`: both primary computed checks pass → `within_stated_limits_on_declared_evidence` → **MATCH**.
+
+### Failing checks — confirm exactly the planted ones
+Expected fails (8): `no_framework_bloat`, `no_bare_500_responses`, `no_string_concatenated_sql`, `no_secrets_in_repo`, `no_tests_deferred`, `no_docker_used`, `no_big_bang_release`, `no_premature_optimization`.
+
+Artifact fails (scanning statuses): `no_framework_bloat` (fail), `no_bare_500_responses` (fail), `no_string_concatenated_sql` (fail), `no_secrets_in_repo` (fail), `no_tests_deferred` (fail), `no_docker_used` (fail), `no_big_bang_release` (fail), `no_premature_optimization` (fail). All other checks pass. → **exactly the 8 planted checks fail. MATCH.**
+
+### Section rollup
+- approach_and_contracts: all pass → pass → **MATCH**.
+- frontend: `no_framework_bloat` fail → fail → **MATCH**.
+- backend_and_data: `no_bare_500`, `no_string_concatenated_sql` fail → fail → **MATCH**.
+- security: `no_secrets_in_repo` fail → fail → **MATCH**.
+- testing_and_quality: `no_tests_deferred` fail → fail → **MATCH**.
+- deploy_and_delivery: `no_docker`, `no_big_bang`, `no_premature` fail → fail → **MATCH**.
+
+### Summary counts
+57 total; 8 fail; 57 − 8 = **49 pass**; 0 missing.
+- Artifact: "49 pass, 8 fail, 0 missing of 57" → **MATCH**.
+- Verdict: any fail → `FULL_STACK_BUILD_NOT_SOUND` → **MATCH**.
+
+---
+
+## Conclusion
+
+Every computed quantity (`slices_declared`, `every_slice_end_to_end`, `computed_status`, `slices_count`, `slices_not_end_to_end`, `slice_end_to_end_coverage`), every conditional check, the section rollups, the pass/fail/missing counts, and the verdicts recompute to the artifact values in both cases. In the violations case the failing checks are exactly the 8 checks corresponding to the 8 planted wrong values.
+
+AGREEMENT: full

@@ -1,0 +1,101 @@
+I'll recompute the computed quantities from the case inputs, using the rules stated in SERVICE.md.
+
+## Computed quantities to verify
+
+SERVICE.md marks these as computed/derived:
+1. **Starting-current multiple** = `starting_current_a / full_load_current_a`, recorded to six decimals, never graded.
+2. **ANSI device number validity** = every entry in the skill's list `{50,51,87,27,59,81,49,46,32,25,86}`, list non-empty.
+3. **Verdict** = SOUND (all 44 pass) / NOT_SOUND (any fail) / INSUFFICIENT_EVIDENCE (none fail but some missing).
+4. **Section statuses** and **summary counts** (pass/fail/missing of 44).
+
+---
+
+## Case 1: `full-pass` (test-001)
+
+### Starting-current multiple
+- `starting_current_a` = 600.0, `full_load_current_a` = 100.0
+- 600.0 / 100.0 = **6.0**
+- Serialized to six decimals: `6.000000`
+- Artifact evidence: "6.000000 x FLA declared" → **MATCH**
+
+### ANSI device numbers
+- `protection_in_scope` = false → ANSI check is "not applicable" → pass.
+- Artifact: `ansi_device_numbers_valid` = pass, "not applicable: protection not declared in scope" → **MATCH**
+
+### Standing-rule checks (bind regardless of scope)
+- `final_settings_deferred_to_study` = true → pass. Artifact: pass → **MATCH**
+- `settings_published_as_fact` = false → pass (must be false). Artifact: pass → **MATCH**
+
+### Gate logic spot-checks
+- `vfd_involved` = false → all 5 drive checks not applicable → pass. Artifact: all 5 pass "not applicable" → **MATCH**
+- `hazardous_area_involved` = false → 3 hazloc checks not applicable → pass. Artifact: pass → **MATCH**
+- `calculations_relied_upon` = false → 5 calc checks not applicable → pass. Artifact: pass → **MATCH**
+- `document_review_in_scope` = false → 4 doc checks not applicable → pass. Artifact: pass → **MATCH**
+- `going_public` = false → sanitization not applicable → pass. Artifact: pass → **MATCH**
+- `machine_family` = induction → 3 induction checks required (all true → pass); synchronous/transformer/dc checks not applicable → pass. Artifact: matches → **MATCH**
+
+### Verdict and counts
+- All checks pass, none missing → **SOUND**.
+- Count: 4 engagement + 13 machine_analysis + 5 drives + 7 protection + 5 standards + 5 calculations + 5 documents = **44 checks**.
+  - Let me verify: engagement 4; machine_analysis: machine_family_named(1) + 3 induction + 3 sync + 3 transformer + 2 dc = 12... wait, count the artifact: machine_family_named, induction_slip, induction_torque, induction_starting_current_multiple, induction_losses, sync_excitation, sync_capability, sync_sync, xfmr_vector, xfmr_inrush, xfmr_thermal, dc_excitation, dc_retrofit = **13**. 
+  - drives 5; protection: selectivity, primary_backup, ansi, ct_pt, idmt, final_settings, settings_not_fact = **7**; standards 5; calculations 5; documents 5.
+  - Total = 4+13+5+7+5+5+5 = **44** ✓
+- Artifact summary: "44 pass, 0 fail, 0 missing of 44" → **MATCH**
+- Artifact verdict: SOUND → **MATCH**
+
+---
+
+## Case 2: `violations` (test-002)
+
+### Starting-current multiple
+- 600.0 / 100.0 = 6.0 → `6.000000`. Artifact: "6.000000 x FLA declared" → **MATCH**
+
+### ANSI device numbers (planted wrong value)
+- `ansi_device_numbers` = `["999"]`
+- Skill list = {50,51,87,27,59,81,49,46,32,25,86}. Is "999" in it? **No.**
+- List non-empty? Yes, but every entry must be in the list → **FAIL**.
+- Artifact: `ansi_device_numbers_valid` = **fail** → **MATCH**
+
+### settings_published_as_fact (planted wrong value)
+- Input `settings_published_as_fact` = **true**. Rule: must be false to pass → **FAIL**.
+- Artifact: `settings_not_published_as_fact` = **fail** → **MATCH**
+
+### Other protection checks (in scope = true)
+- selectivity = true → pass. Artifact: pass → **MATCH**
+- primary_and_backup = true → pass. Artifact: pass → **MATCH**
+- ct_pt = true → pass. Artifact: pass → **MATCH**
+- idmt = true → pass. Artifact: pass → **MATCH**
+- final_settings_deferred_to_study = true → pass. Artifact: pass → **MATCH**
+
+### Are the failing checks exactly the planted ones?
+- Planted wrong values: `ansi_device_numbers = ["999"]` and `settings_published_as_fact = true`.
+- Expected fails: `ansi_device_numbers_valid` and `settings_not_published_as_fact` — exactly 2.
+- Artifact fails: exactly those 2. → **MATCH**
+
+### Verdict and counts
+- 2 fails → **NOT_SOUND**.
+- Counts: 44 total, 2 fail → 42 pass, 0 missing.
+- Artifact summary: "42 pass, 2 fail, 0 missing of 44" → **MATCH**
+- Artifact verdict: NOT_SOUND → **MATCH**
+- Section statuses: only `protection` = fail, all others pass. Artifact matches → **MATCH**
+
+---
+
+## Summary of recomputation
+
+| Quantity | Recomputed | Artifact | Status |
+|---|---|---|---|
+| Case1 starting multiple | 6.000000 | 6.000000 | MATCH |
+| Case1 ANSI (n/a) | pass | pass | MATCH |
+| Case1 verdict | SOUND | SOUND | MATCH |
+| Case1 counts | 44/0/0 | 44/0/0 | MATCH |
+| Case2 starting multiple | 6.000000 | 6.000000 | MATCH |
+| Case2 ANSI ("999" invalid) | fail | fail | MATCH |
+| Case2 settings_published_as_fact=true | fail | fail | MATCH |
+| Case2 failing set | {ansi, settings_not_fact} | same 2 | MATCH |
+| Case2 verdict | NOT_SOUND | NOT_SOUND | MATCH |
+| Case2 counts | 42/2/0 | 42/2/0 | MATCH |
+
+All computed quantities and check outcomes recompute to the artifact's recorded values. The violations case fails exactly the two checks corresponding to the planted wrong values (`ansi_device_numbers = ["999"]`, `settings_published_as_fact = true`), with no spurious failures.
+
+AGREEMENT: full

@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "trip_label": "NYC-LON-2025",
+        "trip": { "origin": "JFK", "destination": "LHR", "travel_dates": "2025-06-01", "flexibility": "low" },
+        "drivers": { "advance_purchase_explained": true, "day_of_week_explained": true, "nearby_airports_considered": true, "split_tickets_considered": true },
+        "strategy": { "search_strategy_given": true, "price_only_without_strategy": false },
+        "total_cost": { "headline_fare": 500.0, "fees": 50.0, "baggage_fees": 20.0, "seat_fees": 30.0, "declared_total_cost": 600.0, "total_cost_surfaced": true, "headline_presented_as_total_cost": false },
+        "construction": { "legs": [{ "label": "Leg1", "price": 300.0 }, { "label": "Leg2", "price": 250.0 }], "declared_constructed_total": 550.0, "baseline_direct_fare": 600.0, "declared_savings": 50.0, "constructed_option_compared_to_direct": true },
+        "integrity": { "prices_invented": false, "quoted_fare_presented_as_starting_point": true, "recheck_before_booking_advised": true, "uncheckable_items_disclosed": true }
+      },
+      "expect": {
+        "outcome": "FARE_CONSTRUCTION_SAVINGS_STRATEGY_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: computed_total_cost=600.000000, computed_constructed_total=550.000000, computed_savings=50.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "trip_label": "NYC-LON-2025",
+        "trip": { "origin": "JFK", "destination": "LHR", "travel_dates": "2025-06-01", "flexibility": "low" },
+        "drivers": { "advance_purchase_explained": true, "day_of_week_explained": true, "nearby_airports_considered": true, "split_tickets_considered": true },
+        "strategy": { "search_strategy_given": true, "price_only_without_strategy": false },
+        "total_cost": { "headline_fare": 500.0, "fees": 50.0, "baggage_fees": 20.0, "seat_fees": 30.0, "declared_total_cost": 999.0, "total_cost_surfaced": true, "headline_presented_as_total_cost": false },
+        "construction": { "legs": [{ "label": "Leg1", "price": 300.0 }], "declared_constructed_total": 300.0, "baseline_direct_fare": 600.0, "declared_savings": 50.0, "constructed_option_compared_to_direct": true },
+        "integrity": { "prices_invented": false, "quoted_fare_presented_as_starting_point": true, "recheck_before_booking_advised": true, "uncheckable_items_disclosed": true }
+      },
+      "expect": {
+        "outcome": "FARE_CONSTRUCTION_SAVINGS_STRATEGY_NOT_READY",
+        "http": 200,
+        "failing_checks": ["total_cost_surface", "fare_construction"],
+        "notes": "Declared total cost (999) does not match sum (600); declared savings (50) does not match baseline (600) minus constructed (300)."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": { "trip_label": "Minimal" },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required fields for trip_definition and other sections."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": { "trip": "invalid_string_instead_of_object" },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on trip field."
+      }
+    }
+  ]
+}

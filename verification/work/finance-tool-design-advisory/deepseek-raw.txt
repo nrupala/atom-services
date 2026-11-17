@@ -1,0 +1,103 @@
+# Independent recompute — finance-tool-design-advisory
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Rule set I apply (from SERVICE.md)
+
+- **features_count** = declared list length (integer), null if list absent.
+- **scenario_coverage** = (# rows with `shows_scenarios_and_tradeoffs` true) ÷ features_count; null if denominator absent/empty.
+- **traceability_coverage** = (# rows with `figures_traceable` true) ÷ features_count; null if denominator absent/empty.
+- **Serialization**: `floor(v*1000000 + 0.5)/1000000`, formatted to exactly 6 decimals.
+- **features_without_scenarios_and_tradeoffs**: rows where field present but not true (absent field → missing evidence, not listed).
+- **features_implying_advice**: rows with `implies_advice_present: true`.
+- **features_without_traceable_figures**: rows where field present but not true.
+- **backtest_features_without_overfit_survivorship_address**: backtest rows where target field present but not true.
+- **computed_status**: `within_...` if all five primary computed checks complete and pass; `outside_...` if any fails; null if any cannot be completed.
+- **verdict**: SOUND (all 32 pass) / NOT_SOUND (any fail) / INSUFFICIENT_EVIDENCE (nothing fails, evidence missing).
+
+The five primary computed checks: features_declared, every_feature_shows_scenarios_and_tradeoffs, no_feature_implies_advice, every_feature_figures_traceable, every_backtest_feature_addresses_overfit_and_survivorship.
+
+---
+
+## Case 1: `full-pass`
+
+Input features list: 1 row — `BacktestEngine`, `shows_scenarios_and_tradeoffs: true`, `implies_advice_present: false`, `figures_traceable: true`, `is_backtest: true`, `overfit_and_survivorship_addressed: true`.
+
+**features_count** = length of list = **1**. Artifact: `1`. **MATCH.**
+
+**scenario_coverage**: rows with scenarios true = 1 (BacktestEngine). 1 ÷ 1 = 1.0.
+Serialization: floor(1.0·1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH.**
+
+**traceability_coverage**: rows with figures_traceable true = 1. 1 ÷ 1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH.**
+
+**features_without_scenarios_and_tradeoffs**: rows present-but-not-true = none → `[]`. Artifact: `[]`. **MATCH.**
+
+**features_implying_advice**: rows with implies_advice_present true = none → `[]`. Artifact: `[]`. **MATCH.**
+
+**features_without_traceable_figures**: none → `[]`. Artifact: `[]`. **MATCH.**
+
+**backtest_features_without_overfit_survivorship_address**: backtest rows = {BacktestEngine}; its overfit field = true (present, true) → not listed → `[]`. Artifact: `[]`. **MATCH.**
+
+**Primary computed checks** (all complete, all pass):
+- features_declared: list present, non-empty → pass.
+- every_feature_shows_scenarios_and_tradeoffs: 1/1 true → pass.
+- no_feature_implies_advice: 0 implying → pass.
+- every_feature_figures_traceable: 1/1 true → pass.
+- every_backtest_feature_addresses_overfit_and_survivorship: 1/1 backtest addressed → pass.
+
+All five complete and pass → **computed_status = `within_stated_limits_on_declared_evidence`**. Artifact: same. **MATCH.**
+
+**Verdict**: I count the 32 checks. All declared booleans are in the passing polarity (recommendation_language_present=false, data_selling_present=false, core_features_gated_present=false, all five anti_patterns false; all others true). Margin features present → margin_disclosure_carried=true → pass. No fails, no missing → **FINANCE_TOOL_DESIGN_SOUND**. Artifact: same. **MATCH.**
+
+**Summary count**: 32 pass, 0 fail, 0 missing of 32. Artifact: same. **MATCH.**
+
+---
+
+## Case 2: `violations`
+
+Input differs from full-pass in exactly two fields: `compliance.recommendation_language_present: true` and `features[0].implies_advice_present: true`. Everything else identical.
+
+**features_count** = **1**. Artifact: `1`. **MATCH.**
+
+**scenario_coverage**: 1/1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH.**
+
+**traceability_coverage**: 1/1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH.**
+
+**features_without_scenarios_and_tradeoffs**: none → `[]`. Artifact: `[]`. **MATCH.**
+
+**features_implying_advice**: BacktestEngine has implies_advice_present=true → `["BacktestEngine"]`. Artifact: `["BacktestEngine"]`. **MATCH.**
+
+**features_without_traceable_figures**: none → `[]`. Artifact: `[]`. **MATCH.**
+
+**backtest_features_without_overfit_survivorship_address**: BacktestEngine overfit field true → `[]`. Artifact: `[]`. **MATCH.**
+
+**Primary computed checks**:
+- features_declared: pass.
+- every_feature_shows_scenarios_and_tradeoffs: pass.
+- **no_feature_implies_advice: FAIL** (BacktestEngine implies advice).
+- every_feature_figures_traceable: pass.
+- every_backtest_feature_addresses_overfit_and_survivorship: pass.
+
+One primary check fails → **computed_status = `outside_stated_limits_on_declared_evidence`**. Artifact: same. **MATCH.**
+
+**Verdict**: The two planted wrong values should fail exactly two checks:
+1. `recommendation_language_present: true` → **no_recommendation_language** fails (compliance section).
+2. `implies_advice_present: true` → **no_feature_implies_advice** fails (compliance section).
+
+All other 30 checks should pass. So compliance_and_advice_boundary = fail; other four sections = pass. Verdict = **FINANCE_TOOL_DESIGN_NOT_SOUND**.
+
+Artifact: `no_recommendation_language` = fail, `no_feature_implies_advice` = fail, all other 30 = pass; sections: compliance fail, rest pass; verdict NOT_SOUND. **MATCH** — the failing checks are exactly the two the planted values should fail, and no others.
+
+**Summary count**: 30 pass, 2 fail, 0 missing of 32. Artifact: same. **MATCH.**
+
+---
+
+## Cross-check of the "32 checks" claim
+
+Counting the checks array in the artifact: compliance section has 8 (tool_calculates_user_decides, no_recommendation_language, disclaimers_carried, finra_2214_and_csa_framing_addressed, advice_like_language_redesigned_to_scenarios, margin_disclosure_when_margin_features, every_feature_shows_scenarios_and_tradeoffs, no_feature_implies_advice); quant 6; reproducibility 8 (open_data, open_source, every_number, zero_knowledge, user_held_keys, no_data_selling, features_declared, every_feature_figures_traceable); business_model 4; anti_patterns 6. Total = 8+6+8+4+6 = **32**. Consistent with the summary line. **MATCH.**
+
+---
+
+Every computed quantity and headline value in both artifacts recomputes exactly from the inputs under the stated rules. No mismatches found.
+
+AGREEMENT: full

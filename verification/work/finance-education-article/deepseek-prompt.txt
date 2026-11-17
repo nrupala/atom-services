@@ -1,0 +1,545 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: finance-education-article
+
+=== contract.yaml ===
+service_name: finance-education-article
+display_name: Finance education article
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:finance-content
+binding:
+  skill: finance-content
+  skill_path: workspace/mymilo-build/skills/finance-content/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- MCP
+- agent
+implementation:
+  language: Python 3 (stdlib only)
+  entry: src/finance_education_article.py — evaluate(manifest) -> verdict dict; CLI prints JSON + stamp
+  tests: tests/test_finance_education_article.py — 31 tests, all passing 2026-11-15; TypeScript port rails/gateway/src/atoms/finance-education-article.ts — 38 tests, all passing 2026-11-15; differential spec-corruption sweep 179 cases, 0 mismatches 2026-11-15
+keys:
+  namespace: finance_education_article
+  prefix: atm_1_finance_education_article_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Think With Finance article production
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Finance education article — `finance-education-article`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Finance education content, no signals (thinkwithfinance).
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Think With Finance article production**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Distinct ground (vs the live sibling)
+
+The live sibling `finance-content-compliance-check` audits the **compliance posture** of finance content — advice-vs-licensing boundary, risk framing, calculators and tools, commercial honesty, corrections and privacy. This atom audits the **article-production record** under its own bound skill (`finance-content`): whether the declared record shows an article built the way that skill prescribes — its structure in the skill's order, its mechanics shown in a worked example whose arithmetic re-derives, no buy/sell signals and no trade execution, the article's own disclosures (assumptions, data dates, limits), and the education-only review declarations. The check sets do not duplicate: no sibling check (personalized-recommendation, disclaimer, figure sourcing/re-derivation, risk framing, calculator, commercial, correction or privacy check) appears here, and no check here appears there. This atom writes no article; it audits the declared article-production record only, and it never reads the article's prose.
+
+## Inputs — the finance-education article-production manifest
+
+The caller submits one JSON manifest. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid = the
+check fails (`NOT_ARTICLE_READY`). All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `article` (string; the article title, carried into the verdict output, not itself checked) | — |
+| `topic` (non-empty string; the concept the article explains) | article_structure |
+| `structure.concept_explained` | article_structure |
+| `structure.framework_taught_not_answer` | article_structure |
+| `structure.what_to_watch_close_present` | article_structure |
+| `structure.section_order` (list of strings; computed check — must equal exactly `["concept", "worked_example", "what_to_watch"]`, the skill's structure in order) | article_structure |
+| `worked_example.present` | worked_example |
+| `worked_example.steps` (list of worked-example steps; absent / not a list / empty = both computed checks missing) | worked_example |
+| `worked_example.steps[].operation` (string; one of `add`, `subtract`, `multiply`, `divide` — any other value makes the step incomplete, not failed) | worked_example |
+| `worked_example.steps[].operands` (list of numbers; at least one operand, at least two for `subtract`/`divide`; a zero divisor after the first operand makes the step incomplete) | worked_example |
+| `worked_example.steps[].declared_result` (number; compared with the re-derived result at 6-decimal formatting) | worked_example |
+| `signals.buy_sell_signals_present` (must be `false` to pass) | no_signals |
+| `signals.implied_trade_present` (must be `false` to pass) | no_signals |
+| `signals.trade_execution_present` (must be `false` to pass) | no_signals |
+| `disclosure.uses_data_or_assumptions` (gates all four disclosure checks below) | disclosures |
+| `disclosure.assumptions_stated` (required when the article uses data or assumptions; otherwise the check passes as not applicable) | disclosures |
+| `disclosure.data_dates_stated` (required when the article uses data or assumptions; otherwise the check passes as not applicable) | disclosures |
+| `disclosure.limits_stated` (required when the article uses data or assumptions; otherwise the check passes as not applicable) | disclosures |
+| `disclosure.data_as_of` (non-empty string; the article's data as-of date; required when the article uses data or assumptions, otherwise the check passes as not applicable) | disclosures |
+| `review.education_only_review_passed` | review |
+| `review.think_with_finance_voice_confirmed` | review |
+| `review.plain_language_review_passed` | review |
+| `review.no_hype_confirmed` | review |
+
+Two checks are computed, not declared: the declared section order is
+compared with the skill's structure (concept, worked example,
+what-to-watch), and every complete worked-example step is re-derived
+from its declared operands and operation and compared with its
+declared result at 6-decimal formatting. The verdict dict also
+reports `steps_evaluated` and `steps_incomplete` counts. No threshold
+is invented by the atom — it checks the caller's declared evidence
+only.
+
+The verdict is one of `ARTICLE_READY` (all 19 checks pass),
+`NOT_ARTICLE_READY` (any check fails), or `INSUFFICIENT_EVIDENCE`
+(nothing fails but evidence is missing), across five sections:
+article_structure, worked_example, no_signals, disclosures, review.
+
+## Declined thresholds (named, not invented)
+
+The skill states none of the following, so the atom sets none of them:
+
+- **No article length threshold** — no minimum or maximum word count, in the skill or here.
+- **No readability / reading-level score** — "explained simply" is a reviewer declaration, never a computed score.
+- **No freshness window for data dates** — the skill requires data dates to be stated; it sets no maximum age, so an old-but-stated date passes and only an unstated or empty date fails.
+- **No minimum source count and no per-figure sourcing rule** — the skill for this atom states no sourcing count; per-figure sourcing is the sibling compliance atom's ground and is deliberately not duplicated here.
+- **No arithmetic tolerance beyond 6-decimal formatting** — steps re-derive exactly at the fleet's 6-decimal formatting; no looser percentage or absolute tolerance is grounded in the skill.
+- **No partial credit for section order** — the skill gives one structure in one order; a different declared order fails, with no near-miss band.
+
+## Non-reducible parts (stated plainly)
+
+Writing quality, clarity, pedagogy, Think With Finance voice fidelity,
+whether the framework is genuinely taught rather than an answer given,
+and whether prose in fact implies a trade are judgment-shaped and
+cannot be decided from declared fields. They enter this atom only as
+caller/reviewer declarations (`review.*`, `structure.framework_taught_not_answer`,
+`signals.*`) — the atom records and verdicts those declarations, it
+never judges the prose itself and never claims to have read the article.
+
+## Status
+
+Tier B · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
+
+## Named doubt (from the register)
+
+Commodity content writing
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "article": "Understanding Compound Interest",
+      "topic": "Compound Interest",
+      "structure": {
+        "concept_explained": true,
+        "framework_taught_not_answer": true,
+        "what_to_watch_close_present": true,
+        "section_order": [
+          "concept",
+          "worked_example",
+          "what_to_watch"
+        ]
+      },
+      "worked_example": {
+        "present": true,
+        "steps": [
+          {
+            "operation": "multiply",
+            "operands": [
+              100,
+              1.05
+            ],
+            "declared_result": 105.0
+          }
+        ]
+      },
+      "signals": {
+        "buy_sell_signals_present": false,
+        "implied_trade_present": false,
+        "trade_execution_present": false
+      },
+      "disclosure": {
+        "uses_data_or_assumptions": true,
+        "assumptions_stated": true,
+        "data_dates_stated": true,
+        "limits_stated": true,
+        "data_as_of": "2026-11-01"
+      },
+      "review": {
+        "education_only_review_passed": true,
+        "think_with_finance_voice_confirmed": true,
+        "plain_language_review_passed": true,
+        "no_hype_confirmed": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "finance-education-article",
+      "atom_version": "0.1.0",
+      "article": "Understanding Compound Interest",
+      "verdict": "ARTICLE_READY",
+      "sections": {
+        "article_structure": "pass",
+        "worked_example": "pass",
+        "no_signals": "pass",
+        "disclosures": "pass",
+        "review": "pass"
+      },
+      "checks": [
+        {
+          "section": "article_structure",
+          "check": "topic_stated",
+          "status": "pass",
+          "evidence": "the article's concept/topic is stated (skill example: explain what a yield curve is)"
+        },
+        {
+          "section": "article_structure",
+          "check": "concept_explained",
+          "status": "pass",
+          "evidence": "structure: the concept is explained"
+        },
+        {
+          "section": "article_structure",
+          "check": "framework_taught_not_answer",
+          "status": "pass",
+          "evidence": "teach the framework (how to think), not the answer (what to do)"
+        },
+        {
+          "section": "article_structure",
+          "check": "what_to_watch_close_present",
+          "status": "pass",
+          "evidence": "structure: the article closes with what to watch"
+        },
+        {
+          "section": "article_structure",
+          "check": "section_order_matches_skill",
+          "status": "pass",
+          "evidence": "declared section order is concept, worked_example, what_to_watch \u2014 the skill's structure, in order"
+        },
+        {
+          "section": "worked_example",
+          "check": "worked_example_present",
+          "status": "pass",
+          "evidence": "structure: the mechanics are shown with a worked example"
+        },
+        {
+          "section": "worked_example",
+          "check": "worked_example_steps_complete",
+          "status": "pass",
+          "evidence": "every worked-example step declares an operation, operands, and a declared result"
+        },
+        {
+          "section": "worked_example",
+          "check": "worked_example_arithmetic_correct",
+          "status": "pass",
+          "evidence": "every worked-example step re-derives to its declared result at 6-decimal formatting (skill: show the mechanics with a worked example)"
+        },
+        {
+          "section": "no_signals",
+          "check": "no_buy_sell_signals",
+          "status": "pass",
+          "evidence": "hard rule: no buy/sell signals \u2014 never imply a trade; no 'buy', 'sell', 'overweight' as instructions"
+        },
+        {
+          "section": "no_signals",
+          "check": "no_implied_trade",
+          "status": "pass",
+          "evidence": "hard rule: never imply a trade"
+        },
+        {
+          "section": "no_signals",
+          "check": "no_trade_execution",
+          "status": "pass",
+          "evidence": "hard rule: no trade execution \u2014 analysis and frameworks only"
+        },
+        {
+          "section": "disclosures",
+          "check": "assumptions_stated",
+          "status": "pass",
+          "evidence": "disclosures: assumptions stated where relevant"
+        },
+        {
+          "section": "disclosures",
+          "check": "data_dates_stated",
+          "status": "pass",
+          "evidence": "disclosures: data dates stated where relevant"
+        },
+        {
+          "section": "disclosures",
+          "check": "limits_stated",
+          "status": "pass",
+          "evidence": "disclosures: limits stated where relevant"
+        },
+        {
+          "section": "disclosures",
+          "check": "data_as_of_stated",
+          "status": "pass",
+          "evidence": "disclosures: the article's data as-of date is stated"
+        },
+        {
+          "section": "review",
+          "check": "education_only_review_passed",
+          "status": "pass",
+          "evidence": "review declaration: the piece is education only \u2014 the reader should understand more, not act more"
+        },
+        {
+          "section": "review",
+          "check": "think_with_finance_voice_confirmed",
+          "status": "pass",
+          "evidence": "review declaration: the piece is in the Think With Finance voice"
+        },
+        {
+          "section": "review",
+          "check": "plain_language_review_passed",
+          "status": "pass",
+          "evidence": "review declaration: concepts and analysis are explained simply"
+        },
+        {
+          "section": "review",
+          "check": "no_hype_confirmed",
+          "status": "pass",
+          "evidence": "review declaration: no hype"
+        }
+      ],
+      "steps_evaluated": 1,
+      "steps_incomplete": 0,
+      "summary": "19 pass, 0 fail, 0 missing of 19 checks across five sections.",
+      "stamp": "FINANCE EDUCATION ARTICLE\narticle: Understanding Compound Interest\nVERDICT: ARTICLE_READY\n  article_structure          pass\n  worked_example             pass\n  no_signals                 pass\n  disclosures                pass\n  review                     pass\n19 pass, 0 fail, 0 missing of 19 checks across five sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "article": "Understanding Compound Interest",
+      "topic": "Compound Interest",
+      "structure": {
+        "concept_explained": true,
+        "framework_taught_not_answer": true,
+        "what_to_watch_close_present": true,
+        "section_order": [
+          "concept",
+          "what_to_watch",
+          "worked_example"
+        ]
+      },
+      "worked_example": {
+        "present": true,
+        "steps": [
+          {
+            "operation": "add",
+            "operands": [
+              1,
+              1
+            ],
+            "declared_result": 999.0
+          }
+        ]
+      },
+      "signals": {
+        "buy_sell_signals_present": true,
+        "implied_trade_present": false,
+        "trade_execution_present": false
+      },
+      "disclosure": {
+        "uses_data_or_assumptions": true,
+        "assumptions_stated": true,
+        "data_dates_stated": true,
+        "limits_stated": true,
+        "data_as_of": "2026-11-01"
+      },
+      "review": {
+        "education_only_review_passed": true,
+        "think_with_finance_voice_confirmed": true,
+        "plain_language_review_passed": true,
+        "no_hype_confirmed": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "finance-education-article",
+      "atom_version": "0.1.0",
+      "article": "Understanding Compound Interest",
+      "verdict": "NOT_ARTICLE_READY",
+      "sections": {
+        "article_structure": "fail",
+        "worked_example": "fail",
+        "no_signals": "fail",
+        "disclosures": "pass",
+        "review": "pass"
+      },
+      "checks": [
+        {
+          "section": "article_structure",
+          "check": "topic_stated",
+          "status": "pass",
+          "evidence": "the article's concept/topic is stated (skill example: explain what a yield curve is)"
+        },
+        {
+          "section": "article_structure",
+          "check": "concept_explained",
+          "status": "pass",
+          "evidence": "structure: the concept is explained"
+        },
+        {
+          "section": "article_structure",
+          "check": "framework_taught_not_answer",
+          "status": "pass",
+          "evidence": "teach the framework (how to think), not the answer (what to do)"
+        },
+        {
+          "section": "article_structure",
+          "check": "what_to_watch_close_present",
+          "status": "pass",
+          "evidence": "structure: the article closes with what to watch"
+        },
+        {
+          "section": "article_structure",
+          "check": "section_order_matches_skill",
+          "status": "fail",
+          "evidence": "declared section order is concept, worked_example, what_to_watch \u2014 the skill's structure, in order"
+        },
+        {
+          "section": "worked_example",
+          "check": "worked_example_present",
+          "status": "pass",
+          "evidence": "structure: the mechanics are shown with a worked example"
+        },
+        {
+          "section": "worked_example",
+          "check": "worked_example_steps_complete",
+          "status": "pass",
+          "evidence": "every worked-example step declares an operation, operands, and a declared result"
+        },
+        {
+          "section": "worked_example",
+          "check": "worked_example_arithmetic_correct",
+          "status": "fail",
+          "evidence": "every worked-example step re-derives to its declared result at 6-decimal formatting (skill: show the mechanics with a worked example)"
+        },
+        {
+          "section": "no_signals",
+          "check": "no_buy_sell_signals",
+          "status": "fail",
+          "evidence": "hard rule: no buy/sell signals \u2014 never imply a trade; no 'buy', 'sell', 'overweight' as instructions"
+        },
+        {
+          "section": "no_signals",
+          "check": "no_implied_trade",
+          "status": "pass",
+          "evidence": "hard rule: never imply a trade"
+        },
+        {
+          "section": "no_signals",
+          "check": "no_trade_execution",
+          "status": "pass",
+          "evidence": "hard rule: no trade execution \u2014 analysis and frameworks only"
+        },
+        {
+          "section": "disclosures",
+          "check": "assumptions_stated",
+          "status": "pass",
+          "evidence": "disclosures: assumptions stated where relevant"
+        },
+        {
+          "section": "disclosures",
+          "check": "data_dates_stated",
+          "status": "pass",
+          "evidence": "disclosures: data dates stated where relevant"
+        },
+        {
+          "section": "disclosures",
+          "check": "limits_stated",
+          "status": "pass",
+          "evidence": "disclosures: limits stated where relevant"
+        },
+        {
+          "section": "disclosures",
+          "check": "data_as_of_stated",
+          "status": "pass",
+          "evidence": "disclosures: the article's data as-of date is stated"
+        },
+        {
+          "section": "review",
+          "check": "education_only_review_passed",
+          "status": "pass",
+          "evidence": "review declaration: the piece is education only \u2014 the reader should understand more, not act more"
+        },
+        {
+          "section": "review",
+          "check": "think_with_finance_voice_confirmed",
+          "status": "pass",
+          "evidence": "review declaration: the piece is in the Think With Finance voice"
+        },
+        {
+          "section": "review",
+          "check": "plain_language_review_passed",
+          "status": "pass",
+          "evidence": "review declaration: concepts and analysis are explained simply"
+        },
+        {
+          "section": "review",
+          "check": "no_hype_confirmed",
+          "status": "pass",
+          "evidence": "review declaration: no hype"
+        }
+      ],
+      "steps_evaluated": 1,
+      "steps_incomplete": 0,
+      "summary": "16 pass, 3 fail, 0 missing of 19 checks across five sections.",
+      "stamp": "FINANCE EDUCATION ARTICLE\narticle: Understanding Compound Interest\nVERDICT: NOT_ARTICLE_READY\n  article_structure          fail\n  worked_example             fail\n  no_signals                 fail\n  disclosures                pass\n  review                     pass\n16 pass, 3 fail, 0 missing of 19 checks across five sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

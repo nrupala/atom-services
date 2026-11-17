@@ -1,0 +1,872 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: framework-adoption-adr
+
+=== contract.yaml ===
+service_name: framework-adoption-adr
+display_name: Framework adoption adr
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:framework-discipline
+binding:
+  skill: framework-discipline
+  skill_path: workspace/mymilo-build/skills/framework-discipline/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: framework_adoption_adr
+  prefix: atm_1_framework_adoption_adr_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Product stack framework adoption decisions
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Framework adoption adr — `framework-adoption-adr`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Adopt, structure, and upgrade frameworks deliberately — ADR for new ones, keep core framework-free, plan exits.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Product stack framework adoption decisions**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Distinct ground vs the sibling `architecture-decision-record` atom
+
+A live sibling, `architecture-decision-record`, audits a **general**
+architecture decision record for completeness: NFRs written and
+agreed, boundaries and contracts, an alternatives list of 2–3 with
+trade-offs and at least one serious alternative, ADR format
+(numbering, Context → Decision → Consequences → Status, one page
+max), reversibility, security data flows, new-dependency reasons
+and supersession. **This atom shares zero checks with it.** This
+atom audits only the decision to **take on a framework**, on the
+ground the bound `framework-discipline` skill alone states: the
+adoption ADR's alternatives + exit-cost statement for *this
+framework*, the five named fit criteria (team familiarity,
+maintenance health, ecosystem, performance, exit cost) assessed
+per candidate framework, exactly one candidate selected,
+house-stack conformity (one framework per layer), a
+framework-free core with the framework at the edges, exact
+version pinning and major-upgrade planning, runtime
+explicitness (lifecycle, DI, caching), plugin discipline and
+deprecation handling. It has no alternatives count range, no
+trade-offs/serious flags, no ADR format, numbering, page-count,
+NFR, boundary, contract or supersession check; the sibling has
+no fit-criteria, pinning, core-isolation, plugin or
+framework-runtime check.
+
+## Inputs — the framework-adoption manifest
+
+The caller submits one JSON manifest: a declared
+framework-adoption ADR record for one project taking on one
+framework. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`FRAMEWORK_ADOPTION_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `framework` (string; the framework being adopted; carried into the verdict output, not itself checked) | — |
+| `adr.logged` (boolean) | adr_and_fit |
+| `adr.alternatives_stated` (boolean) | adr_and_fit |
+| `adr.exit_cost_stated` (boolean) | adr_and_fit |
+| `candidates` (list of candidate-row objects, each with the entry fields below; computed, see below) | adr_and_fit |
+| `candidates[].name` (string; must be a non-empty string for the row to pass the computed name check — an absent field is missing evidence, an empty string fails; names the row in the computed outputs) | adr_and_fit |
+| `candidates[].team_familiarity_assessed` (boolean; one of the five fit criteria) | adr_and_fit |
+| `candidates[].maintenance_health_assessed` (boolean; one of the five fit criteria) | adr_and_fit |
+| `candidates[].ecosystem_assessed` (boolean; one of the five fit criteria) | adr_and_fit |
+| `candidates[].performance_assessed` (boolean; one of the five fit criteria) | adr_and_fit |
+| `candidates[].exit_cost_assessed` (boolean; one of the five fit criteria) | adr_and_fit |
+| `candidates[].selected` (boolean; exactly one row in the list may be `true` for the computed selection check to pass) | adr_and_fit |
+| `house_stack.one_framework_per_layer` (boolean) | house_stack_and_core |
+| `house_stack.core_logic_imports_no_framework_code` (boolean) | house_stack_and_core |
+| `house_stack.framework_at_edges_ports_adapters` (boolean) | house_stack_and_core |
+| `house_stack.is_mid_project_change` (boolean; gates the two migration-plan checks below) | house_stack_and_core |
+| `house_stack.migration_plan_documented` (boolean; required when the adoption is a mid-project change; otherwise the check passes as not applicable) | house_stack_and_core |
+| `house_stack.migration_plan_approved` (boolean; required when the adoption is a mid-project change — skill red line; otherwise not applicable) | house_stack_and_core |
+| `versions.exact_versions_pinned` (boolean) | pinning_and_upgrades |
+| `versions.unpinned_latest_in_production_present` (boolean; must be `false` to pass — skill red line) | pinning_and_upgrades |
+| `versions.changelogs_read` (boolean) | pinning_and_upgrades |
+| `versions.updates_batched` (boolean) | pinning_and_upgrades |
+| `versions.major_upgrade_planned` (boolean; gates the two major-upgrade checks below) | pinning_and_upgrades |
+| `versions.major_upgrade_written_plan` (boolean; required when a major upgrade is declared planned; otherwise the check passes as not applicable) | pinning_and_upgrades |
+| `versions.major_upgrade_full_suite_run` (boolean; required when a major upgrade is declared planned; otherwise not applicable) | pinning_and_upgrades |
+| `runtime.explicit_configuration_preferred` (boolean) | explicitness_and_runtime |
+| `runtime.runtime_behaviour_understood` (boolean) | explicitness_and_runtime |
+| `runtime.lifecycle_understood` (boolean) | explicitness_and_runtime |
+| `runtime.dependency_injection_understood` (boolean) | explicitness_and_runtime |
+| `runtime.caching_behaviour_understood` (boolean) | explicitness_and_runtime |
+| `runtime.deprecated_apis_on_hot_path_present` (boolean; must be `false` to pass — skill quality gate) | explicitness_and_runtime |
+| `plugins.plugins_present` (boolean; gates the computed plugin-row check and the unused-plugins check below) | plugins_and_deprecations |
+| `plugins.plugins_treated_as_dependencies` (boolean) | plugins_and_deprecations |
+| `plugins.unused_plugins_removed` (boolean; required when plugins are declared present; otherwise the check passes as not applicable) | plugins_and_deprecations |
+| `plugins.items` (list of plugin-row objects, each with the entry fields below; computed when plugins are declared present, see below) | plugins_and_deprecations |
+| `plugins.items[].name` (string; names the row in the computed outputs) | plugins_and_deprecations |
+| `plugins.items[].reviewed` (boolean) | plugins_and_deprecations |
+| `plugins.items[].pinned` (boolean) | plugins_and_deprecations |
+| `deprecations.warnings_tracked` (boolean) | plugins_and_deprecations |
+| `deprecations.migrations_scheduled` (boolean) | plugins_and_deprecations |
+| `deprecations.zombie_code_paths_present` (boolean; must be `false` to pass — skill rule) | plugins_and_deprecations |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Candidates declared:** the declared `candidates` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Framework name per candidate:** every declared candidate
+  row must name a non-empty `name` string. A row with the field
+  absent is missing evidence; a row naming an empty string fails.
+- **Fit fully assessed per candidate:** every declared candidate
+  row must declare all five fit criteria from the skill's method
+  step 1 assessed — `team_familiarity_assessed`,
+  `maintenance_health_assessed`, `ecosystem_assessed`,
+  `performance_assessed`, `exit_cost_assessed` all `true` (the
+  skill: "Choose by fit: team familiarity, maintenance health,
+  ecosystem, performance, and exit cost"). A row with any fit
+  field absent is missing evidence.
+- **Exactly one candidate selected:** exactly one declared
+  candidate row may declare `selected: true` — an adoption ADR
+  decides one framework, so zero or several selected rows are
+  internally inconsistent on the declared evidence. A row with
+  `selected` absent is missing evidence.
+- **Every plugin reviewed and pinned:** when
+  `plugins.plugins_present` is declared `true`, the declared
+  `plugins.items` list must be present and non-empty and every
+  row must declare `reviewed: true` and `pinned: true` (the
+  skill: "plugins are dependencies — review, pin, and remove
+  unused ones"). A row with either field absent is missing
+  evidence. When no plugins are declared, the check passes as
+  not applicable.
+
+Three check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Mid-project change:** `migration_plan_documented` and
+  `migration_plan_approved` are required only when
+  `house_stack.is_mid_project_change` is declared `true` (the
+  skill: change mid-project = ADR + migration plan; red line: no
+  framework-hopping mid-project without an *approved* migration
+  plan); otherwise both pass as not applicable.
+- **Major upgrade:** `major_upgrade_written_plan` and
+  `major_upgrade_full_suite_run` are required only when
+  `versions.major_upgrade_planned` is declared `true` (the
+  skill's quality gate binds the written plan + full-suite run
+  to major upgrades); otherwise both pass as not applicable.
+- **Plugins:** the plugin-row and unused-plugin checks above are
+  required only when `plugins.plugins_present` is declared
+  `true`; otherwise both pass as not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`candidates_count` and `plugins_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), `selected_count` (declared
+selected candidate rows, or null when the candidates list is not
+declared), `selected_candidate` (the sole selected candidate's
+name, or null when there is not exactly one selected row with a
+non-empty name), the row-name lists `candidates_without_name`
+(null when the list is not declared),
+`candidates_without_fit_assessment` (rows with at least one fit
+field present but not all five assessed; a row with no fit field
+present is missing evidence and does not appear) and
+`plugins_without_review_or_pin` (plugin rows with `reviewed` or
+`pinned` present but not both true; a row with both absent is
+missing evidence and does not appear), and the two coverage
+ratios `fit_assessment_coverage` (candidates with all five fit
+criteria assessed ÷ declared candidates) and
+`plugin_compliance_coverage` (plugins declaring reviewed and
+pinned ÷ declared plugins).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no exit-cost
+amount, no fit score, no maintenance-health metric, no upgrade
+cadence: its fit criteria and exit cost are judgments the record
+attests to having made, not bars the atom can set. Quantities
+are computed and reported; the only bar on the computed rows is
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: an exit-cost amount or
+ceiling (the skill requires exit cost to be stated/assessed but
+states no number — caller declaration only); a fit score or
+weighting across the five criteria (the skill names the criteria
+but states no score, weight or minimum — assessment declared,
+quality not scored); a maintenance-health metric (commits,
+release cadence, issue latency — the skill says "maintenance
+health" but states no measure); a candidate-count range (the
+skill requires alternatives in the ADR but states no number for
+framework candidates — unlike the sibling skill's 2–3 general
+alternatives rule, which is *not* imported here; completeness
+and exactly-one-selected are the only bars); an upgrade cadence
+or batch size (the skill says "batch updates" but states no
+interval or size); a deprecation-migration window (the skill
+says "migrate on schedule" but states no period); a codemod
+requirement as a separate check (the skill lists codemods among
+upgrade tools — "use codemods" states no condition under which
+one is mandatory, so no check is invented for it; the written
+plan + full-suite run quality gate is the checkable bar).
+
+The verdict is one of `FRAMEWORK_ADOPTION_SOUND` (all 30 checks
+pass), `FRAMEWORK_ADOPTION_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: adr_and_fit, house_stack_and_core,
+pinning_and_upgrades, explicitness_and_runtime,
+plugins_and_deprecations.
+
+## Honest scoping
+
+This atom audits a **declared** framework-adoption record — it
+writes no ADR, chooses no framework, inspects no codebase for
+framework imports, reads no lockfile, and does not verify that a
+declared control actually works. An adoption is sound *on the
+caller's declared evidence*: a manifest that declares a logged
+ADR with exit cost, a framework-free core and pinned versions
+passes those checks even if the real project does none of it. It
+is a completeness and consistency audit of the record the skill
+requires, **not a framework selection service or a live posture
+certification**: it never judges whether the selected framework
+is the right choice commercially, whether a declared fit
+assessment was well made, whether the real core is truly
+framework-free, or whether a declared exit cost is realistic —
+only that the record contains what the skill's sections and red
+lines demand, and that its declared rows are internally
+consistent.
+
+Named exclusions: no numeric thresholds beyond the skill's own
+stated rules (see the declined list above); no live verification
+of any declared fact; no code, repository or lockfile inspection
+(core framework imports, version pinning and zombie code paths
+are caller declarations, the atom reads no code); fit judgment
+(which framework *should* be selected, how the five criteria
+should be weighted) is a caller declaration — the atom checks
+only that every candidate was assessed on all five criteria and
+that exactly one is selected, never which candidate ought to
+win; the skill's preference for boring and stable over
+fashionable is carried as the caller's own fit assessment, not
+scored here (and is not duplicated from the sibling atom's
+boring-technology check); the skill's cross-references to
+sibling disciplines (`architecture-decisions` for the ADR form
+itself, `dependency-governance` for plugin/dependency depth,
+`typescript-engineering`) are carried as the caller's own
+attestations in this record, not re-audited here — the ADR's
+*general* completeness belongs to the sibling
+`architecture-decision-record` atom.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Advice plus ADR, easily replicated
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "project": "Alpha",
+      "framework": "React",
+      "adr": {
+        "logged": true,
+        "alternatives_stated": true,
+        "exit_cost_stated": true
+      },
+      "candidates": [
+        {
+          "name": "React",
+          "team_familiarity_assessed": true,
+          "maintenance_health_assessed": true,
+          "ecosystem_assessed": true,
+          "performance_assessed": true,
+          "exit_cost_assessed": true,
+          "selected": true
+        }
+      ],
+      "house_stack": {
+        "one_framework_per_layer": true,
+        "core_logic_imports_no_framework_code": true,
+        "framework_at_edges_ports_adapters": true,
+        "is_mid_project_change": false
+      },
+      "versions": {
+        "exact_versions_pinned": true,
+        "unpinned_latest_in_production_present": false,
+        "changelogs_read": true,
+        "updates_batched": true,
+        "major_upgrade_planned": false
+      },
+      "runtime": {
+        "explicit_configuration_preferred": true,
+        "runtime_behaviour_understood": true,
+        "lifecycle_understood": true,
+        "dependency_injection_understood": true,
+        "caching_behaviour_understood": true,
+        "deprecated_apis_on_hot_path_present": false
+      },
+      "plugins": {
+        "plugins_present": false,
+        "plugins_treated_as_dependencies": true
+      },
+      "deprecations": {
+        "warnings_tracked": true,
+        "migrations_scheduled": true,
+        "zombie_code_paths_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "framework-adoption-adr",
+      "atom_version": "0.1.0",
+      "project": "Alpha",
+      "framework": "React",
+      "verdict": "FRAMEWORK_ADOPTION_SOUND",
+      "sections": {
+        "adr_and_fit": "pass",
+        "house_stack_and_core": "pass",
+        "pinning_and_upgrades": "pass",
+        "explicitness_and_runtime": "pass",
+        "plugins_and_deprecations": "pass"
+      },
+      "checks": [
+        {
+          "section": "adr_and_fit",
+          "check": "adr_logged_for_new_framework",
+          "status": "pass",
+          "evidence": "quality gate: the new framework has a logged ADR"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "adr_states_alternatives",
+          "status": "pass",
+          "evidence": "quality gate: the adoption ADR states the alternatives considered"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "adr_states_exit_cost",
+          "status": "pass",
+          "evidence": "quality gate: the adoption ADR states the exit cost of taking on this framework"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "candidates_declared",
+          "status": "pass",
+          "evidence": "choose by fit: the declared record names its candidate frameworks \u2014 the candidates list is present and non-empty"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "every_candidate_names_framework",
+          "status": "pass",
+          "evidence": "choose by fit: every declared candidate row names its framework \u2014 a non-empty name string"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "every_candidate_fit_fully_assessed",
+          "status": "pass",
+          "evidence": "choose by fit: every declared candidate row declares all five fit criteria assessed \u2014 team familiarity, maintenance health, ecosystem, performance, exit cost"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "exactly_one_candidate_selected",
+          "status": "pass",
+          "evidence": "choose by fit: exactly one declared candidate row is selected \u2014 an adoption ADR decides one framework"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "one_framework_per_layer",
+          "status": "pass",
+          "evidence": "house stack: one framework per layer"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "core_logic_imports_no_framework_code",
+          "status": "pass",
+          "evidence": "framework-free core / quality gate: core logic imports no framework code"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "framework_at_edges_ports_adapters",
+          "status": "pass",
+          "evidence": "framework-free core: the framework sits at the edges (ports & adapters); business logic lives in plain functions/modules"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "mid_project_migration_plan_documented",
+          "status": "pass",
+          "evidence": "not a mid-project change"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "mid_project_migration_plan_approved",
+          "status": "pass",
+          "evidence": "not a mid-project change"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "exact_versions_pinned",
+          "status": "pass",
+          "evidence": "pin and plan upgrades / quality gate: versions are pinned exactly"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "no_unpinned_latest_in_production",
+          "status": "pass",
+          "evidence": "red line: no unpinned \"latest\" from CDNs or tags in production"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "changelogs_read_before_upgrades",
+          "status": "pass",
+          "evidence": "pin and plan upgrades: changelogs are read before upgrades"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "updates_batched",
+          "status": "pass",
+          "evidence": "pin and plan upgrades: updates are batched"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "major_upgrade_written_plan",
+          "status": "pass",
+          "evidence": "no major upgrade declared"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "major_upgrade_full_suite_run",
+          "status": "pass",
+          "evidence": "no major upgrade declared"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "explicit_configuration_preferred",
+          "status": "pass",
+          "evidence": "avoid magic: explicit configuration is preferred"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "runtime_behaviour_understood",
+          "status": "pass",
+          "evidence": "avoid magic: what the framework does at runtime is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "lifecycle_understood",
+          "status": "pass",
+          "evidence": "avoid magic: the framework lifecycle is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "dependency_injection_understood",
+          "status": "pass",
+          "evidence": "avoid magic: the framework's dependency injection is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "caching_behaviour_understood",
+          "status": "pass",
+          "evidence": "avoid magic: the framework's caching behaviour is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "no_deprecated_apis_on_hot_path",
+          "status": "pass",
+          "evidence": "quality gate: no deprecated APIs on the hot path"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "plugins_treated_as_dependencies",
+          "status": "pass",
+          "evidence": "plugin discipline: plugins are treated as dependencies"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "every_plugin_reviewed_and_pinned",
+          "status": "pass",
+          "evidence": "no plugins declared"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "unused_plugins_removed",
+          "status": "pass",
+          "evidence": "no plugins declared"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "deprecation_warnings_tracked",
+          "status": "pass",
+          "evidence": "deprecations: deprecation warnings are tracked"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "deprecation_migrations_scheduled",
+          "status": "pass",
+          "evidence": "deprecations: deprecation migrations happen on schedule"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "no_zombie_code_paths",
+          "status": "pass",
+          "evidence": "deprecations: no zombie code paths waiting to break"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "candidates_count": 1,
+      "candidates_without_name": [],
+      "candidates_without_fit_assessment": [],
+      "fit_assessment_coverage": "1.000000",
+      "selected_count": 1,
+      "selected_candidate": "React",
+      "plugins_count": null,
+      "plugins_without_review_or_pin": null,
+      "plugin_compliance_coverage": null,
+      "summary": "30 pass, 0 fail, 0 missing of 30 checks across five sections.",
+      "stamp": "FRAMEWORK ADOPTION ADR\nproject: Alpha\nframework: React\nVERDICT: FRAMEWORK_ADOPTION_SOUND\n  adr_and_fit                          pass\n  house_stack_and_core                 pass\n  pinning_and_upgrades                 pass\n  explicitness_and_runtime             pass\n  plugins_and_deprecations             pass\n30 pass, 0 fail, 0 missing of 30 checks across five sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "project": "Beta",
+      "framework": "Vue",
+      "adr": {
+        "logged": true,
+        "alternatives_stated": true,
+        "exit_cost_stated": true
+      },
+      "candidates": [
+        {
+          "name": "Vue",
+          "team_familiarity_assessed": true,
+          "maintenance_health_assessed": true,
+          "ecosystem_assessed": true,
+          "performance_assessed": true,
+          "exit_cost_assessed": true,
+          "selected": true
+        },
+        {
+          "name": "Angular",
+          "team_familiarity_assessed": true,
+          "maintenance_health_assessed": true,
+          "ecosystem_assessed": true,
+          "performance_assessed": true,
+          "exit_cost_assessed": true,
+          "selected": true
+        }
+      ],
+      "house_stack": {
+        "one_framework_per_layer": true,
+        "core_logic_imports_no_framework_code": true,
+        "framework_at_edges_ports_adapters": true,
+        "is_mid_project_change": false
+      },
+      "versions": {
+        "exact_versions_pinned": true,
+        "unpinned_latest_in_production_present": true,
+        "changelogs_read": true,
+        "updates_batched": true,
+        "major_upgrade_planned": false
+      },
+      "runtime": {
+        "explicit_configuration_preferred": true,
+        "runtime_behaviour_understood": true,
+        "lifecycle_understood": true,
+        "dependency_injection_understood": true,
+        "caching_behaviour_understood": true,
+        "deprecated_apis_on_hot_path_present": false
+      },
+      "plugins": {
+        "plugins_present": false,
+        "plugins_treated_as_dependencies": true
+      },
+      "deprecations": {
+        "warnings_tracked": true,
+        "migrations_scheduled": true,
+        "zombie_code_paths_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "framework-adoption-adr",
+      "atom_version": "0.1.0",
+      "project": "Beta",
+      "framework": "Vue",
+      "verdict": "FRAMEWORK_ADOPTION_NOT_SOUND",
+      "sections": {
+        "adr_and_fit": "fail",
+        "house_stack_and_core": "pass",
+        "pinning_and_upgrades": "fail",
+        "explicitness_and_runtime": "pass",
+        "plugins_and_deprecations": "pass"
+      },
+      "checks": [
+        {
+          "section": "adr_and_fit",
+          "check": "adr_logged_for_new_framework",
+          "status": "pass",
+          "evidence": "quality gate: the new framework has a logged ADR"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "adr_states_alternatives",
+          "status": "pass",
+          "evidence": "quality gate: the adoption ADR states the alternatives considered"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "adr_states_exit_cost",
+          "status": "pass",
+          "evidence": "quality gate: the adoption ADR states the exit cost of taking on this framework"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "candidates_declared",
+          "status": "pass",
+          "evidence": "choose by fit: the declared record names its candidate frameworks \u2014 the candidates list is present and non-empty"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "every_candidate_names_framework",
+          "status": "pass",
+          "evidence": "choose by fit: every declared candidate row names its framework \u2014 a non-empty name string"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "every_candidate_fit_fully_assessed",
+          "status": "pass",
+          "evidence": "choose by fit: every declared candidate row declares all five fit criteria assessed \u2014 team familiarity, maintenance health, ecosystem, performance, exit cost"
+        },
+        {
+          "section": "adr_and_fit",
+          "check": "exactly_one_candidate_selected",
+          "status": "fail",
+          "evidence": "choose by fit: exactly one declared candidate row is selected \u2014 an adoption ADR decides one framework"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "one_framework_per_layer",
+          "status": "pass",
+          "evidence": "house stack: one framework per layer"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "core_logic_imports_no_framework_code",
+          "status": "pass",
+          "evidence": "framework-free core / quality gate: core logic imports no framework code"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "framework_at_edges_ports_adapters",
+          "status": "pass",
+          "evidence": "framework-free core: the framework sits at the edges (ports & adapters); business logic lives in plain functions/modules"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "mid_project_migration_plan_documented",
+          "status": "pass",
+          "evidence": "not a mid-project change"
+        },
+        {
+          "section": "house_stack_and_core",
+          "check": "mid_project_migration_plan_approved",
+          "status": "pass",
+          "evidence": "not a mid-project change"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "exact_versions_pinned",
+          "status": "pass",
+          "evidence": "pin and plan upgrades / quality gate: versions are pinned exactly"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "no_unpinned_latest_in_production",
+          "status": "fail",
+          "evidence": "red line: no unpinned \"latest\" from CDNs or tags in production"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "changelogs_read_before_upgrades",
+          "status": "pass",
+          "evidence": "pin and plan upgrades: changelogs are read before upgrades"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "updates_batched",
+          "status": "pass",
+          "evidence": "pin and plan upgrades: updates are batched"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "major_upgrade_written_plan",
+          "status": "pass",
+          "evidence": "no major upgrade declared"
+        },
+        {
+          "section": "pinning_and_upgrades",
+          "check": "major_upgrade_full_suite_run",
+          "status": "pass",
+          "evidence": "no major upgrade declared"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "explicit_configuration_preferred",
+          "status": "pass",
+          "evidence": "avoid magic: explicit configuration is preferred"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "runtime_behaviour_understood",
+          "status": "pass",
+          "evidence": "avoid magic: what the framework does at runtime is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "lifecycle_understood",
+          "status": "pass",
+          "evidence": "avoid magic: the framework lifecycle is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "dependency_injection_understood",
+          "status": "pass",
+          "evidence": "avoid magic: the framework's dependency injection is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "caching_behaviour_understood",
+          "status": "pass",
+          "evidence": "avoid magic: the framework's caching behaviour is understood"
+        },
+        {
+          "section": "explicitness_and_runtime",
+          "check": "no_deprecated_apis_on_hot_path",
+          "status": "pass",
+          "evidence": "quality gate: no deprecated APIs on the hot path"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "plugins_treated_as_dependencies",
+          "status": "pass",
+          "evidence": "plugin discipline: plugins are treated as dependencies"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "every_plugin_reviewed_and_pinned",
+          "status": "pass",
+          "evidence": "no plugins declared"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "unused_plugins_removed",
+          "status": "pass",
+          "evidence": "no plugins declared"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "deprecation_warnings_tracked",
+          "status": "pass",
+          "evidence": "deprecations: deprecation warnings are tracked"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "deprecation_migrations_scheduled",
+          "status": "pass",
+          "evidence": "deprecations: deprecation migrations happen on schedule"
+        },
+        {
+          "section": "plugins_and_deprecations",
+          "check": "no_zombie_code_paths",
+          "status": "pass",
+          "evidence": "deprecations: no zombie code paths waiting to break"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "candidates_count": 2,
+      "candidates_without_name": [],
+      "candidates_without_fit_assessment": [],
+      "fit_assessment_coverage": "1.000000",
+      "selected_count": 2,
+      "selected_candidate": null,
+      "plugins_count": null,
+      "plugins_without_review_or_pin": null,
+      "plugin_compliance_coverage": null,
+      "summary": "28 pass, 2 fail, 0 missing of 30 checks across five sections.",
+      "stamp": "FRAMEWORK ADOPTION ADR\nproject: Beta\nframework: Vue\nVERDICT: FRAMEWORK_ADOPTION_NOT_SOUND\n  adr_and_fit                          fail\n  house_stack_and_core                 pass\n  pinning_and_upgrades                 fail\n  explicitness_and_runtime             pass\n  plugins_and_deprecations             pass\n28 pass, 2 fail, 0 missing of 30 checks across five sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

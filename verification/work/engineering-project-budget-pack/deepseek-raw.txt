@@ -1,0 +1,152 @@
+# Independent recompute — engineering-project-budget-pack
+
+Serialization rule applied throughout: round half up to 6dp via `floor(v*1000000 + 0.5)/1000000`, then format with exactly six decimals. All inputs here are exact decimals, so no rounding ambiguity arises; differences are compared to zero.
+
+---
+
+## Case 1: `full-pass`
+
+### Line items
+One entry: label "Wiring", category "Labor", pricing_basis `quote_based` (∈ {quote_based, allowance} ✓), quantity 10.0, unit_rate 50.0, declared_amount 500.0.
+
+- Entry completeness: label non-empty ✓, category non-empty ✓, pricing_basis is a string ✓, quantity/unit_rate/declared_amount numeric ✓ → complete. `line_items_evaluated = 1`. Artifact: **1** → MATCH.
+- Pricing basis: `quote_based` is a stated token → pass. Artifact: pass → MATCH.
+- Amount: 10.0 × 50.0 = **500.0**; declared 500.0 → equal → pass. Artifact: pass → MATCH.
+
+### Subtotal
+Sum of declared line amounts = 500.0.
+- `computed_subtotal` = 500.0 → "500.000000". Artifact: "500.000000" → MATCH.
+- `subtotal_difference` = declared 500.0 − computed 500.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check `subtotal_matches_sum_of_line_items`: difference 0 → pass. Artifact: pass → MATCH.
+
+### Contingency amount
+declared_subtotal × contingency_percent / 100 = 500.0 × 10.0 / 100 = **50.0**.
+- `computed_contingency_amount` = "50.000000". Artifact: "50.000000" → MATCH.
+- `contingency_difference` = 50.0 − 50.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Total budget
+subtotal + contingency + reserve = 500.0 + 50.0 + 100.0 = **650.0**.
+- `computed_total_budget` = "650.000000". Artifact: "650.000000" → MATCH.
+- `total_budget_difference` = 650.0 − 650.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Change impact total
+One entry: cost_impact 50.0, label non-empty, impact_statement_present true, approved_before_work true → complete. `change_entries_evaluated = 1`. Artifact: **1** → MATCH.
+- Sum = **50.0**. `computed_change_impact_total` = "50.000000". Artifact: "50.000000" → MATCH.
+- `change_impact_difference` = 50.0 − 50.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Impact-statement check: all complete entries true → pass. Artifact: pass → MATCH.
+- Approval-before-work check: all true → pass. Artifact: pass → MATCH.
+- Total-change check: pass. Artifact: pass → MATCH.
+
+### Revised budget
+declared_total_budget + declared_total_change_impact = 650.0 + 50.0 = **700.0**.
+- `computed_revised_budget` = "700.000000". Artifact: "700.000000" → MATCH.
+- `revised_budget_difference` = 700.0 − 700.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Total forecast
+actuals + forecast_to_complete = 400.0 + 100.0 = **500.0**.
+- `computed_total_forecast` = "500.000000". Artifact: "500.000000" → MATCH.
+- `total_forecast_difference` = 500.0 − 500.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Forecast variance
+declared_total_forecast − declared_revised_budget = 500.0 − 700.0 = **−200.0**.
+- `computed_forecast_variance` = "-200.000000". Artifact: "-200.000000" → MATCH.
+- `forecast_variance_difference` = declared −200.0 − computed −200.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Final variance
+declared_final_cost − declared_revised_budget = 600.0 − 700.0 = **−100.0**.
+- `computed_final_variance` = "-100.000000". Artifact: "-100.000000" → MATCH.
+- `final_variance_difference` = −100.0 − (−100.0) = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Unspent contingency
+declared_contingency_amount − contingency_used_amount = 50.0 − 20.0 = **30.0**.
+- `computed_unspent_contingency` = "30.000000". Artifact: "30.000000" → MATCH.
+- `unspent_contingency_difference` = 30.0 − 30.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Verdict / status
+All 11 computed checks pass; all declaration checks are true/false as required (padding false, work-without-PO false, verbal COs false). No fails, no missing → `BUDGET_PACK_READY`, `computed_status = within_stated_limits_on_declared_evidence`, summary "42 pass, 0 fail, 0 missing". Artifact: **BUDGET_PACK_READY / within_stated_limits_on_declared_evidence / 42 pass, 0 fail, 0 missing** → MATCH.
+
+---
+
+## Case 2: `violations`
+
+Planted wrong values: pricing_basis `invalid_token`; declared_subtotal 600.0 (vs line sum 500.0); declared_contingency_amount 60.0 (consistent with the *declared* 600 subtotal); total_budget 760.0; revised 810.0; forecast variance −310.0; final variance −210.0; unspent 40.0.
+
+### Line items
+Entry complete (label, category, string pricing_basis, numeric qty/rate/amount) → `line_items_evaluated = 1`. Artifact: **1** → MATCH.
+- Pricing basis: `invalid_token` ∉ {quote_based, allowance} → **fail**. Artifact: fail → MATCH.
+- Amount: 10.0 × 50.0 = 500.0; declared 500.0 → equal → **pass**. Artifact: pass → MATCH.
+
+### Subtotal
+Sum of declared line amounts = **500.0**.
+- `computed_subtotal` = "500.000000". Artifact: "500.000000" → MATCH.
+- `subtotal_difference` = declared 600.0 − computed 500.0 = **100.0** → "100.000000". Artifact: "100.000000" → MATCH.
+- Check `subtotal_matches_sum_of_line_items`: difference ≠ 0 → **fail**. Artifact: fail → MATCH.
+
+### Contingency amount
+declared_subtotal × percent / 100 = 600.0 × 10.0 / 100 = **60.0** (uses the *declared* subtotal, per spec).
+- `computed_contingency_amount` = "60.000000". Artifact: "60.000000" → MATCH.
+- `contingency_difference` = 60.0 − 60.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH. (Correct: the contingency is internally consistent with the declared subtotal; the subtotal itself is what's wrong.)
+
+### Total budget
+600.0 + 60.0 + 100.0 = **760.0**.
+- `computed_total_budget` = "760.000000". Artifact: "760.000000" → MATCH.
+- `total_budget_difference` = 760.0 − 760.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Change impact total
+One complete entry, cost_impact 50.0 → sum **50.0**; `change_entries_evaluated = 1`.
+- `computed_change_impact_total` = "50.000000". Artifact: "50.000000" → MATCH.
+- `change_impact_difference` = 50.0 − 50.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Impact-statement / approval-before-work / total-change checks: all pass. Artifact: pass → MATCH.
+
+### Revised budget
+declared_total_budget + declared_total_change_impact = 760.0 + 50.0 = **810.0**.
+- `computed_revised_budget` = "810.000000". Artifact: "810.000000" → MATCH.
+- `revised_budget_difference` = 810.0 − 810.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Total forecast
+400.0 + 100.0 = **500.0**.
+- `computed_total_forecast` = "500.000000". Artifact: "500.000000" → MATCH.
+- `total_forecast_difference` = 500.0 − 500.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Forecast variance
+declared_total_forecast − declared_revised_budget = 500.0 − 810.0 = **−310.0**.
+- `computed_forecast_variance` = "-310.000000". Artifact: "-310.000000" → MATCH.
+- `forecast_variance_difference` = declared −310.0 − computed −310.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH. (Correct: the planted −310 is consistent with the planted 810 revised budget.)
+
+### Final variance
+declared_final_cost − declared_revised_budget = 600.0 − 810.0 = **−210.0**.
+- `computed_final_variance` = "-210.000000". Artifact: "-210.000000" → MATCH.
+- `final_variance_difference` = −210.0 − (−210.0) = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Unspent contingency
+declared_contingency_amount − contingency_used_amount = 60.0 − 20.0 = **40.0**.
+- `computed_unspent_contingency` = "40.000000". Artifact: "40.000000" → MATCH.
+- `unspent_contingency_difference` = 40.0 − 40.0 = 0.0 → "0.000000". Artifact: "0.000000" → MATCH.
+- Check: pass. Artifact: pass → MATCH.
+
+### Verdict / status
+Fails: exactly `line_item_pricing_basis_marked` and `subtotal_matches_sum_of_line_items` → 2 fails, 40 pass, 0 missing. `BUDGET_PACK_NOT_READY`; `computed_status = outside_stated_limits_on_declared_evidence`. Artifact: **BUDGET_PACK_NOT_READY / outside_stated_limits_on_declared_evidence / 40 pass, 2 fail, 0 missing** → MATCH.
+
+### Confirmation of planted-failure mapping
+The planted wrong values are: `pricing_basis = invalid_token` and `declared_subtotal = 600.0` (with the downstream totals 60/760/810/−310/−210/40 all *consistently derived from that wrong 600 subtotal*). Because the spec re-derives contingency from the **declared** subtotal, total budget from declared subtotal+contingency+reserve, revised from declared total+declared change, and the variances from declared revised, every downstream identity still holds. So exactly the two checks that touch the planted errors fail — pricing-basis (bad token) and subtotal (600 ≠ 500) — and no others. This matches the artifact's 2 fails exactly. ✓
+
+---
+
+## Summary
+
+Every computed quantity in both cases recomputes to the artifact's value under the stated 6dp half-up serialization; every computed check status and both verdicts/statuses/summaries agree. No mismatches found.
+
+AGREEMENT: full
