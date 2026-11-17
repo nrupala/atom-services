@@ -537,11 +537,12 @@ test("createRefund: Stripe permission refusal surfaces as permissionDenied", asy
 
 // ---- catalogue consistency ----------------------------------------------------
 
-test("catalogue feed agrees with the generated rate config; atom #1 shows the trial state", () => {
-  const feed = feedJson("https://atoms.pipavia.com") as { atoms: Array<Record<string, unknown>> };
-  assert.equal(feed.atoms.length, CATALOGUE.length); // only live atoms are listed
+test("catalogue feed agrees with the generated rate config; atom #1 shows the trial state", async () => {
+  const feed = (await feedJson("https://atoms.pipavia.com", new MemoryStore())) as { atoms: Array<Record<string, unknown>> };
+  assert.equal(feed.atoms.length, CATALOGUE.length); // every catalogue atom is listed, with a status
   const row = feed.atoms.find((a) => a.name === "release-readiness-verdict")!;
   assert.ok(row);
+  assert.equal(row.status, "live"); // no kill-switch config set in this store
   const pricing = row.pricing as { rate_usd: number | null; rate_status: string; display: string };
   const cfg = RATES["release-readiness-verdict"];
   assert.equal(pricing.rate_usd, cfg.rateMicro === null ? null : cfg.rateMicro / 1_000_000);

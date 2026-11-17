@@ -1,3 +1,5 @@
+> **DISABLED by owner ruling, 2026-11-15 (U-13).** This atom is disabled and does not serve calls; it is not available product. It returns only on the owner's explicit per-atom ruling. Record: `TAKEDOWN-2026-11-15.md` in this directory.
+
 # Behavioral finance bias check — `behavioral-finance-bias-check`
 
 **Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
