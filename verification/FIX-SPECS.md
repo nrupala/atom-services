@@ -1193,3 +1193,19 @@ designs (R1 ×26, R2 ×14, R3 ×7, R4 ×5), 39 design-time corrections
 recorded in the per-atom reports, and zero tester errors in
 executed cases — every executed battery validator-passed, the
 Gemini judge recorded zero tester errors on all seven atoms.
+
+---
+
+**Gate-filed corpus item (2026-11-15, per-atom release gate WS2 — a
+verification-lane bookkeeping change, not an atom change):** the
+gate's live re-execution of all 79 corpora proved zero atom drift —
+every atom's live failing set today is identical to its UAT-time live
+failing set — but 37 early-wave recorded expects name checks by field
+path or section where the live responses (and the atoms' registers)
+use check names. Rewrite the early-wave `cases.json` expects in exact
+check-register names (the R1 rule the Wave 4–6 validator now enforces
+at design time, applied retroactively to Waves 1–3 corpora), so future
+replays compare name-to-name without a normalization basis. Evidence:
+`~/workspace/release-gate-runs/atoms-per-atom-gate-2026-11-15/pack.md`
+(judgment-differential section) and GMSI-174 (corpora sealed with the
+verdict).

@@ -1,0 +1,121 @@
+# Independent recompute — edge-platform-engineering
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md.
+
+## Case 1: `full-pass`
+
+Input components list: one row, `db-component`:
+- `storage_backend = "d1"` (non-empty string)
+- `storage_rationale_documented = true`
+- `requires_strong_consistency = true`
+- `is_admin_surface = true`, `access_protected = true`
+
+### Computed checks
+
+**components_declared** — list present, length 1 ≥ 1 → **pass**. Artifact: pass. MATCH.
+
+**every_component_names_storage_backend** — row's `storage_backend = "d1"`, non-empty → **pass**. Artifact: pass. MATCH.
+
+**every_component_documents_storage_rationale** — row declares `true` → **pass**. Artifact: pass. MATCH.
+
+**no_strong_consistency_component_on_kv** — row has `requires_strong_consistency = true` but `storage_backend = "d1"` ≠ `"kv"` → no violation → **pass**. Artifact: pass. MATCH.
+
+**every_admin_component_access_protected** — row is admin (`true`) and `access_protected = true` → **pass**. Artifact: pass. MATCH.
+
+### Computed quantities
+
+**components_count** = length of declared list = **1**. Artifact: 1. MATCH.
+
+**components_without_storage_backend** = rows with absent/empty backend = none → **[]**. Artifact: []. MATCH.
+
+**components_on_kv_requiring_strong_consistency** = rows with `requires_strong_consistency=true` AND `storage_backend=="kv"` = none → **[]**. Artifact: []. MATCH.
+
+**admin_components_without_access** = admin rows whose `access_protected` is present but not true = none → **[]**. Artifact: []. MATCH.
+
+**storage_documentation_coverage** = (rows naming a backend with rationale documented) ÷ (declared components) = 1 ÷ 1 = 1.0.
+Serialization: `floor(1.0 * 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → formatted 6dp = **"1.000000"**. Artifact: "1.000000". MATCH.
+
+**access_protection_coverage** = (admin rows declaring Access protection) ÷ (admin rows) = 1 ÷ 1 = 1.0 → **"1.000000"**. Artifact: "1.000000". MATCH.
+
+**computed_status** — all five primary computed checks completed and all pass → **within_stated_limits_on_declared_evidence**. Artifact: same. MATCH.
+
+**verdict** — all 38 checks pass → **EDGE_PLATFORM_SOUND**. Artifact: same. MATCH.
+
+**summary** — 38 pass, 0 fail, 0 missing of 38. Artifact: same. MATCH.
+
+## Case 2: `violations`
+
+Input components list: one row, `bad-kv`:
+- `storage_backend = "kv"`
+- `storage_rationale_documented = true`
+- `requires_strong_consistency = true`
+- `is_admin_surface = true`, `access_protected = false`
+
+### Computed checks
+
+**components_declared** — present, length 1 → **pass**. Artifact: pass. MATCH.
+
+**every_component_names_storage_backend** — `"kv"` non-empty → **pass**. Artifact: pass. MATCH.
+
+**every_component_documents_storage_rationale** — `true` → **pass**. Artifact: pass. MATCH.
+
+**no_strong_consistency_component_on_kv** — row has `requires_strong_consistency=true` AND `storage_backend=="kv"` → violation → **fail**. Artifact: fail. MATCH.
+
+**every_admin_component_access_protected** — row is admin and `access_protected=false` (present but not true) → **fail**. Artifact: fail. MATCH.
+
+### Computed quantities
+
+**components_count** = **1**. Artifact: 1. MATCH.
+
+**components_without_storage_backend** = none → **[]**. Artifact: []. MATCH.
+
+**components_on_kv_requiring_strong_consistency** = ["bad-kv"] → **["bad-kv"]**. Artifact: ["bad-kv"]. MATCH.
+
+**admin_components_without_access** = admin rows with `access_protected` present but not true = ["bad-kv"] → **["bad-kv"]**. Artifact: ["bad-kv"]. MATCH.
+
+**storage_documentation_coverage** = 1 ÷ 1 = 1.0 → **"1.000000"**. Artifact: "1.000000". MATCH.
+
+**access_protection_coverage** = (admin rows declaring Access protection) ÷ (admin rows) = 0 ÷ 1 = 0.0.
+Serialization: `floor(0.0 * 1000000 + 0.5)/1000000 = floor(0.5)/1000000 = 0/1000000 = 0.0` → **"0.000000"**. Artifact: "0.000000". MATCH.
+
+**computed_status** — a primary computed check fails → **outside_stated_limits_on_declared_evidence**. Artifact: same. MATCH.
+
+**verdict** — 2 checks fail → **EDGE_PLATFORM_NOT_SOUND**. Artifact: same. MATCH.
+
+**summary** — 36 pass, 2 fail, 0 missing of 38. Artifact: same. MATCH.
+
+### Planted-wrong-value confirmation
+
+The two planted wrong values are: (a) `storage_backend="kv"` on a `requires_strong_consistency=true` row, and (b) `access_protected=false` on an admin row. The only failing checks in the artifact are exactly:
+- `no_strong_consistency_component_on_kv` (driven by (a))
+- `every_admin_component_access_protected` (driven by (b))
+
+No other check fails. The failing set is exactly the set the planted wrong values should fail. CONFIRMED.
+
+## Cross-check of section statuses
+
+- Case 1: all five sections pass (all checks pass). Artifact: all pass. MATCH.
+- Case 2: `platform_fit_and_storage` fails (the KV check), `security_and_access` fails (the admin check); the other three sections have all-pass checks. Artifact: exactly those two fail. MATCH.
+
+## Summary of all comparisons
+
+| Quantity / check | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| components_declared | pass | pass | pass | pass |
+| every_component_names_storage_backend | pass | pass | pass | pass |
+| every_component_documents_storage_rationale | pass | pass | pass | pass |
+| no_strong_consistency_component_on_kv | pass | pass | fail | fail |
+| every_admin_component_access_protected | pass | pass | fail | fail |
+| components_count | 1 | 1 | 1 | 1 |
+| components_without_storage_backend | [] | [] | [] | [] |
+| components_on_kv_requiring_strong_consistency | [] | [] | ["bad-kv"] | ["bad-kv"] |
+| admin_components_without_access | [] | [] | ["bad-kv"] | ["bad-kv"] |
+| storage_documentation_coverage | 1.000000 | 1.000000 | 1.000000 | 1.000000 |
+| access_protection_coverage | 1.000000 | 1.000000 | 0.000000 | 0.000000 |
+| computed_status | within… | within… | outside… | outside… |
+| verdict | SOUND | SOUND | NOT_SOUND | NOT_SOUND |
+| summary | 38/0/0 | 38/0/0 | 36/2/0 | 36/2/0 |
+
+Every computed quantity and check matches the recorded artifacts in both cases, and the violations case fails exactly the two checks its planted wrong values should fail.
+
+AGREEMENT: full

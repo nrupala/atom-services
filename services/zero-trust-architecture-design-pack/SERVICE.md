@@ -6,7 +6,7 @@
 
 Bound capability (from the skill): Verify every hop — identity-first access, least privilege, short-lived credentials, no implicit network trust.
 
-A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared zero-trust architecture design record** and receives the design-record audit as the deliverable: the atom designs no architecture, evaluates no live posture, probes no network and certifies no security outcome (see Honest scoping).
 
 ## Buyer
 
@@ -16,14 +16,315 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Hardening product service access**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the zero-trust architecture design manifest
+
+The caller submits one JSON manifest: a declared zero-trust
+architecture design record for one system or service set, made
+from the design as actually written. Every field below is read
+by the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`ZERO_TRUST_DESIGN_NOT_SOUND`). All
+fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `design_title` (string; carried into the verdict output, not itself checked) | — |
+| `identity.identity_first_design_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.user_identities_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.workload_identities_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.short_lived_credentials_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.credentials_scoped_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.credentials_rotated_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.no_implicit_network_trust_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.every_hop_authenticated_and_authorized_declared` (boolean) | identity_and_perimeter_framing |
+| `identity.policy_layer_decides_access_declared` (boolean) | identity_and_perimeter_framing |
+| `assets` (list of asset-row objects, each with the entry fields below; computed, see below) | policy_coverage_and_segmentation |
+| `assets[].asset_id` (string; must be unique per row) | policy_coverage_and_segmentation |
+| `assets[].asset_name` (non-empty string) | policy_coverage_and_segmentation |
+| `assets[].asset_kind` (string; one of `service`, `workload`, `device`, `data_store`, `admin_path`) | policy_coverage_and_segmentation |
+| `policies` (list of policy-row objects, each with the entry fields below; computed, see below) | policy_coverage_and_segmentation |
+| `policies[].policy_id` (string; must be unique per row) | policy_coverage_and_segmentation |
+| `policies[].policy_name` (non-empty string) | policy_coverage_and_segmentation |
+| `policies[].covered_asset_ids` (list of strings; computed — must name declared assets, and every declared asset must be covered, see below) | policy_coverage_and_segmentation |
+| `segmentation.segmentation_declared` (boolean) | policy_coverage_and_segmentation |
+| `segmentation.blast_radius_boundaries_declared` (boolean) | policy_coverage_and_segmentation |
+| `segmentation.egress_restricted_declared` (boolean) | policy_coverage_and_segmentation |
+| `segmentation.egress_monitored_declared` (boolean) | policy_coverage_and_segmentation |
+| `segmentation.deny_by_default_declared` (boolean) | policy_coverage_and_segmentation |
+| `segmentation.least_privilege_declared` (boolean) | policy_coverage_and_segmentation |
+| `trust.device_posture_checks_declared` (boolean) | device_and_workload_trust |
+| `trust.device_inventory_declared` (boolean) | device_and_workload_trust |
+| `trust.server_posture_checks_declared` (boolean) | device_and_workload_trust |
+| `trust.workload_attestation_declared` (boolean) | device_and_workload_trust |
+| `trust.node_trust_requires_attestation_declared` (boolean) | device_and_workload_trust |
+| `trust.encryption_in_transit_declared` (boolean) | device_and_workload_trust |
+| `trust.encryption_at_rest_declared` (boolean) | device_and_workload_trust |
+| `trust.end_to_end_encryption_demanded` (boolean; gates the end-to-end check below) | device_and_workload_trust |
+| `trust.end_to_end_encryption_declared` (boolean; required when end-to-end encryption is declared demanded; otherwise the check passes as not applicable) | device_and_workload_trust |
+| `monitoring.audit_logging_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.privileged_actions_logged_immutably_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.anomaly_alerting_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.audit_trail_survives_component_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.egress_changes_audited_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.privilege_changes_audited_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.incident_response_path_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.break_glass_documented_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.break_glass_ceremony_gated_declared` (boolean) | monitoring_audit_and_response |
+| `monitoring.break_glass_tested_declared` (boolean) | monitoring_audit_and_response |
+| `migration.migration_phases_declared` (boolean) | migration_and_rollout |
+| `migration.rollout_order_declared` (boolean) | migration_and_rollout |
+| `migration.legacy_implicit_trust_removal_declared` (boolean) | migration_and_rollout |
+| `migration.rollback_path_declared` (boolean) | migration_and_rollout |
+| `migration.per_hop_verification_during_rollout_declared` (boolean) | migration_and_rollout |
+| `migration.permissions_review_and_revocation_declared` (boolean) | migration_and_rollout |
+| `red_lines.internal_network_trusted_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.shared_credentials_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.long_lived_wide_scope_secrets_present` (boolean; must be `false` to pass — skill quality gate) | red_lines |
+| `red_lines.unrevocable_access_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.anonymous_east_west_access_present` (boolean; must be `false` to pass — skill quality gate) | red_lines |
+
+Ten checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Assets declared:** the declared `assets` list passes when
+  it is present and names at least one asset. An absent list
+  is missing evidence; an empty list fails — it declares no
+  hop at all.
+- **Asset ids unique:** no declared `asset_id` may appear on
+  more than one row. A row with `asset_id` absent is missing
+  evidence for this check.
+- **Asset name per asset:** every declared asset row declares
+  a non-empty `asset_name`. A row with the field absent is
+  missing evidence; a row declaring an empty name fails and is
+  named in `zero_trust_design_assets_without_name`.
+- **Asset kind recognised:** every declared asset's
+  `asset_kind` is one of `service`, `workload`, `device`,
+  `data_store`, `admin_path` — the kinds of hop the design
+  record names. Any other value fails and is named in
+  `zero_trust_design_assets_with_invalid_kind`.
+- **Policies declared:** the declared `policies` list passes
+  when it is present and names at least one policy. An absent
+  list is missing evidence; an empty list fails — it declares
+  no policy coverage at all.
+- **Policy ids unique:** no declared `policy_id` may appear
+  on more than one policy row.
+- **Policy name per policy:** every declared policy row
+  declares a non-empty `policy_name`, named in
+  `zero_trust_design_policies_without_name` when empty.
+- **Every policy covers at least one asset:** every declared
+  policy's `covered_asset_ids` list is present and non-empty.
+  A policy covering nothing is named in
+  `zero_trust_design_policies_without_coverage`.
+- **Every coverage reference resolves:** every id in every
+  declared `covered_asset_ids` list names a declared asset.
+  A reference naming no declared asset fails and is named in
+  `zero_trust_design_policy_refs_not_declared_as_assets`.
+- **Every declared asset covered by a policy:** every
+  declared asset id appears in at least one declared policy's
+  `covered_asset_ids` list (the skill: every service call
+  authenticated and authorized — a declared asset no declared
+  policy covers is a hop the design leaves unverified on its
+  own record). An uncovered asset fails and is named in
+  `zero_trust_design_assets_without_policy_coverage`. Either
+  list absent, or a row without its id field, is missing
+  evidence for the two cross-row checks.
+
+One further check is gated on the record's own declared gate
+field, following the skill's own conditional scope — when the
+gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **End-to-end encryption:** end-to-end encryption is
+  declared only where `trust.end_to_end_encryption_demanded`
+  is declared `true` (the skill: encrypt end-to-end where the
+  model demands it).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the ten primary computed checks above cannot be
+completed), `zero_trust_design_assets_count` and
+`zero_trust_design_policies_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), the duplicate-id lists
+`duplicate_zero_trust_design_asset_ids` and
+`duplicate_zero_trust_design_policy_ids`, the row-name lists
+named in the computed checks above, and the ratio
+`zero_trust_design_policy_coverage_ratio` (declared assets
+covered by at least one declared policy ÷ declared assets).
+**Fixed serialization rule:** computed quantities and ratios
+are reported as strings with exactly six decimal places,
+produced in both implementations by the same rule — round
+half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`, then
+format with exactly six decimals. A ratio is null when its
+denominator list is absent or empty, or when the policies
+list is not declared. That fixed serialization is what makes
+the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric security threshold at all — its
+demands are identity-first framing, per-hop verification,
+least privilege, segmentation, attestation, encryption,
+auditing and a tested break-glass path, not bars the atom can
+set. Quantities are computed and reported; the only bars on
+the computed rows are exact recomputation and completeness
+over the caller's own declared rows, exactly as stated above.
+Declined thresholds, named: a maximum credential lifetime in
+hours or days, or any bar on how short "short-lived" must be
+(credentials are checked as declared short-lived, scoped and
+rotated, never measured); a minimum number of segments, a
+segment-count bar, or a blast-radius size; a policy-coverage
+percentage below completeness over the caller's own declared
+rows (coverage is complete-or-not over the declared assets,
+never sampled against the real estate); an attestation
+standard, framework or level (no NIST, FIDO or vendor
+attestation bar is imported); an encryption algorithm,
+protocol or key-length bar; a log-retention period or an
+audit-completeness percentage against real traffic; a
+migration timeline or a rollout-pace bar; any judgment that
+the declared design is secure, sufficient or advisable (only
+that its declared record contains what the skill requires).
+
+The verdict is one of `ZERO_TRUST_DESIGN_SOUND` (all 54
+checks pass), `ZERO_TRUST_DESIGN_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across six sections:
+identity_and_perimeter_framing,
+policy_coverage_and_segmentation, device_and_workload_trust,
+monitoring_audit_and_response, migration_and_rollout,
+red_lines.
+
+## Distinct ground
+
+The nearest sibling is `zero-trust-evaluation-verdict` (a
+VERDICT, live): a posture **evaluation** of one system's
+zero-trust **claim** — the claim as stated, adversaries and
+out-of-scope named, the not-a-certification acknowledgement,
+the gauntlet's server-knowledge questions (master secret
+never leaves the client; server sees only encrypted data), the
+NIST authenticator-strength arithmetic it computes (the
+Argon2id password-KDF check and the stated 16-character
+minimum secret length), the trust inventory and the honest
+limits of that claim. This atom shares **zero checks** with
+it (verified mechanically by enumerating `evaluate({})` check
+names from every atom oracle in `services/*/src/*.py` and
+comparing — zero overlap): every check here is a zero-trust
+architecture **design-record** question — identity-first
+design framing with short-lived, scoped, rotated credential
+declarations, a declared asset inventory (services,
+workloads, devices, data stores, admin paths) with declared
+policy rows whose coverage of those assets recomputes
+exactly, segmentation / blast-radius / egress and
+deny-by-default declarations, device and workload attestation
+and encryption declarations, monitoring / immutable-audit /
+break-glass declarations, and migration and rollout
+declarations for removing legacy implicit trust. The boundary
+is precise: an architecture **design record** — what a design
+declares it will build — here; a posture **evaluation
+verdict** — whether a stated claim about a system is
+sustained on declared evaluation evidence — there. A caller
+designing an architecture wants this atom; a caller seeking a
+verdict on an existing system's zero-trust claim wants the
+evaluation atom. Neither atom probes a live system or
+certifies an outcome.
+
+## Honest scoping
+
+This atom reviews a **declared** zero-trust architecture
+design record — it evaluates no live posture, probes no
+network, reads no configuration, tests no credential, and
+certifies no security outcome. A design is sound *on the
+caller's declared evidence*: a record that declares its
+identities strong, its credentials short-lived and its assets
+fully policy-covered passes those checks even if the real
+design or the built system does none of it. It is a
+completeness and consistency audit of the design record the
+skill requires, **not a security evaluation, a security
+certification, an architecture approval, or a guarantee that
+the designed system is secure**: it never judges whether a
+declared policy actually enforces anything, whether a
+declared attestation is strong, whether the segmentation
+would hold, or whether the design should be built — only
+that the record contains what the skill's method, quality
+gates and red lines demand, and that its declared rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (excluded by name,
+never performed): live posture evaluation of any running
+system; security certification of any design, system or
+product; network probing, port scanning or traffic inspection
+of any kind; penetration testing; configuration scanning or
+reading any deployed configuration; credential testing or
+verifying that a declared credential property holds in a real
+identity system; designing the architecture for the caller,
+choosing an identity provider, policy engine or segmentation
+product, or writing policies for the caller; and judging any
+declared design secure — each is EXCLUDED by name from this
+atom, which audits only the declared design record. Boundary
+case, named: a design whose assets are not inventoried as
+declared rows cannot pass this record format's coverage
+checks (the format requires declared asset and policy rows —
+such a design is outside this atom's computed reach, not
+failed on its security merits).
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO, flag-with-controls
+(census class).** Keyword screen: the bound skill and this
+record name security architecture, identity, credentials and
+encryption — a security-engineering subject squarely adjacent
+to professional security judgment: a naive version of this
+atom that evaluated a live system's posture or certified a
+design as secure could read as a professional security
+determination a reader might rely on. That naive version is
+exactly what this atom refuses to be. Substance screen: this
+atom's output could not itself read as a regulated
+professional security determination **while the controls
+below hold** — it audits a caller-**declared** design record
+for completeness and internal consistency only (identity and
+perimeter declarations, declared asset/policy rows with
+coverage recomputed over the declared rows, segmentation
+declarations, device/workload trust declarations, monitoring
+and break-glass declarations, migration declarations, and the
+red lines refused); every output is a pass / fail / missing
+verdict on the record or a quantity recomputed from the
+caller's own declared rows. Named controls: (1) it performs
+**no live posture evaluation and no security certification**
+— both are excluded by name in Honest scoping above, and the
+verdict vocabulary says a design is sound *on declared
+evidence*, never secure; (2) it **probes no network, reads no
+configuration and tests no credential** — there is no live
+surface from which a professional determination could be
+drawn; (3) it sets **no security threshold** of its own (see
+the declined list: no credential lifetime, no attestation
+standard, no encryption bar) and imports no framework's bar
+as its own; (4) it **designs nothing and chooses nothing** —
+no provider, product or policy is recommended; professional
+security architecture for real systems remains the caller's
+responsible professionals, on their record. The HOLD-candidate
+reading was considered and not taken: it would apply if the
+record's shape implied a security determination on a real
+system, but the record's shape is declarations about a design
+document, every control above is structural (in the check set
+itself, not a disclaimer), and the sibling posture-evaluation
+atom already carries the stricter claim form live with its
+own not-a-certification control. Because the adjacency is
+real (zero-trust design for a production system is
+professional security work) this is the census
+flag-with-controls class, not class (a); it is not the
+genuinely-open personal-financial-snapshot class (no personal
+position of any kind is handled). No deploy happens on this
+atom without the owner's explicit per-unit ruling in any case.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
-
-## Named doubt (from the register)
-
-Design how-to; verdict form is zero-trust skill
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

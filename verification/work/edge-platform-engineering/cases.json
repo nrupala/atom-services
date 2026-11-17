@@ -1,0 +1,190 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "project": "test-project",
+        "platform_fit": {
+          "storage_choices_documented": true,
+          "consistency_access_pattern_reviewed": true
+        },
+        "components": [
+          {
+            "name": "db-component",
+            "storage_backend": "d1",
+            "storage_rationale_documented": true,
+            "requires_strong_consistency": true,
+            "is_admin_surface": true,
+            "access_protected": true
+          }
+        ],
+        "deploy": {
+          "wrangler_workflows_used": true,
+          "tested_with_real_bindings_locally": true,
+          "deploys_from_git": true,
+          "versioned_deploys": true,
+          "rollback_path_tested": true,
+          "previous_versions_kept_deployable": true,
+          "staging_separated_from_prod": true
+        },
+        "security": {
+          "secrets_only_in_platform_store": true,
+          "secrets_in_code_or_repo_present": false,
+          "secrets_in_logs_present": false,
+          "rate_limits_configured": true,
+          "waf_configured": true,
+          "input_validation_at_boundary": true,
+          "tls_https_disabled_present": false
+        },
+        "reliability": {
+          "cpu_budget_respected": true,
+          "cold_start_addressed": true,
+          "error_capture_configured": true,
+          "alerts_configured": true,
+          "staged_rules_used": true,
+          "external_health_checks_configured": true
+        },
+        "tunnels": {
+          "tunnels_present": false
+        },
+        "quotas": {
+          "free_tier_limits_known": true,
+          "quota_alarms_set": true,
+          "monthly_log_driven_cost_review": true
+        },
+        "dns_tls": {
+          "zones_documented": true,
+          "certs_automatic": true,
+          "cert_expiry_monitored": true,
+          "email_routing_consistent": true
+        }
+      },
+      "expect": {
+        "outcome": "EDGE_PLATFORM_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. Components: 1 component (db-component, d1 backend, rationale documented, strong consistency on d1 not kv, admin surface with Access protected); tunnels_present false so tunnel checks pass as not applicable.",
+        "computed_spot_checks": {
+          "components_count": 1,
+          "components_without_storage_backend": [],
+          "storage_documentation_coverage": "1.000000",
+          "components_on_kv_requiring_strong_consistency": [],
+          "admin_components_without_access": [],
+          "access_protection_coverage": "1.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "project": "test-project",
+        "platform_fit": {
+          "storage_choices_documented": true,
+          "consistency_access_pattern_reviewed": true
+        },
+        "components": [
+          {
+            "name": "bad-kv",
+            "storage_backend": "kv",
+            "storage_rationale_documented": true,
+            "requires_strong_consistency": true,
+            "is_admin_surface": true,
+            "access_protected": false
+          }
+        ],
+        "deploy": {
+          "wrangler_workflows_used": true,
+          "tested_with_real_bindings_locally": true,
+          "deploys_from_git": true,
+          "versioned_deploys": true,
+          "rollback_path_tested": true,
+          "previous_versions_kept_deployable": true,
+          "staging_separated_from_prod": true
+        },
+        "security": {
+          "secrets_only_in_platform_store": true,
+          "secrets_in_code_or_repo_present": false,
+          "secrets_in_logs_present": false,
+          "rate_limits_configured": true,
+          "waf_configured": true,
+          "input_validation_at_boundary": true,
+          "tls_https_disabled_present": false
+        },
+        "reliability": {
+          "cpu_budget_respected": true,
+          "cold_start_addressed": true,
+          "error_capture_configured": true,
+          "alerts_configured": true,
+          "staged_rules_used": true,
+          "external_health_checks_configured": true
+        },
+        "tunnels": {
+          "tunnels_present": false
+        },
+        "quotas": {
+          "free_tier_limits_known": true,
+          "quota_alarms_set": true,
+          "monthly_log_driven_cost_review": true
+        },
+        "dns_tls": {
+          "zones_documented": true,
+          "certs_automatic": true,
+          "cert_expiry_monitored": true,
+          "email_routing_consistent": true
+        }
+      },
+      "expect": {
+        "outcome": "EDGE_PLATFORM_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_strong_consistency_component_on_kv",
+          "every_admin_component_access_protected"
+        ],
+        "notes": "Full manifest identical to full-pass except component row: bad-kv declares kv backend with requires_strong_consistency true (fails no_strong_consistency_component_on_kv) and is_admin_surface true with access_protected false (fails every_admin_component_access_protected).",
+        "computed_spot_checks": {
+          "components_count": 1,
+          "components_without_storage_backend": [],
+          "storage_documentation_coverage": "1.000000",
+          "components_on_kv_requiring_strong_consistency": [
+            "bad-kv"
+          ],
+          "admin_components_without_access": [
+            "bad-kv"
+          ],
+          "access_protection_coverage": "0.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "project": "sparse-project"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required sections and components list."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "project": "malformed-project",
+        "components": "not-a-list"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: components field expects a list, received a string."
+      }
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+# Independent recompute — `efficient-web-build-standard`
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+Inputs: `pages = [ {name:"home", content_same_for_all_visitors:true, rendered_at_publish:true, calls_per_load:1} ]`, `interactive_js_gzipped_kb = 200`, `content_page_cpu_p99_ms = 0.5`, `hashed_static_assets_used = true`, `hashed_asset_max_age_seconds = 31536000`, `search.has_search_or_filter = true`, `search.uses_single_publish_time_index_blob = true`.
+
+### Computed checks
+
+**Pages declared:** list present, length 1 ≥ 1 → pass. Artifact: pass. **MATCH**
+
+**Shared content rendered at publish:** rows with `content_same_for_all_visitors:true` = {home}. home has `rendered_at_publish:true` → no violation → pass. Artifact: pass. **MATCH**
+
+**Single read per precomputed page:** rows with `rendered_at_publish:true` = {home}. home `calls_per_load = 1` → equals 1 → pass. Artifact: pass. **MATCH**
+
+**Hashed assets max-age:** `hashed_static_assets_used = true` → require `hashed_asset_max_age_seconds == 31536000`. Declared 31536000 → pass. Artifact: pass. **MATCH**
+
+**Interactive JS budget:** 200 ≤ 400 → pass. Artifact: pass. **MATCH**
+
+**Content-page CPU P99:** 0.5 < 1 → pass. Artifact: pass. **MATCH**
+
+**Search index (conditional):** `has_search_or_filter = true` → require `uses_single_publish_time_index_blob`. Declared true → pass. Artifact: pass. **MATCH**
+
+### Computed outputs
+
+- `pages_count` = len(pages) = **1**. Artifact: 1. **MATCH**
+- `shared_pages_not_precomputed` = shared rows with `rendered_at_publish` present but not true = {} → **[]**. Artifact: []. **MATCH**
+- `precomputed_pages_over_single_read` = precomputed rows with numeric `calls_per_load ≠ 1` = {} → **[]**. Artifact: []. **MATCH**
+- `total_calls_per_load` = sum of declared call counts = 1 → **1**. Artifact: 1. **MATCH**
+- `max_calls_per_load` = max(1) = **1**. Artifact: 1. **MATCH**
+- `precomputed_page_coverage` = pages rendered at publish ÷ declared pages = 1 ÷ 1 = 1.0. Serialize: floor(1.0·1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0 → format 6dp → **"1.000000"**. Artifact: "1.000000". **MATCH**
+- `single_read_page_coverage` = pages with calls_per_load == 1 ÷ declared pages = 1 ÷ 1 = 1.0 → **"1.000000"**. Artifact: "1.000000". **MATCH**
+- `interactive_js_gzipped_kb` echo = **200**. Artifact: 200. **MATCH**
+- `content_page_cpu_p99_ms` echo = **0.5**. Artifact: 0.5. **MATCH**
+
+### Status / verdict
+
+All six primary computed checks completed and within limits → `computed_status = within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+All 49 checks pass → verdict `EFFICIENT_WEB_BUILD_STANDARD_MET`. Artifact: same. **MATCH**
+
+Summary "49 pass, 0 fail, 0 missing of 49" — I count 49 check entries in the artifact (14 publish + 6 caching + 10 bytes + 19 delivery = 49). **MATCH**
+
+---
+
+## Case 2: `violations`
+
+Inputs: `pages = [ {home, shared:true, rendered_at_publish:false, calls_per_load:1}, {product, shared:true, rendered_at_publish:true, calls_per_load:5} ]`, `interactive_js_gzipped_kb = 500`, `content_page_cpu_p99_ms = 2.0`, hashed assets true / 31536000, search true / true.
+
+### Computed checks — which should fail
+
+**Pages declared:** length 2 ≥ 1 → pass. Artifact: pass. **MATCH**
+
+**Shared content rendered at publish:** shared rows = {home, product}. home `rendered_at_publish:false` → violation. product true → ok. → **fail**. Artifact: fail. **MATCH**
+
+**Single read per precomputed page:** precomputed rows = {product} (home is not rendered at publish). product `calls_per_load = 5 ≠ 1` → **fail**. Artifact: fail. **MATCH**
+
+**Hashed assets max-age:** 31536000 == 31536000 → pass. Artifact: pass. **MATCH**
+
+**Interactive JS budget:** 500 ≤ 400? No → **fail**. Artifact: fail. **MATCH**
+
+**Content-page CPU P99:** 2.0 < 1? No → **fail**. Artifact: fail. **MATCH**
+
+**Search index:** gate true, blob true → pass. Artifact: pass. **MATCH**
+
+So exactly **4** computed checks fail: `every_shared_content_page_rendered_at_publish`, `every_precomputed_page_serves_single_read`, `interactive_js_within_stated_budget`, `content_page_cpu_p99_sub_millisecond`. These are precisely the checks the planted wrong values (`rendered_at_publish:false` on home, `calls_per_load:5` on product, `interactive_js_gzipped_kb:500`, `content_page_cpu_p99_ms:2.0`) should fail. **Confirmed — exactly the planted values fail, nothing else.**
+
+### Computed outputs
+
+- `pages_count` = **2**. Artifact: 2. **MATCH**
+- `shared_pages_not_precomputed` = shared rows with `rendered_at_publish` present but not true = {home} → **["home"]**. Artifact: ["home"]. **MATCH**
+- `precomputed_pages_over_single_read` = precomputed rows with numeric calls ≠ 1 = {product} → **["product"]**. Artifact: ["product"]. **MATCH**
+- `total_calls_per_load` = 1 + 5 = **6**. Artifact: 6. **MATCH**
+- `max_calls_per_load` = max(1, 5) = **5**. Artifact: 5. **MATCH**
+- `precomputed_page_coverage` = rendered-at-publish pages ÷ declared pages = 1 ÷ 2 = 0.5. Serialize: floor(0.5·1000000 + 0.5)/1000000 = floor(500000.5)/1000000 = 500000/1000000 = 0.5 → **"0.500000"**. Artifact: "0.500000". **MATCH**
+- `single_read_page_coverage` = pages with calls == 1 ÷ declared pages = 1 ÷ 2 = 0.5 → **"0.500000"**. Artifact: "0.500000". **MATCH**
+- `interactive_js_gzipped_kb` echo = **500**. Artifact: 500. **MATCH**
+- `content_page_cpu_p99_ms` echo = **2.0** (JSON serializes as `2`). Artifact: 2. **MATCH** (2.0 == 2 numerically; JSON has no trailing-zero distinction)
+
+### Status / verdict
+
+Primary computed checks all completed; at least one outside limits → `computed_status = outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+Any check fails → verdict `EFFICIENT_WEB_BUILD_STANDARD_NOT_MET`. Artifact: same. **MATCH**
+
+Summary "45 pass, 4 fail, 0 missing of 49": 49 − 4 = 45 pass. **MATCH**
+
+---
+
+## Cross-check of the fixed serialization rule
+
+Both ratios in both cases were exact halves/wholes, so the round-half-up rule `floor(v·1000000 + 0.5)/1000000` was applied and produced `1.000000`, `0.500000` — matching the artifacts byte-for-byte. No rounding edge case (e.g. a value like 1/3) appears in these two cases, so the rule is not stress-tested here, but every value present is consistent with it.
+
+## Summary of findings
+
+Every computed check status, every computed output field, both `computed_status` values, both verdicts, and both summaries in both artifacts match my independent recompute. In the violations case, the four failing checks are exactly the four the planted wrong values should trigger, and no other check fails.
+
+AGREEMENT: full

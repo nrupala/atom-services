@@ -1,0 +1,1268 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: edge-platform-engineering
+
+=== contract.yaml ===
+service_name: edge-platform-engineering
+display_name: Edge platform engineering
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:edge-platform-engineering
+binding:
+  skill: edge-platform-engineering
+  skill_path: workspace/mymilo-build/skills/edge-platform-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- API
+- MCP
+- agent
+keys:
+  namespace: edge_platform_engineering
+  prefix: atm_1_edge_platform_engineering_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Cloudflare Workers product builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Edge platform engineering — `edge-platform-engineering`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build on the edge — Cloudflare Workers/KV/D1/R2, tunnels and Access, versioned deploys, quota alarms.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Cloudflare Workers product builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the edge-platform manifest
+
+The caller submits one JSON manifest: a declared edge-platform
+record for one project. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`EDGE_PLATFORM_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `platform_fit.storage_choices_documented` | platform_fit_and_storage |
+| `platform_fit.consistency_access_pattern_reviewed` | platform_fit_and_storage |
+| `components` (list of component-row objects, each with the entry fields below; computed, see below) | platform_fit_and_storage, security_and_access |
+| `components[].name` (string; names the row in the computed outputs) | platform_fit_and_storage, security_and_access |
+| `components[].storage_backend` (string; must be a non-empty string for the row to pass the computed backend check — an absent field is missing evidence, an empty string fails; the exact value `kv` gates the consistency check below, no other value is imposed, see the declined vocabulary note below) | platform_fit_and_storage |
+| `components[].storage_rationale_documented` | platform_fit_and_storage |
+| `components[].requires_strong_consistency` (gates the KV consistency check below) | platform_fit_and_storage |
+| `components[].is_admin_surface` (gates the Access check below) | security_and_access |
+| `components[].access_protected` (required when the row is an admin surface; otherwise the check passes as not applicable to that row) | security_and_access |
+| `deploy.wrangler_workflows_used` | deploy_and_versioning |
+| `deploy.tested_with_real_bindings_locally` | deploy_and_versioning |
+| `deploy.deploys_from_git` | deploy_and_versioning |
+| `deploy.versioned_deploys` | deploy_and_versioning |
+| `deploy.rollback_path_tested` | deploy_and_versioning |
+| `deploy.previous_versions_kept_deployable` | deploy_and_versioning |
+| `deploy.staging_separated_from_prod` | deploy_and_versioning |
+| `security.secrets_only_in_platform_store` | security_and_access |
+| `security.secrets_in_code_or_repo_present` (must be `false` to pass — skill red line) | security_and_access |
+| `security.secrets_in_logs_present` (must be `false` to pass — skill red line) | security_and_access |
+| `security.rate_limits_configured` | security_and_access |
+| `security.waf_configured` | security_and_access |
+| `security.input_validation_at_boundary` | security_and_access |
+| `security.tls_https_disabled_present` (must be `false` to pass — skill red line) | security_and_access |
+| `reliability.cpu_budget_respected` | reliability_and_observability |
+| `reliability.cold_start_addressed` | reliability_and_observability |
+| `reliability.error_capture_configured` | reliability_and_observability |
+| `reliability.alerts_configured` | reliability_and_observability |
+| `reliability.staged_rules_used` | reliability_and_observability |
+| `reliability.external_health_checks_configured` | reliability_and_observability |
+| `tunnels.tunnels_present` (gates the four tunnel checks below) | tunnels_quotas_and_hygiene |
+| `tunnels.origin_stays_loopback` (required when tunnels are declared present; otherwise the check passes as not applicable) | tunnels_quotas_and_hygiene |
+| `tunnels.access_policies_for_humans` (required when tunnels are declared present; otherwise not applicable) | tunnels_quotas_and_hygiene |
+| `tunnels.service_tokens_for_machines` (required when tunnels are declared present; otherwise not applicable) | tunnels_quotas_and_hygiene |
+| `tunnels.origin_exposed_publicly_present` (must be `false` when tunnels are declared present — skill rule; otherwise the check passes as not applicable) | tunnels_quotas_and_hygiene |
+| `quotas.free_tier_limits_known` | tunnels_quotas_and_hygiene |
+| `quotas.quota_alarms_set` | tunnels_quotas_and_hygiene |
+| `quotas.monthly_log_driven_cost_review` | tunnels_quotas_and_hygiene |
+| `dns_tls.zones_documented` | tunnels_quotas_and_hygiene |
+| `dns_tls.certs_automatic` | tunnels_quotas_and_hygiene |
+| `dns_tls.cert_expiry_monitored` | tunnels_quotas_and_hygiene |
+| `dns_tls.email_routing_consistent` | tunnels_quotas_and_hygiene |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Components declared:** the declared `components` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Storage backend per component:** every declared component
+  row must name a non-empty `storage_backend` string. A row with
+  the field absent is missing evidence; a row naming an empty
+  string fails.
+- **Storage rationale per component:** every declared component
+  row must declare `storage_rationale_documented: true` (the
+  skill's quality gate: "Storage choices documented (consistency
+  + access reasons)").
+- **No strong-consistency component on KV:** no row with
+  `requires_strong_consistency: true` may declare
+  `storage_backend` exactly `kv` (the skill: "KV for config/cache
+  (eventually consistent!)" — an eventually consistent store
+  cannot serve a strong-consistency need on the declared
+  evidence). A row with either field absent is missing evidence.
+- **Access per admin component:** every row with
+  `is_admin_surface: true` must declare
+  `access_protected: true` (the skill's red line: "No admin
+  surfaces without Access"). A row with `is_admin_surface`
+  absent, or an admin row with `access_protected` absent, is
+  missing evidence; projects with no admin rows pass as not
+  applicable.
+
+Four check groups are conditional, following the skill's own
+scoping — computed from the declared gate field:
+
+- **Tunnel discipline:** the skill binds its tunnel rules to
+  cloudflared private origins. `origin_stays_loopback`,
+  `access_policies_for_humans`, `service_tokens_for_machines`
+  and the no-public-exposure rule are therefore required only
+  when `tunnels.tunnels_present` is declared `true`; when no
+  tunnels are declared, all four checks pass as not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`components_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers, exactly),
+the row-name lists `components_without_storage_backend` (null
+when the list is not declared),
+`components_on_kv_requiring_strong_consistency` and
+`admin_components_without_access` (admin components whose
+`access_protected` field is present but not true; an admin
+component with the field absent is missing evidence and does not
+appear), and the two coverage ratios
+`storage_documentation_coverage` (components naming a storage
+backend with its rationale documented ÷ declared components) and
+`access_protection_coverage` (admin components declaring Access
+protection ÷ admin components).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty (and, for access
+protection coverage, when no component is declared as an admin
+surface). That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric pass/fail threshold — no CPU-time
+millisecond budget, no free-tier quota number, no alarm headroom,
+no coverage percentage: its CPU budget and free-tier numbers are
+platform facts the record attests to knowing and respecting, not
+bars the atom can set. Quantities are computed and reported; the
+only bar on the computed rows is completeness over the caller's
+own declared rows, exactly as stated above. Declined thresholds,
+named: a CPU-time budget in milliseconds (the skill says "ms
+limits!" but states no number — caller attestation only); the
+free-tier quota numbers themselves (requests, KV ops, D1 rows,
+bandwidth — the skill says "know free-tier numbers" but states
+none, and platform tiers change; caller attestation only); a
+quota-alarm headroom or percentage; a cold-start latency target;
+a health-check interval; a rate-limit or WAF rule threshold; a
+coverage percentage below completeness; a storage-backend
+vocabulary (the skill names KV / D1 / R2 as the storage classes,
+but only the exact value `kv` gates the consistency check — any
+other declared backend string is accepted as declared rather
+than failed against a vocabulary the atom would have to enforce
+beyond the skill's gating use).
+
+The verdict is one of `EDGE_PLATFORM_SOUND` (all 38 checks
+pass), `EDGE_PLATFORM_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: platform_fit_and_storage,
+deploy_and_versioning, security_and_access,
+reliability_and_observability, tunnels_quotas_and_hygiene.
+
+## Honest scoping
+
+This atom audits a **declared** edge-platform record — it
+performs no deployment, probes no live Worker, reads no real
+KV/D1/R2 store, opens no tunnel, and does not verify that a
+declared control actually works. A platform is sound *on the
+caller's declared evidence*: a manifest that declares versioned
+deploys with a tested rollback, secrets only in the platform
+store, and quota alarms set passes those checks even if the real
+platform does none of it. It is a completeness and consistency
+audit of the record the skill requires, **not an edge engineering
+service or a live posture certification**: it never judges
+whether a storage choice is the right choice commercially,
+whether a declared rollback really restores service, whether
+Access policies are correctly scoped to the right people, or
+whether a Worker's real CPU time fits its budget — only that the
+record contains what the skill's sections and red lines demand,
+and that its declared rows are internally consistent.
+
+Named exclusions: no numeric thresholds beyond the skill's own
+stated rules (see the declined list above); no live verification
+of any declared fact; no code or repository inspection (secrets
+in code/repos/logs are caller declarations, the atom reads no
+repo and no log); no WAF/rate-limit rule content inspection —
+configuration is declared, rule quality is not read; platform-fit
+judgment (which backend *should* serve a component, whether
+Workers is the right platform at all) is a caller declaration —
+the atom checks only that the choice and its rationale are
+declared and that no strong-consistency need is declared on the
+eventually consistent KV backend, never which backend a component
+ought to use; the skill's cross-references to sibling disciplines
+(`observability-ops` for alerting depth, `network-security` for
+email-record consistency) are carried as the caller's own
+attestations in this record, not re-audited here.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **live** — live on Conduit Atoms (atoms.pipavia.com) as a release candidate since 2026-11-15, one-week soak to 2026-11-22.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "edge-platform-engineering",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "EDGE_PLATFORM_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. Components: 1 component (db-component, d1 backend, rationale documented, strong consistency on d1 not kv, admin surface with Access protected); tunnels_present false so tunnel checks pass as not applicable.",
+        "computed_spot_checks": {
+          "components_count": 1,
+          "components_without_storage_backend": [],
+          "storage_documentation_coverage": "1.000000",
+          "components_on_kv_requiring_strong_consistency": [],
+          "admin_components_without_access": [],
+          "access_protection_coverage": "1.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "project": "test-project",
+        "platform_fit": {
+          "storage_choices_documented": true,
+          "consistency_access_pattern_reviewed": true
+        },
+        "components": [
+          {
+            "name": "db-component",
+            "storage_backend": "d1",
+            "storage_rationale_documented": true,
+            "requires_strong_consistency": true,
+            "is_admin_surface": true,
+            "access_protected": true
+          }
+        ],
+        "deploy": {
+          "wrangler_workflows_used": true,
+          "tested_with_real_bindings_locally": true,
+          "deploys_from_git": true,
+          "versioned_deploys": true,
+          "rollback_path_tested": true,
+          "previous_versions_kept_deployable": true,
+          "staging_separated_from_prod": true
+        },
+        "security": {
+          "secrets_only_in_platform_store": true,
+          "secrets_in_code_or_repo_present": false,
+          "secrets_in_logs_present": false,
+          "rate_limits_configured": true,
+          "waf_configured": true,
+          "input_validation_at_boundary": true,
+          "tls_https_disabled_present": false
+        },
+        "reliability": {
+          "cpu_budget_respected": true,
+          "cold_start_addressed": true,
+          "error_capture_configured": true,
+          "alerts_configured": true,
+          "staged_rules_used": true,
+          "external_health_checks_configured": true
+        },
+        "tunnels": {
+          "tunnels_present": false
+        },
+        "quotas": {
+          "free_tier_limits_known": true,
+          "quota_alarms_set": true,
+          "monthly_log_driven_cost_review": true
+        },
+        "dns_tls": {
+          "zones_documented": true,
+          "certs_automatic": true,
+          "cert_expiry_monitored": true,
+          "email_routing_consistent": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "edge-platform-engineering",
+        "atom_version": "0.1.0",
+        "project": "test-project",
+        "verdict": "EDGE_PLATFORM_SOUND",
+        "sections": {
+          "platform_fit_and_storage": "pass",
+          "deploy_and_versioning": "pass",
+          "security_and_access": "pass",
+          "reliability_and_observability": "pass",
+          "tunnels_quotas_and_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "platform_fit_and_storage",
+            "check": "storage_choices_documented",
+            "status": "pass",
+            "evidence": "platform fit / quality gate: storage choices are documented \u2014 consistency + access reasons for each KV / D1 / R2 choice"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "consistency_access_pattern_reviewed",
+            "status": "pass",
+            "evidence": "platform fit: each storage choice is picked per consistency + access pattern, not habit"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "components_declared",
+            "status": "pass",
+            "evidence": "platform fit: the declared record names its components \u2014 the components list is present and non-empty"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "every_component_names_storage_backend",
+            "status": "pass",
+            "evidence": "platform fit: every declared component row names its storage backend \u2014 a non-empty storage_backend string"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "every_component_documents_storage_rationale",
+            "status": "pass",
+            "evidence": "quality gate: every declared component row declares its storage rationale documented \u2014 consistency + access reasons per component"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "no_strong_consistency_component_on_kv",
+            "status": "pass",
+            "evidence": "platform fit: no component that requires strong consistency declares the kv backend \u2014 KV is eventually consistent"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "wrangler_workflows_used",
+            "status": "pass",
+            "evidence": "local dev + deploys: wrangler workflows are used"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "tested_with_real_bindings_locally",
+            "status": "pass",
+            "evidence": "local dev + deploys: the app is tested with real bindings locally"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "deploys_from_git",
+            "status": "pass",
+            "evidence": "local dev + deploys: deploys run from git"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "versioned_deploys",
+            "status": "pass",
+            "evidence": "quality gate: deploys are versioned"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "rollback_path_tested",
+            "status": "pass",
+            "evidence": "quality gate: the rollback path is tested"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "previous_versions_kept_deployable",
+            "status": "pass",
+            "evidence": "local dev + deploys: previous versions are kept deployable"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "staging_separated_from_prod",
+            "status": "pass",
+            "evidence": "quality gate: staging is separated from prod"
+          },
+          {
+            "section": "security_and_access",
+            "check": "secrets_only_in_platform_store",
+            "status": "pass",
+            "evidence": "security / quality gate: secrets live only in the platform secret store"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_secrets_in_code_or_repo",
+            "status": "pass",
+            "evidence": "red line: no secrets in code or repos"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_secrets_in_logs",
+            "status": "pass",
+            "evidence": "red line: no secrets in logs"
+          },
+          {
+            "section": "security_and_access",
+            "check": "rate_limits_at_edge",
+            "status": "pass",
+            "evidence": "security: rate limits are configured at the edge"
+          },
+          {
+            "section": "security_and_access",
+            "check": "waf_at_edge",
+            "status": "pass",
+            "evidence": "security: WAF rules are configured at the edge"
+          },
+          {
+            "section": "security_and_access",
+            "check": "input_validation_at_boundary",
+            "status": "pass",
+            "evidence": "security: all input is validated at the boundary"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_tls_https_disabled",
+            "status": "pass",
+            "evidence": "red line: TLS/HTTPS is never disabled because \"it's just a worker\""
+          },
+          {
+            "section": "security_and_access",
+            "check": "every_admin_component_access_protected",
+            "status": "pass",
+            "evidence": "red line: no admin surfaces without Access \u2014 every component declared as an administrative surface declares Access protection"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "cpu_budget_respected",
+            "status": "pass",
+            "evidence": "reliability / quality gate: the CPU-time budget is respected"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "cold_start_addressed",
+            "status": "pass",
+            "evidence": "reliability: cold-start behaviour is addressed"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "error_capture_configured",
+            "status": "pass",
+            "evidence": "reliability: error capture is configured"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "reliability_alerts_configured",
+            "status": "pass",
+            "evidence": "reliability: alerts are configured on errors"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "staged_rules_used",
+            "status": "pass",
+            "evidence": "reliability: rules are staged, not pushed live unreviewed"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "external_health_checks_configured",
+            "status": "pass",
+            "evidence": "reliability: health checks run from outside the platform"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_origin_stays_loopback",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_access_policies_for_humans",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_service_tokens_for_machines",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "no_public_origin_exposure",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "free_tier_limits_known",
+            "status": "pass",
+            "evidence": "cost & quotas: the free-tier numbers are known \u2014 requests, KV ops, D1 rows, bandwidth"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "quota_alarms_set",
+            "status": "pass",
+            "evidence": "cost & quotas / quality gate: quota alarms are set before quotas are hit"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "monthly_log_driven_cost_review",
+            "status": "pass",
+            "evidence": "cost & quotas: a log-driven cost review runs monthly"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "dns_zones_documented",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: zones are documented"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "certs_automatic",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: certificates are automatic"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "cert_expiry_monitored",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: automatic certificates are monitored"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "email_routing_consistent",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: email routing and records are consistent"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "components_count": 1,
+        "components_without_storage_backend": [],
+        "storage_documentation_coverage": "1.000000",
+        "components_on_kv_requiring_strong_consistency": [],
+        "admin_components_without_access": [],
+        "access_protection_coverage": "1.000000",
+        "summary": "38 pass, 0 fail, 0 missing of 38 checks across five sections.",
+        "stamp": "EDGE PLATFORM ENGINEERING\nproject: test-project\nVERDICT: EDGE_PLATFORM_SOUND\n  platform_fit_and_storage             pass\n  deploy_and_versioning                pass\n  security_and_access                  pass\n  reliability_and_observability        pass\n  tunnels_quotas_and_hygiene           pass\n38 pass, 0 fail, 0 missing of 38 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "EDGE_PLATFORM_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_strong_consistency_component_on_kv",
+          "every_admin_component_access_protected"
+        ],
+        "notes": "Full manifest identical to full-pass except component row: bad-kv declares kv backend with requires_strong_consistency true (fails no_strong_consistency_component_on_kv) and is_admin_surface true with access_protected false (fails every_admin_component_access_protected).",
+        "computed_spot_checks": {
+          "components_count": 1,
+          "components_without_storage_backend": [],
+          "storage_documentation_coverage": "1.000000",
+          "components_on_kv_requiring_strong_consistency": [
+            "bad-kv"
+          ],
+          "admin_components_without_access": [
+            "bad-kv"
+          ],
+          "access_protection_coverage": "0.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "project": "test-project",
+        "platform_fit": {
+          "storage_choices_documented": true,
+          "consistency_access_pattern_reviewed": true
+        },
+        "components": [
+          {
+            "name": "bad-kv",
+            "storage_backend": "kv",
+            "storage_rationale_documented": true,
+            "requires_strong_consistency": true,
+            "is_admin_surface": true,
+            "access_protected": false
+          }
+        ],
+        "deploy": {
+          "wrangler_workflows_used": true,
+          "tested_with_real_bindings_locally": true,
+          "deploys_from_git": true,
+          "versioned_deploys": true,
+          "rollback_path_tested": true,
+          "previous_versions_kept_deployable": true,
+          "staging_separated_from_prod": true
+        },
+        "security": {
+          "secrets_only_in_platform_store": true,
+          "secrets_in_code_or_repo_present": false,
+          "secrets_in_logs_present": false,
+          "rate_limits_configured": true,
+          "waf_configured": true,
+          "input_validation_at_boundary": true,
+          "tls_https_disabled_present": false
+        },
+        "reliability": {
+          "cpu_budget_respected": true,
+          "cold_start_addressed": true,
+          "error_capture_configured": true,
+          "alerts_configured": true,
+          "staged_rules_used": true,
+          "external_health_checks_configured": true
+        },
+        "tunnels": {
+          "tunnels_present": false
+        },
+        "quotas": {
+          "free_tier_limits_known": true,
+          "quota_alarms_set": true,
+          "monthly_log_driven_cost_review": true
+        },
+        "dns_tls": {
+          "zones_documented": true,
+          "certs_automatic": true,
+          "cert_expiry_monitored": true,
+          "email_routing_consistent": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "edge-platform-engineering",
+        "atom_version": "0.1.0",
+        "project": "test-project",
+        "verdict": "EDGE_PLATFORM_NOT_SOUND",
+        "sections": {
+          "platform_fit_and_storage": "fail",
+          "deploy_and_versioning": "pass",
+          "security_and_access": "fail",
+          "reliability_and_observability": "pass",
+          "tunnels_quotas_and_hygiene": "pass"
+        },
+        "checks": [
+          {
+            "section": "platform_fit_and_storage",
+            "check": "storage_choices_documented",
+            "status": "pass",
+            "evidence": "platform fit / quality gate: storage choices are documented \u2014 consistency + access reasons for each KV / D1 / R2 choice"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "consistency_access_pattern_reviewed",
+            "status": "pass",
+            "evidence": "platform fit: each storage choice is picked per consistency + access pattern, not habit"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "components_declared",
+            "status": "pass",
+            "evidence": "platform fit: the declared record names its components \u2014 the components list is present and non-empty"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "every_component_names_storage_backend",
+            "status": "pass",
+            "evidence": "platform fit: every declared component row names its storage backend \u2014 a non-empty storage_backend string"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "every_component_documents_storage_rationale",
+            "status": "pass",
+            "evidence": "quality gate: every declared component row declares its storage rationale documented \u2014 consistency + access reasons per component"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "no_strong_consistency_component_on_kv",
+            "status": "fail",
+            "evidence": "platform fit: no component that requires strong consistency declares the kv backend \u2014 KV is eventually consistent"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "wrangler_workflows_used",
+            "status": "pass",
+            "evidence": "local dev + deploys: wrangler workflows are used"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "tested_with_real_bindings_locally",
+            "status": "pass",
+            "evidence": "local dev + deploys: the app is tested with real bindings locally"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "deploys_from_git",
+            "status": "pass",
+            "evidence": "local dev + deploys: deploys run from git"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "versioned_deploys",
+            "status": "pass",
+            "evidence": "quality gate: deploys are versioned"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "rollback_path_tested",
+            "status": "pass",
+            "evidence": "quality gate: the rollback path is tested"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "previous_versions_kept_deployable",
+            "status": "pass",
+            "evidence": "local dev + deploys: previous versions are kept deployable"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "staging_separated_from_prod",
+            "status": "pass",
+            "evidence": "quality gate: staging is separated from prod"
+          },
+          {
+            "section": "security_and_access",
+            "check": "secrets_only_in_platform_store",
+            "status": "pass",
+            "evidence": "security / quality gate: secrets live only in the platform secret store"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_secrets_in_code_or_repo",
+            "status": "pass",
+            "evidence": "red line: no secrets in code or repos"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_secrets_in_logs",
+            "status": "pass",
+            "evidence": "red line: no secrets in logs"
+          },
+          {
+            "section": "security_and_access",
+            "check": "rate_limits_at_edge",
+            "status": "pass",
+            "evidence": "security: rate limits are configured at the edge"
+          },
+          {
+            "section": "security_and_access",
+            "check": "waf_at_edge",
+            "status": "pass",
+            "evidence": "security: WAF rules are configured at the edge"
+          },
+          {
+            "section": "security_and_access",
+            "check": "input_validation_at_boundary",
+            "status": "pass",
+            "evidence": "security: all input is validated at the boundary"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_tls_https_disabled",
+            "status": "pass",
+            "evidence": "red line: TLS/HTTPS is never disabled because \"it's just a worker\""
+          },
+          {
+            "section": "security_and_access",
+            "check": "every_admin_component_access_protected",
+            "status": "fail",
+            "evidence": "red line: no admin surfaces without Access \u2014 every component declared as an administrative surface declares Access protection"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "cpu_budget_respected",
+            "status": "pass",
+            "evidence": "reliability / quality gate: the CPU-time budget is respected"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "cold_start_addressed",
+            "status": "pass",
+            "evidence": "reliability: cold-start behaviour is addressed"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "error_capture_configured",
+            "status": "pass",
+            "evidence": "reliability: error capture is configured"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "reliability_alerts_configured",
+            "status": "pass",
+            "evidence": "reliability: alerts are configured on errors"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "staged_rules_used",
+            "status": "pass",
+            "evidence": "reliability: rules are staged, not pushed live unreviewed"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "external_health_checks_configured",
+            "status": "pass",
+            "evidence": "reliability: health checks run from outside the platform"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_origin_stays_loopback",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_access_policies_for_humans",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_service_tokens_for_machines",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "no_public_origin_exposure",
+            "status": "pass",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "free_tier_limits_known",
+            "status": "pass",
+            "evidence": "cost & quotas: the free-tier numbers are known \u2014 requests, KV ops, D1 rows, bandwidth"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "quota_alarms_set",
+            "status": "pass",
+            "evidence": "cost & quotas / quality gate: quota alarms are set before quotas are hit"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "monthly_log_driven_cost_review",
+            "status": "pass",
+            "evidence": "cost & quotas: a log-driven cost review runs monthly"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "dns_zones_documented",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: zones are documented"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "certs_automatic",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: certificates are automatic"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "cert_expiry_monitored",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: automatic certificates are monitored"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "email_routing_consistent",
+            "status": "pass",
+            "evidence": "DNS/TLS hygiene: email routing and records are consistent"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "components_count": 1,
+        "components_without_storage_backend": [],
+        "storage_documentation_coverage": "1.000000",
+        "components_on_kv_requiring_strong_consistency": [
+          "bad-kv"
+        ],
+        "admin_components_without_access": [
+          "bad-kv"
+        ],
+        "access_protection_coverage": "0.000000",
+        "summary": "36 pass, 2 fail, 0 missing of 38 checks across five sections.",
+        "stamp": "EDGE PLATFORM ENGINEERING\nproject: test-project\nVERDICT: EDGE_PLATFORM_NOT_SOUND\n  platform_fit_and_storage             fail\n  deploy_and_versioning                pass\n  security_and_access                  fail\n  reliability_and_observability        pass\n  tunnels_quotas_and_hygiene           pass\n36 pass, 2 fail, 0 missing of 38 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required sections and components list."
+      },
+      "input": {
+        "project": "sparse-project"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "edge-platform-engineering",
+        "atom_version": "0.1.0",
+        "project": "sparse-project",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "platform_fit_and_storage": "insufficient_evidence",
+          "deploy_and_versioning": "insufficient_evidence",
+          "security_and_access": "insufficient_evidence",
+          "reliability_and_observability": "insufficient_evidence",
+          "tunnels_quotas_and_hygiene": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "platform_fit_and_storage",
+            "check": "storage_choices_documented",
+            "status": "missing",
+            "evidence": "platform fit / quality gate: storage choices are documented \u2014 consistency + access reasons for each KV / D1 / R2 choice"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "consistency_access_pattern_reviewed",
+            "status": "missing",
+            "evidence": "platform fit: each storage choice is picked per consistency + access pattern, not habit"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "components_declared",
+            "status": "missing",
+            "evidence": "platform fit: the declared record names its components \u2014 the components list is present and non-empty"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "every_component_names_storage_backend",
+            "status": "missing",
+            "evidence": "platform fit: every declared component row names its storage backend \u2014 a non-empty storage_backend string"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "every_component_documents_storage_rationale",
+            "status": "missing",
+            "evidence": "quality gate: every declared component row declares its storage rationale documented \u2014 consistency + access reasons per component"
+          },
+          {
+            "section": "platform_fit_and_storage",
+            "check": "no_strong_consistency_component_on_kv",
+            "status": "missing",
+            "evidence": "platform fit: no component that requires strong consistency declares the kv backend \u2014 KV is eventually consistent"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "wrangler_workflows_used",
+            "status": "missing",
+            "evidence": "local dev + deploys: wrangler workflows are used"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "tested_with_real_bindings_locally",
+            "status": "missing",
+            "evidence": "local dev + deploys: the app is tested with real bindings locally"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "deploys_from_git",
+            "status": "missing",
+            "evidence": "local dev + deploys: deploys run from git"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "versioned_deploys",
+            "status": "missing",
+            "evidence": "quality gate: deploys are versioned"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "rollback_path_tested",
+            "status": "missing",
+            "evidence": "quality gate: the rollback path is tested"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "previous_versions_kept_deployable",
+            "status": "missing",
+            "evidence": "local dev + deploys: previous versions are kept deployable"
+          },
+          {
+            "section": "deploy_and_versioning",
+            "check": "staging_separated_from_prod",
+            "status": "missing",
+            "evidence": "quality gate: staging is separated from prod"
+          },
+          {
+            "section": "security_and_access",
+            "check": "secrets_only_in_platform_store",
+            "status": "missing",
+            "evidence": "security / quality gate: secrets live only in the platform secret store"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_secrets_in_code_or_repo",
+            "status": "missing",
+            "evidence": "red line: no secrets in code or repos"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_secrets_in_logs",
+            "status": "missing",
+            "evidence": "red line: no secrets in logs"
+          },
+          {
+            "section": "security_and_access",
+            "check": "rate_limits_at_edge",
+            "status": "missing",
+            "evidence": "security: rate limits are configured at the edge"
+          },
+          {
+            "section": "security_and_access",
+            "check": "waf_at_edge",
+            "status": "missing",
+            "evidence": "security: WAF rules are configured at the edge"
+          },
+          {
+            "section": "security_and_access",
+            "check": "input_validation_at_boundary",
+            "status": "missing",
+            "evidence": "security: all input is validated at the boundary"
+          },
+          {
+            "section": "security_and_access",
+            "check": "no_tls_https_disabled",
+            "status": "missing",
+            "evidence": "red line: TLS/HTTPS is never disabled because \"it's just a worker\""
+          },
+          {
+            "section": "security_and_access",
+            "check": "every_admin_component_access_protected",
+            "status": "missing",
+            "evidence": "red line: no admin surfaces without Access \u2014 every component declared as an administrative surface declares Access protection"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "cpu_budget_respected",
+            "status": "missing",
+            "evidence": "reliability / quality gate: the CPU-time budget is respected"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "cold_start_addressed",
+            "status": "missing",
+            "evidence": "reliability: cold-start behaviour is addressed"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "error_capture_configured",
+            "status": "missing",
+            "evidence": "reliability: error capture is configured"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "reliability_alerts_configured",
+            "status": "missing",
+            "evidence": "reliability: alerts are configured on errors"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "staged_rules_used",
+            "status": "missing",
+            "evidence": "reliability: rules are staged, not pushed live unreviewed"
+          },
+          {
+            "section": "reliability_and_observability",
+            "check": "external_health_checks_configured",
+            "status": "missing",
+            "evidence": "reliability: health checks run from outside the platform"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_origin_stays_loopback",
+            "status": "missing",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_access_policies_for_humans",
+            "status": "missing",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "tunnel_service_tokens_for_machines",
+            "status": "missing",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "no_public_origin_exposure",
+            "status": "missing",
+            "evidence": "no tunnels declared"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "free_tier_limits_known",
+            "status": "missing",
+            "evidence": "cost & quotas: the free-tier numbers are known \u2014 requests, KV ops, D1 rows, bandwidth"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "quota_alarms_set",
+            "status": "missing",
+            "evidence": "cost & quotas / quality gate: quota alarms are set before quotas are hit"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "monthly_log_driven_cost_review",
+            "status": "missing",
+            "evidence": "cost & quotas: a log-driven cost review runs monthly"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "dns_zones_documented",
+            "status": "missing",
+            "evidence": "DNS/TLS hygiene: zones are documented"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "certs_automatic",
+            "status": "missing",
+            "evidence": "DNS/TLS hygiene: certificates are automatic"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "cert_expiry_monitored",
+            "status": "missing",
+            "evidence": "DNS/TLS hygiene: automatic certificates are monitored"
+          },
+          {
+            "section": "tunnels_quotas_and_hygiene",
+            "check": "email_routing_consistent",
+            "status": "missing",
+            "evidence": "DNS/TLS hygiene: email routing and records are consistent"
+          }
+        ],
+        "computed_status": null,
+        "components_count": null,
+        "components_without_storage_backend": null,
+        "storage_documentation_coverage": null,
+        "components_on_kv_requiring_strong_consistency": null,
+        "admin_components_without_access": null,
+        "access_protection_coverage": null,
+        "summary": "0 pass, 0 fail, 38 missing of 38 checks across five sections.",
+        "stamp": "EDGE PLATFORM ENGINEERING\nproject: sparse-project\nVERDICT: INSUFFICIENT_EVIDENCE\n  platform_fit_and_storage             insufficient_evidence\n  deploy_and_versioning                insufficient_evidence\n  security_and_access                  insufficient_evidence\n  reliability_and_observability        insufficient_evidence\n  tunnels_quotas_and_hygiene           insufficient_evidence\n0 pass, 0 fail, 38 missing of 38 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: components field expects a list, received a string."
+      },
+      "input": {
+        "project": "malformed-project",
+        "components": "not-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "components",
+        "detail": "components must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}
