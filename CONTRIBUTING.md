@@ -13,6 +13,10 @@ Open a GitHub issue with a clear description of the problem or proposal, the ste
 3. Make sure the existing tests pass, and add tests for new behaviour.
 4. Open a pull request against the default branch. Changes are reviewed before merging.
 
+## Tests
+
+Every service unit carries its own tests under `services/<atom>/tests/`, and the gateway's suite lives in `rails/gateway/test/` and runs in CI on every push and pull request. New behaviour ships with its tests in the same change: a pull request that adds or changes behaviour without tests is not merged, and changed behaviour updates the affected tests in the same pull request.
+
 ## License
 
 This project is licensed under the Apache License 2.0 — see the LICENSE file for details. By contributing, you agree that your contributions are licensed under the same terms.
