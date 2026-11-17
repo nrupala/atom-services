@@ -1,0 +1,127 @@
+# Independent recompute — product-metrics-event-taxonomy-pack
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+### Declared list lengths (counts)
+- `metrics` list: 1 row (`m1`) → `metrics_count = 1`
+- `events` list: 1 row (`user_login`) → `events_count = 1`
+- `properties` list: 1 row (`user_login.timestamp`) → `properties_count = 1`
+
+Artifact: 1 / 1 / 1 → **MATCH**
+
+### `metrics_without_definition`
+Rule: metrics whose `definition` field is *present but empty*. `m1.definition = "definition of m1"` — present, non-empty. So no rows.
+→ `[]`. Artifact: `[]` → **MATCH**
+
+### `duplicate_metric_names`
+Only one metric name `m1`; no second occurrence. → `[]`. Artifact `[]` → **MATCH**
+
+### `duplicate_event_names`
+Only one event name `user_login`. → `[]`. Artifact `[]` → **MATCH**
+
+### `duplicate_property_keys`
+One property key `user_login.timestamp`; no repeat. → `[]`. Artifact `[]` → **MATCH**
+
+### `orphan_property_rows`
+Property `event_name = user_login`; declared events = {`user_login`}. It is declared → no orphans. → `[]`. Artifact `[]` → **MATCH**
+
+### `events_without_properties`
+Declared events = {`user_login`}; property event_names = {`user_login`}. Every event has ≥1 property → none missing. → `[]`. Artifact `[]` → **MATCH**
+
+### `definition_coverage`
+Rule: metrics naming a definition ÷ declared metrics. `m1` names a definition → numerator 1, denominator 1.
+- v = 1/1 = 1.0
+- Serialization: `floor(1.0 * 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → format 6dp → `"1.000000"`
+
+Artifact: `"1.000000"` → **MATCH**
+
+### `event_property_coverage`
+Rule: events with ≥1 declared property ÷ declared events. 1 event, it has a property → 1/1 = 1.0 → `"1.000000"`.
+Artifact: `"1.000000"` → **MATCH**
+
+### `computed_status`
+All 18 primary computed checks complete and pass (no fail, no missing) → `within_stated_limits_on_declared_evidence`. Artifact matches → **MATCH**
+
+### Verdict / summary
+All 48 checks pass → `PRODUCT_METRICS_EVENT_TAXONOMY_PACK_READY`; summary "48 pass, 0 fail, 0 missing of 48". Artifact matches → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Counts
+- metrics: 1 (`m1`) → 1
+- events: 1 (`invalidName`) → 1
+- properties: 1 (`invalidName.timestamp`) → 1
+
+Artifact: 1 / 1 / 1 → **MATCH**
+
+### `metrics_without_definition`
+`m1.definition = ""` — present but empty → include `m1`. → `["m1"]`. Artifact `["m1"]` → **MATCH**
+
+### `duplicate_metric_names` / `duplicate_event_names` / `duplicate_property_keys`
+Each list has one row, no repeats → `[]` / `[]` / `[]`. Artifact matches → **MATCH**
+
+### `orphan_property_rows`
+Property `event_name = invalidName`; declared events = {`invalidName`}. Declared → no orphans. → `[]`. Artifact `[]` → **MATCH**
+
+### `events_without_properties`
+Event `invalidName` has property `invalidName.timestamp` → covered. → `[]`. Artifact `[]` → **MATCH**
+
+### `definition_coverage`
+Numerator: metrics naming a definition. `m1.definition = ""` is empty → does **not** count. Numerator 0, denominator 1.
+- v = 0/1 = 0.0 → `floor(0 + 0.5)/1000000 = 0` → `"0.000000"`
+
+Artifact: `"0.000000"` → **MATCH**
+
+### `event_property_coverage`
+1 event, has a property → 1/1 = 1.0 → `"1.000000"`. Artifact → **MATCH**
+
+### `computed_status`
+At least one primary check fails → `outside_stated_limits_on_declared_evidence`. Artifact matches → **MATCH**
+
+### Confirm the failing checks are exactly the planted wrong values
+
+Planted wrong values in the input:
+1. `metrics[0].definition = ""` → should fail **every_metric_names_definition** (empty definition fails).
+2. `metrics[0].kpi_tree_role = "invalid_role"` → role is present (so `every_metric_names_kpi_tree_role` passes) but not `north_star`/`input` → should fail **every_metric_kpi_tree_role_is_north_star_or_input**.
+3. `events[0].name = "invalidName"` → does not match `^[a-z][a-z0-9]*(_[a-z0-9]+)+$` (uppercase `N`, no underscore) → should fail **every_event_name_follows_object_action_snake_case**.
+4. `properties[0].contains_pii = true` → should fail **no_property_row_declares_pii**.
+
+Artifact's failing checks (4 total):
+- `every_metric_names_definition` — fail ✓ (planted #1)
+- `every_metric_kpi_tree_role_is_north_star_or_input` — fail ✓ (planted #2)
+- `every_event_name_follows_object_action_snake_case` — fail ✓ (planted #3)
+- `no_property_row_declares_pii` — fail ✓ (planted #4)
+
+All other checks pass, and I independently confirm they should: `every_metric_names_kpi_tree_role` passes because the role field is *present* (only its value is wrong); `no_orphan_property_rows` and `every_event_has_declared_properties` pass because `invalidName` is consistently declared on both sides; `no_event_name_duplicated`/`no_property_duplicated_for_same_event` pass (single rows); red_lines all pass because the four red-line booleans are `false`. The failing set is **exactly** the four planted wrong values, no more, no less. → **MATCH**
+
+### Verdict / summary
+Any fail → `PRODUCT_METRICS_EVENT_TAXONOMY_PACK_NOT_READY`; 44 pass, 4 fail, 0 missing of 48. Artifact matches → **MATCH**
+
+---
+
+## Summary of comparisons
+
+| Quantity | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| metrics_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| events_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| properties_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| metrics_without_definition | [] | [] ✓ | ["m1"] | ["m1"] ✓ |
+| duplicate_metric_names | [] | [] ✓ | [] | [] ✓ |
+| duplicate_event_names | [] | [] ✓ | [] | [] ✓ |
+| duplicate_property_keys | [] | [] ✓ | [] | [] ✓ |
+| orphan_property_rows | [] | [] ✓ | [] | [] ✓ |
+| events_without_properties | [] | [] ✓ | [] | [] ✓ |
+| definition_coverage | 1.000000 | 1.000000 ✓ | 0.000000 | 0.000000 ✓ |
+| event_property_coverage | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| computed_status | within | within ✓ | outside | outside ✓ |
+| verdict | READY | READY ✓ | NOT_READY | NOT_READY ✓ |
+| failing checks | — | — | 4 named | exactly the 4 planted ✓ |
+
+Every computed quantity and every headline value in both artifacts agrees with my independent recompute, and the violations case's failing checks are exactly the four planted wrong values.
+
+AGREEMENT: full

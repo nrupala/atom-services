@@ -1,0 +1,113 @@
+# Independent recompute — process-waste-review-coaching
+
+## Case 1: `full-pass`
+
+### Steps arithmetic
+- Steps: Pick (dur 10, wait 2), Pack (dur 5, wait 1)
+- `steps_count` = 2 → artifact 2 **MATCH**
+- `total_duration_minutes` = 10 + 5 = **15** → artifact 15 **MATCH**
+- `total_wait_minutes` = 2 + 1 = **3** → artifact 3 **MATCH**
+
+### `wait_share`
+- Rule: total_wait ÷ (total_wait + total_duration) = 3 ÷ (3 + 15) = 3/18 = 0.1666666…
+- Serialization: `floor(v*1e6 + 0.5)/1e6` = floor(166666.666… + 0.5) = floor(166667.166…) = 166667 → /1e6 = 0.166667 → format 6dp = **"0.166667"**
+- Artifact "0.166667" **MATCH**
+
+### `wastes_count`
+- 1 waste row → **1** → artifact 1 **MATCH**
+
+### `distinct_waste_categories`
+- Waste category "waiting" is valid DOWNTIME; first appearance order → **["waiting"]** → artifact ["waiting"] **MATCH**
+
+### `duplicate_step_names`
+- Names: Pick, Pack — no repeats → **[]** → artifact [] **MATCH**
+
+### `unmatched_waste_step_names`
+- Waste step_name "Pick" is declared → no unmatched → **[]** → artifact [] **MATCH**
+
+### `waste_step_coverage`
+- Waste rows naming a declared step = 1; total waste rows = 1 → 1/1 = 1.0
+- Serialize: floor(1.0*1e6 + 0.5)/1e6 = 1000000/1e6 = 1.0 → **"1.000000"** → artifact "1.000000" **MATCH**
+
+### `bottleneck_step_computed`
+- Durations: Pick=10, Pack=5. Greatest = 10 → first step with max = **"Pick"** → artifact "Pick" **MATCH**
+
+### `computed_status`
+- All eight primary computed checks complete and pass → **within_stated_limits_on_declared_evidence** → artifact same **MATCH**
+
+### Verdict / summary
+- All 40 checks pass (I count the check list: 8 define + 7 steps/waste + 6 measure/metrics + 5 analysis/constraint + 8 improve/control + 6 red_lines = 40). Verdict **PROCESS_WASTE_REVIEW_READY**, summary "40 pass, 0 fail, 0 missing" → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Steps arithmetic
+- Steps: Pick (10, 2), Pick (5, 1)
+- `steps_count` = 2 → artifact 2 **MATCH**
+- `total_duration_minutes` = 10 + 5 = **15** → artifact 15 **MATCH**
+- `total_wait_minutes` = 2 + 1 = **3** → artifact 3 **MATCH**
+
+### `wait_share`
+- 3 ÷ (3 + 15) = 3/18 = 0.1666666… → floor(166666.666…+0.5)=166667 → **"0.166667"** → artifact "0.166667" **MATCH**
+
+### `wastes_count`
+- 1 waste row → **1** → artifact 1 **MATCH**
+
+### `distinct_waste_categories`
+- Category "unknown_waste" is NOT one of the eight DOWNTIME categories → excluded → **[]** → artifact [] **MATCH**
+
+### `duplicate_step_names`
+- Names: Pick, Pick. "Pick" appears on rows 1 and 2; second occurrence is row 2 → **["Pick"]** → artifact ["Pick"] **MATCH**
+
+### `unmatched_waste_step_names`
+- Waste step_name "UnknownStep" names no declared step (declared: Pick, Pick) → **["UnknownStep"]** → artifact ["UnknownStep"] **MATCH**
+
+### `waste_step_coverage`
+- Waste rows naming a declared step = 0; total waste rows = 1 → 0/1 = 0.0
+- Serialize: floor(0*1e6 + 0.5)/1e6 = 0 → **"0.000000"** → artifact "0.000000" **MATCH**
+
+### `bottleneck_step_computed`
+- Durations: Pick=10, Pick=5. Greatest = 10 → first step with max = **"Pick"** (row 1) → artifact "Pick" **MATCH**
+
+### `computed_status`
+- All eight primary computed checks complete; some fail → **outside_stated_limits_on_declared_evidence** → artifact same **MATCH**
+
+### Planted-wrong-value check confirmation
+The planted wrong values are: `define.problem_stated=false`, duplicate step name "Pick", waste category "unknown_waste", waste step_name "UnknownStep", `constraint.bottleneck_step_name="Pack"` (computed bottleneck is "Pick"), and `red_lines.automating_broken_process_present=true`.
+
+Expected failing checks:
+1. `process_problem_stated` — false → **fail** ✓ (artifact fail)
+2. `no_step_name_duplicated` — Pick twice → **fail** ✓ (artifact fail)
+3. `every_waste_category_valid_downtime` — "unknown_waste" invalid → **fail** ✓ (artifact fail)
+4. `every_waste_step_names_declared_step` — "UnknownStep" undeclared → **fail** ✓ (artifact fail)
+5. `declared_bottleneck_matches_longest_step` — declared "Pack" ≠ computed "Pick" → **fail** ✓ (artifact fail)
+6. `no_automating_broken_process` — true → **fail** ✓ (artifact fail)
+
+All other checks should pass. The artifact shows exactly these 6 fails and 34 passes. **MATCH** — the failing set is exactly the planted wrong values.
+
+### Verdict / summary
+- 6 fails → **PROCESS_WASTE_REVIEW_NOT_READY**; summary "34 pass, 6 fail, 0 missing of 40" → **MATCH**
+
+---
+
+## Summary of all computed quantities
+
+| Quantity | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| steps_count | 2 | 2 ✓ | 2 | 2 ✓ |
+| wastes_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| total_duration_minutes | 15 | 15 ✓ | 15 | 15 ✓ |
+| total_wait_minutes | 3 | 3 ✓ | 3 | 3 ✓ |
+| wait_share | 0.166667 | 0.166667 ✓ | 0.166667 | 0.166667 ✓ |
+| distinct_waste_categories | ["waiting"] | ["waiting"] ✓ | [] | [] ✓ |
+| duplicate_step_names | [] | [] ✓ | ["Pick"] | ["Pick"] ✓ |
+| unmatched_waste_step_names | [] | [] ✓ | ["UnknownStep"] | ["UnknownStep"] ✓ |
+| waste_step_coverage | 1.000000 | 1.000000 ✓ | 0.000000 | 0.000000 ✓ |
+| bottleneck_step_computed | Pick | Pick ✓ | Pick | Pick ✓ |
+| computed_status | within… | within… ✓ | outside… | outside… ✓ |
+| verdict | READY | READY ✓ | NOT_READY | NOT_READY ✓ |
+
+Every computed quantity and every check status matches the recorded artifacts, and the violations case fails exactly the six checks the planted wrong values should fail.
+
+AGREEMENT: full

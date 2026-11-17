@@ -1,0 +1,1371 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: offline-first-pwa-engineering-pack
+
+=== contract.yaml ===
+service_name: offline-first-pwa-engineering-pack
+display_name: Offline first pwa engineering pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:pwa-offline-engineering
+binding:
+  skill: pwa-offline-engineering
+  skill_path: workspace/mymilo-build/skills/pwa-offline-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: offline_first_pwa_engineering_pack
+  prefix: atm_1_offline_first_pwa_engineering_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Dogear and vault app builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Offline first pwa engineering pack — `offline-first-pwa-engineering-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build offline-first web apps — service workers, local storage, sync queues, installability, honest state UI.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Dogear and vault app builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the offline-first PWA engineering manifest
+
+The caller submits one JSON manifest: a declared offline-first
+PWA engineering record for one web app. Every field below is
+read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present
+but false / invalid = the check fails
+(`OFFLINE_FIRST_PWA_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `app` (string; carried into the verdict output, not itself checked) | — |
+| `architecture.local_store_is_primary_source` (boolean) | offline_first_architecture |
+| `architecture.server_is_sync_target_or_absent` (boolean) | offline_first_architecture |
+| `core_flows` (list of core-flow-row objects, each with the entry fields below; computed, see below) | offline_first_architecture |
+| `core_flows[].name` (string; names the row in the computed outputs) | offline_first_architecture |
+| `core_flows[].works_fully_offline` (boolean) | offline_first_architecture |
+| `service_worker.app_shell_precached` (boolean) | service_worker_discipline |
+| `service_worker.versioned_assets_precached` (boolean) | service_worker_discipline |
+| `service_worker.sensitive_responses_not_cached_blindly` (boolean) | service_worker_discipline |
+| `service_worker.update_flow_new_version_ready_ui_present` (boolean) | service_worker_discipline |
+| `service_worker.skip_waiting_controlled` (boolean) | service_worker_discipline |
+| `storage.versioned_schema_migrations_present` (boolean) | storage_engineering |
+| `storage.migrations_tested` (boolean) | storage_engineering |
+| `storage.quota_awareness_present` (boolean) | storage_engineering |
+| `storage.quota_exhaustion_handled_gracefully` (boolean) | storage_engineering |
+| `storage.export_path_exists` (boolean) | storage_engineering |
+| `storage.import_path_exists` (boolean) | storage_engineering |
+| `storage.export_import_round_trip_verified` (boolean) | storage_engineering |
+| `sync.server_sync_used` (boolean; the applicability gate for the four sync checks below) | sync_and_honest_state |
+| `sync.queue_with_retry_and_backoff` (boolean; gated — applies only when `server_sync_used` is `true`) | sync_and_honest_state |
+| `sync.operations_idempotent` (boolean; gated, as above) | sync_and_honest_state |
+| `sync.conflict_rules_explicit` (boolean; gated, as above) | sync_and_honest_state |
+| `sync.state_visible_pending_synced_failed` (boolean; gated, as above) | sync_and_honest_state |
+| `sync.indefinite_spinners_avoided` (boolean) | sync_and_honest_state |
+| `installability.web_app_manifest_present` (boolean) | installability_encryption_and_ux |
+| `installability.icons_present` (boolean) | installability_encryption_and_ux |
+| `installability.theming_present` (boolean) | installability_encryption_and_ux |
+| `installability.keyboard_first_usability_addressed` (boolean) | installability_encryption_and_ux |
+| `installability.degraded_mode_messaging_present` (boolean) | installability_encryption_and_ux |
+| `encryption.zero_knowledge_claimed` (boolean; the applicability gate for the three encryption checks below) | installability_encryption_and_ux |
+| `encryption.webcrypto_used` (boolean; gated — applies only when `zero_knowledge_claimed` is `true`) | installability_encryption_and_ux |
+| `encryption.keys_never_exported_unencrypted` (boolean; gated, as above) | installability_encryption_and_ux |
+| `encryption.platform_limits_disclosed_honestly` (boolean; gated, as above) | installability_encryption_and_ux |
+| `testing.devtools_offline_test_performed` (boolean) | testing_and_quality_gates |
+| `testing.devtools_throttle_test_performed` (boolean) | testing_and_quality_gates |
+| `testing.storage_full_simulation_performed` (boolean) | testing_and_quality_gates |
+| `testing.upgrade_path_old_data_tested` (boolean) | testing_and_quality_gates |
+| `testing.install_uninstall_flows_tested` (boolean) | testing_and_quality_gates |
+| `testing.service_worker_update_flow_exercised` (boolean) | testing_and_quality_gates |
+| `red_lines.silent_data_loss_present` (boolean; must be `false` to pass) | pwa_red_lines |
+| `red_lines.caching_of_secrets_present` (boolean; must be `false` to pass) | pwa_red_lines |
+| `red_lines.network_required_core_flows_claimed_offline_first_present` (boolean; must be `false` to pass) | pwa_red_lines |
+
+Both gated groups follow the declared applicability flag,
+exactly as declared. `sync_applicability_declared` passes
+whenever `sync.server_sync_used` is present (either value);
+each gated sync check is **missing** when the gate or the
+field itself is absent, **passes as not applicable** when the
+gate is declared `false` (whatever the field declares), and
+when the gate is declared `true` passes only when the field
+is declared `true`. The encryption group is identical in
+shape, gated on `encryption.zero_knowledge_claimed` with its
+own `zero_knowledge_applicability_declared` check — the gate
+exists because the skill allows a server to be absent
+entirely, and requires WebCrypto only when zero-knowledge is
+claimed.
+
+Several checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of
+the declared record itself — no outside threshold is
+imported:
+
+- **Core flows declared:** the declared `core_flows` list
+  passes only when it is present and non-empty; an absent
+  list is missing evidence, an empty list fails.
+- **Every core flow works fully offline:** every declared
+  core-flow row must declare `works_fully_offline: true`
+  (the skill: "Core flows work fully offline"). A row with
+  the field absent is missing evidence.
+- **No core flow name duplicated:** no declared core-flow
+  `name` may appear on more than one core-flow row. A row
+  with `name` absent is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the three primary computed checks above cannot be
+completed), `core_flows_count` (the declared list length, or
+null when the list is not declared — counts are reported as
+integers, exactly), the row-name list
+`flows_without_offline_support` (flows whose field is
+present but not true; a flow with the field absent is
+missing evidence and does not appear) and
+`duplicate_flow_names` (flow names declared on more than one
+row, in the order their second occurrence appears), and the
+coverage ratio `offline_coverage` (flows working fully
+offline ÷ declared flows). **Fixed serialization rule:**
+computed ratios are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio
+is null when its denominator list is absent or empty. That
+fixed serialization is what makes the Python and TypeScript
+outputs byte-identical.
+
+The skill states no numeric pass/fail threshold — its
+engineering demands are qualitative declarations the record
+makes, not bars the atom can set. Quantities are computed
+and reported; the only bar on the computed rows is
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a cache size or
+precache byte/count budget; a storage quota size in bytes or
+a quota-warning percentage; a sync retry count, backoff
+interval, or sync latency; an icon size, icon count, or
+manifest completeness score; a number of core flows an app
+must declare beyond the one declared list being non-empty; a
+coverage percentage below completeness; a specific local
+store technology mandate (the skill names IndexedDB for
+structured data and OPFS for files as its method — this atom
+checks that the local store is primary, not which named
+technology a caller chose); a specific conflict-resolution
+algorithm (the skill allows last-write-wins or a
+domain-specific merge — only that the rule is explicit is
+checked).
+
+The verdict is one of `OFFLINE_FIRST_PWA_SOUND` (all 41
+checks pass), `OFFLINE_FIRST_PWA_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections:
+offline_first_architecture, service_worker_discipline,
+storage_engineering, sync_and_honest_state,
+installability_encryption_and_ux, testing_and_quality_gates,
+pwa_red_lines.
+
+## Distinct ground
+
+The nearest sibling is the deployed `local-first-sync-design`,
+whose ground is **sync design** for a local-first system: its
+checks ask whether a device store is authoritative over a
+relay/backup server, whether mergeable state uses CRDT/OT,
+whether tombstones and a compaction policy are declared,
+whether every entity declares per-field merge semantics and
+a stable id, whether delta sync, causal ordering and version
+vectors are declared, whether synced data is end-to-end
+encrypted with a key hierarchy and tested key recovery,
+whether only semantic conflicts reach explicit UI, whether
+prose is protected from silent last-write-wins, and whether
+chaos scenarios and multi-device round trips were tested.
+This atom's ground is the **offline-first PWA engineering
+record** for a web app, and it shares **zero checks** with
+that atom (verified by exact check-name comparison against
+every sibling's source): every check here is a
+PWA-engineering question — an app shell and versioned assets
+pre-cached, sensitive responses never cached blindly, an
+explicit "new version ready" update flow with controlled
+skipWaiting, versioned schema migrations and quota handling,
+a web app manifest with icons and theming, keyboard-first
+usability and degraded-mode messaging, DevTools
+offline/throttle tests, a storage-full simulation, an
+upgrade-path test and install/uninstall flows. Sync appears
+here only in the skill's own PWA form — a queue with
+retry/backoff, idempotent operations, explicit conflict
+rules and visible pending/synced/failed state, gated on
+server sync being used at all — with none of the sibling's
+merge, ordering, entity or key-hierarchy questions. No other
+live or staged sibling reviews a PWA engineering record.
+
+## Honest scoping
+
+This atom reviews a **declared** offline-first PWA
+engineering record — it builds no PWA, runs no service
+worker, opens no browser, reads no cache, storage or
+manifest from a live app, and does not verify that a
+declared practice was ever carried out. An app is sound *on
+the caller's declared evidence*: a record that declares its
+app shell pre-cached, its migrations tested and no secrets
+cached passes those checks even if the real app did none of
+it. It is a completeness and consistency audit of the
+engineering record the skill requires, **not PWA
+engineering, a browser test, or a guarantee that the app
+works offline**: it never judges whether the caching
+strategy is right, whether the conflict rule is good,
+whether the local store design is sound, or whether users
+will succeed — only that the record contains what the
+skill's method, quality gates and red lines demand, and
+that its declared core-flow rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds
+beyond the skill's own stated rules (see the declined list
+above); no live verification of any declared fact; no
+judgment of engineering *quality* — whether the service
+worker, storage or sync design will work is the caller's
+declaration, checked only for declared presence and
+consistency; encryption substance (whether WebCrypto is
+used correctly, whether keys are actually safe) is a caller
+declaration — only its declared presence under a
+zero-knowledge claim is checked.
+
+## U-13 regulatory screen
+
+This atom's output could not read as regulated professional
+advice: it audits a declared software-engineering record for
+completeness and consistency only, and offers no
+engineering, financial, medical or legal advice about any
+real system.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved
+queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "offline-first-pwa-engineering-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "OFFLINE_FIRST_PWA_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All checks pass; computed_spot_checks: core_flows_count=2, offline_coverage=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "core_flows_count": 2,
+          "flows_without_offline_support": [],
+          "offline_coverage": "1.000000",
+          "duplicate_flow_names": []
+        }
+      },
+      "input": {
+        "app": "TestApp",
+        "architecture": {
+          "local_store_is_primary_source": true,
+          "server_is_sync_target_or_absent": true
+        },
+        "service_worker": {
+          "app_shell_precached": true,
+          "versioned_assets_precached": true,
+          "sensitive_responses_not_cached_blindly": true,
+          "update_flow_new_version_ready_ui_present": true,
+          "skip_waiting_controlled": true
+        },
+        "storage": {
+          "versioned_schema_migrations_present": true,
+          "migrations_tested": true,
+          "quota_awareness_present": true,
+          "quota_exhaustion_handled_gracefully": true,
+          "export_path_exists": true,
+          "import_path_exists": true,
+          "export_import_round_trip_verified": true
+        },
+        "sync": {
+          "server_sync_used": true,
+          "queue_with_retry_and_backoff": true,
+          "operations_idempotent": true,
+          "conflict_rules_explicit": true,
+          "state_visible_pending_synced_failed": true,
+          "indefinite_spinners_avoided": true
+        },
+        "installability": {
+          "web_app_manifest_present": true,
+          "icons_present": true,
+          "theming_present": true,
+          "keyboard_first_usability_addressed": true,
+          "degraded_mode_messaging_present": true
+        },
+        "encryption": {
+          "zero_knowledge_claimed": true,
+          "webcrypto_used": true,
+          "keys_never_exported_unencrypted": true,
+          "platform_limits_disclosed_honestly": true
+        },
+        "testing": {
+          "devtools_offline_test_performed": true,
+          "devtools_throttle_test_performed": true,
+          "storage_full_simulation_performed": true,
+          "upgrade_path_old_data_tested": true,
+          "install_uninstall_flows_tested": true,
+          "service_worker_update_flow_exercised": true
+        },
+        "red_lines": {
+          "silent_data_loss_present": false,
+          "caching_of_secrets_present": false,
+          "network_required_core_flows_claimed_offline_first_present": false
+        },
+        "core_flows": [
+          {
+            "name": "login",
+            "works_fully_offline": true
+          },
+          {
+            "name": "view_dashboard",
+            "works_fully_offline": true
+          }
+        ]
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "offline-first-pwa-engineering-pack",
+        "atom_version": "0.1.0",
+        "app": "TestApp",
+        "verdict": "OFFLINE_FIRST_PWA_SOUND",
+        "sections": {
+          "offline_first_architecture": "pass",
+          "service_worker_discipline": "pass",
+          "storage_engineering": "pass",
+          "sync_and_honest_state": "pass",
+          "installability_encryption_and_ux": "pass",
+          "testing_and_quality_gates": "pass",
+          "pwa_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "offline_first_architecture",
+            "check": "local_store_is_primary_source",
+            "status": "pass",
+            "evidence": "architecture: the local store is the primary source for user data"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "server_is_sync_target_or_absent",
+            "status": "pass",
+            "evidence": "architecture: the server is a sync target, or absent entirely, never the primary source"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "core_flows_declared",
+            "status": "pass",
+            "evidence": "the declared record names its core flows -- the core flows list is present and non-empty"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "every_core_flow_works_fully_offline",
+            "status": "pass",
+            "evidence": "architecture: every declared core flow works fully offline"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "no_core_flow_name_duplicated",
+            "status": "pass",
+            "evidence": "core flows: no declared core flow name is owned by more than one core flow row"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "app_shell_precached",
+            "status": "pass",
+            "evidence": "service worker: the app shell is pre-cached"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "versioned_assets_precached",
+            "status": "pass",
+            "evidence": "service worker: versioned assets are pre-cached"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "sensitive_responses_not_cached_blindly",
+            "status": "pass",
+            "evidence": "service worker: sensitive responses are never cached blindly"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "update_flow_new_version_ready_ui_present",
+            "status": "pass",
+            "evidence": "service worker: the update flow is explicit, with a new version ready UI"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "skip_waiting_controlled",
+            "status": "pass",
+            "evidence": "service worker: skipWaiting is controlled, not automatic and uncontrolled"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "versioned_schema_migrations_present",
+            "status": "pass",
+            "evidence": "storage: versioned schema migrations are present"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "migrations_tested",
+            "status": "pass",
+            "evidence": "storage: storage migrations are tested"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "quota_awareness_present",
+            "status": "pass",
+            "evidence": "storage: quota awareness is present"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "quota_exhaustion_handled_gracefully",
+            "status": "pass",
+            "evidence": "storage: quota exhaustion is handled gracefully, including storage-full"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "export_path_exists",
+            "status": "pass",
+            "evidence": "storage: an export path exists so users truly own their data"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "import_path_exists",
+            "status": "pass",
+            "evidence": "storage: an import path exists so users truly own their data"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "export_import_round_trip_verified",
+            "status": "pass",
+            "evidence": "storage: the export path exists and round-trips through import"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "sync_applicability_declared",
+            "status": "pass",
+            "evidence": "sync: whether the app uses server sync is declared -- the sync checks apply only when it does, because the server may be absent entirely"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "queue_with_retry_and_backoff",
+            "status": "pass",
+            "evidence": "sync: changes are queued with retry and backoff"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "operations_idempotent",
+            "status": "pass",
+            "evidence": "sync: sync operations are idempotent"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "conflict_rules_explicit",
+            "status": "pass",
+            "evidence": "sync: conflict rules are explicit -- last-write-wins or a domain-specific merge, declared not implicit"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "state_visible_pending_synced_failed",
+            "status": "pass",
+            "evidence": "sync: visible sync state -- pending, synced and failed -- is shown"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "indefinite_spinners_avoided",
+            "status": "pass",
+            "evidence": "honest state: there are no spinners-forever -- the UI tells the truth about sync state"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "web_app_manifest_present",
+            "status": "pass",
+            "evidence": "installability: a web app manifest is present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "icons_present",
+            "status": "pass",
+            "evidence": "installability: icons are present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "theming_present",
+            "status": "pass",
+            "evidence": "installability: theming is present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "keyboard_first_usability_addressed",
+            "status": "pass",
+            "evidence": "UX: keyboard-first usability is addressed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "degraded_mode_messaging_present",
+            "status": "pass",
+            "evidence": "UX: degraded-mode messaging is present when features need connectivity"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "zero_knowledge_applicability_declared",
+            "status": "pass",
+            "evidence": "encryption: whether zero-knowledge is claimed is declared -- the encryption checks apply only when it is claimed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "webcrypto_used",
+            "status": "pass",
+            "evidence": "encryption: WebCrypto is used when zero-knowledge is claimed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "keys_never_exported_unencrypted",
+            "status": "pass",
+            "evidence": "encryption: keys never leave the device unencrypted"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "platform_limits_disclosed_honestly",
+            "status": "pass",
+            "evidence": "encryption: web-platform limits, including secure storage constraints, are disclosed honestly"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "devtools_offline_test_performed",
+            "status": "pass",
+            "evidence": "testing: a DevTools offline test is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "devtools_throttle_test_performed",
+            "status": "pass",
+            "evidence": "testing: a DevTools throttle test is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "storage_full_simulation_performed",
+            "status": "pass",
+            "evidence": "testing: a storage-full simulation is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "upgrade_path_old_data_tested",
+            "status": "pass",
+            "evidence": "testing: the upgrade path is tested -- old data to new version"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "install_uninstall_flows_tested",
+            "status": "pass",
+            "evidence": "testing: install and uninstall flows are tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "service_worker_update_flow_exercised",
+            "status": "pass",
+            "evidence": "testing: the update flow for a new service worker is exercised"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "silent_data_loss_refused",
+            "status": "pass",
+            "evidence": "red line: no silent data loss -- quota and deletes must warn"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "secrets_caching_refused",
+            "status": "pass",
+            "evidence": "red line: no caching of secrets is present in the record"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "network_required_core_flow_offline_claim_refused",
+            "status": "pass",
+            "evidence": "red line: no offline-first claim is made with network-required core flows"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "core_flows_count": 2,
+        "flows_without_offline_support": [],
+        "offline_coverage": "1.000000",
+        "duplicate_flow_names": [],
+        "summary": "41 pass, 0 fail, 0 missing of 41 checks across seven sections.",
+        "stamp": "OFFLINE-FIRST PWA ENGINEERING PACK\napp: TestApp\nVERDICT: OFFLINE_FIRST_PWA_SOUND\n  offline_first_architecture                   pass\n  service_worker_discipline                    pass\n  storage_engineering                          pass\n  sync_and_honest_state                        pass\n  installability_encryption_and_ux             pass\n  testing_and_quality_gates                    pass\n  pwa_red_lines                                pass\n41 pass, 0 fail, 0 missing of 41 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "OFFLINE_FIRST_PWA_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "app_shell_precached",
+          "every_core_flow_works_fully_offline",
+          "no_core_flow_name_duplicated",
+          "silent_data_loss_refused"
+        ],
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "core_flows_count": 2,
+          "flows_without_offline_support": [
+            "login"
+          ],
+          "offline_coverage": "0.500000",
+          "duplicate_flow_names": [
+            "login"
+          ]
+        },
+        "notes": "Violates red lines, duplicate flow names, and offline support requirement."
+      },
+      "input": {
+        "app": "TestApp",
+        "architecture": {
+          "local_store_is_primary_source": true,
+          "server_is_sync_target_or_absent": true
+        },
+        "service_worker": {
+          "app_shell_precached": false,
+          "versioned_assets_precached": true,
+          "sensitive_responses_not_cached_blindly": true,
+          "update_flow_new_version_ready_ui_present": true,
+          "skip_waiting_controlled": true
+        },
+        "storage": {
+          "versioned_schema_migrations_present": true,
+          "migrations_tested": true,
+          "quota_awareness_present": true,
+          "quota_exhaustion_handled_gracefully": true,
+          "export_path_exists": true,
+          "import_path_exists": true,
+          "export_import_round_trip_verified": true
+        },
+        "sync": {
+          "server_sync_used": true,
+          "queue_with_retry_and_backoff": true,
+          "operations_idempotent": true,
+          "conflict_rules_explicit": true,
+          "state_visible_pending_synced_failed": true,
+          "indefinite_spinners_avoided": true
+        },
+        "installability": {
+          "web_app_manifest_present": true,
+          "icons_present": true,
+          "theming_present": true,
+          "keyboard_first_usability_addressed": true,
+          "degraded_mode_messaging_present": true
+        },
+        "encryption": {
+          "zero_knowledge_claimed": true,
+          "webcrypto_used": true,
+          "keys_never_exported_unencrypted": true,
+          "platform_limits_disclosed_honestly": true
+        },
+        "testing": {
+          "devtools_offline_test_performed": true,
+          "devtools_throttle_test_performed": true,
+          "storage_full_simulation_performed": true,
+          "upgrade_path_old_data_tested": true,
+          "install_uninstall_flows_tested": true,
+          "service_worker_update_flow_exercised": true
+        },
+        "red_lines": {
+          "silent_data_loss_present": true,
+          "caching_of_secrets_present": false,
+          "network_required_core_flows_claimed_offline_first_present": false
+        },
+        "core_flows": [
+          {
+            "name": "login",
+            "works_fully_offline": false
+          },
+          {
+            "name": "login",
+            "works_fully_offline": true
+          }
+        ]
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "offline-first-pwa-engineering-pack",
+        "atom_version": "0.1.0",
+        "app": "TestApp",
+        "verdict": "OFFLINE_FIRST_PWA_NOT_SOUND",
+        "sections": {
+          "offline_first_architecture": "fail",
+          "service_worker_discipline": "fail",
+          "storage_engineering": "pass",
+          "sync_and_honest_state": "pass",
+          "installability_encryption_and_ux": "pass",
+          "testing_and_quality_gates": "pass",
+          "pwa_red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "offline_first_architecture",
+            "check": "local_store_is_primary_source",
+            "status": "pass",
+            "evidence": "architecture: the local store is the primary source for user data"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "server_is_sync_target_or_absent",
+            "status": "pass",
+            "evidence": "architecture: the server is a sync target, or absent entirely, never the primary source"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "core_flows_declared",
+            "status": "pass",
+            "evidence": "the declared record names its core flows -- the core flows list is present and non-empty"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "every_core_flow_works_fully_offline",
+            "status": "fail",
+            "evidence": "architecture: every declared core flow works fully offline"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "no_core_flow_name_duplicated",
+            "status": "fail",
+            "evidence": "core flows: no declared core flow name is owned by more than one core flow row"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "app_shell_precached",
+            "status": "fail",
+            "evidence": "service worker: the app shell is pre-cached"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "versioned_assets_precached",
+            "status": "pass",
+            "evidence": "service worker: versioned assets are pre-cached"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "sensitive_responses_not_cached_blindly",
+            "status": "pass",
+            "evidence": "service worker: sensitive responses are never cached blindly"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "update_flow_new_version_ready_ui_present",
+            "status": "pass",
+            "evidence": "service worker: the update flow is explicit, with a new version ready UI"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "skip_waiting_controlled",
+            "status": "pass",
+            "evidence": "service worker: skipWaiting is controlled, not automatic and uncontrolled"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "versioned_schema_migrations_present",
+            "status": "pass",
+            "evidence": "storage: versioned schema migrations are present"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "migrations_tested",
+            "status": "pass",
+            "evidence": "storage: storage migrations are tested"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "quota_awareness_present",
+            "status": "pass",
+            "evidence": "storage: quota awareness is present"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "quota_exhaustion_handled_gracefully",
+            "status": "pass",
+            "evidence": "storage: quota exhaustion is handled gracefully, including storage-full"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "export_path_exists",
+            "status": "pass",
+            "evidence": "storage: an export path exists so users truly own their data"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "import_path_exists",
+            "status": "pass",
+            "evidence": "storage: an import path exists so users truly own their data"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "export_import_round_trip_verified",
+            "status": "pass",
+            "evidence": "storage: the export path exists and round-trips through import"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "sync_applicability_declared",
+            "status": "pass",
+            "evidence": "sync: whether the app uses server sync is declared -- the sync checks apply only when it does, because the server may be absent entirely"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "queue_with_retry_and_backoff",
+            "status": "pass",
+            "evidence": "sync: changes are queued with retry and backoff"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "operations_idempotent",
+            "status": "pass",
+            "evidence": "sync: sync operations are idempotent"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "conflict_rules_explicit",
+            "status": "pass",
+            "evidence": "sync: conflict rules are explicit -- last-write-wins or a domain-specific merge, declared not implicit"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "state_visible_pending_synced_failed",
+            "status": "pass",
+            "evidence": "sync: visible sync state -- pending, synced and failed -- is shown"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "indefinite_spinners_avoided",
+            "status": "pass",
+            "evidence": "honest state: there are no spinners-forever -- the UI tells the truth about sync state"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "web_app_manifest_present",
+            "status": "pass",
+            "evidence": "installability: a web app manifest is present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "icons_present",
+            "status": "pass",
+            "evidence": "installability: icons are present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "theming_present",
+            "status": "pass",
+            "evidence": "installability: theming is present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "keyboard_first_usability_addressed",
+            "status": "pass",
+            "evidence": "UX: keyboard-first usability is addressed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "degraded_mode_messaging_present",
+            "status": "pass",
+            "evidence": "UX: degraded-mode messaging is present when features need connectivity"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "zero_knowledge_applicability_declared",
+            "status": "pass",
+            "evidence": "encryption: whether zero-knowledge is claimed is declared -- the encryption checks apply only when it is claimed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "webcrypto_used",
+            "status": "pass",
+            "evidence": "encryption: WebCrypto is used when zero-knowledge is claimed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "keys_never_exported_unencrypted",
+            "status": "pass",
+            "evidence": "encryption: keys never leave the device unencrypted"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "platform_limits_disclosed_honestly",
+            "status": "pass",
+            "evidence": "encryption: web-platform limits, including secure storage constraints, are disclosed honestly"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "devtools_offline_test_performed",
+            "status": "pass",
+            "evidence": "testing: a DevTools offline test is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "devtools_throttle_test_performed",
+            "status": "pass",
+            "evidence": "testing: a DevTools throttle test is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "storage_full_simulation_performed",
+            "status": "pass",
+            "evidence": "testing: a storage-full simulation is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "upgrade_path_old_data_tested",
+            "status": "pass",
+            "evidence": "testing: the upgrade path is tested -- old data to new version"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "install_uninstall_flows_tested",
+            "status": "pass",
+            "evidence": "testing: install and uninstall flows are tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "service_worker_update_flow_exercised",
+            "status": "pass",
+            "evidence": "testing: the update flow for a new service worker is exercised"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "silent_data_loss_refused",
+            "status": "fail",
+            "evidence": "red line: no silent data loss -- quota and deletes must warn"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "secrets_caching_refused",
+            "status": "pass",
+            "evidence": "red line: no caching of secrets is present in the record"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "network_required_core_flow_offline_claim_refused",
+            "status": "pass",
+            "evidence": "red line: no offline-first claim is made with network-required core flows"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "core_flows_count": 2,
+        "flows_without_offline_support": [
+          "login"
+        ],
+        "offline_coverage": "0.500000",
+        "duplicate_flow_names": [
+          "login"
+        ],
+        "summary": "37 pass, 4 fail, 0 missing of 41 checks across seven sections.",
+        "stamp": "OFFLINE-FIRST PWA ENGINEERING PACK\napp: TestApp\nVERDICT: OFFLINE_FIRST_PWA_NOT_SOUND\n  offline_first_architecture                   fail\n  service_worker_discipline                    fail\n  storage_engineering                          pass\n  sync_and_honest_state                        pass\n  installability_encryption_and_ux             pass\n  testing_and_quality_gates                    pass\n  pwa_red_lines                                fail\n37 pass, 4 fail, 0 missing of 41 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Only the identity field present; every check missing."
+      },
+      "input": {
+        "app": "TestApp"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "offline-first-pwa-engineering-pack",
+        "atom_version": "0.1.0",
+        "app": "TestApp",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "offline_first_architecture": "insufficient_evidence",
+          "service_worker_discipline": "insufficient_evidence",
+          "storage_engineering": "insufficient_evidence",
+          "sync_and_honest_state": "insufficient_evidence",
+          "installability_encryption_and_ux": "insufficient_evidence",
+          "testing_and_quality_gates": "insufficient_evidence",
+          "pwa_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "offline_first_architecture",
+            "check": "local_store_is_primary_source",
+            "status": "missing",
+            "evidence": "architecture: the local store is the primary source for user data"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "server_is_sync_target_or_absent",
+            "status": "missing",
+            "evidence": "architecture: the server is a sync target, or absent entirely, never the primary source"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "core_flows_declared",
+            "status": "missing",
+            "evidence": "the declared record names its core flows -- the core flows list is present and non-empty"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "every_core_flow_works_fully_offline",
+            "status": "missing",
+            "evidence": "architecture: every declared core flow works fully offline"
+          },
+          {
+            "section": "offline_first_architecture",
+            "check": "no_core_flow_name_duplicated",
+            "status": "missing",
+            "evidence": "core flows: no declared core flow name is owned by more than one core flow row"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "app_shell_precached",
+            "status": "missing",
+            "evidence": "service worker: the app shell is pre-cached"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "versioned_assets_precached",
+            "status": "missing",
+            "evidence": "service worker: versioned assets are pre-cached"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "sensitive_responses_not_cached_blindly",
+            "status": "missing",
+            "evidence": "service worker: sensitive responses are never cached blindly"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "update_flow_new_version_ready_ui_present",
+            "status": "missing",
+            "evidence": "service worker: the update flow is explicit, with a new version ready UI"
+          },
+          {
+            "section": "service_worker_discipline",
+            "check": "skip_waiting_controlled",
+            "status": "missing",
+            "evidence": "service worker: skipWaiting is controlled, not automatic and uncontrolled"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "versioned_schema_migrations_present",
+            "status": "missing",
+            "evidence": "storage: versioned schema migrations are present"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "migrations_tested",
+            "status": "missing",
+            "evidence": "storage: storage migrations are tested"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "quota_awareness_present",
+            "status": "missing",
+            "evidence": "storage: quota awareness is present"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "quota_exhaustion_handled_gracefully",
+            "status": "missing",
+            "evidence": "storage: quota exhaustion is handled gracefully, including storage-full"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "export_path_exists",
+            "status": "missing",
+            "evidence": "storage: an export path exists so users truly own their data"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "import_path_exists",
+            "status": "missing",
+            "evidence": "storage: an import path exists so users truly own their data"
+          },
+          {
+            "section": "storage_engineering",
+            "check": "export_import_round_trip_verified",
+            "status": "missing",
+            "evidence": "storage: the export path exists and round-trips through import"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "sync_applicability_declared",
+            "status": "missing",
+            "evidence": "sync: whether the app uses server sync is declared -- the sync checks apply only when it does, because the server may be absent entirely"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "queue_with_retry_and_backoff",
+            "status": "missing",
+            "evidence": "sync: changes are queued with retry and backoff"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "operations_idempotent",
+            "status": "missing",
+            "evidence": "sync: sync operations are idempotent"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "conflict_rules_explicit",
+            "status": "missing",
+            "evidence": "sync: conflict rules are explicit -- last-write-wins or a domain-specific merge, declared not implicit"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "state_visible_pending_synced_failed",
+            "status": "missing",
+            "evidence": "sync: visible sync state -- pending, synced and failed -- is shown"
+          },
+          {
+            "section": "sync_and_honest_state",
+            "check": "indefinite_spinners_avoided",
+            "status": "missing",
+            "evidence": "honest state: there are no spinners-forever -- the UI tells the truth about sync state"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "web_app_manifest_present",
+            "status": "missing",
+            "evidence": "installability: a web app manifest is present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "icons_present",
+            "status": "missing",
+            "evidence": "installability: icons are present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "theming_present",
+            "status": "missing",
+            "evidence": "installability: theming is present"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "keyboard_first_usability_addressed",
+            "status": "missing",
+            "evidence": "UX: keyboard-first usability is addressed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "degraded_mode_messaging_present",
+            "status": "missing",
+            "evidence": "UX: degraded-mode messaging is present when features need connectivity"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "zero_knowledge_applicability_declared",
+            "status": "missing",
+            "evidence": "encryption: whether zero-knowledge is claimed is declared -- the encryption checks apply only when it is claimed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "webcrypto_used",
+            "status": "missing",
+            "evidence": "encryption: WebCrypto is used when zero-knowledge is claimed"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "keys_never_exported_unencrypted",
+            "status": "missing",
+            "evidence": "encryption: keys never leave the device unencrypted"
+          },
+          {
+            "section": "installability_encryption_and_ux",
+            "check": "platform_limits_disclosed_honestly",
+            "status": "missing",
+            "evidence": "encryption: web-platform limits, including secure storage constraints, are disclosed honestly"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "devtools_offline_test_performed",
+            "status": "missing",
+            "evidence": "testing: a DevTools offline test is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "devtools_throttle_test_performed",
+            "status": "missing",
+            "evidence": "testing: a DevTools throttle test is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "storage_full_simulation_performed",
+            "status": "missing",
+            "evidence": "testing: a storage-full simulation is performed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "upgrade_path_old_data_tested",
+            "status": "missing",
+            "evidence": "testing: the upgrade path is tested -- old data to new version"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "install_uninstall_flows_tested",
+            "status": "missing",
+            "evidence": "testing: install and uninstall flows are tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "service_worker_update_flow_exercised",
+            "status": "missing",
+            "evidence": "testing: the update flow for a new service worker is exercised"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "silent_data_loss_refused",
+            "status": "missing",
+            "evidence": "red line: no silent data loss -- quota and deletes must warn"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "secrets_caching_refused",
+            "status": "missing",
+            "evidence": "red line: no caching of secrets is present in the record"
+          },
+          {
+            "section": "pwa_red_lines",
+            "check": "network_required_core_flow_offline_claim_refused",
+            "status": "missing",
+            "evidence": "red line: no offline-first claim is made with network-required core flows"
+          }
+        ],
+        "computed_status": null,
+        "core_flows_count": null,
+        "flows_without_offline_support": null,
+        "offline_coverage": null,
+        "duplicate_flow_names": null,
+        "summary": "0 pass, 0 fail, 41 missing of 41 checks across seven sections.",
+        "stamp": "OFFLINE-FIRST PWA ENGINEERING PACK\napp: TestApp\nVERDICT: INSUFFICIENT_EVIDENCE\n  offline_first_architecture                   insufficient_evidence\n  service_worker_discipline                    insufficient_evidence\n  storage_engineering                          insufficient_evidence\n  sync_and_honest_state                        insufficient_evidence\n  installability_encryption_and_ux             insufficient_evidence\n  testing_and_quality_gates                    insufficient_evidence\n  pwa_red_lines                                insufficient_evidence\n0 pass, 0 fail, 41 missing of 41 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation on architecture.local_store_is_primary_source."
+      },
+      "input": {
+        "app": "MalformedApp",
+        "architecture": {
+          "local_store_is_primary_source": "NOT_A_BOOLEAN"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "architecture.local_store_is_primary_source",
+        "detail": "architecture.local_store_is_primary_source must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

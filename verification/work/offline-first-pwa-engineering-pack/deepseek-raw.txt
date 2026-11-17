@@ -1,0 +1,152 @@
+# Independent recompute — offline-first-pwa-engineering-pack
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## The 41 checks — how they are counted
+
+Per SERVICE.md the verdict spans seven sections and 41 checks. Let me enumerate the check set from the field table (this is the denominator for the summary line):
+
+- offline_first_architecture: `local_store_is_primary_source`, `server_is_sync_target_or_absent`, `core_flows_declared`, `every_core_flow_works_fully_offline`, `no_core_flow_name_duplicated` = **5**
+- service_worker_discipline: 5 fields = **5**
+- storage_engineering: 7 fields = **7**
+- sync_and_honest_state: `sync_applicability_declared` + 4 gated sync checks + `indefinite_spinners_avoided` = **6**
+- installability_encryption_and_ux: 5 installability + `zero_knowledge_applicability_declared` + 3 gated encryption = **9**
+- testing_and_quality_gates: 6 fields = **6**
+- pwa_red_lines: 3 red lines = **3**
+
+Total: 5+5+7+6+9+6+3 = **41**. ✓ Denominator confirmed.
+
+---
+
+## CASE 1 — `full-pass`
+
+### Computed checks (the three primary computed checks + derived quantities)
+
+**`core_flows_declared`** — list present and non-empty?
+`core_flows` = `[{login,true},{view_dashboard,true}]`, length 2 ≥ 1 → **pass**. Artifact: pass. **MATCH**
+
+**`every_core_flow_works_fully_offline`** — every row `works_fully_offline: true`?
+- login: true ✓
+- view_dashboard: true ✓
+→ **pass**. Artifact: pass. **MATCH**
+
+**`no_core_flow_name_duplicated`** — any name on >1 row?
+Names: `login`, `view_dashboard` — each appears once → **pass**. Artifact: pass. **MATCH**
+
+**`core_flows_count`** = declared list length = **2**. Artifact: 2. **MATCH**
+
+**`flows_without_offline_support`** — rows whose field is present but not true:
+- login: true → not included
+- view_dashboard: true → not included
+→ `[]`. Artifact: `[]`. **MATCH**
+
+**`duplicate_flow_names`** — names on >1 row, in order of second occurrence:
+- login: 1 occurrence; view_dashboard: 1 occurrence → none → `[]`. Artifact: `[]`. **MATCH**
+
+**`offline_coverage`** = flows working fully offline ÷ declared flows = 2 ÷ 2 = 1.0.
+Serialization rule: `floor(v*1000000 + 0.5)/1000000` = `floor(1000000 + 0.5)/1000000` = `floor(1000000.5)/1000000` = `1000000/1000000` = 1 → format 6dp → **"1.000000"**. Artifact: `"1.000000"`. **MATCH**
+
+**`computed_status`** — all three primary computed checks completed and passed → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Gated groups
+- sync gate `server_sync_used: true` → 4 gated sync checks apply; all four declared true → pass. `sync_applicability_declared` present → pass.
+- encryption gate `zero_knowledge_claimed: true` → 3 gated checks apply; all true → pass. `zero_knowledge_applicability_declared` present → pass.
+
+### Red lines (must be false to pass)
+- silent_data_loss_present: false → pass
+- caching_of_secrets_present: false → pass
+- network_required_core_flows_claimed_offline_first_present: false → pass
+
+### Verdict & summary
+All 41 checks pass → verdict `OFFLINE_FIRST_PWA_SOUND`. Summary "41 pass, 0 fail, 0 missing of 41". Artifact: `OFFLINE_FIRST_PWA_SOUND`, "41 pass, 0 fail, 0 missing of 41". **MATCH**
+
+---
+
+## CASE 2 — `violations`
+
+### Planted wrong values (what *should* fail)
+1. `service_worker.app_shell_precached: false` → `app_shell_precached` fails
+2. `red_lines.silent_data_loss_present: true` → `silent_data_loss_refused` fails
+3. `core_flows[0].works_fully_offline: false` → `every_core_flow_works_fully_offline` fails
+4. `core_flows` names both `login` → `no_core_flow_name_duplicated` fails
+
+That is **4 planted failures**.
+
+### Computed checks
+
+**`core_flows_declared`** — list present, length 2 ≥ 1 → **pass**. Artifact: pass. **MATCH**
+
+**`every_core_flow_works_fully_offline`**:
+- login (row 0): false → violates
+- login (row 1): true ✓
+→ at least one row not true → **fail**. Artifact: fail. **MATCH**
+
+**`no_core_flow_name_duplicated`** — names: `login`, `login` → `login` on 2 rows → **fail**. Artifact: fail. **MATCH**
+
+**`core_flows_count`** = 2. Artifact: 2. **MATCH**
+
+**`flows_without_offline_support`** — rows present-but-not-true:
+- row 0 login: false → included
+- row 1 login: true → not included
+→ `["login"]`. Artifact: `["login"]`. **MATCH**
+
+**`duplicate_flow_names`** — names on >1 row, in order of second occurrence:
+- `login` first at row 0, second at row 1 → second occurrence at index 1 → `["login"]`. Artifact: `["login"]`. **MATCH**
+
+**`offline_coverage`** = flows working fully offline ÷ declared flows = 1 ÷ 2 = 0.5.
+Serialization: `floor(0.5*1000000 + 0.5)/1000000` = `floor(500000 + 0.5)/1000000` = `floor(500000.5)/1000000` = `500000/1000000` = 0.5 → **"0.500000"**. Artifact: `"0.500000"`. **MATCH**
+
+**`computed_status`** — primary computed checks completed; at least one fails → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Gated groups
+- sync gate true, all four gated true → pass; applicability declared → pass.
+- encryption gate true, all three gated true → pass; applicability declared → pass.
+
+### Red lines
+- silent_data_loss_present: **true** → `silent_data_loss_refused` **fail**. Artifact: fail. **MATCH**
+- caching_of_secrets_present: false → pass. Artifact: pass. **MATCH**
+- network_required_core_flows_claimed_offline_first_present: false → pass. Artifact: pass. **MATCH**
+
+### Section roll-up
+- offline_first_architecture: `every_core_flow_works_fully_offline` fail + `no_core_flow_name_duplicated` fail → **fail**. Artifact: fail. **MATCH**
+- service_worker_discipline: `app_shell_precached` fail → **fail**. Artifact: fail. **MATCH**
+- storage_engineering: all 7 pass → **pass**. Artifact: pass. **MATCH**
+- sync_and_honest_state: all 6 pass → **pass**. Artifact: pass. **MATCH**
+- installability_encryption_and_ux: all 9 pass → **pass**. Artifact: pass. **MATCH**
+- testing_and_quality_gates: all 6 pass → **pass**. Artifact: pass. **MATCH**
+- pwa_red_lines: `silent_data_loss_refused` fail → **fail**. Artifact: fail. **MATCH**
+
+### Verdict & summary
+Failing checks: `every_core_flow_works_fully_offline`, `no_core_flow_name_duplicated`, `app_shell_precached`, `silent_data_loss_refused` = **4 fail**. Pass = 41 − 4 = **37**. Missing = 0.
+Summary should read "37 pass, 4 fail, 0 missing of 41". Artifact: "37 pass, 4 fail, 0 missing of 41". **MATCH**
+Verdict: any fail → `OFFLINE_FIRST_PWA_NOT_SOUND`. Artifact: same. **MATCH**
+
+### Confirmation of planted-failure correspondence
+The 4 failing checks in the artifact are **exactly** the 4 checks the planted wrong values should fail:
+- `app_shell_precached` ← `app_shell_precached: false` ✓
+- `silent_data_loss_refused` ← `silent_data_loss_present: true` ✓
+- `every_core_flow_works_fully_offline` ← row 0 `works_fully_offline: false` ✓
+- `no_core_flow_name_duplicated` ← duplicate `login` names ✓
+
+No extra failures, no missing failures. **Confirmed.**
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case 1 recomputed | Case 1 artifact | Case 2 recomputed | Case 2 artifact |
+|---|---|---|---|---|
+| core_flows_declared | pass | pass | pass | pass |
+| every_core_flow_works_fully_offline | pass | pass | fail | fail |
+| no_core_flow_name_duplicated | pass | pass | fail | fail |
+| core_flows_count | 2 | 2 | 2 | 2 |
+| flows_without_offline_support | [] | [] | ["login"] | ["login"] |
+| duplicate_flow_names | [] | [] | ["login"] | ["login"] |
+| offline_coverage | 1.000000 | 1.000000 | 0.500000 | 0.500000 |
+| computed_status | within… | within… | outside… | outside… |
+| pass/fail/missing | 41/0/0 | 41/0/0 | 37/4/0 | 37/4/0 |
+| verdict | SOUND | SOUND | NOT_SOUND | NOT_SOUND |
+
+Every computed quantity and every check status matches the recorded artifacts in both cases. The violations case's four failures are exactly the four planted wrong values, with no spurious or missing failures.
+
+AGREEMENT: full

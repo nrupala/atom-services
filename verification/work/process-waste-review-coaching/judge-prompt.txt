@@ -1,0 +1,1440 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: process-waste-review-coaching
+
+=== contract.yaml ===
+service_name: process-waste-review-coaching
+display_name: Process waste review coaching
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:operational-excellence-coach
+binding:
+  skill: operational-excellence-coach
+  skill_path: workspace/mymilo-build/skills/operational-excellence-coach/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+- human
+keys:
+  namespace: process_waste_review_coaching
+  prefix: atm_1_process_waste_review_coaching_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Release process improvement coaching
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Process waste review coaching — `process-waste-review-coaching`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Improve the system, not just the instance — make work visible, remove waste, and respect the people doing the work (operational excellence: Lean, Six Sigma DMAIC, Theory of Constraints).
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. Despite the atom's name, what is delivered is a **record audit** — a completeness and consistency review of a declared process-waste review record — never coaching of a person (see the U-13 screen and Honest scoping below).
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Release process improvement coaching**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the process waste review manifest
+
+The caller submits one JSON manifest: a declared process
+review record for one process, made at review time. Every
+field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a
+field present but false / invalid = the check fails
+(`PROCESS_WASTE_REVIEW_NOT_READY`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `process` (string; carried into the verdict output, not itself checked) | — |
+| `define.problem_stated` (boolean) | define_and_visibility |
+| `define.goal_measurable_stated` (boolean) | define_and_visibility |
+| `define.scope_stated` (boolean) | define_and_visibility |
+| `define.customer_need_stated` (boolean) | define_and_visibility |
+| `define.whole_system_scope_declared` (boolean) | define_and_visibility |
+| `mapping.whole_flow_mapped` (boolean) | define_and_visibility |
+| `mapping.work_made_visible` (boolean) | define_and_visibility |
+| `mapping.process_defined_before_automation` (boolean) | define_and_visibility |
+| `steps` (list of step-row objects, each with the entry fields below; computed, see below) | steps_and_waste_observation |
+| `steps[].name` (string; names the row in the computed outputs) | steps_and_waste_observation |
+| `steps[].duration_minutes` (number; the step's declared duration) | steps_and_waste_observation |
+| `steps[].wait_before_minutes` (number; the declared wait before the step) | steps_and_waste_observation |
+| `wastes` (list of waste-row objects, each with the entry fields below; computed, see below) | steps_and_waste_observation |
+| `wastes[].category` (string; must be one of the eight DOWNTIME categories, see below) | steps_and_waste_observation |
+| `wastes[].step_name` (string; must name a declared step) | steps_and_waste_observation |
+| `measure.baseline_established_with_data` (boolean) | measurement_and_metrics |
+| `measure.baseline_from_data_not_anecdote` (boolean) | measurement_and_metrics |
+| `metrics.leading_indicators_declared` (boolean) | measurement_and_metrics |
+| `metrics.lagging_indicators_declared` (boolean) | measurement_and_metrics |
+| `metrics.kpis_limited_to_meaningful_declared` (boolean) | measurement_and_metrics |
+| `metrics.metrics_made_visible` (boolean) | measurement_and_metrics |
+| `analyze.root_cause_analysis_performed` (boolean) | analysis_and_constraint |
+| `analyze.pareto_vital_few_identified` (boolean) | analysis_and_constraint |
+| `constraint.bottleneck_identified` (boolean) | analysis_and_constraint |
+| `constraint.non_bottleneck_effort_subordinated` (boolean) | analysis_and_constraint |
+| `constraint.bottleneck_step_name` (string; must equal the computed bottleneck, see below) | analysis_and_constraint |
+| `improve.improvement_piloted_before_scaling` (boolean) | improvement_and_control |
+| `improve.pdca_cycle_declared` (boolean) | improvement_and_control |
+| `improve.verified_against_baseline_before_scaling` (boolean) | improvement_and_control |
+| `improve.small_continuous_improvement_declared` (boolean) | improvement_and_control |
+| `improve.flow_and_pull_pursued_over_push` (boolean) | improvement_and_control |
+| `control.win_standardized` (boolean) | improvement_and_control |
+| `control.monitoring_in_place` (boolean) | improvement_and_control |
+| `control.regression_made_visible` (boolean) | improvement_and_control |
+| `red_lines.automating_broken_process_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.vanity_metrics_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.hero_culture_reliance_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.optimizing_non_constraint_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.tradition_without_data_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.local_optimization_hurting_whole_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the arithmetic and
+consistency of the declared record itself — no outside
+threshold is imported:
+
+- **Steps declared:** the declared `steps` list passes when
+  it is present. An absent list is missing evidence. An empty
+  list passes: it declares that no steps are recorded.
+- **Every step named:** every declared step row must name a
+  non-empty `name` string. A row with the field absent is
+  missing evidence; a row naming an empty name fails. On an
+  empty list the check passes vacuously.
+- **Every step's times declared and non-negative:** every
+  declared step row must declare both `duration_minutes` and
+  `wait_before_minutes`, and neither may be negative (a
+  negative duration or wait is not a measurement). A row with
+  either field absent is missing evidence. The waits are what
+  expose the delays in the flow, per the skill's value-stream
+  thinking.
+- **No step name duplicated:** no declared step `name` may
+  appear on more than one step row. A row with `name` absent
+  is missing evidence for this check.
+- **Wastes declared:** the declared `wastes` list passes when
+  it is present. An absent list is missing evidence. An empty
+  list passes: it declares that no waste is observed.
+- **Every waste category is a DOWNTIME waste:** every declared
+  waste row's `category` must be exactly one of the skill's
+  eight wastes — `defects`, `overproduction`, `waiting`,
+  `non_utilized_talent`, `transportation`, `inventory`,
+  `motion`, `excess_processing`. Any other string fails; a row
+  with the field absent is missing evidence.
+- **Every waste names a declared step:** every declared waste
+  row's `step_name` must name a step declared in the `steps`
+  list. A waste tied to an undeclared step fails; a row with
+  the field absent, or the `steps` list itself absent, is
+  missing evidence.
+- **Declared bottleneck matches the longest step:** the
+  declared `constraint.bottleneck_step_name` must equal the
+  computed bottleneck — the **first** declared step with the
+  greatest `duration_minutes` (ties resolve to the first such
+  step). The skill's Theory of Constraints: throughput is set
+  by the bottleneck, so the step the record names as the
+  bottleneck must be the step its own declared durations make
+  the longest. The check is missing evidence when the step
+  list is absent or empty, when any step lacks a name or a
+  duration, or when the bottleneck name itself is absent.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the eight primary computed checks above cannot be
+completed), `steps_count` and `wastes_count` (the declared
+list lengths, or null when a list is not declared — counts are
+reported as integers, exactly), `total_duration_minutes` and
+`total_wait_minutes` (the exact sums of the declared step
+numbers; each is null when its list is absent or any row omits
+that number, and 0 for an empty list), the ratio `wait_share`
+(total wait ÷ (total wait + total duration)), the list
+`distinct_waste_categories` (the valid DOWNTIME categories
+actually observed, in order of first appearance; null when
+the wastes list is absent), `duplicate_step_names` (step
+names declared on more than one row, in the order their
+second occurrence appears), `unmatched_waste_step_names`
+(waste rows' step names that name no declared step, per row
+in declared order; null when either list is absent), the
+coverage ratio `waste_step_coverage` (waste rows naming a
+declared step ÷ declared waste rows), and
+`bottleneck_step_computed` (the computed bottleneck step name,
+or null when it cannot be computed from the declared rows).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio
+is null when its denominator list is absent or empty (for
+`wait_share`, when either total is unavailable or the two
+totals sum to zero). That fixed serialization is what makes
+the Python and TypeScript outputs byte-identical.
+
+The skill states **no numeric threshold at all** — its demands
+are qualitative declarations the record makes, plus the
+classification and consistency rules above, not bars the atom
+can set. Quantities are computed and reported; the only bars
+on the computed rows are completeness, non-negativity,
+category validity, step-name consistency, and the bottleneck
+identity, exactly as stated above. Declined thresholds,
+named: a maximum wait share or wait time for a step or a
+process; a maximum or minimum number of steps, wastes, or
+waste categories a review must record; a cycle-time,
+lead-time, or throughput target; a number of KPIs that counts
+as "a few", or any KPI value target; a Pareto percentage
+(such as an 80/20 split) the vital few must account for; a
+number of Whys a root-cause analysis must ask; a bottleneck
+utilization or capacity figure; a pilot size, duration, or
+success percentage; an improvement percentage a pilot must
+achieve against baseline before scaling; a monitoring
+frequency or a regression threshold; a 5S audit score (5S is
+named in the skill's Lean survey but states no record field
+or score the review can check — it is not reduced to a check).
+
+The verdict is one of `PROCESS_WASTE_REVIEW_READY` (all 40
+checks pass), `PROCESS_WASTE_REVIEW_NOT_READY` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across six sections: define_and_visibility,
+steps_and_waste_observation, measurement_and_metrics,
+analysis_and_constraint, improvement_and_control, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `decision-process-design` (a
+decision record — the decision named and framed, criteria and
+thresholds precommitted before data is seen, loss functions
+and the cost of being wrong in each direction),
+`delivery-plan-preparation` (a delivery plan record —
+phases, milestones, dependencies, a risk register, status
+blocks and approval before build) and `decision-trap-sweep`
+(a single decision swept for traps — at least three options,
+criteria before scoring, expected value, a pre-mortem). This
+atom shares **zero checks** with any of them (verified by
+comparing every check name here against every other atom's
+source): every check here is a process-waste review question
+— a measurable process goal and the customer's actual need,
+the whole flow mapped with work made visible and the process
+defined before automation, declared step durations and waits
+exposing the delays, waste rows classified into the eight
+DOWNTIME categories and tied to declared steps, a baseline
+from data not anecdote, leading indicators paired with
+lagging ones and a KPI set limited to the meaningful, 5 Whys
+/ fishbone root cause and the Pareto vital few, the
+bottleneck identified as the longest declared step with all
+other effort subordinated to it, a piloted PDCA improvement
+verified against baseline before scaling as small continuous
+kaizen pursuing flow and pull over push, the win standardized
+and monitored with regression made visible, and the
+operational-excellence anti-patterns refused. The boundary
+is: one process's waste review here; decision design,
+delivery planning and decision-trap sweeping there.
+
+## Honest scoping
+
+This atom reviews a **declared** process review record — it
+observes no process itself, times no step, interviews no one,
+inspects no workplace, dashboard, or value-stream map, and
+does not verify that a declared review was ever carried out.
+A review is ready *on the caller's declared evidence*: a
+record that declares a data baseline, a mapped flow, and no
+anti-patterns passes those checks even if the real review did
+none of it. It is a completeness and consistency audit of the
+review record the skill requires, **not a consulting
+engagement, a Lean/Six Sigma certification, an operational
+audit of a real process, or a prediction that removing the
+declared waste will improve the process**: it never judges
+whether the named bottleneck is really the system's
+constraint in the world, whether the declared root cause is
+the true cause, whether a waste classification is the best
+one, or whether the improvement will work — only that the
+record contains what the skill's method demands, and that
+its declared step and waste rows are internally consistent
+and arithmetically sound.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds at
+all (see the declined list above); no live verification of
+any declared fact; no judgment of review *quality* — whether
+the mapping, analysis, or improvement is adequate for the
+real process is the caller's declaration, checked only for
+declared presence and consistency; **the skill's
+person-directed coaching steps are excluded entirely** — its
+"How to coach Nrupal specifically" material (reinforcing one
+named person's habits, telling that person to do less
+properly, closing that person's open loops, naming trade-offs
+to that person) is interpersonal coaching of an individual,
+not a process record, and no check in this atom reads,
+scores, or outputs anything about a person; likewise the
+skill's respect-for-people principle is honoured by the
+record's shape (the review is of a process, never of a
+person's performance) and is not itself a check, because it
+states no record field that could be declared or falsified.
+
+## U-13 regulatory screen
+
+Screen result: **No — with the coaching exclusion applied and
+named.** This atom's output could not read as regulated
+professional advice, and in particular it is not
+psychology-adjacent coaching: the census precedent disabled
+`difficult-conversation-coaching` because its subject was an
+interpersonal conversation with a person. This atom's subject
+is the opposite — an operations process record. Its output is
+a record audit (completeness, classification, and consistency
+of a declared process-waste review: step rows, DOWNTIME waste
+rows, a baseline declaration, a bottleneck identity); it
+coaches no person, assesses no person's behaviour, mental
+state, relationships, or performance, and offers no
+interpersonal, psychological, engineering, financial, medical,
+or legal advice. The bound skill's one person-directed
+section ("How to coach Nrupal specifically") is excluded by
+design as a named red line in Honest scoping above — no check
+derives from it. The remaining skill content is operations
+method (Lean wastes, DMAIC, Theory of Constraints) applied to
+a declared record, which is not a regulated professional
+service.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "process-waste-review-coaching",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "PROCESS_WASTE_REVIEW_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 40 checks pass. Computed spot checks computed from the Python oracle on this exact input.",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "steps_count": 2,
+          "wastes_count": 1,
+          "total_duration_minutes": 15,
+          "total_wait_minutes": 3,
+          "wait_share": "0.166667",
+          "distinct_waste_categories": [
+            "waiting"
+          ],
+          "duplicate_step_names": [],
+          "unmatched_waste_step_names": [],
+          "waste_step_coverage": "1.000000",
+          "bottleneck_step_computed": "Pick"
+        }
+      },
+      "input": {
+        "process": "Order Fulfillment",
+        "define": {
+          "problem_stated": true,
+          "goal_measurable_stated": true,
+          "scope_stated": true,
+          "customer_need_stated": true,
+          "whole_system_scope_declared": true
+        },
+        "mapping": {
+          "whole_flow_mapped": true,
+          "work_made_visible": true,
+          "process_defined_before_automation": true
+        },
+        "steps": [
+          {
+            "name": "Pick",
+            "duration_minutes": 10,
+            "wait_before_minutes": 2
+          },
+          {
+            "name": "Pack",
+            "duration_minutes": 5,
+            "wait_before_minutes": 1
+          }
+        ],
+        "wastes": [
+          {
+            "category": "waiting",
+            "step_name": "Pick"
+          }
+        ],
+        "measure": {
+          "baseline_established_with_data": true,
+          "baseline_from_data_not_anecdote": true
+        },
+        "metrics": {
+          "leading_indicators_declared": true,
+          "lagging_indicators_declared": true,
+          "kpis_limited_to_meaningful_declared": true,
+          "metrics_made_visible": true
+        },
+        "analyze": {
+          "root_cause_analysis_performed": true,
+          "pareto_vital_few_identified": true
+        },
+        "constraint": {
+          "bottleneck_identified": true,
+          "non_bottleneck_effort_subordinated": true,
+          "bottleneck_step_name": "Pick"
+        },
+        "improve": {
+          "improvement_piloted_before_scaling": true,
+          "pdca_cycle_declared": true,
+          "verified_against_baseline_before_scaling": true,
+          "small_continuous_improvement_declared": true,
+          "flow_and_pull_pursued_over_push": true
+        },
+        "control": {
+          "win_standardized": true,
+          "monitoring_in_place": true,
+          "regression_made_visible": true
+        },
+        "red_lines": {
+          "automating_broken_process_present": false,
+          "vanity_metrics_present": false,
+          "hero_culture_reliance_present": false,
+          "optimizing_non_constraint_present": false,
+          "tradition_without_data_present": false,
+          "local_optimization_hurting_whole_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "process-waste-review-coaching",
+        "atom_version": "0.1.0",
+        "process": "Order Fulfillment",
+        "verdict": "PROCESS_WASTE_REVIEW_READY",
+        "sections": {
+          "define_and_visibility": "pass",
+          "steps_and_waste_observation": "pass",
+          "measurement_and_metrics": "pass",
+          "analysis_and_constraint": "pass",
+          "improvement_and_control": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "define_and_visibility",
+            "check": "process_problem_stated",
+            "status": "pass",
+            "evidence": "define: the process problem is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_goal_measurable_stated",
+            "status": "pass",
+            "evidence": "define: the goal is stated in measurable form"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_scope_stated",
+            "status": "pass",
+            "evidence": "define: the scope of the review is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "customer_need_stated",
+            "status": "pass",
+            "evidence": "define: the customer's actual need is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "whole_system_scope_declared",
+            "status": "pass",
+            "evidence": "systems thinking: the review covers the whole process, not only a local part"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "whole_flow_mapped",
+            "status": "pass",
+            "evidence": "value stream: the whole flow is mapped"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "work_made_visible",
+            "status": "pass",
+            "evidence": "visibility: the work is made visible \u2014 kanban or a simple dashboard"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_defined_before_automation",
+            "status": "pass",
+            "evidence": "the process is defined before it is automated"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "steps_declared",
+            "status": "pass",
+            "evidence": "the declared record names its process steps \u2014 the steps list is present; an empty list declares that no steps are recorded"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_step_named",
+            "status": "pass",
+            "evidence": "steps: every declared step row names a non-empty step name"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_step_times_declared_and_nonnegative",
+            "status": "pass",
+            "evidence": "steps: every declared step row declares a duration and a wait before it, and neither is negative \u2014 the waits expose the delays in the flow"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "no_step_name_duplicated",
+            "status": "pass",
+            "evidence": "steps: no declared step name is owned by more than one step row"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "wastes_declared",
+            "status": "pass",
+            "evidence": "the declared record names its waste observations \u2014 the wastes list is present; an empty list declares that no waste is observed"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_waste_category_valid_downtime",
+            "status": "pass",
+            "evidence": "wastes: every declared waste row's category is one of the eight DOWNTIME wastes \u2014 defects, overproduction, waiting, non-utilized talent, transportation, inventory, motion, excess processing"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_waste_step_names_declared_step",
+            "status": "pass",
+            "evidence": "wastes: every declared waste row names a step that is declared in the step record"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "baseline_established_with_data",
+            "status": "pass",
+            "evidence": "measure: a real baseline is established"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "baseline_from_data_not_anecdote",
+            "status": "pass",
+            "evidence": "measure: the baseline rests on data, not anecdote"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "leading_indicators_declared",
+            "status": "pass",
+            "evidence": "metrics: leading \u2014 predictive \u2014 indicators are declared"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "lagging_indicators_declared",
+            "status": "pass",
+            "evidence": "metrics: lagging \u2014 outcome \u2014 indicators are declared"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "kpis_limited_to_meaningful_declared",
+            "status": "pass",
+            "evidence": "metrics: the KPI set is limited to a few meaningful indicators"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "metrics_made_visible",
+            "status": "pass",
+            "evidence": "metrics: the indicators are made visible"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "root_cause_analysis_performed",
+            "status": "pass",
+            "evidence": "analyze: root-cause analysis \u2014 5 Whys or fishbone \u2014 is performed"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "pareto_vital_few_identified",
+            "status": "pass",
+            "evidence": "analyze: the Pareto vital few are identified"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "process_bottleneck_identified",
+            "status": "pass",
+            "evidence": "theory of constraints: the bottleneck is identified"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "non_bottleneck_effort_subordinated",
+            "status": "pass",
+            "evidence": "theory of constraints: everything else is subordinated to the bottleneck"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "declared_bottleneck_matches_longest_step",
+            "status": "pass",
+            "evidence": "theory of constraints: the declared bottleneck step is the longest declared step \u2014 the first step with the greatest declared duration"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_piloted_before_scaling",
+            "status": "pass",
+            "evidence": "improve: the change is piloted before it is scaled"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_pdca_cycle_declared",
+            "status": "pass",
+            "evidence": "improve: the improvement follows a PDCA cycle"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_verified_against_baseline_before_scaling",
+            "status": "pass",
+            "evidence": "improve: the pilot is verified against the baseline before scaling"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "small_continuous_improvement_declared",
+            "status": "pass",
+            "evidence": "improve: the change is a small continuous improvement \u2014 kaizen \u2014 not a big rare one"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "flow_and_pull_pursued_over_push",
+            "status": "pass",
+            "evidence": "improve: flow and pull are pursued over push"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "win_standardized",
+            "status": "pass",
+            "evidence": "control: the win is standardized"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "monitoring_in_place",
+            "status": "pass",
+            "evidence": "control: the standardized win is monitored"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "regression_made_visible",
+            "status": "pass",
+            "evidence": "control: regression is made visible"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_automating_broken_process",
+            "status": "pass",
+            "evidence": "red line: no automating a broken process is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_vanity_metrics",
+            "status": "pass",
+            "evidence": "red line: no vanity metrics are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_hero_culture_reliance",
+            "status": "pass",
+            "evidence": "red line: no hero culture instead of systems is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_optimizing_non_constraint",
+            "status": "pass",
+            "evidence": "red line: no optimizing a non-constraint is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_tradition_without_data",
+            "status": "pass",
+            "evidence": "red line: no \"we've always done it this way\" without data is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_local_optimization_hurting_whole",
+            "status": "pass",
+            "evidence": "red line: no local optimization that hurts the whole is present in the record"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "steps_count": 2,
+        "wastes_count": 1,
+        "total_duration_minutes": 15,
+        "total_wait_minutes": 3,
+        "wait_share": "0.166667",
+        "distinct_waste_categories": [
+          "waiting"
+        ],
+        "duplicate_step_names": [],
+        "unmatched_waste_step_names": [],
+        "waste_step_coverage": "1.000000",
+        "bottleneck_step_computed": "Pick",
+        "summary": "40 pass, 0 fail, 0 missing of 40 checks across six sections.",
+        "stamp": "PROCESS WASTE REVIEW COACHING\nprocess: Order Fulfillment\nVERDICT: PROCESS_WASTE_REVIEW_READY\n  define_and_visibility                        pass\n  steps_and_waste_observation                  pass\n  measurement_and_metrics                      pass\n  analysis_and_constraint                      pass\n  improvement_and_control                      pass\n  red_lines                                    pass\n40 pass, 0 fail, 0 missing of 40 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "PROCESS_WASTE_REVIEW_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "declared_bottleneck_matches_longest_step",
+          "every_waste_category_valid_downtime",
+          "every_waste_step_names_declared_step",
+          "no_automating_broken_process",
+          "no_step_name_duplicated",
+          "process_problem_stated"
+        ],
+        "notes": "Planted: define.problem_stated false; steps[1].name duplicated as 'Pick'; wastes[0].category 'unknown_waste' (not a DOWNTIME category); wastes[0].step_name 'UnknownStep' (no declared step); constraint.bottleneck_step_name 'Pack' (computed bottleneck is 'Pick', the longest step at 10 min); red_lines.automating_broken_process_present true. Deep copy of full-pass; values only changed.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "steps_count": 2,
+          "wastes_count": 1,
+          "total_duration_minutes": 15,
+          "total_wait_minutes": 3,
+          "wait_share": "0.166667",
+          "distinct_waste_categories": [],
+          "duplicate_step_names": [
+            "Pick"
+          ],
+          "unmatched_waste_step_names": [
+            "UnknownStep"
+          ],
+          "waste_step_coverage": "0.000000",
+          "bottleneck_step_computed": "Pick"
+        }
+      },
+      "input": {
+        "process": "Order Fulfillment",
+        "define": {
+          "problem_stated": false,
+          "goal_measurable_stated": true,
+          "scope_stated": true,
+          "customer_need_stated": true,
+          "whole_system_scope_declared": true
+        },
+        "mapping": {
+          "whole_flow_mapped": true,
+          "work_made_visible": true,
+          "process_defined_before_automation": true
+        },
+        "steps": [
+          {
+            "name": "Pick",
+            "duration_minutes": 10,
+            "wait_before_minutes": 2
+          },
+          {
+            "name": "Pick",
+            "duration_minutes": 5,
+            "wait_before_minutes": 1
+          }
+        ],
+        "wastes": [
+          {
+            "category": "unknown_waste",
+            "step_name": "UnknownStep"
+          }
+        ],
+        "measure": {
+          "baseline_established_with_data": true,
+          "baseline_from_data_not_anecdote": true
+        },
+        "metrics": {
+          "leading_indicators_declared": true,
+          "lagging_indicators_declared": true,
+          "kpis_limited_to_meaningful_declared": true,
+          "metrics_made_visible": true
+        },
+        "analyze": {
+          "root_cause_analysis_performed": true,
+          "pareto_vital_few_identified": true
+        },
+        "constraint": {
+          "bottleneck_identified": true,
+          "non_bottleneck_effort_subordinated": true,
+          "bottleneck_step_name": "Pack"
+        },
+        "improve": {
+          "improvement_piloted_before_scaling": true,
+          "pdca_cycle_declared": true,
+          "verified_against_baseline_before_scaling": true,
+          "small_continuous_improvement_declared": true,
+          "flow_and_pull_pursued_over_push": true
+        },
+        "control": {
+          "win_standardized": true,
+          "monitoring_in_place": true,
+          "regression_made_visible": true
+        },
+        "red_lines": {
+          "automating_broken_process_present": true,
+          "vanity_metrics_present": false,
+          "hero_culture_reliance_present": false,
+          "optimizing_non_constraint_present": false,
+          "tradition_without_data_present": false,
+          "local_optimization_hurting_whole_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "process-waste-review-coaching",
+        "atom_version": "0.1.0",
+        "process": "Order Fulfillment",
+        "verdict": "PROCESS_WASTE_REVIEW_NOT_READY",
+        "sections": {
+          "define_and_visibility": "fail",
+          "steps_and_waste_observation": "fail",
+          "measurement_and_metrics": "pass",
+          "analysis_and_constraint": "fail",
+          "improvement_and_control": "pass",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "define_and_visibility",
+            "check": "process_problem_stated",
+            "status": "fail",
+            "evidence": "define: the process problem is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_goal_measurable_stated",
+            "status": "pass",
+            "evidence": "define: the goal is stated in measurable form"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_scope_stated",
+            "status": "pass",
+            "evidence": "define: the scope of the review is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "customer_need_stated",
+            "status": "pass",
+            "evidence": "define: the customer's actual need is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "whole_system_scope_declared",
+            "status": "pass",
+            "evidence": "systems thinking: the review covers the whole process, not only a local part"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "whole_flow_mapped",
+            "status": "pass",
+            "evidence": "value stream: the whole flow is mapped"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "work_made_visible",
+            "status": "pass",
+            "evidence": "visibility: the work is made visible \u2014 kanban or a simple dashboard"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_defined_before_automation",
+            "status": "pass",
+            "evidence": "the process is defined before it is automated"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "steps_declared",
+            "status": "pass",
+            "evidence": "the declared record names its process steps \u2014 the steps list is present; an empty list declares that no steps are recorded"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_step_named",
+            "status": "pass",
+            "evidence": "steps: every declared step row names a non-empty step name"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_step_times_declared_and_nonnegative",
+            "status": "pass",
+            "evidence": "steps: every declared step row declares a duration and a wait before it, and neither is negative \u2014 the waits expose the delays in the flow"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "no_step_name_duplicated",
+            "status": "fail",
+            "evidence": "steps: no declared step name is owned by more than one step row"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "wastes_declared",
+            "status": "pass",
+            "evidence": "the declared record names its waste observations \u2014 the wastes list is present; an empty list declares that no waste is observed"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_waste_category_valid_downtime",
+            "status": "fail",
+            "evidence": "wastes: every declared waste row's category is one of the eight DOWNTIME wastes \u2014 defects, overproduction, waiting, non-utilized talent, transportation, inventory, motion, excess processing"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_waste_step_names_declared_step",
+            "status": "fail",
+            "evidence": "wastes: every declared waste row names a step that is declared in the step record"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "baseline_established_with_data",
+            "status": "pass",
+            "evidence": "measure: a real baseline is established"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "baseline_from_data_not_anecdote",
+            "status": "pass",
+            "evidence": "measure: the baseline rests on data, not anecdote"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "leading_indicators_declared",
+            "status": "pass",
+            "evidence": "metrics: leading \u2014 predictive \u2014 indicators are declared"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "lagging_indicators_declared",
+            "status": "pass",
+            "evidence": "metrics: lagging \u2014 outcome \u2014 indicators are declared"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "kpis_limited_to_meaningful_declared",
+            "status": "pass",
+            "evidence": "metrics: the KPI set is limited to a few meaningful indicators"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "metrics_made_visible",
+            "status": "pass",
+            "evidence": "metrics: the indicators are made visible"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "root_cause_analysis_performed",
+            "status": "pass",
+            "evidence": "analyze: root-cause analysis \u2014 5 Whys or fishbone \u2014 is performed"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "pareto_vital_few_identified",
+            "status": "pass",
+            "evidence": "analyze: the Pareto vital few are identified"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "process_bottleneck_identified",
+            "status": "pass",
+            "evidence": "theory of constraints: the bottleneck is identified"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "non_bottleneck_effort_subordinated",
+            "status": "pass",
+            "evidence": "theory of constraints: everything else is subordinated to the bottleneck"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "declared_bottleneck_matches_longest_step",
+            "status": "fail",
+            "evidence": "theory of constraints: the declared bottleneck step is the longest declared step \u2014 the first step with the greatest declared duration"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_piloted_before_scaling",
+            "status": "pass",
+            "evidence": "improve: the change is piloted before it is scaled"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_pdca_cycle_declared",
+            "status": "pass",
+            "evidence": "improve: the improvement follows a PDCA cycle"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_verified_against_baseline_before_scaling",
+            "status": "pass",
+            "evidence": "improve: the pilot is verified against the baseline before scaling"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "small_continuous_improvement_declared",
+            "status": "pass",
+            "evidence": "improve: the change is a small continuous improvement \u2014 kaizen \u2014 not a big rare one"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "flow_and_pull_pursued_over_push",
+            "status": "pass",
+            "evidence": "improve: flow and pull are pursued over push"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "win_standardized",
+            "status": "pass",
+            "evidence": "control: the win is standardized"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "monitoring_in_place",
+            "status": "pass",
+            "evidence": "control: the standardized win is monitored"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "regression_made_visible",
+            "status": "pass",
+            "evidence": "control: regression is made visible"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_automating_broken_process",
+            "status": "fail",
+            "evidence": "red line: no automating a broken process is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_vanity_metrics",
+            "status": "pass",
+            "evidence": "red line: no vanity metrics are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_hero_culture_reliance",
+            "status": "pass",
+            "evidence": "red line: no hero culture instead of systems is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_optimizing_non_constraint",
+            "status": "pass",
+            "evidence": "red line: no optimizing a non-constraint is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_tradition_without_data",
+            "status": "pass",
+            "evidence": "red line: no \"we've always done it this way\" without data is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_local_optimization_hurting_whole",
+            "status": "pass",
+            "evidence": "red line: no local optimization that hurts the whole is present in the record"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "steps_count": 2,
+        "wastes_count": 1,
+        "total_duration_minutes": 15,
+        "total_wait_minutes": 3,
+        "wait_share": "0.166667",
+        "distinct_waste_categories": [],
+        "duplicate_step_names": [
+          "Pick"
+        ],
+        "unmatched_waste_step_names": [
+          "UnknownStep"
+        ],
+        "waste_step_coverage": "0.000000",
+        "bottleneck_step_computed": "Pick",
+        "summary": "34 pass, 6 fail, 0 missing of 40 checks across six sections.",
+        "stamp": "PROCESS WASTE REVIEW COACHING\nprocess: Order Fulfillment\nVERDICT: PROCESS_WASTE_REVIEW_NOT_READY\n  define_and_visibility                        fail\n  steps_and_waste_observation                  fail\n  measurement_and_metrics                      pass\n  analysis_and_constraint                      fail\n  improvement_and_control                      pass\n  red_lines                                    fail\n34 pass, 6 fail, 0 missing of 40 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required boolean fields and lists results in insufficient evidence."
+      },
+      "input": {
+        "process": "Minimal Review"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "process-waste-review-coaching",
+        "atom_version": "0.1.0",
+        "process": "Minimal Review",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "define_and_visibility": "insufficient_evidence",
+          "steps_and_waste_observation": "insufficient_evidence",
+          "measurement_and_metrics": "insufficient_evidence",
+          "analysis_and_constraint": "insufficient_evidence",
+          "improvement_and_control": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "define_and_visibility",
+            "check": "process_problem_stated",
+            "status": "missing",
+            "evidence": "define: the process problem is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_goal_measurable_stated",
+            "status": "missing",
+            "evidence": "define: the goal is stated in measurable form"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_scope_stated",
+            "status": "missing",
+            "evidence": "define: the scope of the review is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "customer_need_stated",
+            "status": "missing",
+            "evidence": "define: the customer's actual need is stated"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "whole_system_scope_declared",
+            "status": "missing",
+            "evidence": "systems thinking: the review covers the whole process, not only a local part"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "whole_flow_mapped",
+            "status": "missing",
+            "evidence": "value stream: the whole flow is mapped"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "work_made_visible",
+            "status": "missing",
+            "evidence": "visibility: the work is made visible \u2014 kanban or a simple dashboard"
+          },
+          {
+            "section": "define_and_visibility",
+            "check": "process_defined_before_automation",
+            "status": "missing",
+            "evidence": "the process is defined before it is automated"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "steps_declared",
+            "status": "missing",
+            "evidence": "the declared record names its process steps \u2014 the steps list is present; an empty list declares that no steps are recorded"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_step_named",
+            "status": "missing",
+            "evidence": "steps: every declared step row names a non-empty step name"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_step_times_declared_and_nonnegative",
+            "status": "missing",
+            "evidence": "steps: every declared step row declares a duration and a wait before it, and neither is negative \u2014 the waits expose the delays in the flow"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "no_step_name_duplicated",
+            "status": "missing",
+            "evidence": "steps: no declared step name is owned by more than one step row"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "wastes_declared",
+            "status": "missing",
+            "evidence": "the declared record names its waste observations \u2014 the wastes list is present; an empty list declares that no waste is observed"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_waste_category_valid_downtime",
+            "status": "missing",
+            "evidence": "wastes: every declared waste row's category is one of the eight DOWNTIME wastes \u2014 defects, overproduction, waiting, non-utilized talent, transportation, inventory, motion, excess processing"
+          },
+          {
+            "section": "steps_and_waste_observation",
+            "check": "every_waste_step_names_declared_step",
+            "status": "missing",
+            "evidence": "wastes: every declared waste row names a step that is declared in the step record"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "baseline_established_with_data",
+            "status": "missing",
+            "evidence": "measure: a real baseline is established"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "baseline_from_data_not_anecdote",
+            "status": "missing",
+            "evidence": "measure: the baseline rests on data, not anecdote"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "leading_indicators_declared",
+            "status": "missing",
+            "evidence": "metrics: leading \u2014 predictive \u2014 indicators are declared"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "lagging_indicators_declared",
+            "status": "missing",
+            "evidence": "metrics: lagging \u2014 outcome \u2014 indicators are declared"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "kpis_limited_to_meaningful_declared",
+            "status": "missing",
+            "evidence": "metrics: the KPI set is limited to a few meaningful indicators"
+          },
+          {
+            "section": "measurement_and_metrics",
+            "check": "metrics_made_visible",
+            "status": "missing",
+            "evidence": "metrics: the indicators are made visible"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "root_cause_analysis_performed",
+            "status": "missing",
+            "evidence": "analyze: root-cause analysis \u2014 5 Whys or fishbone \u2014 is performed"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "pareto_vital_few_identified",
+            "status": "missing",
+            "evidence": "analyze: the Pareto vital few are identified"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "process_bottleneck_identified",
+            "status": "missing",
+            "evidence": "theory of constraints: the bottleneck is identified"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "non_bottleneck_effort_subordinated",
+            "status": "missing",
+            "evidence": "theory of constraints: everything else is subordinated to the bottleneck"
+          },
+          {
+            "section": "analysis_and_constraint",
+            "check": "declared_bottleneck_matches_longest_step",
+            "status": "missing",
+            "evidence": "theory of constraints: the declared bottleneck step is the longest declared step \u2014 the first step with the greatest declared duration"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_piloted_before_scaling",
+            "status": "missing",
+            "evidence": "improve: the change is piloted before it is scaled"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_pdca_cycle_declared",
+            "status": "missing",
+            "evidence": "improve: the improvement follows a PDCA cycle"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "improvement_verified_against_baseline_before_scaling",
+            "status": "missing",
+            "evidence": "improve: the pilot is verified against the baseline before scaling"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "small_continuous_improvement_declared",
+            "status": "missing",
+            "evidence": "improve: the change is a small continuous improvement \u2014 kaizen \u2014 not a big rare one"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "flow_and_pull_pursued_over_push",
+            "status": "missing",
+            "evidence": "improve: flow and pull are pursued over push"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "win_standardized",
+            "status": "missing",
+            "evidence": "control: the win is standardized"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "monitoring_in_place",
+            "status": "missing",
+            "evidence": "control: the standardized win is monitored"
+          },
+          {
+            "section": "improvement_and_control",
+            "check": "regression_made_visible",
+            "status": "missing",
+            "evidence": "control: regression is made visible"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_automating_broken_process",
+            "status": "missing",
+            "evidence": "red line: no automating a broken process is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_vanity_metrics",
+            "status": "missing",
+            "evidence": "red line: no vanity metrics are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_hero_culture_reliance",
+            "status": "missing",
+            "evidence": "red line: no hero culture instead of systems is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_optimizing_non_constraint",
+            "status": "missing",
+            "evidence": "red line: no optimizing a non-constraint is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_tradition_without_data",
+            "status": "missing",
+            "evidence": "red line: no \"we've always done it this way\" without data is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_local_optimization_hurting_whole",
+            "status": "missing",
+            "evidence": "red line: no local optimization that hurts the whole is present in the record"
+          }
+        ],
+        "computed_status": null,
+        "steps_count": null,
+        "wastes_count": null,
+        "total_duration_minutes": null,
+        "total_wait_minutes": null,
+        "wait_share": null,
+        "distinct_waste_categories": null,
+        "duplicate_step_names": null,
+        "unmatched_waste_step_names": null,
+        "waste_step_coverage": null,
+        "bottleneck_step_computed": null,
+        "summary": "0 pass, 0 fail, 40 missing of 40 checks across six sections.",
+        "stamp": "PROCESS WASTE REVIEW COACHING\nprocess: Minimal Review\nVERDICT: INSUFFICIENT_EVIDENCE\n  define_and_visibility                        insufficient_evidence\n  steps_and_waste_observation                  insufficient_evidence\n  measurement_and_metrics                      insufficient_evidence\n  analysis_and_constraint                      insufficient_evidence\n  improvement_and_control                      insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 40 missing of 40 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on 'define' field (string instead of object) triggers 422."
+      },
+      "input": {
+        "process": "Malformed Input",
+        "define": "not_an_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "define",
+        "detail": "define must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

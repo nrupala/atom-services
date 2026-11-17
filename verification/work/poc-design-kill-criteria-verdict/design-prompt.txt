@@ -1,0 +1,359 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: poc-design-kill-criteria-verdict
+
+=== contract.yaml ===
+service_name: poc-design-kill-criteria-verdict
+display_name: Poc design kill criteria verdict
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:poc-validation
+binding:
+  skill: poc-validation
+  skill_path: workspace/mymilo-build/skills/poc-validation/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: VERDICT
+endpoints:
+- agent
+- human
+keys:
+  namespace: poc_design_kill_criteria_verdict
+  prefix: atm_1_poc_design_kill_criteria_verdict_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Spike-then-commit product architecture decisions
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Poc design kill criteria verdict — `poc-design-kill-criteria-verdict`
+
+**Deliverable type:** VERDICT. This atom sells the verdict it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Validate ideas with proof-of-concept work — hypothesis, success/kill criteria, timebox, evidence, decision.
+
+A caller submits the inputs the bound skill works on and receives one verdict back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this verdict on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Spike-then-commit product architecture decisions**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the POC design manifest
+
+The caller submits one JSON manifest: a declared proof-of-concept
+DESIGN record for one POC, made before the run — the question,
+the criteria, the timebox window and the scope as the skill
+requires them to be defined upfront. Every field below is read
+by the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`POC_DESIGN_NOT_SOUND`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `poc` (string; carried into the verdict output, not itself checked) | — |
+| `design.uncertainty_to_reduce_named` (boolean) | design_premise |
+| `design.answer_changes_plan_declared` (boolean) | design_premise |
+| `design.uncertainty_reduction_purpose_declared` (boolean) | design_premise |
+| `design.design_record_completed_before_run` (boolean) | design_premise |
+| `design.evaluates_vendor_or_tool` (boolean; the applicability gate for the house-stack-fit check below) | criteria_row_consistency |
+| `criteria` (list of criterion-row objects, each with the entry fields below; computed, see below) | criteria_row_consistency |
+| `criteria[].name` (string; names the row in the computed outputs) | criteria_row_consistency |
+| `criteria[].kind` (string; must be one of the two kinds the skill names — `success` or `kill` — per row) | criteria_row_consistency |
+| `criteria[].condition_stated` (boolean) | criteria_row_consistency |
+| `criteria[].declared_before_run` (boolean) | criteria_row_consistency |
+| `criteria[].assesses_house_stack_fit` (boolean; gated — read only when `evaluates_vendor_or_tool` is `true`) | criteria_row_consistency |
+| `timebox.window_set_before_run` (boolean) | timebox_window |
+| `timebox.start_date` (string; strict ISO `YYYY-MM-DD`, must be a real calendar date; computed, see below) | timebox_window |
+| `timebox.end_date` (string; strict ISO `YYYY-MM-DD`, must be a real calendar date; computed, see below) | timebox_window |
+| `scope_items` (list of scope-row objects, each with the entry fields below; computed, see below) | scope_row_consistency |
+| `scope_items[].name` (string; names the row in the computed outputs) | scope_row_consistency |
+| `scope_items[].on_critical_path` (boolean) | scope_row_consistency |
+| `red_lines.poc_code_planned_for_direct_production_use_present` (boolean; must be `false` to pass — skill red line, by design) | production_boundary_by_design |
+| `red_lines.open_ended_design_present` (boolean; must be `false` to pass — skill red line, by design) | production_boundary_by_design |
+| `red_lines.poc_success_planned_as_production_readiness_present` (boolean; must be `false` to pass — skill red line, by design) | production_boundary_by_design |
+
+The house-stack-fit check is gated on the declared
+applicability flag, exactly as declared:
+`vendor_evaluation_applicability_declared` passes whenever
+`design.evaluates_vendor_or_tool` is present (either value).
+The gated check is **missing** when the gate or the criteria
+list is absent, **passes as not applicable** when the gate is
+declared `false` (whatever the rows declare), and when the
+gate is declared `true` passes only when at least one
+criterion row declares `assesses_house_stack_fit: true`.
+
+Several checks are computed from the declared rows and the
+declared window, using only the skill's own stated rules plus
+the consistency of the declared record itself — no outside
+threshold is imported:
+
+- **Criteria declared:** the declared `criteria` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Kind per criterion:** every declared criterion row's
+  `kind` must be one of the two kinds the skill names
+  (step 2: "success AND kill criteria"). A row with the field
+  absent is missing evidence; any other string fails.
+- **Both kinds present:** at least one declared row must be a
+  success criterion and at least one a kill criterion. A set
+  of rows of only one kind fails the missing kind's check.
+- **Condition per criterion:** every declared criterion row
+  must declare `condition_stated: true` — the success bar or
+  kill trigger is written, not implied. A row with the field
+  absent is missing evidence.
+- **Declared before the run per criterion:** every declared
+  criterion row must declare `declared_before_run: true`. A
+  row with the field absent is missing evidence.
+- **No criterion name duplicated:** no declared criterion
+  `name` may appear on more than one criterion row. A row
+  with `name` absent is missing evidence for this check.
+- **Timebox window dates valid:** the declared `start_date`
+  and `end_date` must both be real calendar dates in strict
+  ISO `YYYY-MM-DD` form (an impossible date such as
+  `2027-02-30` fails). An absent date is missing evidence.
+- **Timebox end after start:** the declared end date must
+  fall after the declared start date — the window has a
+  positive length. Its length itself is never judged.
+- **Scope items declared:** the declared `scope_items` list
+  passes only when it is present and non-empty.
+- **Critical path per scope item:** every declared scope row
+  must declare `on_critical_path: true` (the skill: "scope is
+  the critical path, nothing more"). A row with the field
+  absent is missing evidence.
+- **No scope name duplicated:** no declared scope `name` may
+  appear on more than one scope row. A row with `name`
+  absent is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the thirteen primary computed checks above cannot be
+completed), `criteria_count`, `success_criteria_count` and
+`kill_criteria_count` (the declared list length and per-kind
+row counts, or null when the list is not declared — counts
+are reported as integers, exactly), the row-name lists
+`criteria_without_condition` (criteria whose field is present
+but not true; a criterion with the field absent is missing
+evidence and does not appear), `criteria_not_declared_before_run`
+(criteria whose field is present but not true),
+`criteria_with_invalid_kind` (criteria whose kind is present
+but neither `success` nor `kill`) and
+`duplicate_criterion_names` (criterion names declared on more
+than one row, in the order their second occurrence appears),
+the declared window as `timebox_start_date` /
+`timebox_end_date` (the declared strings, or null when
+absent) and `timebox_duration_days` (end minus start in
+whole days — negative when the window is inverted — or null
+when either date is absent or not a real date),
+`scope_items_count`, `scope_items_off_critical_path` (scope
+items whose field is present but not true),
+`duplicate_scope_item_names`, and the three coverage ratios
+`condition_stated_coverage` (criteria stating a condition ÷
+declared criteria), `declared_before_run_coverage` (criteria
+declared before the run ÷ declared criteria) and
+`critical_path_coverage` (scope items on the critical path ÷
+declared scope items). **Fixed serialization rule:**
+computed ratios are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp, `floor(v * 1000000 + 0.5) /
+1000000`, then format with exactly six decimals; comparisons
+use the unrounded values. A ratio is null when its
+denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — its design
+demands are qualitative declarations the record makes, not
+bars the atom can set. Quantities are computed and reported;
+the only bars on the computed rows are completeness over the
+caller's own declared rows, both criterion kinds being
+present, and the window's internal ordering, exactly as
+stated above. Declined thresholds, named: a maximum timebox
+length in days or a rule that the window must be "days, not
+weeks" enforced as a day count (the skill says the timebox
+is a hard limit in days, not weeks — it states no number, so
+the declared duration is reported, never capped); a budget
+or cost bar for the POC; a number of success or kill
+criteria a design must contain beyond at least one of each
+kind and the declared lists being non-empty; a minimum
+number of scope items; a coverage percentage below
+completeness; any required wording, length, or numeric form
+for a criterion's stated condition (only that a condition is
+declared stated is checked — its content is the caller's).
+
+The verdict is one of `POC_DESIGN_SOUND` (all 22 checks
+pass), `POC_DESIGN_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across five sections: design_premise,
+criteria_row_consistency, timebox_window,
+scope_row_consistency, production_boundary_by_design.
+
+## Distinct ground
+
+The nearest deployed sibling is `buyer-test-card`, built
+from the same bound skill (`poc-validation`) and live on
+Conduit. That atom audits a **completed** POC record at
+whole-record level: global attestations that a hypothesis
+was written and single and in capability-under-constraints
+form, that success/kill criteria were written before the
+start and agreed by the decision owner, a timebox limit in
+days compared arithmetically against elapsed days, global
+evidence attestations (measurements, numbers over
+impressions, stubs and mocks recorded), findings-memo /
+decision-logged / not-tested-list attestations, and the
+finished record's decision (adopt / adapt / abandon) and
+disposition (disposable / slated-for-hardening) vocabulary.
+This atom sits one stage earlier and shares **zero checks**
+with it — no field, check, or computed value is shared:
+every check here is a design-stage question over the record
+made **before the run** — the uncertainty to be reduced is
+named, the answer is declared to change the plan, the
+criteria exist as individual **rows** whose kinds cover both
+success and kill, whose conditions are stated, which are
+each declared before the run, and whose names are not
+duplicated; a vendor/tool evaluation, when declared,
+carries a house-stack-fit criterion row (the skill's "When
+to use" case buyer-test-card never checks); the timebox is
+a declared start/end **window** whose dates are real and
+ordered (no elapsed time exists yet at design time, and none
+is compared); the scope exists as individual rows each
+declared on the critical path; and the production boundary
+is checked as design **intentions** (no direct-production
+use planned, no open-ended design, no POC-success-as-
+readiness planned), not as post-hoc events. The boundary is:
+design intent and row/window consistency declared before
+the run here; the completed record's attestations, elapsed
+arithmetic and outcome vocabulary there. No other live or
+staged sibling audits a POC design record;
+`delivery-plan-preparation` prepares delivery plans with
+phases, milestones and dependencies — a delivery record,
+not a POC design — and shares no check with this atom.
+
+## Honest scoping
+
+This atom reviews a **declared** POC design record — it
+designs no POC itself, runs no POC, writes no code, collects
+no evidence, and does not verify that a declared criterion,
+window, or scope item was ever honoured. A design is sound
+*on the caller's declared evidence*: a record that declares
+its criteria rows complete, its window ordered, and no
+production gradient planned passes those checks even if the
+real POC was never run that way. It is a completeness and
+consistency audit of the design record the skill requires,
+**not POC execution, an idea review, or regulated
+professional advice of any kind (engineering, financial,
+medical, or legal)**: it never judges whether the idea is
+worth pursuing, whether the hypothesis is true, whether the
+named success bars or kill triggers are the right ones, or
+whether the POC will work — only that the design record
+contains what the skill's method, quality gates, and red
+lines demand at design time, and that its declared rows and
+window are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds
+beyond the skill's own stated rules (see the declined list
+above); no live verification of any declared fact; no
+judgment of design *quality* — whether the uncertainty is
+the right one, the criteria are well chosen, or the window
+is realistic is the caller's declaration, checked only for
+declared presence and consistency; the skill's post-run
+steps (evidence actually gathered, the findings memo, the
+adopt / adapt / abandon decision and its logging, routing an
+adoption through the full team process) are the completed
+record's ground — `buyer-test-card`'s — and are deliberately
+not re-checked here; whether a criterion's stated condition
+is measurable in practice is a caller declaration — only
+its declared statedness is checked.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved
+queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

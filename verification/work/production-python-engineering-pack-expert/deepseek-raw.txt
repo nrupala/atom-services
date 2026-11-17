@@ -1,0 +1,121 @@
+# Independent recompute — production-python-engineering-pack-expert
+
+## What SERVICE.md marks as computed
+
+Four primary computed checks (hot-path list), plus derived outputs: `computed_status`, `hot_paths_count`, `hot_paths_not_profiled_first`, `hot_paths_with_non_skill_route`, `duplicate_hot_path_names`, `profiled_first_coverage`, `skill_route_coverage`. Also the headline `verdict`, `sections`, and `summary` counts.
+
+Skill-named routes set R = {`rust_pyo3`, `c_extension`, `numpy_vectorization`}.
+
+---
+
+## Case 1: `full-pass`
+
+### Input hot_paths
+```
+[ {name: "matrix_multiply", profiled_before_optimizing_expert: true, acceleration_route_expert: "numpy_vectorization"} ]
+```
+
+### Check 1 — Hot paths declared
+List present → **pass**. Artifact: pass. **MATCH**
+
+### Check 2 — Every hot path profiled before optimizing
+Row 1: field present, value `true` → not a violation. Violations = 0. → **pass**. Artifact: pass. **MATCH**
+
+### Check 3 — Every hot path uses skill-named route
+Row 1: `"numpy_vectorization"` ∈ R → OK. Violations = 0. → **pass**. Artifact: pass. **MATCH**
+
+### Check 4 — No hot-path name duplicated
+Names: `["matrix_multiply"]`. Occurrence count of `matrix_multiply` = 1, not >1. → **pass**. Artifact: pass. **MATCH**
+
+### Derived quantities
+- `hot_paths_count` = len(list) = **1**. Artifact: 1. **MATCH**
+- `hot_paths_not_profiled_first` = names where field present but not true = **[]**. Artifact: []. **MATCH**
+- `hot_paths_with_non_skill_route` = names where route present but ∉ R = **[]**. Artifact: []. **MATCH**
+- `duplicate_hot_path_names` = names on >1 row, ordered by second occurrence = **[]**. Artifact: []. **MATCH**
+- `profiled_first_coverage` = profiled-first count ÷ declared = 1 ÷ 1 = 1.0
+  - Serialization: floor(1.0 × 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0 → format 6dp = **"1.000000"**. Artifact: "1.000000". **MATCH**
+- `skill_route_coverage` = skill-route count ÷ declared = 1 ÷ 1 = 1.0 → **"1.000000"**. Artifact: "1.000000". **MATCH**
+- `computed_status`: all four primary checks completed and pass → **within_stated_limits_on_declared_evidence**. Artifact: same. **MATCH**
+
+### Headline
+- All 48 checks pass (I count the artifact's check list: 9 typing + 8 packaging + 5 async + 8 performance + 6 surfaces + 7 testing + 5 red_lines = 48). All statuses `pass`. → verdict **READY**. Artifact: READY. **MATCH**
+- `summary`: "48 pass, 0 fail, 0 missing of 48 checks". Artifact: same. **MATCH**
+- All 7 sections `pass`. Artifact: all pass. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Input hot_paths
+```
+[ {name: "matrix_multiply", profiled_before_optimizing_expert: false, acceleration_route_expert: "invalid_route"} ]
+```
+Red lines: `untyped_sprawling_script_present: true`, `bare_except_present: true` (both must be false to pass); others false.
+
+### Check 1 — Hot paths declared
+List present → **pass**. Artifact: pass. **MATCH**
+
+### Check 2 — Every hot path profiled before optimizing
+Row 1: field present, value `false` → violation. Violations = 1 > 0 → **fail**. Artifact: fail. **MATCH**
+
+### Check 3 — Every hot path uses skill-named route
+Row 1: `"invalid_route"` ∉ R → violation. Violations = 1 > 0 → **fail**. Artifact: fail. **MATCH**
+
+### Check 4 — No hot-path name duplicated
+Names: `["matrix_multiply"]`, count = 1 → **pass**. Artifact: pass. **MATCH**
+
+### Derived quantities
+- `hot_paths_count` = **1**. Artifact: 1. **MATCH**
+- `hot_paths_not_profiled_first` = ["matrix_multiply"] (field present, not true). Artifact: ["matrix_multiply"]. **MATCH**
+- `hot_paths_with_non_skill_route` = ["matrix_multiply"] (route present, ∉ R). Artifact: ["matrix_multiply"]. **MATCH**
+- `duplicate_hot_path_names` = **[]**. Artifact: []. **MATCH**
+- `profiled_first_coverage` = 0 ÷ 1 = 0.0 → floor(0×1000000+0.5)/1000000 = floor(0.5)/1000000 = 0/1000000 = 0.0 → **"0.000000"**. Artifact: "0.000000". **MATCH**
+- `skill_route_coverage` = 0 ÷ 1 = 0.0 → **"0.000000"**. Artifact: "0.000000". **MATCH**
+- `computed_status`: all four primary checks completed; at least one fails → **outside_stated_limits_on_declared_evidence**. Artifact: same. **MATCH**
+
+### Red-line checks (planted wrong values)
+- `untyped_sprawling_script_present: true` → must be false → **fail**. Artifact: fail. **MATCH**
+- `mutable_default_arguments_present: false` → **pass**. Artifact: pass. **MATCH**
+- `bare_except_present: true` → must be false → **fail**. Artifact: fail. **MATCH**
+- `hidden_global_state_present: false` → **pass**. Artifact: pass. **MATCH**
+- `docker_used_to_paper_over_venv_problem_present: false` → **pass**. Artifact: pass. **MATCH**
+
+### Confirm failing checks are exactly the planted ones
+Planted wrong values: hot-path `profiled_before_optimizing_expert: false`, hot-path `acceleration_route_expert: "invalid_route"`, `untyped_sprawling_script_present: true`, `bare_except_present: true`. That is 4 planted defects.
+
+Expected failing checks:
+1. `expert_every_hot_path_profiled_before_optimizing` (fail)
+2. `expert_every_hot_path_uses_skill_named_acceleration_route` (fail)
+3. `expert_no_untyped_sprawling_scripts` (fail)
+4. `expert_no_bare_except_clauses` (fail)
+
+Artifact's failing checks: exactly those 4 (all other 44 pass). **MATCH** — the failing set is exactly the planted set, no more, no fewer.
+
+### Headline
+- 48 total checks, 4 fail, 44 pass, 0 missing. Artifact `summary`: "44 pass, 4 fail, 0 missing of 48 checks". **MATCH**
+- Sections: `expert_performance_and_profiling` fail (contains the 2 hot-path fails), `red_lines` fail (contains the 2 red-line fails), all other 5 pass. Artifact: exactly that. **MATCH**
+- Verdict: any fail → **NOT_READY**. Artifact: NOT_READY. **MATCH**
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case 1 recomputed | Case 1 artifact | Case 2 recomputed | Case 2 artifact |
+|---|---|---|---|---|
+| hot_paths_declared | pass | pass | pass | pass |
+| every_hot_path_profiled_first | pass | pass | fail | fail |
+| every_hot_path_skill_route | pass | pass | fail | fail |
+| no_duplicate_hot_path_names | pass | pass | pass | pass |
+| hot_paths_count | 1 | 1 | 1 | 1 |
+| hot_paths_not_profiled_first | [] | [] | ["matrix_multiply"] | ["matrix_multiply"] |
+| hot_paths_with_non_skill_route | [] | [] | ["matrix_multiply"] | ["matrix_multiply"] |
+| duplicate_hot_path_names | [] | [] | [] | [] |
+| profiled_first_coverage | "1.000000" | "1.000000" | "0.000000" | "0.000000" |
+| skill_route_coverage | "1.000000" | "1.000000" | "0.000000" | "0.000000" |
+| computed_status | within | within | outside | outside |
+| verdict | READY | READY | NOT_READY | NOT_READY |
+| summary | 48/0/0 | 48/0/0 | 44/4/0 | 44/4/0 |
+
+Every computed quantity and headline value matches. The violations case's failing checks are exactly the four planted defects.
+
+AGREEMENT: full

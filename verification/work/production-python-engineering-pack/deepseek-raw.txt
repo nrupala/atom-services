@@ -1,0 +1,93 @@
+I'll recompute every computed quantity from the case inputs, using only SERVICE.md's stated rules.
+
+## Computed quantities defined by SERVICE.md
+
+The computed outputs are: `computed_status`, `dependencies_count`, `dependencies_without_pin`, `duplicate_dependency_names`, `pin_coverage`, plus the three computed checks (`dependencies_declared`, `every_dependency_version_pinned`, `no_dependency_name_duplicated`), the section statuses, verdict, and summary counts.
+
+---
+
+## CASE 1: full-pass
+
+**Input dependencies:** `[{name:"requests", version_pinned:true}]` — list present, length 1.
+
+### dependencies_count
+Declared list length = 1. Artifact: `1`. **MATCH**
+
+### dependencies_declared
+List is present (not absent) → passes. Artifact: `pass`. **MATCH**
+
+### every_dependency_version_pinned
+Row 1: `version_pinned:true` → pinned. All rows pinned → pass. Artifact: `pass`. **MATCH**
+
+### no_dependency_name_duplicated
+Names: ["requests"] — one occurrence, no duplicate → pass. Artifact: `pass`. **MATCH**
+
+### dependencies_without_pin
+Rows with pin field present but not true: none. → `[]`. Artifact: `[]`. **MATCH**
+
+### duplicate_dependency_names
+No name on >1 row → `[]`. Artifact: `[]`. **MATCH**
+
+### pin_coverage
+Pinned rows = 1, denominator = 1. v = 1/1 = 1.0.
+Rule: `floor(v*1000000 + 0.5)/1000000` = `floor(1000000 + 0.5)/1000000` = `floor(1000000.5)/1000000` = `1000000/1000000` = 1.0 → format 6dp → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+### computed_status
+All three primary computed checks completed and pass → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Section statuses / verdict / summary
+All 39 declared booleans are true (red_lines all false = pass). No fails, no missing → all six sections pass → verdict `..._READY`. Summary "39 pass, 0 fail, 0 missing of 39". Artifact matches. **MATCH**
+
+---
+
+## CASE 2: violations
+
+**Input dependencies:** `[{name:"requests", version_pinned:false}, {name:"requests", version_pinned:true}]` — length 2.
+**red_lines.secrets_in_code_or_notebooks_present: true** (planted wrong value).
+
+### dependencies_count
+Length = 2. Artifact: `2`. **MATCH**
+
+### dependencies_declared
+List present → pass. Artifact: `pass`. **MATCH**
+
+### every_dependency_version_pinned
+Row 1: `version_pinned:false` → not pinned → check fails. Artifact: `fail`. **MATCH**
+
+### no_dependency_name_duplicated
+"requests" appears on rows 1 and 2 → duplicate → fail. Artifact: `fail`. **MATCH**
+
+### dependencies_without_pin
+Rows with pin present but not true: row 1 ("requests"). → `["requests"]`. Artifact: `["requests"]`. **MATCH**
+
+### duplicate_dependency_names
+Names appearing on >1 row, in order of second occurrence: "requests" (second occurrence at row 2). → `["requests"]`. Artifact: `["requests"]`. **MATCH**
+
+### pin_coverage
+Pinned rows = 1 (row 2), denominator = 2. v = 1/2 = 0.5.
+`floor(0.5*1000000 + 0.5)/1000000` = `floor(500000 + 0.5)/1000000` = `floor(500000.5)/1000000` = `500000/1000000` = 0.5 → `"0.500000"`. Artifact: `"0.500000"`. **MATCH**
+
+### computed_status
+All three primary checks completed; at least one fails → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+
+### Planted-failure confirmation
+The planted wrong values are: (a) row 1 `version_pinned:false`, (b) duplicate "requests" name, (c) `secrets_in_code_or_notebooks_present:true`. Expected failing checks:
+- `every_dependency_version_pinned` → fail ✓ (artifact fail)
+- `no_dependency_name_duplicated` → fail ✓ (artifact fail)
+- `no_secrets_in_code_or_notebooks` → fail ✓ (artifact fail)
+
+All other 36 checks have true (or false-for-red-line) values → pass. Artifact shows exactly these 3 fails, 36 pass, 0 missing. **MATCH** — the failing set is exactly the planted set.
+
+### Section statuses / verdict / summary
+- environment_and_dependencies: contains 2 fails → fail ✓
+- red_lines: contains 1 fail → fail ✓
+- other four sections: all pass ✓
+Verdict: any fail → `..._NOT_READY` ✓. Summary "36 pass, 3 fail, 0 missing of 39" ✓. **MATCH**
+
+---
+
+## Summary
+
+Every computed quantity in both cases recomputes to the artifact's value under SERVICE.md's stated rules (including the `floor(v*1000000+0.5)/1000000` six-decimal serialization). The violations case's three failing checks are exactly the three planted wrong values, with no spurious fails or missing evidence.
+
+AGREEMENT: full
