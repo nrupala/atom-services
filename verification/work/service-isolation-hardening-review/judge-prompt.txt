@@ -1,0 +1,1411 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: service-isolation-hardening-review
+
+=== contract.yaml ===
+service_name: service-isolation-hardening-review
+display_name: Service isolation hardening review
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:non-docker-isolation
+binding:
+  skill: non-docker-isolation
+  skill_path: workspace/mymilo-build/skills/non-docker-isolation/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+keys:
+  namespace: service_isolation_hardening_review
+  prefix: atm_1_service_isolation_hardening_review_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Fleet service sandbox hardening work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Service isolation hardening review — `service-isolation-hardening-review`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Isolate services and untrusted code without Docker — systemd hardening, sandboxes, WASM, least privilege.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Security & privacy who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Fleet service sandbox hardening work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the service isolation manifest
+
+The caller submits one JSON manifest: a declared
+service-isolation record for one host or fleet, made from the
+services' actual hardening. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`SERVICE_ISOLATION_HARDENING_REVIEW_NOT_HARDENED`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `subject` (string; carried into the verdict output, not itself checked) | — |
+| `identity.dedicated_non_login_system_user_per_isolated_service` (boolean) | least_privilege_identity |
+| `identity.isolated_services_run_as_non_root` (boolean) | least_privilege_identity |
+| `identity.cross_service_filesystem_access_denied_between_services` (boolean) | least_privilege_identity |
+| `identity.per_service_capability_set_minimised` (boolean) | least_privilege_identity |
+| `services` (list of service-row objects, each with the entry fields below; computed, see below) | least_privilege_identity |
+| `services[].name` (string; names the row in the computed outputs) | least_privilege_identity |
+| `services[].dedicated_user_assigned` (boolean; must be `true` per row) | least_privilege_identity |
+| `services[].filesystem_access_scoped` (boolean; must be `true` per row) | least_privilege_identity |
+| `services[].egress_restricted` (boolean; must be `true` per row) | least_privilege_identity |
+| `systemd.systemd_no_new_privileges_directive_set` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_protect_system_strict_directive_set` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_protect_home_directive_set` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_private_tmp_directive_set` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_dynamic_user_directive_set` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_capability_bounding_set_directive_restricted` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_system_call_filter_directive_applied` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_restrict_address_families_directive_applied` (boolean) | systemd_sandbox_directives |
+| `systemd.systemd_read_write_paths_directive_limited_to_required_paths` (boolean) | systemd_sandbox_directives |
+| `confinement.sandbox_tool_used_for_one_off_untrusted_execution_isolation` (boolean) | confinement_and_sandbox_tools |
+| `confinement.namespaces_provide_filesystem_and_network_separation_for_isolated_services` (boolean) | confinement_and_sandbox_tools |
+| `confinement.mac_profile_confines_network_exposed_isolated_services` (boolean) | confinement_and_sandbox_tools |
+| `confinement.mac_denials_audited_without_blanket_disabling_confinement` (boolean) | confinement_and_sandbox_tools |
+| `confinement.wasm_wasi_runtime_used_for_untrusted_plugin_logic_isolation` (boolean) | confinement_and_sandbox_tools |
+| `confinement.microvm_used_where_kernel_level_isolation_is_required` (boolean) | confinement_and_sandbox_tools |
+| `confinement.windows_low_privilege_isolation_equivalents_applied_where_in_scope` (boolean) | confinement_and_sandbox_tools |
+| `confinement.chroot_not_relied_upon_as_sole_service_isolation` (boolean) | confinement_and_sandbox_tools |
+| `resources.cgroups_v2_cpu_memory_io_limits_set_for_isolated_services` (boolean) | resource_containment |
+| `resources.per_service_ulimits_configured_for_isolated_services` (boolean) | resource_containment |
+| `resources.execution_timeouts_configured_for_isolated_services` (boolean) | resource_containment |
+| `resources.restart_limits_configured_for_isolated_services` (boolean) | resource_containment |
+| `egress_monitoring.outbound_egress_restricted_for_isolated_services_not_needing_world_access` (boolean) | egress_monitoring_and_kill_switch |
+| `egress_monitoring.exec_and_spawn_events_logged_for_isolated_services` (boolean) | egress_monitoring_and_kill_switch |
+| `egress_monitoring.per_service_kill_switch_available_for_isolated_services` (boolean) | egress_monitoring_and_kill_switch |
+| `verification.runaway_service_behaviour_tested_against_resource_limits` (boolean) | isolation_verification |
+| `verification.sandbox_escape_and_abuse_cases_exercised_for_isolated_services` (boolean) | isolation_verification |
+| `verification.sandbox_blocking_verified_not_assumed_for_isolated_services` (boolean) | isolation_verification |
+| `red_lines.root_service_run_for_convenience_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.host_wide_mounts_into_isolated_services_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.sandbox_disabled_to_make_service_run_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Rostered services declared:** the declared `services` list
+  passes when it is present. An absent list is missing
+  evidence. An empty list passes: it declares that the record
+  rosters no services, and the skill requires no minimum fleet
+  size.
+- **Dedicated user per rostered service:** every declared
+  service row must declare `dedicated_user_assigned` true
+  (the skill: "one service, one non-login system user"). A row
+  with the field absent is missing evidence; a row declaring
+  it false fails. On an empty list the check passes vacuously.
+- **Filesystem access scoped per rostered service:** every
+  declared service row must declare `filesystem_access_scoped`
+  true (the skill: "no cross-service file access"), under the
+  same absent/false/vacuous rules.
+- **Egress restricted per rostered service:** every declared
+  service row must declare `egress_restricted` true (the
+  skill: "restrict outbound"), under the same rules.
+- **No rostered service name duplicated:** no declared service
+  `name` may appear on more than one row. A row with `name`
+  absent is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`services_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers,
+exactly), the row-name lists `services_without_dedicated_user`
+(services whose dedicated-user field is present but not true;
+a service with the field absent is missing evidence and does
+not appear), `services_without_filesystem_scope` and
+`services_without_egress_restriction` (same rule for their
+fields), `duplicate_service_names` (names declared on more
+than one row, in the order their second occurrence appears),
+and the coverage ratios `dedicated_user_coverage` (services
+with a dedicated user ÷ declared services),
+`filesystem_scope_coverage` and `egress_restriction_coverage`.
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio
+is null when its denominator list is absent or empty. That
+fixed serialization is what makes the Python and TypeScript
+outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands are
+qualitative declarations the record makes, not bars the atom
+can set. Quantities are computed and reported; the only bar on
+the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a CPU, memory or IO quota value under cgroups v2, or a
+percentage-of-host resource bar; a timeout duration in
+seconds; a restart limit count or restart interval; a ulimit
+value for any resource; an egress destination count, or a
+named list of permitted destinations beyond restricted-as-
+declared; a number of escape/abuse cases that must be
+exercised, or a pass rate for them; a MAC denial count or
+audit frequency; a syscall list beyond the skill's own
+`@system-service` filter class as declared; a capability list
+beyond minimal / bounding-set-restricted as declared; a
+`ReadWritePaths` path count beyond only-what's-needed as
+declared; a log-retention period for exec/spawn events; a
+minimum number of rostered services; a criterion for when
+kernel isolation is "required" beyond the caller's declaration
+that a microVM is used where it is; a rule for when Windows
+equivalents are in scope beyond the caller's declaration.
+
+The verdict is one of
+`SERVICE_ISOLATION_HARDENING_REVIEW_HARDENED` (all 39 checks
+pass), `SERVICE_ISOLATION_HARDENING_REVIEW_NOT_HARDENED` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections:
+least_privilege_identity, systemd_sandbox_directives,
+confinement_and_sandbox_tools, resource_containment,
+egress_monitoring_and_kill_switch, isolation_verification,
+red_lines.
+
+## Distinct ground
+
+The nearest siblings are `zero-trust-evaluation-verdict` (a
+verdict on a zero-trust claim — claim as stated, authenticator
+strength, NIST alignment over an evaluation pack),
+`tested-authorization-policy-pack` (a declared authorization
+policy and the tests that exercise it), `firewall-rules-audit`
+(declared firewall rule rows — default inbound/outbound
+policies, rule shadowing, port-range breadth, sensitive-port
+exposure over network rules) and
+`confidential-computing-design` (a declared confidential-
+computing design — enclave and attestation design questions).
+This atom shares **zero checks** with any of them (verified
+mechanically: every check name here was compared against the
+check names enumerated from `evaluate({})` on every other
+atom's Python oracle — 123 oracles enumerated live, the
+remaining few by source-literal comparison — with zero
+overlap): every check here is a service-isolation question —
+one dedicated non-login system user per rostered service with
+services non-root, cross-service file access denied and a
+minimal per-service capability set, the named systemd
+directives (`NoNewPrivileges`, `ProtectSystem=strict`,
+`ProtectHome`, `PrivateTmp`, `DynamicUser`,
+`CapabilityBoundingSet=`, `SystemCallFilter`,
+`RestrictAddressFamilies`, `ReadWritePaths=` limited to
+required paths), a bubblewrap/nsjail/firejail-class sandbox
+tool for one-off untrusted execution with namespaces providing
+filesystem and network separation, AppArmor/SELinux confinement
+for anything exposed with denials audited rather than
+blanket-disabled, WASM/WASI for untrusted plugin logic,
+microVMs where kernel isolation is required, Windows
+low-privilege equivalents where in scope, chroot never the
+sole isolation, cgroups v2 CPU/memory/IO limits with ulimits,
+timeouts and restart limits, egress restricted where the
+service doesn't need the world, exec/spawn events logged, a
+kill switch per service, runaway behaviour tested and
+escape/abuse cases exercised with the sandbox verified to
+actually block, and the isolation red lines. The boundary is:
+how declared services are isolated from the host and from each
+other here; zero-trust claim evaluation, authorization policy,
+firewall rule sets and confidential-computing design there.
+
+## Honest scoping
+
+This atom reviews a **declared** service-isolation record — it
+probes no live system, reads no unit file, inspects no
+process, namespace, cgroup or MAC profile, runs no sandbox or
+escape test, and does not verify that any declared hardening
+was ever applied. A fleet is hardened *on the caller's
+declared evidence*: a record that declares `NoNewPrivileges`,
+a dedicated user per service, and exercised escape cases
+passes those checks even if the real host did none of it. It
+is a completeness and consistency audit of the isolation
+record the skill requires, **not a penetration test, a
+sandbox-escape assessment, a host audit, or a guarantee that
+any service is actually isolated**: it never judges whether a
+declared directive is correctly valued in the real unit file,
+whether a MAC profile is well-written, whether an escape case
+was competently designed, or whether the isolation design is
+adequate for the real threat — only that the record contains
+what the skill's method, quality gates and red lines demand,
+and that its declared service rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds at all
+(the skill states none — see the declined list above); no live
+verification of any declared fact; no judgment of hardening
+*quality* — whether the directive values, capability set,
+egress destinations or MAC profile are adequate for the real
+services is the caller's declaration, checked only for
+declared presence and consistency; the skill's house rule on
+container runtimes (no Docker in application code, Podman only
+as a last resort) is context for the method, not a check —
+this atom takes no position on any specific runtime a caller
+uses, and no check derives from it.
+
+## U-13 regulatory screen
+
+Screen result: **No — flag-with-controls (census class).**
+This atom's output could not read as regulated professional
+advice, and the flag is recorded with the controls that keep
+it so. It is security-adjacent (it reviews a declared
+service-isolation hardening record), so the screen was applied
+strictly. What prevents an advice reading: (1) the atom audits
+a caller-**declared** record for completeness and consistency
+only — every output is a pass / fail / missing verdict on the
+record, a computed coverage ratio over the caller's own rows,
+or a row name from the caller's own roster; (2) it gives **no
+recommendation and no remediation instruction** — it never
+says what a service's hardening should be beyond whether the
+record declares what the bound skill's method, quality gates
+and red lines name; (3) it is **not a certification, audit
+attestation or penetration test** — it probes no live system
+and verifies no declared fact, and its verdict names only the
+record (`..._HARDENED` = the declared record is complete
+against the skill), never the real host; (4) it offers no
+engineering-practice advice in the APEGA sense (no design,
+stamping, or safety judgment over physical systems), no
+financial or securities advice, nothing psychology-adjacent,
+and no medical or legal advice. Its subject is software
+service-isolation practice only, the same class as the
+software-engineering and security-record titles that stayed
+live at the census pending the owner's review.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+## Named doubt (from the register)
+
+House no-Docker rule colours method
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "service-isolation-hardening-review",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "SERVICE_ISOLATION_HARDENING_REVIEW_HARDENED",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean fields set to pass; computed_spot_checks: services_count=1, dedicated_user_coverage=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "services_count": 1,
+          "services_without_dedicated_user": [],
+          "services_without_filesystem_scope": [],
+          "services_without_egress_restriction": [],
+          "dedicated_user_coverage": "1.000000",
+          "filesystem_scope_coverage": "1.000000",
+          "egress_restriction_coverage": "1.000000",
+          "duplicate_service_names": []
+        }
+      },
+      "input": {
+        "subject": "production-fleet-alpha",
+        "identity": {
+          "dedicated_non_login_system_user_per_isolated_service": true,
+          "isolated_services_run_as_non_root": true,
+          "cross_service_filesystem_access_denied_between_services": true,
+          "per_service_capability_set_minimised": true
+        },
+        "services": [
+          {
+            "name": "auth-svc",
+            "dedicated_user_assigned": true,
+            "filesystem_access_scoped": true,
+            "egress_restricted": true
+          }
+        ],
+        "systemd": {
+          "systemd_no_new_privileges_directive_set": true,
+          "systemd_protect_system_strict_directive_set": true,
+          "systemd_protect_home_directive_set": true,
+          "systemd_private_tmp_directive_set": true,
+          "systemd_dynamic_user_directive_set": true,
+          "systemd_capability_bounding_set_directive_restricted": true,
+          "systemd_system_call_filter_directive_applied": true,
+          "systemd_restrict_address_families_directive_applied": true,
+          "systemd_read_write_paths_directive_limited_to_required_paths": true
+        },
+        "confinement": {
+          "sandbox_tool_used_for_one_off_untrusted_execution_isolation": true,
+          "namespaces_provide_filesystem_and_network_separation_for_isolated_services": true,
+          "mac_profile_confines_network_exposed_isolated_services": true,
+          "mac_denials_audited_without_blanket_disabling_confinement": true,
+          "wasm_wasi_runtime_used_for_untrusted_plugin_logic_isolation": true,
+          "microvm_used_where_kernel_level_isolation_is_required": true,
+          "windows_low_privilege_isolation_equivalents_applied_where_in_scope": true,
+          "chroot_not_relied_upon_as_sole_service_isolation": true
+        },
+        "resources": {
+          "cgroups_v2_cpu_memory_io_limits_set_for_isolated_services": true,
+          "per_service_ulimits_configured_for_isolated_services": true,
+          "execution_timeouts_configured_for_isolated_services": true,
+          "restart_limits_configured_for_isolated_services": true
+        },
+        "egress_monitoring": {
+          "outbound_egress_restricted_for_isolated_services_not_needing_world_access": true,
+          "exec_and_spawn_events_logged_for_isolated_services": true,
+          "per_service_kill_switch_available_for_isolated_services": true
+        },
+        "verification": {
+          "runaway_service_behaviour_tested_against_resource_limits": true,
+          "sandbox_escape_and_abuse_cases_exercised_for_isolated_services": true,
+          "sandbox_blocking_verified_not_assumed_for_isolated_services": true
+        },
+        "red_lines": {
+          "root_service_run_for_convenience_present": false,
+          "host_wide_mounts_into_isolated_services_present": false,
+          "sandbox_disabled_to_make_service_run_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "service-isolation-hardening-review",
+        "atom_version": "0.1.0",
+        "subject": "production-fleet-alpha",
+        "verdict": "SERVICE_ISOLATION_HARDENING_REVIEW_HARDENED",
+        "sections": {
+          "least_privilege_identity": "pass",
+          "systemd_sandbox_directives": "pass",
+          "confinement_and_sandbox_tools": "pass",
+          "resource_containment": "pass",
+          "egress_monitoring_and_kill_switch": "pass",
+          "isolation_verification": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "least_privilege_identity",
+            "check": "dedicated_non_login_system_user_per_isolated_service",
+            "status": "pass",
+            "evidence": "least-privilege accounts: one service, one non-login system user"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "isolated_services_run_as_non_root",
+            "status": "pass",
+            "evidence": "least-privilege accounts: services run non-root"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "cross_service_filesystem_access_denied_between_services",
+            "status": "pass",
+            "evidence": "least-privilege accounts: no cross-service file access between services"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "per_service_capability_set_minimised",
+            "status": "pass",
+            "evidence": "least-privilege accounts: each service's capability set is minimal"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "isolated_services_roster_declared",
+            "status": "pass",
+            "evidence": "the declared record rosters its isolated services \u2014 the services list is present; an empty list declares that the record rosters no services"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_dedicated_user_assignment",
+            "status": "pass",
+            "evidence": "rostered services: every declared service row declares a dedicated user assigned to it"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_scoped_filesystem_access",
+            "status": "pass",
+            "evidence": "rostered services: every declared service row declares its filesystem access scoped"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_restricted_egress_declaration",
+            "status": "pass",
+            "evidence": "rostered services: every declared service row declares its egress restricted"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "no_rostered_service_name_duplicated",
+            "status": "pass",
+            "evidence": "rostered services: no declared service name is owned by more than one row"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_no_new_privileges_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: NoNewPrivileges is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_protect_system_strict_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: ProtectSystem=strict is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_protect_home_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: ProtectHome is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_private_tmp_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: PrivateTmp is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_dynamic_user_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: DynamicUser is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_capability_bounding_set_directive_restricted",
+            "status": "pass",
+            "evidence": "systemd hardening: CapabilityBoundingSet is restricted to what the service needs"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_system_call_filter_directive_applied",
+            "status": "pass",
+            "evidence": "systemd hardening: SystemCallFilter is applied (the skill's @system-service class)"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_restrict_address_families_directive_applied",
+            "status": "pass",
+            "evidence": "systemd hardening: RestrictAddressFamilies is applied"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_read_write_paths_directive_limited_to_required_paths",
+            "status": "pass",
+            "evidence": "systemd hardening: ReadWritePaths names only what the service needs"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "sandbox_tool_used_for_one_off_untrusted_execution_isolation",
+            "status": "pass",
+            "evidence": "sandbox tools: a bubblewrap/nsjail/firejail-class sandbox tool is used for one-off untrusted execution"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "namespaces_provide_filesystem_and_network_separation_for_isolated_services",
+            "status": "pass",
+            "evidence": "sandbox tools: namespaces provide filesystem and network separation for the services"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "mac_profile_confines_network_exposed_isolated_services",
+            "status": "pass",
+            "evidence": "MAC profiles: an AppArmor/SELinux profile confines anything exposed"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "mac_denials_audited_without_blanket_disabling_confinement",
+            "status": "pass",
+            "evidence": "MAC profiles: denials are audited, not blanket-disabled"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "wasm_wasi_runtime_used_for_untrusted_plugin_logic_isolation",
+            "status": "pass",
+            "evidence": "WASM/WASI: untrusted plugin logic runs under WASM/WASI isolation"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "microvm_used_where_kernel_level_isolation_is_required",
+            "status": "pass",
+            "evidence": "microVMs: a Firecracker-class microVM is used where kernel isolation is the requirement"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "windows_low_privilege_isolation_equivalents_applied_where_in_scope",
+            "status": "pass",
+            "evidence": "Windows equivalents: where Windows services are in scope, dedicated low-privilege accounts, AppContainer, Windows Sandbox and Job Objects are applied as the equivalents"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "chroot_not_relied_upon_as_sole_service_isolation",
+            "status": "pass",
+            "evidence": "sandbox tools: chroot is not relied upon as the sole isolation mechanism (the skill: chroot only with care, given its classic escape history)"
+          },
+          {
+            "section": "resource_containment",
+            "check": "cgroups_v2_cpu_memory_io_limits_set_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: cgroups v2 CPU, memory and IO limits are set"
+          },
+          {
+            "section": "resource_containment",
+            "check": "per_service_ulimits_configured_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: per-service ulimits are configured"
+          },
+          {
+            "section": "resource_containment",
+            "check": "execution_timeouts_configured_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: execution timeouts are configured"
+          },
+          {
+            "section": "resource_containment",
+            "check": "restart_limits_configured_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: restart limits are configured"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "outbound_egress_restricted_for_isolated_services_not_needing_world_access",
+            "status": "pass",
+            "evidence": "egress: outbound access is restricted where the service doesn't need the world"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "exec_and_spawn_events_logged_for_isolated_services",
+            "status": "pass",
+            "evidence": "monitoring: exec/spawn events are logged"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "per_service_kill_switch_available_for_isolated_services",
+            "status": "pass",
+            "evidence": "monitoring: a kill switch exists per service"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "runaway_service_behaviour_tested_against_resource_limits",
+            "status": "pass",
+            "evidence": "quality gates: runaway behaviour is tested \u2014 a runaway kills itself, not the host"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "sandbox_escape_and_abuse_cases_exercised_for_isolated_services",
+            "status": "pass",
+            "evidence": "quality gates: escape and abuse cases are exercised against the sandbox"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "sandbox_blocking_verified_not_assumed_for_isolated_services",
+            "status": "pass",
+            "evidence": "quality gates: the sandbox is verified to actually block, not assumed to"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_root_isolated_service_run_for_convenience",
+            "status": "pass",
+            "evidence": "red line: no root service run \"for convenience\" is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_host_wide_mounts_into_isolated_services",
+            "status": "pass",
+            "evidence": "red line: no host-wide mounts into isolated services are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_sandbox_disabled_to_make_isolated_service_run",
+            "status": "pass",
+            "evidence": "red line: no sandbox disabled to make something run is present in the record \u2014 the permission design is fixed instead"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "services_count": 1,
+        "services_without_dedicated_user": [],
+        "services_without_filesystem_scope": [],
+        "services_without_egress_restriction": [],
+        "dedicated_user_coverage": "1.000000",
+        "filesystem_scope_coverage": "1.000000",
+        "egress_restriction_coverage": "1.000000",
+        "duplicate_service_names": [],
+        "summary": "39 pass, 0 fail, 0 missing of 39 checks across seven sections.",
+        "stamp": "SERVICE ISOLATION HARDENING REVIEW\nsubject: production-fleet-alpha\nVERDICT: SERVICE_ISOLATION_HARDENING_REVIEW_HARDENED\n  least_privilege_identity                     pass\n  systemd_sandbox_directives                   pass\n  confinement_and_sandbox_tools                pass\n  resource_containment                         pass\n  egress_monitoring_and_kill_switch            pass\n  isolation_verification                       pass\n  red_lines                                    pass\n39 pass, 0 fail, 0 missing of 39 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "SERVICE_ISOLATION_HARDENING_REVIEW_NOT_HARDENED",
+        "http": 200,
+        "failing_checks": [
+          "every_rostered_service_has_dedicated_user_assignment",
+          "no_root_isolated_service_run_for_convenience"
+        ],
+        "notes": "Deep copy of full-pass with services[0].dedicated_user_assigned=false and red_lines.root_service_run_for_convenience_present=true planted.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "services_count": 1,
+          "services_without_dedicated_user": [
+            "auth-svc"
+          ],
+          "services_without_filesystem_scope": [],
+          "services_without_egress_restriction": [],
+          "dedicated_user_coverage": "0.000000",
+          "filesystem_scope_coverage": "1.000000",
+          "egress_restriction_coverage": "1.000000",
+          "duplicate_service_names": []
+        }
+      },
+      "input": {
+        "subject": "production-fleet-alpha",
+        "identity": {
+          "dedicated_non_login_system_user_per_isolated_service": true,
+          "isolated_services_run_as_non_root": true,
+          "cross_service_filesystem_access_denied_between_services": true,
+          "per_service_capability_set_minimised": true
+        },
+        "services": [
+          {
+            "name": "auth-svc",
+            "dedicated_user_assigned": false,
+            "filesystem_access_scoped": true,
+            "egress_restricted": true
+          }
+        ],
+        "systemd": {
+          "systemd_no_new_privileges_directive_set": true,
+          "systemd_protect_system_strict_directive_set": true,
+          "systemd_protect_home_directive_set": true,
+          "systemd_private_tmp_directive_set": true,
+          "systemd_dynamic_user_directive_set": true,
+          "systemd_capability_bounding_set_directive_restricted": true,
+          "systemd_system_call_filter_directive_applied": true,
+          "systemd_restrict_address_families_directive_applied": true,
+          "systemd_read_write_paths_directive_limited_to_required_paths": true
+        },
+        "confinement": {
+          "sandbox_tool_used_for_one_off_untrusted_execution_isolation": true,
+          "namespaces_provide_filesystem_and_network_separation_for_isolated_services": true,
+          "mac_profile_confines_network_exposed_isolated_services": true,
+          "mac_denials_audited_without_blanket_disabling_confinement": true,
+          "wasm_wasi_runtime_used_for_untrusted_plugin_logic_isolation": true,
+          "microvm_used_where_kernel_level_isolation_is_required": true,
+          "windows_low_privilege_isolation_equivalents_applied_where_in_scope": true,
+          "chroot_not_relied_upon_as_sole_service_isolation": true
+        },
+        "resources": {
+          "cgroups_v2_cpu_memory_io_limits_set_for_isolated_services": true,
+          "per_service_ulimits_configured_for_isolated_services": true,
+          "execution_timeouts_configured_for_isolated_services": true,
+          "restart_limits_configured_for_isolated_services": true
+        },
+        "egress_monitoring": {
+          "outbound_egress_restricted_for_isolated_services_not_needing_world_access": true,
+          "exec_and_spawn_events_logged_for_isolated_services": true,
+          "per_service_kill_switch_available_for_isolated_services": true
+        },
+        "verification": {
+          "runaway_service_behaviour_tested_against_resource_limits": true,
+          "sandbox_escape_and_abuse_cases_exercised_for_isolated_services": true,
+          "sandbox_blocking_verified_not_assumed_for_isolated_services": true
+        },
+        "red_lines": {
+          "root_service_run_for_convenience_present": true,
+          "host_wide_mounts_into_isolated_services_present": false,
+          "sandbox_disabled_to_make_service_run_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "service-isolation-hardening-review",
+        "atom_version": "0.1.0",
+        "subject": "production-fleet-alpha",
+        "verdict": "SERVICE_ISOLATION_HARDENING_REVIEW_NOT_HARDENED",
+        "sections": {
+          "least_privilege_identity": "fail",
+          "systemd_sandbox_directives": "pass",
+          "confinement_and_sandbox_tools": "pass",
+          "resource_containment": "pass",
+          "egress_monitoring_and_kill_switch": "pass",
+          "isolation_verification": "pass",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "least_privilege_identity",
+            "check": "dedicated_non_login_system_user_per_isolated_service",
+            "status": "pass",
+            "evidence": "least-privilege accounts: one service, one non-login system user"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "isolated_services_run_as_non_root",
+            "status": "pass",
+            "evidence": "least-privilege accounts: services run non-root"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "cross_service_filesystem_access_denied_between_services",
+            "status": "pass",
+            "evidence": "least-privilege accounts: no cross-service file access between services"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "per_service_capability_set_minimised",
+            "status": "pass",
+            "evidence": "least-privilege accounts: each service's capability set is minimal"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "isolated_services_roster_declared",
+            "status": "pass",
+            "evidence": "the declared record rosters its isolated services \u2014 the services list is present; an empty list declares that the record rosters no services"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_dedicated_user_assignment",
+            "status": "fail",
+            "evidence": "rostered services: every declared service row declares a dedicated user assigned to it"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_scoped_filesystem_access",
+            "status": "pass",
+            "evidence": "rostered services: every declared service row declares its filesystem access scoped"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_restricted_egress_declaration",
+            "status": "pass",
+            "evidence": "rostered services: every declared service row declares its egress restricted"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "no_rostered_service_name_duplicated",
+            "status": "pass",
+            "evidence": "rostered services: no declared service name is owned by more than one row"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_no_new_privileges_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: NoNewPrivileges is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_protect_system_strict_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: ProtectSystem=strict is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_protect_home_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: ProtectHome is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_private_tmp_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: PrivateTmp is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_dynamic_user_directive_set",
+            "status": "pass",
+            "evidence": "systemd hardening: DynamicUser is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_capability_bounding_set_directive_restricted",
+            "status": "pass",
+            "evidence": "systemd hardening: CapabilityBoundingSet is restricted to what the service needs"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_system_call_filter_directive_applied",
+            "status": "pass",
+            "evidence": "systemd hardening: SystemCallFilter is applied (the skill's @system-service class)"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_restrict_address_families_directive_applied",
+            "status": "pass",
+            "evidence": "systemd hardening: RestrictAddressFamilies is applied"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_read_write_paths_directive_limited_to_required_paths",
+            "status": "pass",
+            "evidence": "systemd hardening: ReadWritePaths names only what the service needs"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "sandbox_tool_used_for_one_off_untrusted_execution_isolation",
+            "status": "pass",
+            "evidence": "sandbox tools: a bubblewrap/nsjail/firejail-class sandbox tool is used for one-off untrusted execution"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "namespaces_provide_filesystem_and_network_separation_for_isolated_services",
+            "status": "pass",
+            "evidence": "sandbox tools: namespaces provide filesystem and network separation for the services"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "mac_profile_confines_network_exposed_isolated_services",
+            "status": "pass",
+            "evidence": "MAC profiles: an AppArmor/SELinux profile confines anything exposed"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "mac_denials_audited_without_blanket_disabling_confinement",
+            "status": "pass",
+            "evidence": "MAC profiles: denials are audited, not blanket-disabled"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "wasm_wasi_runtime_used_for_untrusted_plugin_logic_isolation",
+            "status": "pass",
+            "evidence": "WASM/WASI: untrusted plugin logic runs under WASM/WASI isolation"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "microvm_used_where_kernel_level_isolation_is_required",
+            "status": "pass",
+            "evidence": "microVMs: a Firecracker-class microVM is used where kernel isolation is the requirement"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "windows_low_privilege_isolation_equivalents_applied_where_in_scope",
+            "status": "pass",
+            "evidence": "Windows equivalents: where Windows services are in scope, dedicated low-privilege accounts, AppContainer, Windows Sandbox and Job Objects are applied as the equivalents"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "chroot_not_relied_upon_as_sole_service_isolation",
+            "status": "pass",
+            "evidence": "sandbox tools: chroot is not relied upon as the sole isolation mechanism (the skill: chroot only with care, given its classic escape history)"
+          },
+          {
+            "section": "resource_containment",
+            "check": "cgroups_v2_cpu_memory_io_limits_set_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: cgroups v2 CPU, memory and IO limits are set"
+          },
+          {
+            "section": "resource_containment",
+            "check": "per_service_ulimits_configured_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: per-service ulimits are configured"
+          },
+          {
+            "section": "resource_containment",
+            "check": "execution_timeouts_configured_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: execution timeouts are configured"
+          },
+          {
+            "section": "resource_containment",
+            "check": "restart_limits_configured_for_isolated_services",
+            "status": "pass",
+            "evidence": "resource limits: restart limits are configured"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "outbound_egress_restricted_for_isolated_services_not_needing_world_access",
+            "status": "pass",
+            "evidence": "egress: outbound access is restricted where the service doesn't need the world"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "exec_and_spawn_events_logged_for_isolated_services",
+            "status": "pass",
+            "evidence": "monitoring: exec/spawn events are logged"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "per_service_kill_switch_available_for_isolated_services",
+            "status": "pass",
+            "evidence": "monitoring: a kill switch exists per service"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "runaway_service_behaviour_tested_against_resource_limits",
+            "status": "pass",
+            "evidence": "quality gates: runaway behaviour is tested \u2014 a runaway kills itself, not the host"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "sandbox_escape_and_abuse_cases_exercised_for_isolated_services",
+            "status": "pass",
+            "evidence": "quality gates: escape and abuse cases are exercised against the sandbox"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "sandbox_blocking_verified_not_assumed_for_isolated_services",
+            "status": "pass",
+            "evidence": "quality gates: the sandbox is verified to actually block, not assumed to"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_root_isolated_service_run_for_convenience",
+            "status": "fail",
+            "evidence": "red line: no root service run \"for convenience\" is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_host_wide_mounts_into_isolated_services",
+            "status": "pass",
+            "evidence": "red line: no host-wide mounts into isolated services are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_sandbox_disabled_to_make_isolated_service_run",
+            "status": "pass",
+            "evidence": "red line: no sandbox disabled to make something run is present in the record \u2014 the permission design is fixed instead"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "services_count": 1,
+        "services_without_dedicated_user": [
+          "auth-svc"
+        ],
+        "services_without_filesystem_scope": [],
+        "services_without_egress_restriction": [],
+        "dedicated_user_coverage": "0.000000",
+        "filesystem_scope_coverage": "1.000000",
+        "egress_restriction_coverage": "1.000000",
+        "duplicate_service_names": [],
+        "summary": "37 pass, 2 fail, 0 missing of 39 checks across seven sections.",
+        "stamp": "SERVICE ISOLATION HARDENING REVIEW\nsubject: production-fleet-alpha\nVERDICT: SERVICE_ISOLATION_HARDENING_REVIEW_NOT_HARDENED\n  least_privilege_identity                     fail\n  systemd_sandbox_directives                   pass\n  confinement_and_sandbox_tools                pass\n  resource_containment                         pass\n  egress_monitoring_and_kill_switch            pass\n  isolation_verification                       pass\n  red_lines                                    fail\n37 pass, 2 fail, 0 missing of 39 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, triggering INSUFFICIENT_EVIDENCE rather than a hard failure."
+      },
+      "input": {
+        "subject": "minimal-test"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "service-isolation-hardening-review",
+        "atom_version": "0.1.0",
+        "subject": "minimal-test",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "least_privilege_identity": "insufficient_evidence",
+          "systemd_sandbox_directives": "insufficient_evidence",
+          "confinement_and_sandbox_tools": "insufficient_evidence",
+          "resource_containment": "insufficient_evidence",
+          "egress_monitoring_and_kill_switch": "insufficient_evidence",
+          "isolation_verification": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "least_privilege_identity",
+            "check": "dedicated_non_login_system_user_per_isolated_service",
+            "status": "missing",
+            "evidence": "least-privilege accounts: one service, one non-login system user"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "isolated_services_run_as_non_root",
+            "status": "missing",
+            "evidence": "least-privilege accounts: services run non-root"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "cross_service_filesystem_access_denied_between_services",
+            "status": "missing",
+            "evidence": "least-privilege accounts: no cross-service file access between services"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "per_service_capability_set_minimised",
+            "status": "missing",
+            "evidence": "least-privilege accounts: each service's capability set is minimal"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "isolated_services_roster_declared",
+            "status": "missing",
+            "evidence": "the declared record rosters its isolated services \u2014 the services list is present; an empty list declares that the record rosters no services"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_dedicated_user_assignment",
+            "status": "missing",
+            "evidence": "rostered services: every declared service row declares a dedicated user assigned to it"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_scoped_filesystem_access",
+            "status": "missing",
+            "evidence": "rostered services: every declared service row declares its filesystem access scoped"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "every_rostered_service_has_restricted_egress_declaration",
+            "status": "missing",
+            "evidence": "rostered services: every declared service row declares its egress restricted"
+          },
+          {
+            "section": "least_privilege_identity",
+            "check": "no_rostered_service_name_duplicated",
+            "status": "missing",
+            "evidence": "rostered services: no declared service name is owned by more than one row"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_no_new_privileges_directive_set",
+            "status": "missing",
+            "evidence": "systemd hardening: NoNewPrivileges is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_protect_system_strict_directive_set",
+            "status": "missing",
+            "evidence": "systemd hardening: ProtectSystem=strict is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_protect_home_directive_set",
+            "status": "missing",
+            "evidence": "systemd hardening: ProtectHome is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_private_tmp_directive_set",
+            "status": "missing",
+            "evidence": "systemd hardening: PrivateTmp is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_dynamic_user_directive_set",
+            "status": "missing",
+            "evidence": "systemd hardening: DynamicUser is set"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_capability_bounding_set_directive_restricted",
+            "status": "missing",
+            "evidence": "systemd hardening: CapabilityBoundingSet is restricted to what the service needs"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_system_call_filter_directive_applied",
+            "status": "missing",
+            "evidence": "systemd hardening: SystemCallFilter is applied (the skill's @system-service class)"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_restrict_address_families_directive_applied",
+            "status": "missing",
+            "evidence": "systemd hardening: RestrictAddressFamilies is applied"
+          },
+          {
+            "section": "systemd_sandbox_directives",
+            "check": "systemd_read_write_paths_directive_limited_to_required_paths",
+            "status": "missing",
+            "evidence": "systemd hardening: ReadWritePaths names only what the service needs"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "sandbox_tool_used_for_one_off_untrusted_execution_isolation",
+            "status": "missing",
+            "evidence": "sandbox tools: a bubblewrap/nsjail/firejail-class sandbox tool is used for one-off untrusted execution"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "namespaces_provide_filesystem_and_network_separation_for_isolated_services",
+            "status": "missing",
+            "evidence": "sandbox tools: namespaces provide filesystem and network separation for the services"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "mac_profile_confines_network_exposed_isolated_services",
+            "status": "missing",
+            "evidence": "MAC profiles: an AppArmor/SELinux profile confines anything exposed"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "mac_denials_audited_without_blanket_disabling_confinement",
+            "status": "missing",
+            "evidence": "MAC profiles: denials are audited, not blanket-disabled"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "wasm_wasi_runtime_used_for_untrusted_plugin_logic_isolation",
+            "status": "missing",
+            "evidence": "WASM/WASI: untrusted plugin logic runs under WASM/WASI isolation"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "microvm_used_where_kernel_level_isolation_is_required",
+            "status": "missing",
+            "evidence": "microVMs: a Firecracker-class microVM is used where kernel isolation is the requirement"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "windows_low_privilege_isolation_equivalents_applied_where_in_scope",
+            "status": "missing",
+            "evidence": "Windows equivalents: where Windows services are in scope, dedicated low-privilege accounts, AppContainer, Windows Sandbox and Job Objects are applied as the equivalents"
+          },
+          {
+            "section": "confinement_and_sandbox_tools",
+            "check": "chroot_not_relied_upon_as_sole_service_isolation",
+            "status": "missing",
+            "evidence": "sandbox tools: chroot is not relied upon as the sole isolation mechanism (the skill: chroot only with care, given its classic escape history)"
+          },
+          {
+            "section": "resource_containment",
+            "check": "cgroups_v2_cpu_memory_io_limits_set_for_isolated_services",
+            "status": "missing",
+            "evidence": "resource limits: cgroups v2 CPU, memory and IO limits are set"
+          },
+          {
+            "section": "resource_containment",
+            "check": "per_service_ulimits_configured_for_isolated_services",
+            "status": "missing",
+            "evidence": "resource limits: per-service ulimits are configured"
+          },
+          {
+            "section": "resource_containment",
+            "check": "execution_timeouts_configured_for_isolated_services",
+            "status": "missing",
+            "evidence": "resource limits: execution timeouts are configured"
+          },
+          {
+            "section": "resource_containment",
+            "check": "restart_limits_configured_for_isolated_services",
+            "status": "missing",
+            "evidence": "resource limits: restart limits are configured"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "outbound_egress_restricted_for_isolated_services_not_needing_world_access",
+            "status": "missing",
+            "evidence": "egress: outbound access is restricted where the service doesn't need the world"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "exec_and_spawn_events_logged_for_isolated_services",
+            "status": "missing",
+            "evidence": "monitoring: exec/spawn events are logged"
+          },
+          {
+            "section": "egress_monitoring_and_kill_switch",
+            "check": "per_service_kill_switch_available_for_isolated_services",
+            "status": "missing",
+            "evidence": "monitoring: a kill switch exists per service"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "runaway_service_behaviour_tested_against_resource_limits",
+            "status": "missing",
+            "evidence": "quality gates: runaway behaviour is tested \u2014 a runaway kills itself, not the host"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "sandbox_escape_and_abuse_cases_exercised_for_isolated_services",
+            "status": "missing",
+            "evidence": "quality gates: escape and abuse cases are exercised against the sandbox"
+          },
+          {
+            "section": "isolation_verification",
+            "check": "sandbox_blocking_verified_not_assumed_for_isolated_services",
+            "status": "missing",
+            "evidence": "quality gates: the sandbox is verified to actually block, not assumed to"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_root_isolated_service_run_for_convenience",
+            "status": "missing",
+            "evidence": "red line: no root service run \"for convenience\" is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_host_wide_mounts_into_isolated_services",
+            "status": "missing",
+            "evidence": "red line: no host-wide mounts into isolated services are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_sandbox_disabled_to_make_isolated_service_run",
+            "status": "missing",
+            "evidence": "red line: no sandbox disabled to make something run is present in the record \u2014 the permission design is fixed instead"
+          }
+        ],
+        "computed_status": null,
+        "services_count": null,
+        "services_without_dedicated_user": null,
+        "services_without_filesystem_scope": null,
+        "services_without_egress_restriction": null,
+        "dedicated_user_coverage": null,
+        "filesystem_scope_coverage": null,
+        "egress_restriction_coverage": null,
+        "duplicate_service_names": null,
+        "summary": "0 pass, 0 fail, 39 missing of 39 checks across seven sections.",
+        "stamp": "SERVICE ISOLATION HARDENING REVIEW\nsubject: minimal-test\nVERDICT: INSUFFICIENT_EVIDENCE\n  least_privilege_identity                     insufficient_evidence\n  systemd_sandbox_directives                   insufficient_evidence\n  confinement_and_sandbox_tools                insufficient_evidence\n  resource_containment                         insufficient_evidence\n  egress_monitoring_and_kill_switch            insufficient_evidence\n  isolation_verification                       insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 39 missing of 39 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Deep copy of full-pass with services replaced by a string where a list is required (exactly one documented type violation)."
+      },
+      "input": {
+        "subject": "production-fleet-alpha",
+        "identity": {
+          "dedicated_non_login_system_user_per_isolated_service": true,
+          "isolated_services_run_as_non_root": true,
+          "cross_service_filesystem_access_denied_between_services": true,
+          "per_service_capability_set_minimised": true
+        },
+        "services": "not-a-list",
+        "systemd": {
+          "systemd_no_new_privileges_directive_set": true,
+          "systemd_protect_system_strict_directive_set": true,
+          "systemd_protect_home_directive_set": true,
+          "systemd_private_tmp_directive_set": true,
+          "systemd_dynamic_user_directive_set": true,
+          "systemd_capability_bounding_set_directive_restricted": true,
+          "systemd_system_call_filter_directive_applied": true,
+          "systemd_restrict_address_families_directive_applied": true,
+          "systemd_read_write_paths_directive_limited_to_required_paths": true
+        },
+        "confinement": {
+          "sandbox_tool_used_for_one_off_untrusted_execution_isolation": true,
+          "namespaces_provide_filesystem_and_network_separation_for_isolated_services": true,
+          "mac_profile_confines_network_exposed_isolated_services": true,
+          "mac_denials_audited_without_blanket_disabling_confinement": true,
+          "wasm_wasi_runtime_used_for_untrusted_plugin_logic_isolation": true,
+          "microvm_used_where_kernel_level_isolation_is_required": true,
+          "windows_low_privilege_isolation_equivalents_applied_where_in_scope": true,
+          "chroot_not_relied_upon_as_sole_service_isolation": true
+        },
+        "resources": {
+          "cgroups_v2_cpu_memory_io_limits_set_for_isolated_services": true,
+          "per_service_ulimits_configured_for_isolated_services": true,
+          "execution_timeouts_configured_for_isolated_services": true,
+          "restart_limits_configured_for_isolated_services": true
+        },
+        "egress_monitoring": {
+          "outbound_egress_restricted_for_isolated_services_not_needing_world_access": true,
+          "exec_and_spawn_events_logged_for_isolated_services": true,
+          "per_service_kill_switch_available_for_isolated_services": true
+        },
+        "verification": {
+          "runaway_service_behaviour_tested_against_resource_limits": true,
+          "sandbox_escape_and_abuse_cases_exercised_for_isolated_services": true,
+          "sandbox_blocking_verified_not_assumed_for_isolated_services": true
+        },
+        "red_lines": {
+          "root_service_run_for_convenience_present": false,
+          "host_wide_mounts_into_isolated_services_present": false,
+          "sandbox_disabled_to_make_service_run_present": false
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "services",
+        "detail": "services must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

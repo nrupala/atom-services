@@ -1,0 +1,961 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: production-rust-engineering-pack-expert
+
+=== contract.yaml ===
+service_name: production-rust-engineering-pack-expert
+display_name: Production rust engineering pack expert
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:rust-expert
+binding:
+  skill: rust-expert
+  skill_path: workspace/mymilo-build/skills/rust-expert/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: production_rust_engineering_pack_expert
+  prefix: atm_1_production_rust_engineering_pack_expert_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Guardian Mesh and hot-path builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Production Rust engineering pack expert — `production-rust-engineering-pack-expert`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Writes Rust that lets the compiler enforce the rules — ownership done right, illegal states made impossible, no borrow-checker fights.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Guardian Mesh and hot-path builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the expert production Rust engineering manifest
+
+The caller submits one JSON manifest: a declared EXPERT-tier
+production Rust engineering record for one Rust codebase, made
+from the codebase's actual practice. Every field below is read
+by the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails
+(`PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_NOT_READY`). All
+fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `lifetime_design.lifetimes_modelled_deliberately_at_api_boundaries` (boolean) | lifetime_architecture_depth |
+| `lifetime_design.lifetime_annotation_sprawl_treated_as_layout_signal` (boolean) | lifetime_architecture_depth |
+| `lifetime_design.structs_split_when_lifetimes_tangle` (boolean) | lifetime_architecture_depth |
+| `lifetime_design.index_handles_or_arenas_used_for_tangled_graphs` (boolean) | lifetime_architecture_depth |
+| `lifetime_design.borrow_checker_fights_resolved_by_restructuring` (boolean) | lifetime_architecture_depth |
+| `lifetime_design.crate_dependency_graph_acyclic_and_boundaries_clean` (boolean) | lifetime_architecture_depth |
+| `type_design.newtypes_wrap_domain_primitives` (boolean) | type_system_and_api_design |
+| `type_design.state_machines_modelled_with_enums` (boolean) | type_system_and_api_design |
+| `type_design.from_into_conversions_for_value_crossings` (boolean) | type_system_and_api_design |
+| `type_design.builder_pattern_for_complex_construction` (boolean) | type_system_and_api_design |
+| `type_design.trait_boundaries_chosen_over_premature_generics` (boolean) | type_system_and_api_design |
+| `type_design.impl_vs_dyn_trait_choice_made_consciously` (boolean) | type_system_and_api_design |
+| `type_design.error_values_carry_context_at_boundaries` (boolean) | type_system_and_api_design |
+| `async_depth.blocking_work_offloaded_via_spawn_blocking` (boolean) | async_runtime_depth |
+| `async_depth.send_sync_bounds_checked_for_spawned_futures` (boolean) | async_runtime_depth |
+| `async_depth.mpsc_and_oneshot_channels_assigned_by_purpose` (boolean) | async_runtime_depth |
+| `async_depth.cancellation_modelled_explicitly_in_async_flows` (boolean) | async_runtime_depth |
+| `performance.flamegraphs_captured_before_optimizing` (boolean) | performance_measurement_and_allocation |
+| `performance.criterion_results_gate_optimization_claims` (boolean) | performance_measurement_and_allocation |
+| `performance.str_borrows_preferred_over_owned_strings` (boolean) | performance_measurement_and_allocation |
+| `performance.iterators_preferred_over_manual_loops` (boolean) | performance_measurement_and_allocation |
+| `performance.cow_used_for_maybe_owned_data` (boolean) | performance_measurement_and_allocation |
+| `performance.smallvec_used_where_small_sizes_dominate` (boolean) | performance_measurement_and_allocation |
+| `unsafe_ffi.unsafe_surface_encapsulated_behind_safe_api` (boolean) | unsafe_ffi_and_wasm_depth |
+| `unsafe_ffi.wasm_sandboxing_via_wasm_bindgen_for_untrusted_code` (boolean) | unsafe_ffi_and_wasm_depth |
+| `ffi_bindings` (list of FFI-binding-row objects, each with the entry fields below; computed, see below) | unsafe_ffi_and_wasm_depth |
+| `ffi_bindings[].name` (string; names the row in the computed outputs) | unsafe_ffi_and_wasm_depth |
+| `ffi_bindings[].safe_wrapper_present` (boolean; must be `true` per row) | unsafe_ffi_and_wasm_depth |
+| `ffi_bindings[].safety_comment_present` (boolean; must be `true` per row) | unsafe_ffi_and_wasm_depth |
+| `ffi_bindings[].miri_tested` (boolean; must be `true` per row) | unsafe_ffi_and_wasm_depth |
+| `crypto.vetted_crypto_crates_only_rustcrypto_or_ring` (boolean) | cryptography_and_secret_handling |
+| `crypto.secrets_zeroized_after_use` (boolean) | cryptography_and_secret_handling |
+| `crypto.constant_time_comparison_for_timing_sensitive_checks` (boolean) | cryptography_and_secret_handling |
+| `expert_red_lines.reflexive_clone_rc_dodge_present` (boolean; must be `false` to pass — skill red line) | expert_red_lines |
+| `expert_red_lines.premature_unsafe_present` (boolean; must be `false` to pass — skill red line) | expert_red_lines |
+| `expert_red_lines.homemade_crypto_present` (boolean; must be `false` to pass — skill red line) | expert_red_lines |
+| `expert_red_lines.lifetime_soup_papered_over_present` (boolean; must be `false` to pass — skill red line) | expert_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **FFI bindings declared:** the declared `ffi_bindings` list
+  passes when it is present. An absent list is missing
+  evidence. An empty list passes: it declares that the codebase
+  exposes no FFI bindings, and the skill requires no FFI
+  surface.
+- **Safe wrapper per FFI binding:** every declared FFI-binding
+  row must declare `safe_wrapper_present` true (the skill:
+  unsafe is "encapsulate[d] behind a safe API"). A row with the
+  field absent is missing evidence; a row declaring it false
+  fails. On an empty list the check passes vacuously.
+- **`// SAFETY:` comment per FFI binding:** every declared row
+  must declare `safety_comment_present` true (the skill:
+  "document every invariant with `// SAFETY:`"), under the same
+  absent/false/vacuous rules.
+- **Miri testing per FFI binding:** every declared row must
+  declare `miri_tested` true (the skill: "test under `miri`"),
+  under the same rules.
+- **No FFI-binding name duplicated:** no declared FFI-binding
+  `name` may appear on more than one row. A row with `name`
+  absent is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`ffi_bindings_count` (the declared list length, or null when
+the list is not declared — counts are reported as integers,
+exactly), the row-name lists
+`ffi_bindings_without_safe_wrapper`,
+`ffi_bindings_without_safety_comment` and
+`ffi_bindings_without_miri` (bindings whose field is present
+but not true; a binding with the field absent is missing
+evidence and does not appear),
+`duplicate_ffi_binding_names` (names declared on more than one
+row, in the order their second occurrence appears), and the
+coverage ratios `safe_wrapper_coverage`,
+`safety_comment_coverage` and `miri_coverage`. **Fixed
+serialization rule:** computed ratios are reported as strings
+with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio is
+null when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric threshold at all — its demands are
+qualitative declarations the record makes, not bars the atom
+can set. Quantities are computed and reported; the only bar on
+the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a maximum lifetime-annotation count or a lifetime-per-API
+rate; a clone or allocation count, an allocation budget, or a
+per-function allocation rate; a benchmark performance figure,
+a flamegraph hot-spot percentage, or a speedup factor an
+optimization must show (only that criterion measurements and
+flamegraphs gate the work is checked); a `SmallVec` inline
+capacity or a size cutoff for when it "pays"; an FFI-binding
+count or an unsafe-lines-of-code budget; a miri runtime or a
+miri issue count; a key length, a zeroize coverage percentage,
+or a named list of timing-sensitive operations beyond
+constant-time comparison being declared where timing matters;
+a crate count or a dependency-depth limit beyond the graph
+being declared acyclic with clean boundaries; a binary-size
+budget for the `impl Trait` vs `dyn Trait` trade-off (only
+that the choice is made consciously is checked).
+
+The verdict is one of
+`PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_READY` (all 37 checks
+pass), `PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_NOT_READY`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails
+but evidence is missing), across seven sections:
+lifetime_architecture_depth, type_system_and_api_design,
+async_runtime_depth, performance_measurement_and_allocation,
+unsafe_ffi_and_wasm_depth, cryptography_and_secret_handling,
+expert_red_lines.
+
+## Distinct ground
+
+The nearest sibling is `production-rust-engineering-pack` —
+the BASE tier of the same discipline (a declared production
+Rust record: borrow before cloning with lifetimes kept local,
+error enums with thiserror/anyhow and zero unwrap in production
+paths, unsafe forbidden by default with every block's invariant
+documented and tested, structured tokio tasks with bounded
+channels and timeouts, unit/integration/doc tests and criterion
+benches, clippy clean under `-D warnings` with `cargo fmt
+--check`, minimal feature flags, cargo audit with a pinned
+MSRV, and the base red lines). This expert atom shares **zero
+checks** with the base pack and with every other atom —
+verified mechanically by enumerating `evaluate({})` check names
+from every `services/*/src/*.py` oracle and intersecting: the
+expert register (37 names) overlaps no other register,
+including the base pack's 37. Every check here is an
+expert-only question the base pack does not ask: lifetimes
+modelled deliberately with annotation sprawl treated as a
+layout signal, structs split and index handles/arenas used when
+lifetimes tangle, borrow-checker fights resolved by
+restructuring, an acyclic crate graph with clean boundaries;
+newtypes, state-machine enums, `From`/`Into` conversions,
+builders, trait boundaries over premature generics, conscious
+`impl Trait` vs `dyn Trait` choice, and errors carrying
+context; `spawn_blocking` offload, `Send`/`Sync` bounds,
+mpsc/oneshot channel purpose, and explicitly modelled
+cancellation; flamegraph-first optimization gated by criterion
+results, with `&str`, iterator, `Cow` and `SmallVec` allocation
+idioms; unsafe encapsulated behind a safe API with every
+declared FFI binding carrying a safe wrapper, a `// SAFETY:`
+comment and miri testing, plus wasm-bindgen sandboxing; vetted
+RustCrypto/`ring` cryptography with zeroized secrets and
+constant-time comparison; and the expert red lines (reflexive
+`clone`/`Rc` dodges, premature unsafe, homemade crypto,
+lifetime soup papered over). The boundary is: expert design
+depth here; base production hygiene in the base pack; C memory
+discipline, C++ RAII/value semantics and Python practice in
+their own atoms.
+
+## Honest scoping
+
+This atom reviews a **declared** expert production Rust
+engineering record — it compiles no code itself, runs no
+cargo, miri, clippy or flamegraph command, inspects no
+repository or crate, runs no test or benchmark, and does not
+verify that declared practice was ever carried out. A codebase
+is ready *on the caller's declared evidence*: a record that
+declares every FFI binding miri-tested and every secret
+zeroized passes those checks even if the real codebase did
+none of it. It is a completeness and consistency audit of the
+engineering record the skill requires, **not a compiler, a
+soundness proof, a cryptography review, or a guarantee that
+the code is memory-safe or correct**: it never judges whether
+a declared `// SAFETY:` invariant is actually true, whether a
+safe wrapper is actually sound, whether the declared lifetime
+restructuring is good, or whether the type design actually
+makes the important illegal states unrepresentable — only that
+the record contains what the skill's expert practice demands,
+and that its declared FFI-binding rows are internally
+consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds at all
+(the skill states none — see the declined list above); no live
+verification of any declared fact; no judgment of practice
+*quality* — whether the lifetime architecture, type design, or
+crypto usage is adequate for the real codebase is the caller's
+declaration, checked only for declared presence and
+consistency; the skill's worked examples (modelling a state
+machine in Rust with enums, the guardian-mesh crate list, the
+PAE C numerical core and argent's WASM + GGUF approach) are
+checked only as the general declarations the skill states
+(state machines modelled with enums; crate boundaries clean
+and acyclic; FFI bindings declared with wrappers, SAFETY
+comments and miri testing; wasm sandboxing declared) — this
+atom takes no position on any specific crate, binding or
+codebase named in the skill.
+
+## U-13 regulatory screen
+
+Classification: **(b) screen-NO — flag-with-controls (census
+class).** This atom's output could not read as regulated
+professional advice — it audits a declared software-engineering
+record for completeness and consistency against an expert Rust
+practice skill; it offers no engineering-practice advice in the
+APEGA sense (no design, stamping, or safety judgment over
+physical systems), no financial or securities advice, and
+nothing psychology-adjacent. Its subject is software practice
+only, the same class as the software-engineering titles that
+stayed live at the census pending the owner's review. Named
+controls: (1) declared-record audit only — the atom audits the
+record the caller declares, never inspects real code and never
+verifies practice; (2) advice-shaped skill steps are excluded
+as red lines — the skill's prescriptive moves (how to model a
+state machine, how to restructure a layout) are never emitted
+as advice; the atom only checks declared presence/consistency
+and refuses the skill's anti-patterns as red-line declarations;
+(3) no numeric threshold is invented — every bar is the skill's
+own stated rule or completeness over the caller's declared
+rows.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "project": "secure-core",
+      "lifetime_design": {
+        "lifetimes_modelled_deliberately_at_api_boundaries": true,
+        "lifetime_annotation_sprawl_treated_as_layout_signal": true,
+        "structs_split_when_lifetimes_tangle": true,
+        "index_handles_or_arenas_used_for_tangled_graphs": true,
+        "borrow_checker_fights_resolved_by_restructuring": true,
+        "crate_dependency_graph_acyclic_and_boundaries_clean": true
+      },
+      "type_design": {
+        "newtypes_wrap_domain_primitives": true,
+        "state_machines_modelled_with_enums": true,
+        "from_into_conversions_for_value_crossings": true,
+        "builder_pattern_for_complex_construction": true,
+        "trait_boundaries_chosen_over_premature_generics": true,
+        "impl_vs_dyn_trait_choice_made_consciously": true,
+        "error_values_carry_context_at_boundaries": true
+      },
+      "async_depth": {
+        "blocking_work_offloaded_via_spawn_blocking": true,
+        "send_sync_bounds_checked_for_spawned_futures": true,
+        "mpsc_and_oneshot_channels_assigned_by_purpose": true,
+        "cancellation_modelled_explicitly_in_async_flows": true
+      },
+      "performance": {
+        "flamegraphs_captured_before_optimizing": true,
+        "criterion_results_gate_optimization_claims": true,
+        "str_borrows_preferred_over_owned_strings": true,
+        "iterators_preferred_over_manual_loops": true,
+        "cow_used_for_maybe_owned_data": true,
+        "smallvec_used_where_small_sizes_dominate": true
+      },
+      "unsafe_ffi": {
+        "unsafe_surface_encapsulated_behind_safe_api": true,
+        "wasm_sandboxing_via_wasm_bindgen_for_untrusted_code": true
+      },
+      "ffi_bindings": [
+        {
+          "name": "lib_c_core",
+          "safe_wrapper_present": true,
+          "safety_comment_present": true,
+          "miri_tested": true
+        }
+      ],
+      "crypto": {
+        "vetted_crypto_crates_only_rustcrypto_or_ring": true,
+        "secrets_zeroized_after_use": true,
+        "constant_time_comparison_for_timing_sensitive_checks": true
+      },
+      "expert_red_lines": {
+        "reflexive_clone_rc_dodge_present": false,
+        "premature_unsafe_present": false,
+        "homemade_crypto_present": false,
+        "lifetime_soup_papered_over_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "production-rust-engineering-pack-expert",
+      "atom_version": "0.1.0",
+      "project": "secure-core",
+      "verdict": "PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_READY",
+      "sections": {
+        "lifetime_architecture_depth": "pass",
+        "type_system_and_api_design": "pass",
+        "async_runtime_depth": "pass",
+        "performance_measurement_and_allocation": "pass",
+        "unsafe_ffi_and_wasm_depth": "pass",
+        "cryptography_and_secret_handling": "pass",
+        "expert_red_lines": "pass"
+      },
+      "checks": [
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "lifetimes_modelled_deliberately_at_api_boundaries",
+          "status": "pass",
+          "evidence": "lifetime design: lifetimes are modelled deliberately \u2014 owned values at API boundaries, borrows internally"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "lifetime_annotation_sprawl_treated_as_layout_signal",
+          "status": "pass",
+          "evidence": "lifetime design: lifetime soup is treated as a signal the data layout is wrong, not annotated away"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "structs_split_when_lifetimes_tangle",
+          "status": "pass",
+          "evidence": "lifetime design: structs are split when lifetimes tangle"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "index_handles_or_arenas_used_for_tangled_graphs",
+          "status": "pass",
+          "evidence": "lifetime design: index-based handles or arenas are used for tangled object graphs"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "borrow_checker_fights_resolved_by_restructuring",
+          "status": "pass",
+          "evidence": "lifetime design: borrow-checker fights are resolved by restructuring the data"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "crate_dependency_graph_acyclic_and_boundaries_clean",
+          "status": "pass",
+          "evidence": "workspace architecture: crate boundaries are clean and dependencies are acyclic"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "newtypes_wrap_domain_primitives",
+          "status": "pass",
+          "evidence": "type design: newtypes wrap domain primitives so illegal states are unrepresentable"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "state_machines_modelled_with_enums",
+          "status": "pass",
+          "evidence": "type design: state machines are modelled with enums"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "from_into_conversions_for_value_crossings",
+          "status": "pass",
+          "evidence": "type design: From/Into carry conversions between value types"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "builder_pattern_for_complex_construction",
+          "status": "pass",
+          "evidence": "type design: the builder pattern carries complex construction"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "trait_boundaries_chosen_over_premature_generics",
+          "status": "pass",
+          "evidence": "type design: code programs to traits and avoids premature generics"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "impl_vs_dyn_trait_choice_made_consciously",
+          "status": "pass",
+          "evidence": "type design: impl Trait vs dyn Trait is chosen consciously \u2014 monomorphization speed vs binary size and flexibility"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "error_values_carry_context_at_boundaries",
+          "status": "pass",
+          "evidence": "type design: errors carry context across boundaries"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "blocking_work_offloaded_via_spawn_blocking",
+          "status": "pass",
+          "evidence": "async depth: blocking work is offloaded to spawn_blocking, never run on the runtime"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "send_sync_bounds_checked_for_spawned_futures",
+          "status": "pass",
+          "evidence": "async depth: Send/Sync bounds are minded for spawned futures"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "mpsc_and_oneshot_channels_assigned_by_purpose",
+          "status": "pass",
+          "evidence": "async depth: mpsc and oneshot channels are assigned by coordination purpose"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "cancellation_modelled_explicitly_in_async_flows",
+          "status": "pass",
+          "evidence": "async depth: cancellation is modelled explicitly"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "flamegraphs_captured_before_optimizing",
+          "status": "pass",
+          "evidence": "performance: flamegraphs are captured before optimizing"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "criterion_results_gate_optimization_claims",
+          "status": "pass",
+          "evidence": "performance: criterion measurements gate every optimization claim \u2014 measure before optimizing"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "str_borrows_preferred_over_owned_strings",
+          "status": "pass",
+          "evidence": "performance: &str is preferred over String where ownership is not needed"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "iterators_preferred_over_manual_loops",
+          "status": "pass",
+          "evidence": "performance: iterators are preferred over manual loops"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "cow_used_for_maybe_owned_data",
+          "status": "pass",
+          "evidence": "performance: Cow carries maybe-owned data"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "smallvec_used_where_small_sizes_dominate",
+          "status": "pass",
+          "evidence": "performance: SmallVec is used where small sizes dominate and it pays"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "unsafe_surface_encapsulated_behind_safe_api",
+          "status": "pass",
+          "evidence": "unsafe depth: the unsafe surface is minimized and encapsulated behind a safe API"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "wasm_sandboxing_via_wasm_bindgen_for_untrusted_code",
+          "status": "pass",
+          "evidence": "unsafe depth: sandboxed execution runs on wasm32 with wasm-bindgen"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "ffi_bindings_declared",
+          "status": "pass",
+          "evidence": "the declared record names its FFI bindings \u2014 the ffi_bindings list is present; an empty list declares that the codebase exposes no FFI bindings"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "every_ffi_binding_exposes_safe_wrapper",
+          "status": "pass",
+          "evidence": "FFI bindings: every declared FFI binding is exposed through a safe wrapper"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "every_ffi_binding_carries_safety_comment",
+          "status": "pass",
+          "evidence": "FFI bindings: every declared FFI binding documents its invariant with a // SAFETY: comment"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "every_ffi_binding_tested_under_miri",
+          "status": "pass",
+          "evidence": "FFI bindings: every declared FFI binding is tested under miri"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "no_ffi_binding_name_duplicated",
+          "status": "pass",
+          "evidence": "FFI bindings: no declared FFI-binding name is owned by more than one row"
+        },
+        {
+          "section": "cryptography_and_secret_handling",
+          "check": "vetted_crypto_crates_only_rustcrypto_or_ring",
+          "status": "pass",
+          "evidence": "crypto: only vetted crates are used \u2014 RustCrypto or ring"
+        },
+        {
+          "section": "cryptography_and_secret_handling",
+          "check": "secrets_zeroized_after_use",
+          "status": "pass",
+          "evidence": "crypto: secrets are zeroized after use"
+        },
+        {
+          "section": "cryptography_and_secret_handling",
+          "check": "constant_time_comparison_for_timing_sensitive_checks",
+          "status": "pass",
+          "evidence": "crypto: constant-time comparison is used where timing matters"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_reflexive_clone_rc_dodge",
+          "status": "pass",
+          "evidence": "red line: no reflexive clone/Rc used to dodge the borrow checker is present in the record"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_premature_unsafe",
+          "status": "pass",
+          "evidence": "red line: no premature unsafe is present in the record"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_homemade_crypto",
+          "status": "pass",
+          "evidence": "red line: no homemade crypto is present in the record"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_lifetime_soup_papered_over",
+          "status": "pass",
+          "evidence": "red line: no lifetime soup papered over with annotations instead of restructuring is present in the record"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "ffi_bindings_count": 1,
+      "ffi_bindings_without_safe_wrapper": [],
+      "ffi_bindings_without_safety_comment": [],
+      "ffi_bindings_without_miri": [],
+      "safe_wrapper_coverage": "1.000000",
+      "safety_comment_coverage": "1.000000",
+      "miri_coverage": "1.000000",
+      "duplicate_ffi_binding_names": [],
+      "summary": "37 pass, 0 fail, 0 missing of 37 checks across seven sections.",
+      "stamp": "PRODUCTION RUST ENGINEERING PACK EXPERT\nproject: secure-core\nVERDICT: PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_READY\n  lifetime_architecture_depth                  pass\n  type_system_and_api_design                   pass\n  async_runtime_depth                          pass\n  performance_measurement_and_allocation       pass\n  unsafe_ffi_and_wasm_depth                    pass\n  cryptography_and_secret_handling             pass\n  expert_red_lines                             pass\n37 pass, 0 fail, 0 missing of 37 checks across seven sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "project": "secure-core",
+      "lifetime_design": {
+        "lifetimes_modelled_deliberately_at_api_boundaries": true,
+        "lifetime_annotation_sprawl_treated_as_layout_signal": true,
+        "structs_split_when_lifetimes_tangle": true,
+        "index_handles_or_arenas_used_for_tangled_graphs": true,
+        "borrow_checker_fights_resolved_by_restructuring": true,
+        "crate_dependency_graph_acyclic_and_boundaries_clean": true
+      },
+      "type_design": {
+        "newtypes_wrap_domain_primitives": true,
+        "state_machines_modelled_with_enums": true,
+        "from_into_conversions_for_value_crossings": true,
+        "builder_pattern_for_complex_construction": true,
+        "trait_boundaries_chosen_over_premature_generics": true,
+        "impl_vs_dyn_trait_choice_made_consciously": true,
+        "error_values_carry_context_at_boundaries": true
+      },
+      "async_depth": {
+        "blocking_work_offloaded_via_spawn_blocking": true,
+        "send_sync_bounds_checked_for_spawned_futures": true,
+        "mpsc_and_oneshot_channels_assigned_by_purpose": true,
+        "cancellation_modelled_explicitly_in_async_flows": true
+      },
+      "performance": {
+        "flamegraphs_captured_before_optimizing": true,
+        "criterion_results_gate_optimization_claims": true,
+        "str_borrows_preferred_over_owned_strings": true,
+        "iterators_preferred_over_manual_loops": true,
+        "cow_used_for_maybe_owned_data": true,
+        "smallvec_used_where_small_sizes_dominate": true
+      },
+      "unsafe_ffi": {
+        "unsafe_surface_encapsulated_behind_safe_api": true,
+        "wasm_sandboxing_via_wasm_bindgen_for_untrusted_code": true
+      },
+      "ffi_bindings": [
+        {
+          "name": "lib_c_core",
+          "safe_wrapper_present": false,
+          "safety_comment_present": true,
+          "miri_tested": true
+        }
+      ],
+      "crypto": {
+        "vetted_crypto_crates_only_rustcrypto_or_ring": true,
+        "secrets_zeroized_after_use": true,
+        "constant_time_comparison_for_timing_sensitive_checks": true
+      },
+      "expert_red_lines": {
+        "reflexive_clone_rc_dodge_present": true,
+        "premature_unsafe_present": false,
+        "homemade_crypto_present": false,
+        "lifetime_soup_papered_over_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "production-rust-engineering-pack-expert",
+      "atom_version": "0.1.0",
+      "project": "secure-core",
+      "verdict": "PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_NOT_READY",
+      "sections": {
+        "lifetime_architecture_depth": "pass",
+        "type_system_and_api_design": "pass",
+        "async_runtime_depth": "pass",
+        "performance_measurement_and_allocation": "pass",
+        "unsafe_ffi_and_wasm_depth": "fail",
+        "cryptography_and_secret_handling": "pass",
+        "expert_red_lines": "fail"
+      },
+      "checks": [
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "lifetimes_modelled_deliberately_at_api_boundaries",
+          "status": "pass",
+          "evidence": "lifetime design: lifetimes are modelled deliberately \u2014 owned values at API boundaries, borrows internally"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "lifetime_annotation_sprawl_treated_as_layout_signal",
+          "status": "pass",
+          "evidence": "lifetime design: lifetime soup is treated as a signal the data layout is wrong, not annotated away"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "structs_split_when_lifetimes_tangle",
+          "status": "pass",
+          "evidence": "lifetime design: structs are split when lifetimes tangle"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "index_handles_or_arenas_used_for_tangled_graphs",
+          "status": "pass",
+          "evidence": "lifetime design: index-based handles or arenas are used for tangled object graphs"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "borrow_checker_fights_resolved_by_restructuring",
+          "status": "pass",
+          "evidence": "lifetime design: borrow-checker fights are resolved by restructuring the data"
+        },
+        {
+          "section": "lifetime_architecture_depth",
+          "check": "crate_dependency_graph_acyclic_and_boundaries_clean",
+          "status": "pass",
+          "evidence": "workspace architecture: crate boundaries are clean and dependencies are acyclic"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "newtypes_wrap_domain_primitives",
+          "status": "pass",
+          "evidence": "type design: newtypes wrap domain primitives so illegal states are unrepresentable"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "state_machines_modelled_with_enums",
+          "status": "pass",
+          "evidence": "type design: state machines are modelled with enums"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "from_into_conversions_for_value_crossings",
+          "status": "pass",
+          "evidence": "type design: From/Into carry conversions between value types"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "builder_pattern_for_complex_construction",
+          "status": "pass",
+          "evidence": "type design: the builder pattern carries complex construction"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "trait_boundaries_chosen_over_premature_generics",
+          "status": "pass",
+          "evidence": "type design: code programs to traits and avoids premature generics"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "impl_vs_dyn_trait_choice_made_consciously",
+          "status": "pass",
+          "evidence": "type design: impl Trait vs dyn Trait is chosen consciously \u2014 monomorphization speed vs binary size and flexibility"
+        },
+        {
+          "section": "type_system_and_api_design",
+          "check": "error_values_carry_context_at_boundaries",
+          "status": "pass",
+          "evidence": "type design: errors carry context across boundaries"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "blocking_work_offloaded_via_spawn_blocking",
+          "status": "pass",
+          "evidence": "async depth: blocking work is offloaded to spawn_blocking, never run on the runtime"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "send_sync_bounds_checked_for_spawned_futures",
+          "status": "pass",
+          "evidence": "async depth: Send/Sync bounds are minded for spawned futures"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "mpsc_and_oneshot_channels_assigned_by_purpose",
+          "status": "pass",
+          "evidence": "async depth: mpsc and oneshot channels are assigned by coordination purpose"
+        },
+        {
+          "section": "async_runtime_depth",
+          "check": "cancellation_modelled_explicitly_in_async_flows",
+          "status": "pass",
+          "evidence": "async depth: cancellation is modelled explicitly"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "flamegraphs_captured_before_optimizing",
+          "status": "pass",
+          "evidence": "performance: flamegraphs are captured before optimizing"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "criterion_results_gate_optimization_claims",
+          "status": "pass",
+          "evidence": "performance: criterion measurements gate every optimization claim \u2014 measure before optimizing"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "str_borrows_preferred_over_owned_strings",
+          "status": "pass",
+          "evidence": "performance: &str is preferred over String where ownership is not needed"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "iterators_preferred_over_manual_loops",
+          "status": "pass",
+          "evidence": "performance: iterators are preferred over manual loops"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "cow_used_for_maybe_owned_data",
+          "status": "pass",
+          "evidence": "performance: Cow carries maybe-owned data"
+        },
+        {
+          "section": "performance_measurement_and_allocation",
+          "check": "smallvec_used_where_small_sizes_dominate",
+          "status": "pass",
+          "evidence": "performance: SmallVec is used where small sizes dominate and it pays"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "unsafe_surface_encapsulated_behind_safe_api",
+          "status": "pass",
+          "evidence": "unsafe depth: the unsafe surface is minimized and encapsulated behind a safe API"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "wasm_sandboxing_via_wasm_bindgen_for_untrusted_code",
+          "status": "pass",
+          "evidence": "unsafe depth: sandboxed execution runs on wasm32 with wasm-bindgen"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "ffi_bindings_declared",
+          "status": "pass",
+          "evidence": "the declared record names its FFI bindings \u2014 the ffi_bindings list is present; an empty list declares that the codebase exposes no FFI bindings"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "every_ffi_binding_exposes_safe_wrapper",
+          "status": "fail",
+          "evidence": "FFI bindings: every declared FFI binding is exposed through a safe wrapper"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "every_ffi_binding_carries_safety_comment",
+          "status": "pass",
+          "evidence": "FFI bindings: every declared FFI binding documents its invariant with a // SAFETY: comment"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "every_ffi_binding_tested_under_miri",
+          "status": "pass",
+          "evidence": "FFI bindings: every declared FFI binding is tested under miri"
+        },
+        {
+          "section": "unsafe_ffi_and_wasm_depth",
+          "check": "no_ffi_binding_name_duplicated",
+          "status": "pass",
+          "evidence": "FFI bindings: no declared FFI-binding name is owned by more than one row"
+        },
+        {
+          "section": "cryptography_and_secret_handling",
+          "check": "vetted_crypto_crates_only_rustcrypto_or_ring",
+          "status": "pass",
+          "evidence": "crypto: only vetted crates are used \u2014 RustCrypto or ring"
+        },
+        {
+          "section": "cryptography_and_secret_handling",
+          "check": "secrets_zeroized_after_use",
+          "status": "pass",
+          "evidence": "crypto: secrets are zeroized after use"
+        },
+        {
+          "section": "cryptography_and_secret_handling",
+          "check": "constant_time_comparison_for_timing_sensitive_checks",
+          "status": "pass",
+          "evidence": "crypto: constant-time comparison is used where timing matters"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_reflexive_clone_rc_dodge",
+          "status": "fail",
+          "evidence": "red line: no reflexive clone/Rc used to dodge the borrow checker is present in the record"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_premature_unsafe",
+          "status": "pass",
+          "evidence": "red line: no premature unsafe is present in the record"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_homemade_crypto",
+          "status": "pass",
+          "evidence": "red line: no homemade crypto is present in the record"
+        },
+        {
+          "section": "expert_red_lines",
+          "check": "expert_no_lifetime_soup_papered_over",
+          "status": "pass",
+          "evidence": "red line: no lifetime soup papered over with annotations instead of restructuring is present in the record"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "ffi_bindings_count": 1,
+      "ffi_bindings_without_safe_wrapper": [
+        "lib_c_core"
+      ],
+      "ffi_bindings_without_safety_comment": [],
+      "ffi_bindings_without_miri": [],
+      "safe_wrapper_coverage": "0.000000",
+      "safety_comment_coverage": "1.000000",
+      "miri_coverage": "1.000000",
+      "duplicate_ffi_binding_names": [],
+      "summary": "35 pass, 2 fail, 0 missing of 37 checks across seven sections.",
+      "stamp": "PRODUCTION RUST ENGINEERING PACK EXPERT\nproject: secure-core\nVERDICT: PRODUCTION_RUST_ENGINEERING_PACK_EXPERT_NOT_READY\n  lifetime_architecture_depth                  pass\n  type_system_and_api_design                   pass\n  async_runtime_depth                          pass\n  performance_measurement_and_allocation       pass\n  unsafe_ffi_and_wasm_depth                    fail\n  cryptography_and_secret_handling             pass\n  expert_red_lines                             fail\n35 pass, 2 fail, 0 missing of 37 checks across seven sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

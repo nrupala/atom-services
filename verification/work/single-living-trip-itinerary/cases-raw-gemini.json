@@ -1,0 +1,145 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "trip_title": "Family Trip to India",
+        "header": {
+          "purpose": "Vacation",
+          "travellers": "4",
+          "trip_start_date": "2025-01-01",
+          "trip_end_date": "2025-01-10",
+          "single_itinerary_maintained": true
+        },
+        "constraints": {
+          "entry_checked_before_routing": true,
+          "transit_checked_before_routing": true,
+          "passport_validity_checked": true,
+          "visa_needs_checked": true,
+          "baggage_rules_checked": true,
+          "connection_minimums_checked": true
+        },
+        "entries": [
+          {
+            "entry_id": "leg_1",
+            "kind": "flight",
+            "state": "booked",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-01",
+            "origin": "JFK",
+            "destination": "DEL",
+            "total_amount": 1000.0,
+            "price_timestamp": "2024-12-01T10:00:00Z",
+            "booking_reference": "ABC123",
+            "terms_recorded": true
+          }
+        ],
+        "skeleton": {
+          "outbound_laid": true,
+          "stays_laid": true,
+          "internal_moves_laid_or_none_needed": true,
+          "return_laid": true
+        },
+        "totals": {
+          "declared_booked_total": 1000.0
+        },
+        "conflicts": {
+          "scanned_early": true,
+          "tight_connections_flagged": true,
+          "arrival_after_checkin_flagged": true,
+          "clashing_plans_flagged": true,
+          "conflicts_name_pieces_and_cost": true
+        },
+        "readiness": {
+          "full_readthrough_completed": true,
+          "documents_checked": true,
+          "times_with_timezones_checked": true,
+          "contacts_checked": true,
+          "gaps_checked": true
+        },
+        "red_lines": {
+          "date_change_suggested_present": false,
+          "idea_or_quote_presented_as_booking_present": false,
+          "invented_facts_present": false,
+          "routing_before_constraints_checked_present": false,
+          "unauthorized_booking_or_payment_present": false
+        }
+      },
+      "expect": {
+        "outcome": "SINGLE_LIVING_TRIP_ITINERARY_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: entries_count=1, booked_entries_count=1, computed_booked_total=1000.000000, booked_total_difference=0.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "trip_title": "Broken Trip",
+        "header": {
+          "purpose": "Vacation",
+          "travellers": "1",
+          "trip_start_date": "2025-01-10",
+          "trip_end_date": "2025-01-01",
+          "single_itinerary_maintained": true
+        },
+        "entries": [
+          {
+            "entry_id": "leg_1",
+            "kind": "flight",
+            "state": "booked",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-01",
+            "origin": "JFK",
+            "destination": "DEL",
+            "total_amount": 500.0,
+            "price_timestamp": "2024-12-01T10:00:00Z",
+            "booking_reference": "REF1",
+            "terms_recorded": true
+          }
+        ],
+        "totals": {
+          "declared_booked_total": 999.0
+        }
+      },
+      "expect": {
+        "outcome": "SINGLE_LIVING_TRIP_ITINERARY_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "Trip window in order",
+          "Declared booked total"
+        ],
+        "notes": "The trip end date is before start date and the declared total does not match the sum of entries."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "trip_title": "Minimal"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required header and constraint fields."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "trip_title": 12345,
+        "header": "not-an-object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for trip_title and header fields."
+      }
+    }
+  ]
+}

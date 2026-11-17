@@ -1,0 +1,32 @@
+[
+  {
+    "rule": "R1",
+    "detail": "failing_checks names 'Trip window in order', which is not in the atom's check register (45 checks)",
+    "fix": "Rebuilt the violations case as a deep copy of the full-pass manifest with exactly one planted value mutation (totals.declared_booked_total = 999.0 against a booked-entry sum of 1000.0); expect.failing_checks was set to exactly the oracle's failing set on the mutated input, ['declared_booked_total_matches_sum_of_booked_entry_totals'], confirmed by running the Python oracle on the mutated input (44 pass / 1 fail / 0 missing, verdict SINGLE_LIVING_TRIP_ITINERARY_NOT_READY). The prose label 'Trip window in order' is therefore no longer used."
+  },
+  {
+    "rule": "R1",
+    "detail": "failing_checks names 'Declared booked total', which is not in the atom's check register (45 checks)",
+    "fix": "Same rebuild as the companion R1 correction: the violations case was rebuilt as a deep copy of the full-pass manifest carrying only the totals.declared_booked_total = 999.0 mutation, and expect.failing_checks was set to exactly the oracle's failing set ['declared_booked_total_matches_sum_of_booked_entry_totals'], confirmed by running the Python oracle on the mutated input. The prose label 'Declared booked total' is therefore no longer used."
+  },
+  {
+    "rule": "R2",
+    "detail": "expect.computed_spot_checks is absent, empty or not structured (a non-empty object of quantity -> expected value, or a list of {quantity, expected} objects, is required); quantities stated only in prose notes do not count",
+    "fix": "Injected expect.computed_spot_checks as a structured object into the full-pass case, taken from the Python oracle output on the exact final full-pass input (all 11 top-level computed fields: computed_status, entries_count, booked_entries_count, computed_booked_total, booked_total_difference and the six name/ordering lists, with amounts in their exact six-decimal string serialization). Confirmed by re-running the oracle on the final input (45 pass / 0 fail / 0 missing, verdict SINGLE_LIVING_TRIP_ITINERARY_READY)."
+  },
+  {
+    "rule": "R2",
+    "detail": "expect.computed_spot_checks is absent, empty or not structured (a non-empty object of quantity -> expected value, or a list of {quantity, expected} objects, is required); quantities stated only in prose notes do not count",
+    "fix": "Injected expect.computed_spot_checks as a structured object into the violations case, taken from the Python oracle output on the exact mutated violations input (all 11 top-level computed fields; computed_status outside_stated_limits_on_declared_evidence, computed_booked_total '1000.000000', booked_total_difference '-1.000000'). Confirmed by running the Python oracle on the mutated input."
+  },
+  {
+    "rule": "R3",
+    "detail": "violations input is missing key paths present in the full-pass manifest (a sparse violations input reads as missing evidence, not as failure): conflicts, conflicts.arrival_after_checkin_flagged, conflicts.clashing_plans_flagged, conflicts.conflicts_name_pieces_and_cost, conflicts.scanned_early, conflicts.tight_connections_flagged, constraints, constraints.baggage_rules_checked, constraints.connection_minimums_checked, constraints.entry_checked_before_routing, constraints.passport_validity_checked, constraints.transit_checked_before_routing, constraints.visa_needs_checked, readiness, readiness.contacts_checked, readiness.documents_checked, readiness.full_readthrough_completed, readiness.gaps_checked, readiness.times_with_timezones_checked, red_lines, red_lines.date_change_suggested_present, red_lines.idea_or_quote_presented_as_booking_present, red_lines.invented_facts_present, red_lines.routing_before_constraints_checked_present, red_lines.unauthorized_booking_or_payment_present, skeleton, skeleton.internal_moves_laid_or_none_needed, skeleton.outbound_laid, skeleton.return_laid, skeleton.stays_laid",
+    "fix": "Rebuilt the violations input as a deep copy of the final full-pass input (restoring constraints, skeleton, conflicts, readiness and red_lines in full, and the full-pass trip_title 'Family Trip to India'), changing values only via the single planted mutation totals.declared_booked_total = 999.0, so every key path present in the full-pass manifest is present in the violations input. Confirmed by the corrected file passing validate_cases.py (ok: true) and by the oracle returning 0 missing checks on the violations input."
+  },
+  {
+    "rule": "R4",
+    "detail": "malformed input carries 2 type violations (trip_title must be a string, header must be a object); exactly one is required so the 422 field is unambiguous",
+    "fix": "Rebuilt the malformed case as a deep copy of the full-pass input with exactly one documented typed field replaced by a wrong-typed value (header = 'should_be_an_object', a string where an object is required); the raw design's second violation (trip_title as a number) was removed by restoring trip_title to the full-pass string. Confirmed with validate_cases.type_violations(input, MANIFEST_SPEC, '') returning exactly one violation, ('header', 'object'), and by the corrected file passing validate_cases.py (ok: true)."
+  }
+]

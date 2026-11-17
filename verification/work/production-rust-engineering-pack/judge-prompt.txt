@@ -1,0 +1,1291 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: production-rust-engineering-pack
+
+=== contract.yaml ===
+service_name: production-rust-engineering-pack
+display_name: Production rust engineering pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:rust-engineering
+binding:
+  skill: rust-engineering
+  skill_path: workspace/mymilo-build/skills/rust-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: production_rust_engineering_pack
+  prefix: atm_1_production_rust_engineering_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Guardian Mesh and hot-path builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Production Rust engineering pack — `production-rust-engineering-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Write production Rust — ownership done right, no unwrap in prod paths, clippy-clean, tested error paths.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Guardian Mesh and hot-path builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the production Rust engineering manifest
+
+The caller submits one JSON manifest: a declared production
+Rust engineering record for one Rust codebase, made from the
+codebase's actual practice. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`PRODUCTION_RUST_ENGINEERING_PACK_NOT_READY`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `ownership.borrow_before_cloning_practised` (boolean) | ownership_and_lifetimes |
+| `ownership.lifetimes_kept_local` (boolean) | ownership_and_lifetimes |
+| `ownership.owned_data_at_boundaries_borrows_within` (boolean) | ownership_and_lifetimes |
+| `ownership.clones_justified_where_present` (boolean) | ownership_and_lifetimes |
+| `errors.error_enums_used_for_fallible_apis` (boolean) | error_handling |
+| `errors.thiserror_used_for_library_errors` (boolean) | error_handling |
+| `errors.anyhow_used_for_binary_errors` (boolean) | error_handling |
+| `errors.question_mark_propagation_used` (boolean) | error_handling |
+| `errors.no_unwrap_or_expect_in_production_paths` (boolean) | error_handling |
+| `errors.unwrap_expect_exceptions_limited_to_tests_and_startup_with_messages` (boolean) | error_handling |
+| `unsafe_policy.unsafe_forbidden_by_default_declared` (boolean) | unsafe_discipline |
+| `unsafe_policy.unsafe_isolated_in_dedicated_modules` (boolean) | unsafe_discipline |
+| `unsafe_blocks` (list of unsafe-block-row objects, each with the entry fields below; computed, see below) | unsafe_discipline |
+| `unsafe_blocks[].location` (string; names the row in the computed outputs) | unsafe_discipline |
+| `unsafe_blocks[].invariant_documented` (boolean; must be `true` per row) | unsafe_discipline |
+| `unsafe_blocks[].tests_covering_block` (boolean; must be `true` per row) | unsafe_discipline |
+| `async_runtime.structured_tasks_with_tokio_used` (boolean) | async_discipline |
+| `async_runtime.blocking_calls_absent_from_async_code` (boolean) | async_discipline |
+| `async_runtime.bounded_channels_used` (boolean) | async_discipline |
+| `async_runtime.timeouts_applied_everywhere` (boolean) | async_discipline |
+| `testing.unit_tests_beside_code_present` (boolean) | testing_and_benchmarks |
+| `testing.integration_tests_in_tests_directory_present` (boolean) | testing_and_benchmarks |
+| `testing.doc_tests_for_examples_present` (boolean) | testing_and_benchmarks |
+| `testing.error_paths_tested` (boolean) | testing_and_benchmarks |
+| `testing.criterion_benchmarks_present` (boolean) | testing_and_benchmarks |
+| `testing.tests_green_including_failure_paths` (boolean) | testing_and_benchmarks |
+| `tooling.clippy_clean_with_deny_warnings` (boolean) | tooling_workspace_and_supply_chain |
+| `tooling.cargo_fmt_check_clean` (boolean) | tooling_workspace_and_supply_chain |
+| `tooling.lints_fixed_not_silenced_without_reason` (boolean) | tooling_workspace_and_supply_chain |
+| `workspace.crates_split_only_at_real_boundaries` (boolean) | tooling_workspace_and_supply_chain |
+| `workspace.feature_flags_kept_minimal_no_default_bloat` (boolean) | tooling_workspace_and_supply_chain |
+| `supply_chain.cargo_audit_run` (boolean) | tooling_workspace_and_supply_chain |
+| `supply_chain.msrv_pinned` (boolean) | tooling_workspace_and_supply_chain |
+| `supply_chain.new_crates_reviewed_before_adoption` (boolean) | tooling_workspace_and_supply_chain |
+| `red_lines.blocking_work_inside_async_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.unbounded_channels_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.spawn_loops_without_backpressure_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Unsafe blocks declared:** the declared `unsafe_blocks` list
+  passes when it is present. An absent list is missing
+  evidence. An empty list passes: it declares that the codebase
+  contains no unsafe blocks — exactly what the skill's
+  forbid-by-default policy aims at — and the skill requires no
+  unsafe block.
+- **Invariant documented per unsafe block:** every declared
+  unsafe-block row must declare `invariant_documented` true
+  (the skill: unsafe is a contract, and "Every `unsafe` block
+  documented + tested"). A row with the field absent is missing
+  evidence; a row declaring it false fails. On an empty list
+  the check passes vacuously — there is no undocumented block.
+- **Covering tests per unsafe block:** every declared
+  unsafe-block row must declare `tests_covering_block` true,
+  under the same absent/false/vacuous rules.
+- **No unsafe-block location duplicated:** no declared
+  unsafe-block `location` may appear on more than one row. A
+  row with `location` absent is missing evidence for this
+  check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the four primary computed checks above cannot be completed),
+`unsafe_blocks_count` (the declared list length, or null when
+the list is not declared — counts are reported as integers,
+exactly), the row-name lists `unsafe_blocks_without_invariant`
+(blocks whose invariant field is present but not true; a block
+with the field absent is missing evidence and does not appear)
+and `unsafe_blocks_without_tests` (same rule for the tests
+field), `duplicate_unsafe_block_locations` (locations declared
+on more than one row, in the order their second occurrence
+appears), and the coverage ratios `documented_coverage`
+(blocks with a documented invariant ÷ declared blocks) and
+`tested_coverage` (blocks with covering tests ÷ declared
+blocks). **Fixed serialization rule:** computed ratios are
+reported as strings with exactly six decimal places, produced
+in both implementations by the same rule — round half up to
+6dp, `floor(v * 1000000 + 0.5) / 1000000`, then format with
+exactly six decimals; comparisons use the unrounded values. A
+ratio is null when its denominator list is absent or empty.
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands are
+qualitative declarations the record makes, not bars the atom
+can set. Quantities are computed and reported; the only bar on
+the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a maximum number or percentage of clones, or a
+clone-per-function rate; a maximum number of unsafe blocks, or
+an unsafe-lines-of-code budget; a channel capacity number; a
+timeout duration in milliseconds or seconds; a test-coverage
+percentage, a test count, or a benchmark performance figure
+(only that criterion benches exist is checked); a clippy lint
+count beyond the skill's own clean-with-`-D warnings` gate, or
+a list of permitted silenced lints beyond a reason being
+required; a crate count, a workspace size, or a feature-flag
+count beyond minimal-with-no-default-bloat as declared; a
+specific MSRV version number (only that an MSRV is pinned is
+checked); a cargo-audit vulnerability count or severity bar
+beyond the audit being run; a dependency count or a named list
+of approved crates (only that new crates are reviewed is
+checked).
+
+The verdict is one of `PRODUCTION_RUST_ENGINEERING_PACK_READY`
+(all 37 checks pass),
+`PRODUCTION_RUST_ENGINEERING_PACK_NOT_READY` (any check fails),
+or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: ownership_and_lifetimes,
+error_handling, unsafe_discipline, async_discipline,
+testing_and_benchmarks, tooling_workspace_and_supply_chain,
+red_lines.
+
+## Distinct ground
+
+The nearest siblings are `c-engineering-review` (a declared C
+engineering record — manual memory discipline, one owner per
+allocation, banned functions, sized APIs, sanitizers and
+fuzzed parsers over C code), `cpp-engineering-review` (a
+declared C++ engineering record — RAII and destructors owning
+resources, smart pointers and value semantics, the rule of
+zero, exceptions policy and ABI versioning over C++ code) and
+`production-python-engineering-pack` (a declared Python
+engineering record — typing, packaging and interpreter tooling
+over Python code). This atom shares **zero checks** with any of
+them (verified by comparing every check name here against
+every check name in the C and C++ reviews' sources; the Python
+pack is authored in parallel from its own skill and the pair is
+verified centrally by the coordinator): every check here is a
+Rust question — borrow before cloning with lifetimes kept
+local and owned data at boundaries with borrows within,
+error enums with thiserror for libraries and anyhow for
+binaries, `?` propagation and zero unwrap/expect in production
+paths with exceptions confined to tests and startup invariants
+carrying messages, unsafe forbidden by default and isolated in
+dedicated modules with every declared block's invariant
+documented and covered by tests, structured tokio tasks with
+no blocking calls in async code, bounded channels and timeouts
+everywhere, unit tests beside code with integration tests in
+`tests/`, doc tests and criterion benchmarks, tests green
+including the failure paths, clippy clean under `-D warnings`
+with `cargo fmt --check` clean and lints fixed rather than
+silenced without reason, crates split only at real boundaries
+with feature flags minimal and no default bloat, cargo audit
+run with a pinned MSRV and new crates reviewed before
+adoption, and the Rust red lines. The boundary is: a Rust
+codebase's declared production practice here; C memory
+discipline, C++ RAII/value semantics and Python practice there.
+
+## Honest scoping
+
+This atom reviews a **declared** production Rust engineering
+record — it compiles no code itself, runs no cargo, clippy,
+rustfmt or cargo-audit command, inspects no repository or
+crate, runs no test or benchmark, and does not verify that
+declared practice was ever carried out. A codebase is ready
+*on the caller's declared evidence*: a record that declares
+zero unwrap in production paths, a pinned MSRV, and every
+unsafe block documented passes those checks even if the real
+codebase did none of it. It is a completeness and consistency
+audit of the engineering record the skill requires, **not a
+compiler, a linter, a code review of actual Rust source, or a
+guarantee that the code is memory-safe or correct**: it never
+judges whether a declared invariant is actually true, whether
+a documented unsafe block is sound, whether the declared
+ownership design is good, or whether the error types are
+well-designed — only that the record contains what the skill's
+method, quality gates and red lines demand, and that its
+declared unsafe-block rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds at all
+(the skill states none — see the declined list above); no live
+verification of any declared fact; no judgment of practice
+*quality* — whether the ownership design, error taxonomy, or
+async structure is adequate for the real codebase is the
+caller's declaration, checked only for declared presence and
+consistency; the skill's dependency-governance cross-reference
+is checked only as the review declaration the skill states
+(new crates reviewed before adoption) — this atom runs no
+audit and takes no position on any specific crate's soundness.
+
+## U-13 regulatory screen
+
+No: this atom's output could not read as regulated
+professional advice — it audits a declared software-engineering
+record for completeness and consistency against a Rust practice
+skill; it offers no engineering-practice advice in the APEGA
+sense (no design, stamping, or safety judgment over physical
+systems), no financial or securities advice, and nothing
+psychology-adjacent. Its subject is software practice only,
+the same class as the software-engineering titles that stayed
+live at the census pending the owner's review.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "production-rust-engineering-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "PRODUCTION_RUST_ENGINEERING_PACK_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: unsafe_blocks_count=1, documented_coverage=1.000000, tested_coverage=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "unsafe_blocks_count": 1,
+          "unsafe_blocks_without_invariant": [],
+          "unsafe_blocks_without_tests": [],
+          "documented_coverage": "1.000000",
+          "tested_coverage": "1.000000",
+          "duplicate_unsafe_block_locations": []
+        }
+      },
+      "input": {
+        "project": "test-project",
+        "ownership": {
+          "borrow_before_cloning_practised": true,
+          "lifetimes_kept_local": true,
+          "owned_data_at_boundaries_borrows_within": true,
+          "clones_justified_where_present": true
+        },
+        "errors": {
+          "error_enums_used_for_fallible_apis": true,
+          "thiserror_used_for_library_errors": true,
+          "anyhow_used_for_binary_errors": true,
+          "question_mark_propagation_used": true,
+          "no_unwrap_or_expect_in_production_paths": true,
+          "unwrap_expect_exceptions_limited_to_tests_and_startup_with_messages": true
+        },
+        "unsafe_policy": {
+          "unsafe_forbidden_by_default_declared": true,
+          "unsafe_isolated_in_dedicated_modules": true
+        },
+        "unsafe_blocks": [
+          {
+            "location": "src/lib.rs:42",
+            "invariant_documented": true,
+            "tests_covering_block": true
+          }
+        ],
+        "async_runtime": {
+          "structured_tasks_with_tokio_used": true,
+          "blocking_calls_absent_from_async_code": true,
+          "bounded_channels_used": true,
+          "timeouts_applied_everywhere": true
+        },
+        "testing": {
+          "unit_tests_beside_code_present": true,
+          "integration_tests_in_tests_directory_present": true,
+          "doc_tests_for_examples_present": true,
+          "error_paths_tested": true,
+          "criterion_benchmarks_present": true,
+          "tests_green_including_failure_paths": true
+        },
+        "tooling": {
+          "clippy_clean_with_deny_warnings": true,
+          "cargo_fmt_check_clean": true,
+          "lints_fixed_not_silenced_without_reason": true
+        },
+        "workspace": {
+          "crates_split_only_at_real_boundaries": true,
+          "feature_flags_kept_minimal_no_default_bloat": true
+        },
+        "supply_chain": {
+          "cargo_audit_run": true,
+          "msrv_pinned": true,
+          "new_crates_reviewed_before_adoption": true
+        },
+        "red_lines": {
+          "blocking_work_inside_async_present": false,
+          "unbounded_channels_present": false,
+          "spawn_loops_without_backpressure_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "production-rust-engineering-pack",
+        "atom_version": "0.1.0",
+        "project": "test-project",
+        "verdict": "PRODUCTION_RUST_ENGINEERING_PACK_READY",
+        "sections": {
+          "ownership_and_lifetimes": "pass",
+          "error_handling": "pass",
+          "unsafe_discipline": "pass",
+          "async_discipline": "pass",
+          "testing_and_benchmarks": "pass",
+          "tooling_workspace_and_supply_chain": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "borrow_before_cloning_practised",
+            "status": "pass",
+            "evidence": "ownership: borrow before cloning is practised"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "lifetimes_kept_local",
+            "status": "pass",
+            "evidence": "ownership: lifetimes are kept local"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "owned_data_at_boundaries_borrows_within",
+            "status": "pass",
+            "evidence": "ownership: owned data at boundaries, borrows within"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "clones_justified_where_present",
+            "status": "pass",
+            "evidence": "ownership: every clone present is justified \u2014 borrowing was considered first"
+          },
+          {
+            "section": "error_handling",
+            "check": "error_enums_used_for_fallible_apis",
+            "status": "pass",
+            "evidence": "errors: errors are types \u2014 enums carry the fallible cases"
+          },
+          {
+            "section": "error_handling",
+            "check": "thiserror_used_for_library_errors",
+            "status": "pass",
+            "evidence": "errors: thiserror is used for library errors"
+          },
+          {
+            "section": "error_handling",
+            "check": "anyhow_used_for_binary_errors",
+            "status": "pass",
+            "evidence": "errors: anyhow is used for binary errors"
+          },
+          {
+            "section": "error_handling",
+            "check": "question_mark_propagation_used",
+            "status": "pass",
+            "evidence": "errors: `?` is used for propagation"
+          },
+          {
+            "section": "error_handling",
+            "check": "no_unwrap_or_expect_in_production_paths",
+            "status": "pass",
+            "evidence": "errors: zero unwrap/expect in production paths \u2014 no unwrap/expect on fallible paths"
+          },
+          {
+            "section": "error_handling",
+            "check": "unwrap_expect_exceptions_limited_to_tests_and_startup_with_messages",
+            "status": "pass",
+            "evidence": "errors: any unwrap/expect exceptions are confined to tests and startup-time invariants, with messages"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_forbidden_by_default_declared",
+            "status": "pass",
+            "evidence": "unsafe policy: unsafe is forbidden by default"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_isolated_in_dedicated_modules",
+            "status": "pass",
+            "evidence": "unsafe policy: where unsafe is needed, it is isolated in a dedicated module"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_blocks_declared",
+            "status": "pass",
+            "evidence": "the declared record names its unsafe blocks \u2014 the unsafe_blocks list is present; an empty list declares that the codebase contains no unsafe blocks"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "every_unsafe_block_documents_its_invariant",
+            "status": "pass",
+            "evidence": "unsafe blocks: every declared unsafe block documents its invariant \u2014 unsafe is a contract"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "every_unsafe_block_has_covering_tests",
+            "status": "pass",
+            "evidence": "unsafe blocks: every declared unsafe block has tests covering it"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "no_unsafe_block_location_duplicated",
+            "status": "pass",
+            "evidence": "unsafe blocks: no declared unsafe-block location is owned by more than one row"
+          },
+          {
+            "section": "async_discipline",
+            "check": "structured_tasks_with_tokio_used",
+            "status": "pass",
+            "evidence": "async: structured tasks with tokio are used"
+          },
+          {
+            "section": "async_discipline",
+            "check": "blocking_calls_absent_from_async_code",
+            "status": "pass",
+            "evidence": "async: no blocking calls inside async code"
+          },
+          {
+            "section": "async_discipline",
+            "check": "bounded_channels_used",
+            "status": "pass",
+            "evidence": "async: bounded channels are used"
+          },
+          {
+            "section": "async_discipline",
+            "check": "timeouts_applied_everywhere",
+            "status": "pass",
+            "evidence": "async: timeouts are applied everywhere"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "unit_tests_beside_code_present",
+            "status": "pass",
+            "evidence": "testing: unit tests sit beside the code"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "integration_tests_in_tests_directory_present",
+            "status": "pass",
+            "evidence": "testing: integration tests live in tests/"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "doc_tests_for_examples_present",
+            "status": "pass",
+            "evidence": "testing: doc tests cover the examples"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "error_paths_tested",
+            "status": "pass",
+            "evidence": "testing: the error paths are tested"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "criterion_benchmarks_present",
+            "status": "pass",
+            "evidence": "testing: criterion is used for benchmarks"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "tests_green_including_failure_paths",
+            "status": "pass",
+            "evidence": "testing: tests are green, including the failure and error paths"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "clippy_clean_with_deny_warnings",
+            "status": "pass",
+            "evidence": "clippy gate: cargo clippy is clean with -D warnings"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "cargo_fmt_check_clean",
+            "status": "pass",
+            "evidence": "clippy gate: cargo fmt --check is clean"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "lints_fixed_not_silenced_without_reason",
+            "status": "pass",
+            "evidence": "clippy gate: lints are fixed, not silenced without reason"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "crates_split_only_at_real_boundaries",
+            "status": "pass",
+            "evidence": "workspaces: crates are split only when boundaries are real"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "feature_flags_kept_minimal_no_default_bloat",
+            "status": "pass",
+            "evidence": "workspaces: feature flags are kept minimal \u2014 no default bloat"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "cargo_audit_run",
+            "status": "pass",
+            "evidence": "supply chain: cargo audit is run"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "msrv_pinned",
+            "status": "pass",
+            "evidence": "supply chain: the MSRV is pinned"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "new_crates_reviewed_before_adoption",
+            "status": "pass",
+            "evidence": "supply chain: new crates are reviewed before adoption"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_blocking_work_inside_async",
+            "status": "pass",
+            "evidence": "red line: no blocking work inside the async runtime is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_unbounded_channels",
+            "status": "pass",
+            "evidence": "red line: no unbounded channels are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_spawn_loops_without_backpressure",
+            "status": "pass",
+            "evidence": "red line: no spawn-loops without backpressure are present in the record"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "unsafe_blocks_count": 1,
+        "unsafe_blocks_without_invariant": [],
+        "unsafe_blocks_without_tests": [],
+        "documented_coverage": "1.000000",
+        "tested_coverage": "1.000000",
+        "duplicate_unsafe_block_locations": [],
+        "summary": "37 pass, 0 fail, 0 missing of 37 checks across seven sections.",
+        "stamp": "PRODUCTION RUST ENGINEERING PACK\nproject: test-project\nVERDICT: PRODUCTION_RUST_ENGINEERING_PACK_READY\n  ownership_and_lifetimes                      pass\n  error_handling                               pass\n  unsafe_discipline                            pass\n  async_discipline                             pass\n  testing_and_benchmarks                       pass\n  tooling_workspace_and_supply_chain           pass\n  red_lines                                    pass\n37 pass, 0 fail, 0 missing of 37 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "PRODUCTION_RUST_ENGINEERING_PACK_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "borrow_before_cloning_practised",
+          "every_unsafe_block_documents_its_invariant",
+          "no_blocking_work_inside_async"
+        ],
+        "notes": "Violates ownership boolean, unsafe invariant requirement, and red line constraint (rebuilt as deep copy of full-pass with exactly those planted mutations).",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "unsafe_blocks_count": 1,
+          "unsafe_blocks_without_invariant": [
+            "src/lib.rs:42"
+          ],
+          "unsafe_blocks_without_tests": [],
+          "documented_coverage": "0.000000",
+          "tested_coverage": "1.000000",
+          "duplicate_unsafe_block_locations": []
+        }
+      },
+      "input": {
+        "project": "test-project",
+        "ownership": {
+          "borrow_before_cloning_practised": false,
+          "lifetimes_kept_local": true,
+          "owned_data_at_boundaries_borrows_within": true,
+          "clones_justified_where_present": true
+        },
+        "errors": {
+          "error_enums_used_for_fallible_apis": true,
+          "thiserror_used_for_library_errors": true,
+          "anyhow_used_for_binary_errors": true,
+          "question_mark_propagation_used": true,
+          "no_unwrap_or_expect_in_production_paths": true,
+          "unwrap_expect_exceptions_limited_to_tests_and_startup_with_messages": true
+        },
+        "unsafe_policy": {
+          "unsafe_forbidden_by_default_declared": true,
+          "unsafe_isolated_in_dedicated_modules": true
+        },
+        "unsafe_blocks": [
+          {
+            "location": "src/lib.rs:42",
+            "invariant_documented": false,
+            "tests_covering_block": true
+          }
+        ],
+        "async_runtime": {
+          "structured_tasks_with_tokio_used": true,
+          "blocking_calls_absent_from_async_code": true,
+          "bounded_channels_used": true,
+          "timeouts_applied_everywhere": true
+        },
+        "testing": {
+          "unit_tests_beside_code_present": true,
+          "integration_tests_in_tests_directory_present": true,
+          "doc_tests_for_examples_present": true,
+          "error_paths_tested": true,
+          "criterion_benchmarks_present": true,
+          "tests_green_including_failure_paths": true
+        },
+        "tooling": {
+          "clippy_clean_with_deny_warnings": true,
+          "cargo_fmt_check_clean": true,
+          "lints_fixed_not_silenced_without_reason": true
+        },
+        "workspace": {
+          "crates_split_only_at_real_boundaries": true,
+          "feature_flags_kept_minimal_no_default_bloat": true
+        },
+        "supply_chain": {
+          "cargo_audit_run": true,
+          "msrv_pinned": true,
+          "new_crates_reviewed_before_adoption": true
+        },
+        "red_lines": {
+          "blocking_work_inside_async_present": true,
+          "unbounded_channels_present": false,
+          "spawn_loops_without_backpressure_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "production-rust-engineering-pack",
+        "atom_version": "0.1.0",
+        "project": "test-project",
+        "verdict": "PRODUCTION_RUST_ENGINEERING_PACK_NOT_READY",
+        "sections": {
+          "ownership_and_lifetimes": "fail",
+          "error_handling": "pass",
+          "unsafe_discipline": "fail",
+          "async_discipline": "pass",
+          "testing_and_benchmarks": "pass",
+          "tooling_workspace_and_supply_chain": "pass",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "borrow_before_cloning_practised",
+            "status": "fail",
+            "evidence": "ownership: borrow before cloning is practised"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "lifetimes_kept_local",
+            "status": "pass",
+            "evidence": "ownership: lifetimes are kept local"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "owned_data_at_boundaries_borrows_within",
+            "status": "pass",
+            "evidence": "ownership: owned data at boundaries, borrows within"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "clones_justified_where_present",
+            "status": "pass",
+            "evidence": "ownership: every clone present is justified \u2014 borrowing was considered first"
+          },
+          {
+            "section": "error_handling",
+            "check": "error_enums_used_for_fallible_apis",
+            "status": "pass",
+            "evidence": "errors: errors are types \u2014 enums carry the fallible cases"
+          },
+          {
+            "section": "error_handling",
+            "check": "thiserror_used_for_library_errors",
+            "status": "pass",
+            "evidence": "errors: thiserror is used for library errors"
+          },
+          {
+            "section": "error_handling",
+            "check": "anyhow_used_for_binary_errors",
+            "status": "pass",
+            "evidence": "errors: anyhow is used for binary errors"
+          },
+          {
+            "section": "error_handling",
+            "check": "question_mark_propagation_used",
+            "status": "pass",
+            "evidence": "errors: `?` is used for propagation"
+          },
+          {
+            "section": "error_handling",
+            "check": "no_unwrap_or_expect_in_production_paths",
+            "status": "pass",
+            "evidence": "errors: zero unwrap/expect in production paths \u2014 no unwrap/expect on fallible paths"
+          },
+          {
+            "section": "error_handling",
+            "check": "unwrap_expect_exceptions_limited_to_tests_and_startup_with_messages",
+            "status": "pass",
+            "evidence": "errors: any unwrap/expect exceptions are confined to tests and startup-time invariants, with messages"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_forbidden_by_default_declared",
+            "status": "pass",
+            "evidence": "unsafe policy: unsafe is forbidden by default"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_isolated_in_dedicated_modules",
+            "status": "pass",
+            "evidence": "unsafe policy: where unsafe is needed, it is isolated in a dedicated module"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_blocks_declared",
+            "status": "pass",
+            "evidence": "the declared record names its unsafe blocks \u2014 the unsafe_blocks list is present; an empty list declares that the codebase contains no unsafe blocks"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "every_unsafe_block_documents_its_invariant",
+            "status": "fail",
+            "evidence": "unsafe blocks: every declared unsafe block documents its invariant \u2014 unsafe is a contract"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "every_unsafe_block_has_covering_tests",
+            "status": "pass",
+            "evidence": "unsafe blocks: every declared unsafe block has tests covering it"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "no_unsafe_block_location_duplicated",
+            "status": "pass",
+            "evidence": "unsafe blocks: no declared unsafe-block location is owned by more than one row"
+          },
+          {
+            "section": "async_discipline",
+            "check": "structured_tasks_with_tokio_used",
+            "status": "pass",
+            "evidence": "async: structured tasks with tokio are used"
+          },
+          {
+            "section": "async_discipline",
+            "check": "blocking_calls_absent_from_async_code",
+            "status": "pass",
+            "evidence": "async: no blocking calls inside async code"
+          },
+          {
+            "section": "async_discipline",
+            "check": "bounded_channels_used",
+            "status": "pass",
+            "evidence": "async: bounded channels are used"
+          },
+          {
+            "section": "async_discipline",
+            "check": "timeouts_applied_everywhere",
+            "status": "pass",
+            "evidence": "async: timeouts are applied everywhere"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "unit_tests_beside_code_present",
+            "status": "pass",
+            "evidence": "testing: unit tests sit beside the code"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "integration_tests_in_tests_directory_present",
+            "status": "pass",
+            "evidence": "testing: integration tests live in tests/"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "doc_tests_for_examples_present",
+            "status": "pass",
+            "evidence": "testing: doc tests cover the examples"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "error_paths_tested",
+            "status": "pass",
+            "evidence": "testing: the error paths are tested"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "criterion_benchmarks_present",
+            "status": "pass",
+            "evidence": "testing: criterion is used for benchmarks"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "tests_green_including_failure_paths",
+            "status": "pass",
+            "evidence": "testing: tests are green, including the failure and error paths"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "clippy_clean_with_deny_warnings",
+            "status": "pass",
+            "evidence": "clippy gate: cargo clippy is clean with -D warnings"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "cargo_fmt_check_clean",
+            "status": "pass",
+            "evidence": "clippy gate: cargo fmt --check is clean"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "lints_fixed_not_silenced_without_reason",
+            "status": "pass",
+            "evidence": "clippy gate: lints are fixed, not silenced without reason"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "crates_split_only_at_real_boundaries",
+            "status": "pass",
+            "evidence": "workspaces: crates are split only when boundaries are real"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "feature_flags_kept_minimal_no_default_bloat",
+            "status": "pass",
+            "evidence": "workspaces: feature flags are kept minimal \u2014 no default bloat"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "cargo_audit_run",
+            "status": "pass",
+            "evidence": "supply chain: cargo audit is run"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "msrv_pinned",
+            "status": "pass",
+            "evidence": "supply chain: the MSRV is pinned"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "new_crates_reviewed_before_adoption",
+            "status": "pass",
+            "evidence": "supply chain: new crates are reviewed before adoption"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_blocking_work_inside_async",
+            "status": "fail",
+            "evidence": "red line: no blocking work inside the async runtime is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_unbounded_channels",
+            "status": "pass",
+            "evidence": "red line: no unbounded channels are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_spawn_loops_without_backpressure",
+            "status": "pass",
+            "evidence": "red line: no spawn-loops without backpressure are present in the record"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "unsafe_blocks_count": 1,
+        "unsafe_blocks_without_invariant": [
+          "src/lib.rs:42"
+        ],
+        "unsafe_blocks_without_tests": [],
+        "documented_coverage": "0.000000",
+        "tested_coverage": "1.000000",
+        "duplicate_unsafe_block_locations": [],
+        "summary": "34 pass, 3 fail, 0 missing of 37 checks across seven sections.",
+        "stamp": "PRODUCTION RUST ENGINEERING PACK\nproject: test-project\nVERDICT: PRODUCTION_RUST_ENGINEERING_PACK_NOT_READY\n  ownership_and_lifetimes                      fail\n  error_handling                               pass\n  unsafe_discipline                            fail\n  async_discipline                             pass\n  testing_and_benchmarks                       pass\n  tooling_workspace_and_supply_chain           pass\n  red_lines                                    fail\n34 pass, 3 fail, 0 missing of 37 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of required fields."
+      },
+      "input": {
+        "project": "sparse-project"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "production-rust-engineering-pack",
+        "atom_version": "0.1.0",
+        "project": "sparse-project",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "ownership_and_lifetimes": "insufficient_evidence",
+          "error_handling": "insufficient_evidence",
+          "unsafe_discipline": "insufficient_evidence",
+          "async_discipline": "insufficient_evidence",
+          "testing_and_benchmarks": "insufficient_evidence",
+          "tooling_workspace_and_supply_chain": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "borrow_before_cloning_practised",
+            "status": "missing",
+            "evidence": "ownership: borrow before cloning is practised"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "lifetimes_kept_local",
+            "status": "missing",
+            "evidence": "ownership: lifetimes are kept local"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "owned_data_at_boundaries_borrows_within",
+            "status": "missing",
+            "evidence": "ownership: owned data at boundaries, borrows within"
+          },
+          {
+            "section": "ownership_and_lifetimes",
+            "check": "clones_justified_where_present",
+            "status": "missing",
+            "evidence": "ownership: every clone present is justified \u2014 borrowing was considered first"
+          },
+          {
+            "section": "error_handling",
+            "check": "error_enums_used_for_fallible_apis",
+            "status": "missing",
+            "evidence": "errors: errors are types \u2014 enums carry the fallible cases"
+          },
+          {
+            "section": "error_handling",
+            "check": "thiserror_used_for_library_errors",
+            "status": "missing",
+            "evidence": "errors: thiserror is used for library errors"
+          },
+          {
+            "section": "error_handling",
+            "check": "anyhow_used_for_binary_errors",
+            "status": "missing",
+            "evidence": "errors: anyhow is used for binary errors"
+          },
+          {
+            "section": "error_handling",
+            "check": "question_mark_propagation_used",
+            "status": "missing",
+            "evidence": "errors: `?` is used for propagation"
+          },
+          {
+            "section": "error_handling",
+            "check": "no_unwrap_or_expect_in_production_paths",
+            "status": "missing",
+            "evidence": "errors: zero unwrap/expect in production paths \u2014 no unwrap/expect on fallible paths"
+          },
+          {
+            "section": "error_handling",
+            "check": "unwrap_expect_exceptions_limited_to_tests_and_startup_with_messages",
+            "status": "missing",
+            "evidence": "errors: any unwrap/expect exceptions are confined to tests and startup-time invariants, with messages"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_forbidden_by_default_declared",
+            "status": "missing",
+            "evidence": "unsafe policy: unsafe is forbidden by default"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_isolated_in_dedicated_modules",
+            "status": "missing",
+            "evidence": "unsafe policy: where unsafe is needed, it is isolated in a dedicated module"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "unsafe_blocks_declared",
+            "status": "missing",
+            "evidence": "the declared record names its unsafe blocks \u2014 the unsafe_blocks list is present; an empty list declares that the codebase contains no unsafe blocks"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "every_unsafe_block_documents_its_invariant",
+            "status": "missing",
+            "evidence": "unsafe blocks: every declared unsafe block documents its invariant \u2014 unsafe is a contract"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "every_unsafe_block_has_covering_tests",
+            "status": "missing",
+            "evidence": "unsafe blocks: every declared unsafe block has tests covering it"
+          },
+          {
+            "section": "unsafe_discipline",
+            "check": "no_unsafe_block_location_duplicated",
+            "status": "missing",
+            "evidence": "unsafe blocks: no declared unsafe-block location is owned by more than one row"
+          },
+          {
+            "section": "async_discipline",
+            "check": "structured_tasks_with_tokio_used",
+            "status": "missing",
+            "evidence": "async: structured tasks with tokio are used"
+          },
+          {
+            "section": "async_discipline",
+            "check": "blocking_calls_absent_from_async_code",
+            "status": "missing",
+            "evidence": "async: no blocking calls inside async code"
+          },
+          {
+            "section": "async_discipline",
+            "check": "bounded_channels_used",
+            "status": "missing",
+            "evidence": "async: bounded channels are used"
+          },
+          {
+            "section": "async_discipline",
+            "check": "timeouts_applied_everywhere",
+            "status": "missing",
+            "evidence": "async: timeouts are applied everywhere"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "unit_tests_beside_code_present",
+            "status": "missing",
+            "evidence": "testing: unit tests sit beside the code"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "integration_tests_in_tests_directory_present",
+            "status": "missing",
+            "evidence": "testing: integration tests live in tests/"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "doc_tests_for_examples_present",
+            "status": "missing",
+            "evidence": "testing: doc tests cover the examples"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "error_paths_tested",
+            "status": "missing",
+            "evidence": "testing: the error paths are tested"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "criterion_benchmarks_present",
+            "status": "missing",
+            "evidence": "testing: criterion is used for benchmarks"
+          },
+          {
+            "section": "testing_and_benchmarks",
+            "check": "tests_green_including_failure_paths",
+            "status": "missing",
+            "evidence": "testing: tests are green, including the failure and error paths"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "clippy_clean_with_deny_warnings",
+            "status": "missing",
+            "evidence": "clippy gate: cargo clippy is clean with -D warnings"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "cargo_fmt_check_clean",
+            "status": "missing",
+            "evidence": "clippy gate: cargo fmt --check is clean"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "lints_fixed_not_silenced_without_reason",
+            "status": "missing",
+            "evidence": "clippy gate: lints are fixed, not silenced without reason"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "crates_split_only_at_real_boundaries",
+            "status": "missing",
+            "evidence": "workspaces: crates are split only when boundaries are real"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "feature_flags_kept_minimal_no_default_bloat",
+            "status": "missing",
+            "evidence": "workspaces: feature flags are kept minimal \u2014 no default bloat"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "cargo_audit_run",
+            "status": "missing",
+            "evidence": "supply chain: cargo audit is run"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "msrv_pinned",
+            "status": "missing",
+            "evidence": "supply chain: the MSRV is pinned"
+          },
+          {
+            "section": "tooling_workspace_and_supply_chain",
+            "check": "new_crates_reviewed_before_adoption",
+            "status": "missing",
+            "evidence": "supply chain: new crates are reviewed before adoption"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_blocking_work_inside_async",
+            "status": "missing",
+            "evidence": "red line: no blocking work inside the async runtime is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_unbounded_channels",
+            "status": "missing",
+            "evidence": "red line: no unbounded channels are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_spawn_loops_without_backpressure",
+            "status": "missing",
+            "evidence": "red line: no spawn-loops without backpressure are present in the record"
+          }
+        ],
+        "computed_status": null,
+        "unsafe_blocks_count": null,
+        "unsafe_blocks_without_invariant": null,
+        "unsafe_blocks_without_tests": null,
+        "documented_coverage": null,
+        "tested_coverage": null,
+        "duplicate_unsafe_block_locations": null,
+        "summary": "0 pass, 0 fail, 37 missing of 37 checks across seven sections.",
+        "stamp": "PRODUCTION RUST ENGINEERING PACK\nproject: sparse-project\nVERDICT: INSUFFICIENT_EVIDENCE\n  ownership_and_lifetimes                      insufficient_evidence\n  error_handling                               insufficient_evidence\n  unsafe_discipline                            insufficient_evidence\n  async_discipline                             insufficient_evidence\n  testing_and_benchmarks                       insufficient_evidence\n  tooling_workspace_and_supply_chain           insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 37 missing of 37 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: string provided for boolean field."
+      },
+      "input": {
+        "project": "malformed-project",
+        "ownership": {
+          "borrow_before_cloning_practised": "not-a-boolean"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "ownership.borrow_before_cloning_practised",
+        "detail": "ownership.borrow_before_cloning_practised must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

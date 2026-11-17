@@ -1,0 +1,27 @@
+[
+  {
+    "rule": "R1",
+    "detail": "failing_checks names 'Step arithmetic recomputes', which is not in the atom's check register (30 checks)",
+    "fix": "Rebuilt the violations case as a deep copy of the final full-pass manifest with steps[0].declared_result planted at 999.0, ran the Python oracle on the mutated input, and set expect.failing_checks to exactly the oracle's failing set in oracle order, which includes the exact check name every_derivation_step_arithmetic_recomputes."
+  },
+  {
+    "rule": "R1",
+    "detail": "failing_checks names 'Final result value matches the last step', which is not in the atom's check register (30 checks)",
+    "fix": "Same rebuild as above: the oracle's failing set on the mutated input also includes the exact check name derivation_final_result_value_matches_last_step (final_result_value 50.0 vs last step's declared_result 999.0); expect.failing_checks was set to exactly that oracle failing set."
+  },
+  {
+    "rule": "R2",
+    "detail": "expect.computed_spot_checks is absent, empty or not structured (a non-empty object of quantity -> expected value, or a list of {quantity, expected} objects, is required); quantities stated only in prose notes do not count",
+    "fix": "Injected expect.computed_spot_checks as a structured object mapping quantity -> expected value, taken from the Python oracle output on the exact final full-pass input (all top-level computed fields: computed_status, derivation_steps_count, duplicate_derivation_step_ids, derivation_steps_with_arithmetic_mismatch, derivation_steps_with_unit_mismatch, derivation_steps_missing_units, arithmetic_match_ratio, unit_match_ratio), and set expect.outcome/http/failing_checks from the oracle verdict (DERIVATION_SOUND, 200, []). Confirmed by re-running the oracle on the final input (all 30 checks pass)."
+  },
+  {
+    "rule": "R2",
+    "detail": "expect.computed_spot_checks is absent, empty or not structured (a non-empty object of quantity -> expected value, or a list of {quantity, expected} objects, is required); quantities stated only in prose notes do not count",
+    "fix": "Injected expect.computed_spot_checks as a structured object from the Python oracle output on the exact mutated violations input (all top-level computed fields, including derivation_steps_with_arithmetic_mismatch [\"s1\"], arithmetic_match_ratio \"0.000000\", unit_match_ratio \"1.000000\" and computed_status outside_stated_limits_on_declared_evidence), with expect.outcome set to the oracle FAIL verdict DERIVATION_NOT_SOUND. Confirmed by re-running the oracle on the mutated input."
+  },
+  {
+    "rule": "validity",
+    "detail": "Raw full-pass input failed the Python oracle: verdict DERIVATION_NOT_SOUND, 29 pass / 1 fail / 0 missing, failing check every_derivation_step_result_unit_follows_unit_algebra, derivation_steps_with_unit_mismatch [\"s1\"], unit_match_ratio \"0.000000\" \u2014 the step declared multiply of operand units m/s^2 and s with declared_result_unit \"m/s\", but SERVICE.md's unit algebra for multiply produces the literal unit \"<a_unit>*<b_unit>\" = \"m/s^2*s\" (only the dimensionless unit \"1\" drops out; no physical simplification is defined).",
+    "fix": "Repaired the input minimally per SERVICE.md: changed steps[0].declared_result_unit to \"m/s^2*s\" and derivation.final_result_unit to \"m/s^2*s\" (the latter so the final-result-unit-matches-last-step check still passes); no other full-pass value changed. Confirmed by re-running the oracle on the repaired input: verdict DERIVATION_SOUND, all 30 checks pass, unit_match_ratio \"1.000000\", derivation_steps_with_unit_mismatch []."
+  }
+]

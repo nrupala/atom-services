@@ -1,0 +1,1559 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: single-living-trip-itinerary
+
+=== contract.yaml ===
+service_name: single-living-trip-itinerary
+display_name: Single living trip itinerary
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:trip-planning
+binding:
+  skill: trip-planning
+  skill_path: workspace/mymilo-build/skills/trip-planning/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: single_living_trip_itinerary
+  prefix: atm_1_single_living_trip_itinerary_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Family trips to India planning
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Single living trip itinerary — `single-living-trip-itinerary`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build one living itinerary per trip — flights, stays, ground transport, and activities with ideas, held, and booked kept distinct.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Everyday life who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Family trips to India planning**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the single living trip itinerary manifest
+
+The caller submits one JSON manifest: a declared itinerary
+record for one trip — its header, its constraint checks, its
+entries (flights, stays, ground transport, activities), its
+skeleton, its declared booked total, its conflict flags, its
+pre-departure read-through and its red-line record. Every
+field below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a
+field present but false / invalid / inconsistent = the check
+fails (`SINGLE_LIVING_TRIP_ITINERARY_NOT_READY`). All fields
+are booleans or strings unless noted. Dates are declared ISO
+date strings, compared lexicographically (identically in both
+implementations); no date is parsed and no timezone conversion
+is attempted.
+
+| Field | Read by |
+|---|---|
+| `trip_title` (string; carried into the verdict output, not itself checked) | — |
+| `header.purpose` (string, non-empty) | trip_header |
+| `header.travellers` (string, non-empty) | trip_header |
+| `header.trip_start_date` (string, non-empty) | trip_header |
+| `header.trip_end_date` (string, non-empty) | trip_header |
+| `header.single_itinerary_maintained` (boolean) | trip_header |
+| `constraints.entry_checked_before_routing` (boolean) | entry_and_transit_constraints |
+| `constraints.transit_checked_before_routing` (boolean) | entry_and_transit_constraints |
+| `constraints.passport_validity_checked` (boolean) | entry_and_transit_constraints |
+| `constraints.visa_needs_checked` (boolean) | entry_and_transit_constraints |
+| `constraints.baggage_rules_checked` (boolean) | entry_and_transit_constraints |
+| `constraints.connection_minimums_checked` (boolean) | entry_and_transit_constraints |
+| `entries` (list of entry objects with the entry fields below; computed, see below) | entry_states_and_totals, skeleton_and_ordering |
+| `entries[].entry_id` (string; names the row in the computed outputs) | entry_states_and_totals |
+| `entries[].kind` (string; `flight` and `ground_transport` rows are the movement legs) | skeleton_and_ordering |
+| `entries[].state` (string; must be `idea`, `held` or `booked`) | entry_states_and_totals |
+| `entries[].start_date` / `entries[].end_date` (strings) | skeleton_and_ordering |
+| `entries[].origin` / `entries[].destination` (strings; movement legs) | skeleton_and_ordering |
+| `entries[].total_amount` (number; the entry's declared total) | entry_states_and_totals |
+| `entries[].price_timestamp` (string, non-empty when the entry is priced) | entry_states_and_totals |
+| `entries[].booking_reference` (string, non-empty on booked entries; must be absent/empty on idea entries) | entry_states_and_totals |
+| `entries[].terms_recorded` (boolean; must be `true` on booked entries) | entry_states_and_totals |
+| `entries[].held_expiry_or_timestamp` (string, non-empty on held entries) | entry_states_and_totals |
+| `skeleton.outbound_laid` (boolean) | skeleton_and_ordering |
+| `skeleton.stays_laid` (boolean) | skeleton_and_ordering |
+| `skeleton.internal_moves_laid_or_none_needed` (boolean) | skeleton_and_ordering |
+| `skeleton.return_laid` (boolean) | skeleton_and_ordering |
+| `totals.declared_booked_total` (number; computed, see below) | entry_states_and_totals |
+| `conflicts.scanned_early` (boolean) | conflicts_flagged |
+| `conflicts.tight_connections_flagged` (boolean) | conflicts_flagged |
+| `conflicts.arrival_after_checkin_flagged` (boolean) | conflicts_flagged |
+| `conflicts.clashing_plans_flagged` (boolean) | conflicts_flagged |
+| `conflicts.conflicts_name_pieces_and_cost` (boolean) | conflicts_flagged |
+| `readiness.full_readthrough_completed` (boolean) | predeparture_readthrough |
+| `readiness.documents_checked` (boolean) | predeparture_readthrough |
+| `readiness.times_with_timezones_checked` (boolean) | predeparture_readthrough |
+| `readiness.contacts_checked` (boolean) | predeparture_readthrough |
+| `readiness.gaps_checked` (boolean) | predeparture_readthrough |
+| `red_lines.date_change_suggested_present` (boolean; must be `false` — skill red line) | red_lines |
+| `red_lines.idea_or_quote_presented_as_booking_present` (boolean; must be `false` — skill red line) | red_lines |
+| `red_lines.invented_facts_present` (boolean; must be `false` — skill red line) | red_lines |
+| `red_lines.routing_before_constraints_checked_present` (boolean; must be `false` — skill red line) | red_lines |
+| `red_lines.unauthorized_booking_or_payment_present` (boolean; must be `false` — skill red line) | red_lines |
+
+Several checks are computed from the declared record, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Trip window in order:** the declared fixed start date is
+  not after the declared fixed end date (lexicographic on the
+  declared ISO strings).
+- **Entries declared:** the `entries` list passes when it is
+  present. An empty list passes: it declares a skeleton with
+  no entries yet, and the per-entry checks pass vacuously.
+- **Valid state per entry:** every entry's `state` is one of
+  `idea`, `held`, `booked` (the skill's three states). A row
+  with `state` absent is missing evidence; any other label
+  fails. Offending rows are named in
+  `itinerary_entry_ids_without_valid_state`.
+- **No entry id duplicated:** no `entry_id` appears on more
+  than one row; duplicates are named in
+  `duplicate_itinerary_entry_ids`. A row with `entry_id`
+  absent is missing evidence for this check.
+- **Booked discipline:** every booked entry carries a
+  non-empty `booking_reference`, records a `total_amount`,
+  and declares `terms_recorded` true (the skill: booked =
+  paid or confirmed, with a reference, a total, and terms
+  recorded). A booked row with a field absent is missing
+  evidence for that check; a present-but-empty/false value
+  fails.
+- **Held discipline:** every held entry states a non-empty
+  `held_expiry_or_timestamp` (the skill: held = reserved or
+  quoted live, with its expiry or timestamp stated), under
+  the same absent/empty rules.
+- **Idea discipline:** no idea entry carries a non-empty
+  `booking_reference` — an idea is a possibility, never
+  presented as a booking. The entries list itself is the
+  evidence for this check.
+- **Price timestamps:** every entry carrying a `total_amount`
+  also carries a non-empty `price_timestamp` (the skill:
+  every price is a verified total from a live result with a
+  timestamp). An absent timestamp is missing evidence; an
+  empty one fails.
+- **Declared booked total:** `totals.declared_booked_total`
+  must equal the sum of the declared `total_amount` values of
+  the booked entries only (held quotes and ideas are not
+  booked totals). A booked entry without a total makes the
+  sum underivable — missing evidence.
+- **Date order:** entries are in non-decreasing declared
+  `start_date` order; entries stepping backwards are named in
+  `entries_out_of_date_order`.
+- **No entry ends before it starts:** every entry's declared
+  `end_date` is not before its `start_date`; offenders are
+  named in `entries_ending_before_start`.
+- **Inside the trip window:** every entry lies inside the
+  declared fixed window (start not before `trip_start_date`,
+  end not after `trip_end_date` — the plan is built inside
+  the chosen dates); offenders are named in
+  `entries_outside_trip_window`.
+- **Movement legs connect:** consecutive movement legs
+  (entries whose `kind` is `flight` or `ground_transport`, in
+  declared order) connect — each leg's `origin` equals the
+  previous movement leg's `destination`. Breaks are named by
+  the leg that fails to connect, in
+  `movement_leg_break_entry_ids`. A movement leg with an
+  endpoint absent is missing evidence; an empty endpoint
+  fails.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the fifteen computed checks above cannot be completed),
+`entries_count` and `booked_entries_count` (integers, exactly;
+null when the entries list is not declared),
+`computed_booked_total` and `booked_total_difference`
+(declared minus computed). **Fixed serialization rule:**
+computed amounts are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp, `floor(v * 1000000 + 0.5) /
+1000000`, then format with exactly six decimals; the total
+comparison uses the fixed-6dp difference against zero. An
+amount is null when the entries list is absent or a booked
+entry's total is missing. That fixed serialization is what
+makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are qualitative declarations and internal consistency, not
+bars the atom can set. Declined thresholds, named: a budget
+cap or a maximum trip cost (only the declared booked total's
+arithmetic is re-derived; no amount is judged too high or too
+low); a minimum connection time in minutes or a maximum
+layover (only that connection minimums were *checked* is
+declared — the skill states no number); a hotel check-in or
+check-out hour against which an arrival could be judged (only
+that arrival-after-check-in-close is *flagged* is declared);
+a passport-validity period in months or a named visa rule for
+any country or stop (the atom states no entry rule — only
+that validity and visa needs were *checked* is declared); a
+maximum number of entries, stays, travellers or hotel moves;
+a rest period after long hauls in hours; a price-freshness
+window for a price timestamp (only that a timestamp is
+carried is checked, never its age); a requirement that any
+particular kind of entry exist beyond the skeleton
+declarations (an itinerary of only ideas can pass if it is
+labelled, ordered and consistent — state honesty, not
+completeness of booking, is the discipline).
+
+The verdict is one of `SINGLE_LIVING_TRIP_ITINERARY_READY`
+(all 45 checks pass), `SINGLE_LIVING_TRIP_ITINERARY_NOT_READY`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails
+but evidence is missing), across seven sections: trip_header,
+entry_and_transit_constraints, entry_states_and_totals,
+skeleton_and_ordering, conflicts_flagged,
+predeparture_readthrough, red_lines.
+
+## Distinct ground
+
+The nearest neighbour is `fare-construction-savings-strategy`
+(a declared fare-construction record — fare drivers explained,
+a search strategy, a surfaced total cost of headline plus
+fees/bags/seats, split-ticket construction legs and a declared
+saving against a baseline direct fare). This atom shares
+**zero checks** with it, and with every other atom in the
+fleet (verified mechanically: every check name here was
+compared against the `evaluate({})` check names of every
+other atom's Python oracle — 124 oracles enumerated, zero
+overlap — and against a static scan of every other oracle's
+source, zero hits): every check here is an itinerary question
+— one living record with its purpose, travellers and fixed
+dates at the top; entry/transit/passport/visa/baggage/
+connection-minimum checks declared done before routing; the
+three-state discipline over the record's own entries (booked
+entries carrying reference, total and terms; held entries
+carrying expiry or timestamp; idea entries carrying no
+booking reference; priced entries carrying their live-result
+timestamp; the declared booked total re-derived from the
+booked entries alone); the skeleton in date order with
+entries inside the fixed window, none ending before it
+starts, and consecutive movement legs connecting; conflicts
+flagged rather than smoothed over; a pre-departure
+read-through; and the trip-planning red lines (no date change
+suggested, no idea or quote presented as a booking, no
+invented prices/schedules/visa rules/availability, no routing
+before constraints, no booking or payment without
+authorization). The boundary is: the single itinerary record
+and its internal consistency here; fare construction and
+savings arithmetic over a fare record there. This atom never
+searches live flights or hotels, never prices anything live,
+and never books — the fare atom's search-strategy and
+construction ground, and the booking skills' live ground,
+stay theirs.
+
+## Honest scoping
+
+This atom audits a **declared** itinerary record — it
+searches no flight, hotel, transport or activity inventory,
+checks no live price, schedule, visa rule or availability,
+verifies no booking reference with any carrier or property,
+and books or pays for nothing. An itinerary is ready *on the
+caller's declared evidence*: a record that declares its
+constraints checked, its booked entries referenced and its
+legs connecting passes those checks even if none of it ever
+happened. It is a completeness and consistency audit of the
+itinerary record the skill requires, **not a travel agent, a
+booking service, or a guarantee that the trip is feasible,
+legal to enter, or well-planned**: it never judges whether a
+declared connection is actually long enough, whether a
+declared visa check reached the right answer, whether a stay
+fits the travellers, or whether the declared places and times
+exist — only that the record contains what the skill's three
+states, method, quality gates and red lines demand, and that
+its declared entries are internally consistent (states,
+references, totals, dates, window and leg connections).
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no live verification of any
+declared fact; no entry, transit or visa *content* — the atom
+states no country's rule and takes no position on whether any
+traveller may enter or transit anywhere; no connection-time,
+check-in-window or rest adequacy judgment (see the declined
+thresholds above); no judgment of plan *quality* — whether
+the route, pace or choices are good for the travellers is the
+caller's declaration, checked only for declared presence and
+consistency.
+
+## U-13 regulatory screen
+
+Classification: **(a) No outright.** This atom's output could
+not read as regulated professional advice: it audits a
+declared trip-itinerary record for completeness and internal
+consistency against a trip-planning skill. It offers no
+engineering-practice advice, no securities or financial
+advice (the only arithmetic is re-deriving a declared booked
+total from the record's own declared entry totals — a
+consistency check over caller numbers, not a recommendation
+about money), nothing psychology-adjacent, no medical advice,
+and no legal advice — in particular it states no visa,
+passport or entry rule for any country and takes no position
+on any traveller's eligibility to enter or transit anywhere;
+passport and visa matters appear only as caller declarations
+that checks were performed, and the skill's own red line
+against inventing visa rules is one of this atom's red-line
+checks. No controls beyond that scoping are required; the
+atom never searches, prices or books, so no travel-sale
+surface arises either.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "single-living-trip-itinerary",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "SINGLE_LIVING_TRIP_ITINERARY_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: entries_count=1, booked_entries_count=1, computed_booked_total=1000.000000, booked_total_difference=0.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "entries_count": 1,
+          "booked_entries_count": 1,
+          "computed_booked_total": "1000.000000",
+          "booked_total_difference": "0.000000",
+          "duplicate_itinerary_entry_ids": [],
+          "itinerary_entry_ids_without_valid_state": [],
+          "movement_leg_break_entry_ids": [],
+          "entries_out_of_date_order": [],
+          "entries_ending_before_start": [],
+          "entries_outside_trip_window": []
+        }
+      },
+      "input": {
+        "trip_title": "Family Trip to India",
+        "header": {
+          "purpose": "Vacation",
+          "travellers": "4",
+          "trip_start_date": "2025-01-01",
+          "trip_end_date": "2025-01-10",
+          "single_itinerary_maintained": true
+        },
+        "constraints": {
+          "entry_checked_before_routing": true,
+          "transit_checked_before_routing": true,
+          "passport_validity_checked": true,
+          "visa_needs_checked": true,
+          "baggage_rules_checked": true,
+          "connection_minimums_checked": true
+        },
+        "entries": [
+          {
+            "entry_id": "leg_1",
+            "kind": "flight",
+            "state": "booked",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-01",
+            "origin": "JFK",
+            "destination": "DEL",
+            "total_amount": 1000.0,
+            "price_timestamp": "2024-12-01T10:00:00Z",
+            "booking_reference": "ABC123",
+            "terms_recorded": true
+          }
+        ],
+        "skeleton": {
+          "outbound_laid": true,
+          "stays_laid": true,
+          "internal_moves_laid_or_none_needed": true,
+          "return_laid": true
+        },
+        "totals": {
+          "declared_booked_total": 1000.0
+        },
+        "conflicts": {
+          "scanned_early": true,
+          "tight_connections_flagged": true,
+          "arrival_after_checkin_flagged": true,
+          "clashing_plans_flagged": true,
+          "conflicts_name_pieces_and_cost": true
+        },
+        "readiness": {
+          "full_readthrough_completed": true,
+          "documents_checked": true,
+          "times_with_timezones_checked": true,
+          "contacts_checked": true,
+          "gaps_checked": true
+        },
+        "red_lines": {
+          "date_change_suggested_present": false,
+          "idea_or_quote_presented_as_booking_present": false,
+          "invented_facts_present": false,
+          "routing_before_constraints_checked_present": false,
+          "unauthorized_booking_or_payment_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "single-living-trip-itinerary",
+        "atom_version": "0.1.0",
+        "trip_title": "Family Trip to India",
+        "verdict": "SINGLE_LIVING_TRIP_ITINERARY_READY",
+        "sections": {
+          "trip_header": "pass",
+          "entry_and_transit_constraints": "pass",
+          "entry_states_and_totals": "pass",
+          "skeleton_and_ordering": "pass",
+          "conflicts_flagged": "pass",
+          "predeparture_readthrough": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "trip_header",
+            "check": "trip_purpose_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the trip purpose is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "travellers_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the travellers are stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_start_date_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the fixed start date is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_end_date_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the fixed end date is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_window_start_not_after_end",
+            "status": "pass",
+            "evidence": "header: the declared fixed start date is not after the declared fixed end date"
+          },
+          {
+            "section": "trip_header",
+            "check": "single_living_itinerary_maintained",
+            "status": "pass",
+            "evidence": "header: one itinerary only \u2014 this record is the single living itinerary, updated not duplicated"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "entry_constraints_checked_before_routing_choices",
+            "status": "pass",
+            "evidence": "constraints: entry constraints were checked before routing choices"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "transit_constraints_checked_before_routing_choices",
+            "status": "pass",
+            "evidence": "constraints: transit constraints were checked before routing choices"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "passport_validity_checked_for_every_traveller",
+            "status": "pass",
+            "evidence": "constraints: passport validity was checked for every traveller against each country's entry rule"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "visa_needs_checked_for_every_stop_including_airport_changes",
+            "status": "pass",
+            "evidence": "constraints: visa and transit-visa needs were checked for every stop, including airport changes"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "baggage_rules_checked_when_carriers_change_mid_journey",
+            "status": "pass",
+            "evidence": "constraints: baggage rules were checked for carrier changes mid-journey"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "connection_minimums_checked_for_declared_connections",
+            "status": "pass",
+            "evidence": "constraints: minimum connection times were checked against the actual layovers on offer"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "itinerary_entries_declared",
+            "status": "pass",
+            "evidence": "the declared record names its itinerary entries \u2014 the entries list is present; an empty list declares a skeleton with no entries yet"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_itinerary_entry_labelled_with_valid_state",
+            "status": "pass",
+            "evidence": "states: every declared entry is labelled idea, held or booked \u2014 no ambiguity and no other label"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "no_itinerary_entry_id_duplicated",
+            "status": "pass",
+            "evidence": "entries: no declared entry_id is carried by more than one entry \u2014 one record per entry"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_carries_booking_reference",
+            "status": "pass",
+            "evidence": "states: every booked entry carries its booking reference \u2014 booked means paid or confirmed"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_records_its_total",
+            "status": "pass",
+            "evidence": "states: every booked entry records its total"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_records_its_terms",
+            "status": "pass",
+            "evidence": "states: every booked entry records its terms"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_held_entry_states_expiry_or_timestamp",
+            "status": "pass",
+            "evidence": "states: every held entry states its expiry or timestamp \u2014 held means reserved or quoted live"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_idea_entry_free_of_booking_reference",
+            "status": "pass",
+            "evidence": "states: no idea entry carries a booking reference \u2014 an idea is a possibility, never presented as a booking"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_priced_itinerary_entry_carries_price_timestamp",
+            "status": "pass",
+            "evidence": "prices: every priced entry carries the timestamp of the live result its total came from"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "declared_booked_total_matches_sum_of_booked_entry_totals",
+            "status": "pass",
+            "evidence": "totals: the declared booked total equals the sum of the declared totals of the booked entries \u2014 arithmetic over declared numbers only"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "outbound_leg_laid_in_skeleton",
+            "status": "pass",
+            "evidence": "skeleton: the outbound leg is laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "stays_laid_in_skeleton",
+            "status": "pass",
+            "evidence": "skeleton: the stays are laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "internal_moves_laid_or_declared_none_needed",
+            "status": "pass",
+            "evidence": "skeleton: the internal moves are laid, or the record declares none are needed"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "return_leg_laid_in_skeleton",
+            "status": "pass",
+            "evidence": "skeleton: the return leg is laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "itinerary_entries_in_declared_date_order",
+            "status": "pass",
+            "evidence": "skeleton: the declared entries are in date order by their declared start dates"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "no_itinerary_entry_ends_before_it_starts",
+            "status": "pass",
+            "evidence": "skeleton: no declared entry ends before it starts"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "every_itinerary_entry_within_trip_window",
+            "status": "pass",
+            "evidence": "skeleton: every declared entry lies inside the declared fixed trip window \u2014 the plan is built inside the chosen dates"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "declared_movement_legs_connect_in_sequence",
+            "status": "pass",
+            "evidence": "skeleton: consecutive declared movement legs connect \u2014 each flight or ground-transport leg starts where the previous movement leg ended"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "conflicts_scanned_early_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: the itinerary was scanned for conflicts early"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "tight_connections_flagged_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: tight connections are flagged where present, even when an airline will sell them"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "arrival_after_checkin_close_flagged_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: arrival after check-in closes is flagged where present, the moment the flight time is known"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "clashing_plans_flagged_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: clashing plans are flagged where present"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "flagged_conflicts_name_pieces_and_cost_of_ignoring",
+            "status": "pass",
+            "evidence": "conflicts: each flagged conflict names the pieces involved and the cost of ignoring it"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_full_readthrough_completed",
+            "status": "pass",
+            "evidence": "read-through: a full read-through of the itinerary was completed before departure"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_documents_checked",
+            "status": "pass",
+            "evidence": "read-through: documents were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_times_with_timezones_checked",
+            "status": "pass",
+            "evidence": "read-through: times with their timezones were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_contacts_checked",
+            "status": "pass",
+            "evidence": "read-through: contacts were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_gaps_checked",
+            "status": "pass",
+            "evidence": "read-through: gaps in the itinerary were checked"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_trip_date_change_suggested_in_itinerary",
+            "status": "pass",
+            "evidence": "red line: no change to the chosen travel dates is suggested in the record \u2014 the plan works within the dates chosen"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_idea_or_held_quote_presented_as_booking",
+            "status": "pass",
+            "evidence": "red line: no idea or quote is presented as a booking in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_invented_prices_schedules_visa_rules_or_availability_in_itinerary",
+            "status": "pass",
+            "evidence": "red line: no invented prices, schedules, visa rules or availability are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_routing_adopted_before_entry_transit_constraints_checked",
+            "status": "pass",
+            "evidence": "red line: no routing was adopted before its entry and transit constraints were checked"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_booking_or_payment_without_traveller_authorization",
+            "status": "pass",
+            "evidence": "red line: no piece was booked or paid for without the traveller's authorization for that purchase"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "entries_count": 1,
+        "booked_entries_count": 1,
+        "computed_booked_total": "1000.000000",
+        "booked_total_difference": "0.000000",
+        "duplicate_itinerary_entry_ids": [],
+        "itinerary_entry_ids_without_valid_state": [],
+        "movement_leg_break_entry_ids": [],
+        "entries_out_of_date_order": [],
+        "entries_ending_before_start": [],
+        "entries_outside_trip_window": [],
+        "summary": "45 pass, 0 fail, 0 missing of 45 checks across seven sections.",
+        "stamp": "SINGLE LIVING TRIP ITINERARY\ntrip_title: Family Trip to India\nVERDICT: SINGLE_LIVING_TRIP_ITINERARY_READY\n  trip_header                                  pass\n  entry_and_transit_constraints                pass\n  entry_states_and_totals                      pass\n  skeleton_and_ordering                        pass\n  conflicts_flagged                            pass\n  predeparture_readthrough                     pass\n  red_lines                                    pass\n45 pass, 0 fail, 0 missing of 45 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "SINGLE_LIVING_TRIP_ITINERARY_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "declared_booked_total_matches_sum_of_booked_entry_totals"
+        ],
+        "notes": "Deep copy of the full-pass manifest with exactly one planted mutation: totals.declared_booked_total = 999.0 (sum of booked entry totals is 1000.0), failing exactly the declared-booked-total check.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "entries_count": 1,
+          "booked_entries_count": 1,
+          "computed_booked_total": "1000.000000",
+          "booked_total_difference": "-1.000000",
+          "duplicate_itinerary_entry_ids": [],
+          "itinerary_entry_ids_without_valid_state": [],
+          "movement_leg_break_entry_ids": [],
+          "entries_out_of_date_order": [],
+          "entries_ending_before_start": [],
+          "entries_outside_trip_window": []
+        }
+      },
+      "input": {
+        "trip_title": "Family Trip to India",
+        "header": {
+          "purpose": "Vacation",
+          "travellers": "4",
+          "trip_start_date": "2025-01-01",
+          "trip_end_date": "2025-01-10",
+          "single_itinerary_maintained": true
+        },
+        "constraints": {
+          "entry_checked_before_routing": true,
+          "transit_checked_before_routing": true,
+          "passport_validity_checked": true,
+          "visa_needs_checked": true,
+          "baggage_rules_checked": true,
+          "connection_minimums_checked": true
+        },
+        "entries": [
+          {
+            "entry_id": "leg_1",
+            "kind": "flight",
+            "state": "booked",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-01",
+            "origin": "JFK",
+            "destination": "DEL",
+            "total_amount": 1000.0,
+            "price_timestamp": "2024-12-01T10:00:00Z",
+            "booking_reference": "ABC123",
+            "terms_recorded": true
+          }
+        ],
+        "skeleton": {
+          "outbound_laid": true,
+          "stays_laid": true,
+          "internal_moves_laid_or_none_needed": true,
+          "return_laid": true
+        },
+        "totals": {
+          "declared_booked_total": 999.0
+        },
+        "conflicts": {
+          "scanned_early": true,
+          "tight_connections_flagged": true,
+          "arrival_after_checkin_flagged": true,
+          "clashing_plans_flagged": true,
+          "conflicts_name_pieces_and_cost": true
+        },
+        "readiness": {
+          "full_readthrough_completed": true,
+          "documents_checked": true,
+          "times_with_timezones_checked": true,
+          "contacts_checked": true,
+          "gaps_checked": true
+        },
+        "red_lines": {
+          "date_change_suggested_present": false,
+          "idea_or_quote_presented_as_booking_present": false,
+          "invented_facts_present": false,
+          "routing_before_constraints_checked_present": false,
+          "unauthorized_booking_or_payment_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "single-living-trip-itinerary",
+        "atom_version": "0.1.0",
+        "trip_title": "Family Trip to India",
+        "verdict": "SINGLE_LIVING_TRIP_ITINERARY_NOT_READY",
+        "sections": {
+          "trip_header": "pass",
+          "entry_and_transit_constraints": "pass",
+          "entry_states_and_totals": "fail",
+          "skeleton_and_ordering": "pass",
+          "conflicts_flagged": "pass",
+          "predeparture_readthrough": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "trip_header",
+            "check": "trip_purpose_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the trip purpose is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "travellers_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the travellers are stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_start_date_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the fixed start date is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_end_date_stated_in_header",
+            "status": "pass",
+            "evidence": "header: the fixed end date is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_window_start_not_after_end",
+            "status": "pass",
+            "evidence": "header: the declared fixed start date is not after the declared fixed end date"
+          },
+          {
+            "section": "trip_header",
+            "check": "single_living_itinerary_maintained",
+            "status": "pass",
+            "evidence": "header: one itinerary only \u2014 this record is the single living itinerary, updated not duplicated"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "entry_constraints_checked_before_routing_choices",
+            "status": "pass",
+            "evidence": "constraints: entry constraints were checked before routing choices"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "transit_constraints_checked_before_routing_choices",
+            "status": "pass",
+            "evidence": "constraints: transit constraints were checked before routing choices"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "passport_validity_checked_for_every_traveller",
+            "status": "pass",
+            "evidence": "constraints: passport validity was checked for every traveller against each country's entry rule"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "visa_needs_checked_for_every_stop_including_airport_changes",
+            "status": "pass",
+            "evidence": "constraints: visa and transit-visa needs were checked for every stop, including airport changes"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "baggage_rules_checked_when_carriers_change_mid_journey",
+            "status": "pass",
+            "evidence": "constraints: baggage rules were checked for carrier changes mid-journey"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "connection_minimums_checked_for_declared_connections",
+            "status": "pass",
+            "evidence": "constraints: minimum connection times were checked against the actual layovers on offer"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "itinerary_entries_declared",
+            "status": "pass",
+            "evidence": "the declared record names its itinerary entries \u2014 the entries list is present; an empty list declares a skeleton with no entries yet"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_itinerary_entry_labelled_with_valid_state",
+            "status": "pass",
+            "evidence": "states: every declared entry is labelled idea, held or booked \u2014 no ambiguity and no other label"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "no_itinerary_entry_id_duplicated",
+            "status": "pass",
+            "evidence": "entries: no declared entry_id is carried by more than one entry \u2014 one record per entry"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_carries_booking_reference",
+            "status": "pass",
+            "evidence": "states: every booked entry carries its booking reference \u2014 booked means paid or confirmed"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_records_its_total",
+            "status": "pass",
+            "evidence": "states: every booked entry records its total"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_records_its_terms",
+            "status": "pass",
+            "evidence": "states: every booked entry records its terms"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_held_entry_states_expiry_or_timestamp",
+            "status": "pass",
+            "evidence": "states: every held entry states its expiry or timestamp \u2014 held means reserved or quoted live"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_idea_entry_free_of_booking_reference",
+            "status": "pass",
+            "evidence": "states: no idea entry carries a booking reference \u2014 an idea is a possibility, never presented as a booking"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_priced_itinerary_entry_carries_price_timestamp",
+            "status": "pass",
+            "evidence": "prices: every priced entry carries the timestamp of the live result its total came from"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "declared_booked_total_matches_sum_of_booked_entry_totals",
+            "status": "fail",
+            "evidence": "totals: the declared booked total equals the sum of the declared totals of the booked entries \u2014 arithmetic over declared numbers only"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "outbound_leg_laid_in_skeleton",
+            "status": "pass",
+            "evidence": "skeleton: the outbound leg is laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "stays_laid_in_skeleton",
+            "status": "pass",
+            "evidence": "skeleton: the stays are laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "internal_moves_laid_or_declared_none_needed",
+            "status": "pass",
+            "evidence": "skeleton: the internal moves are laid, or the record declares none are needed"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "return_leg_laid_in_skeleton",
+            "status": "pass",
+            "evidence": "skeleton: the return leg is laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "itinerary_entries_in_declared_date_order",
+            "status": "pass",
+            "evidence": "skeleton: the declared entries are in date order by their declared start dates"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "no_itinerary_entry_ends_before_it_starts",
+            "status": "pass",
+            "evidence": "skeleton: no declared entry ends before it starts"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "every_itinerary_entry_within_trip_window",
+            "status": "pass",
+            "evidence": "skeleton: every declared entry lies inside the declared fixed trip window \u2014 the plan is built inside the chosen dates"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "declared_movement_legs_connect_in_sequence",
+            "status": "pass",
+            "evidence": "skeleton: consecutive declared movement legs connect \u2014 each flight or ground-transport leg starts where the previous movement leg ended"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "conflicts_scanned_early_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: the itinerary was scanned for conflicts early"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "tight_connections_flagged_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: tight connections are flagged where present, even when an airline will sell them"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "arrival_after_checkin_close_flagged_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: arrival after check-in closes is flagged where present, the moment the flight time is known"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "clashing_plans_flagged_in_itinerary",
+            "status": "pass",
+            "evidence": "conflicts: clashing plans are flagged where present"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "flagged_conflicts_name_pieces_and_cost_of_ignoring",
+            "status": "pass",
+            "evidence": "conflicts: each flagged conflict names the pieces involved and the cost of ignoring it"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_full_readthrough_completed",
+            "status": "pass",
+            "evidence": "read-through: a full read-through of the itinerary was completed before departure"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_documents_checked",
+            "status": "pass",
+            "evidence": "read-through: documents were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_times_with_timezones_checked",
+            "status": "pass",
+            "evidence": "read-through: times with their timezones were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_contacts_checked",
+            "status": "pass",
+            "evidence": "read-through: contacts were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_gaps_checked",
+            "status": "pass",
+            "evidence": "read-through: gaps in the itinerary were checked"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_trip_date_change_suggested_in_itinerary",
+            "status": "pass",
+            "evidence": "red line: no change to the chosen travel dates is suggested in the record \u2014 the plan works within the dates chosen"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_idea_or_held_quote_presented_as_booking",
+            "status": "pass",
+            "evidence": "red line: no idea or quote is presented as a booking in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_invented_prices_schedules_visa_rules_or_availability_in_itinerary",
+            "status": "pass",
+            "evidence": "red line: no invented prices, schedules, visa rules or availability are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_routing_adopted_before_entry_transit_constraints_checked",
+            "status": "pass",
+            "evidence": "red line: no routing was adopted before its entry and transit constraints were checked"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_booking_or_payment_without_traveller_authorization",
+            "status": "pass",
+            "evidence": "red line: no piece was booked or paid for without the traveller's authorization for that purchase"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "entries_count": 1,
+        "booked_entries_count": 1,
+        "computed_booked_total": "1000.000000",
+        "booked_total_difference": "-1.000000",
+        "duplicate_itinerary_entry_ids": [],
+        "itinerary_entry_ids_without_valid_state": [],
+        "movement_leg_break_entry_ids": [],
+        "entries_out_of_date_order": [],
+        "entries_ending_before_start": [],
+        "entries_outside_trip_window": [],
+        "summary": "44 pass, 1 fail, 0 missing of 45 checks across seven sections.",
+        "stamp": "SINGLE LIVING TRIP ITINERARY\ntrip_title: Family Trip to India\nVERDICT: SINGLE_LIVING_TRIP_ITINERARY_NOT_READY\n  trip_header                                  pass\n  entry_and_transit_constraints                pass\n  entry_states_and_totals                      fail\n  skeleton_and_ordering                        pass\n  conflicts_flagged                            pass\n  predeparture_readthrough                     pass\n  red_lines                                    pass\n44 pass, 1 fail, 0 missing of 45 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required header and constraint fields."
+      },
+      "input": {
+        "trip_title": "Minimal"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "single-living-trip-itinerary",
+        "atom_version": "0.1.0",
+        "trip_title": "Minimal",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "trip_header": "insufficient_evidence",
+          "entry_and_transit_constraints": "insufficient_evidence",
+          "entry_states_and_totals": "insufficient_evidence",
+          "skeleton_and_ordering": "insufficient_evidence",
+          "conflicts_flagged": "insufficient_evidence",
+          "predeparture_readthrough": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "trip_header",
+            "check": "trip_purpose_stated_in_header",
+            "status": "missing",
+            "evidence": "header: the trip purpose is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "travellers_stated_in_header",
+            "status": "missing",
+            "evidence": "header: the travellers are stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_start_date_stated_in_header",
+            "status": "missing",
+            "evidence": "header: the fixed start date is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_end_date_stated_in_header",
+            "status": "missing",
+            "evidence": "header: the fixed end date is stated at the top of the itinerary"
+          },
+          {
+            "section": "trip_header",
+            "check": "trip_window_start_not_after_end",
+            "status": "missing",
+            "evidence": "header: the declared fixed start date is not after the declared fixed end date"
+          },
+          {
+            "section": "trip_header",
+            "check": "single_living_itinerary_maintained",
+            "status": "missing",
+            "evidence": "header: one itinerary only \u2014 this record is the single living itinerary, updated not duplicated"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "entry_constraints_checked_before_routing_choices",
+            "status": "missing",
+            "evidence": "constraints: entry constraints were checked before routing choices"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "transit_constraints_checked_before_routing_choices",
+            "status": "missing",
+            "evidence": "constraints: transit constraints were checked before routing choices"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "passport_validity_checked_for_every_traveller",
+            "status": "missing",
+            "evidence": "constraints: passport validity was checked for every traveller against each country's entry rule"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "visa_needs_checked_for_every_stop_including_airport_changes",
+            "status": "missing",
+            "evidence": "constraints: visa and transit-visa needs were checked for every stop, including airport changes"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "baggage_rules_checked_when_carriers_change_mid_journey",
+            "status": "missing",
+            "evidence": "constraints: baggage rules were checked for carrier changes mid-journey"
+          },
+          {
+            "section": "entry_and_transit_constraints",
+            "check": "connection_minimums_checked_for_declared_connections",
+            "status": "missing",
+            "evidence": "constraints: minimum connection times were checked against the actual layovers on offer"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "itinerary_entries_declared",
+            "status": "missing",
+            "evidence": "the declared record names its itinerary entries \u2014 the entries list is present; an empty list declares a skeleton with no entries yet"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_itinerary_entry_labelled_with_valid_state",
+            "status": "missing",
+            "evidence": "states: every declared entry is labelled idea, held or booked \u2014 no ambiguity and no other label"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "no_itinerary_entry_id_duplicated",
+            "status": "missing",
+            "evidence": "entries: no declared entry_id is carried by more than one entry \u2014 one record per entry"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_carries_booking_reference",
+            "status": "missing",
+            "evidence": "states: every booked entry carries its booking reference \u2014 booked means paid or confirmed"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_records_its_total",
+            "status": "missing",
+            "evidence": "states: every booked entry records its total"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_booked_entry_records_its_terms",
+            "status": "missing",
+            "evidence": "states: every booked entry records its terms"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_held_entry_states_expiry_or_timestamp",
+            "status": "missing",
+            "evidence": "states: every held entry states its expiry or timestamp \u2014 held means reserved or quoted live"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_idea_entry_free_of_booking_reference",
+            "status": "missing",
+            "evidence": "states: no idea entry carries a booking reference \u2014 an idea is a possibility, never presented as a booking"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "every_priced_itinerary_entry_carries_price_timestamp",
+            "status": "missing",
+            "evidence": "prices: every priced entry carries the timestamp of the live result its total came from"
+          },
+          {
+            "section": "entry_states_and_totals",
+            "check": "declared_booked_total_matches_sum_of_booked_entry_totals",
+            "status": "missing",
+            "evidence": "totals: the declared booked total equals the sum of the declared totals of the booked entries \u2014 arithmetic over declared numbers only"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "outbound_leg_laid_in_skeleton",
+            "status": "missing",
+            "evidence": "skeleton: the outbound leg is laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "stays_laid_in_skeleton",
+            "status": "missing",
+            "evidence": "skeleton: the stays are laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "internal_moves_laid_or_declared_none_needed",
+            "status": "missing",
+            "evidence": "skeleton: the internal moves are laid, or the record declares none are needed"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "return_leg_laid_in_skeleton",
+            "status": "missing",
+            "evidence": "skeleton: the return leg is laid"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "itinerary_entries_in_declared_date_order",
+            "status": "missing",
+            "evidence": "skeleton: the declared entries are in date order by their declared start dates"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "no_itinerary_entry_ends_before_it_starts",
+            "status": "missing",
+            "evidence": "skeleton: no declared entry ends before it starts"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "every_itinerary_entry_within_trip_window",
+            "status": "missing",
+            "evidence": "skeleton: every declared entry lies inside the declared fixed trip window \u2014 the plan is built inside the chosen dates"
+          },
+          {
+            "section": "skeleton_and_ordering",
+            "check": "declared_movement_legs_connect_in_sequence",
+            "status": "missing",
+            "evidence": "skeleton: consecutive declared movement legs connect \u2014 each flight or ground-transport leg starts where the previous movement leg ended"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "conflicts_scanned_early_in_itinerary",
+            "status": "missing",
+            "evidence": "conflicts: the itinerary was scanned for conflicts early"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "tight_connections_flagged_in_itinerary",
+            "status": "missing",
+            "evidence": "conflicts: tight connections are flagged where present, even when an airline will sell them"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "arrival_after_checkin_close_flagged_in_itinerary",
+            "status": "missing",
+            "evidence": "conflicts: arrival after check-in closes is flagged where present, the moment the flight time is known"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "clashing_plans_flagged_in_itinerary",
+            "status": "missing",
+            "evidence": "conflicts: clashing plans are flagged where present"
+          },
+          {
+            "section": "conflicts_flagged",
+            "check": "flagged_conflicts_name_pieces_and_cost_of_ignoring",
+            "status": "missing",
+            "evidence": "conflicts: each flagged conflict names the pieces involved and the cost of ignoring it"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_full_readthrough_completed",
+            "status": "missing",
+            "evidence": "read-through: a full read-through of the itinerary was completed before departure"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_documents_checked",
+            "status": "missing",
+            "evidence": "read-through: documents were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_times_with_timezones_checked",
+            "status": "missing",
+            "evidence": "read-through: times with their timezones were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_contacts_checked",
+            "status": "missing",
+            "evidence": "read-through: contacts were checked"
+          },
+          {
+            "section": "predeparture_readthrough",
+            "check": "predeparture_gaps_checked",
+            "status": "missing",
+            "evidence": "read-through: gaps in the itinerary were checked"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_trip_date_change_suggested_in_itinerary",
+            "status": "missing",
+            "evidence": "red line: no change to the chosen travel dates is suggested in the record \u2014 the plan works within the dates chosen"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_idea_or_held_quote_presented_as_booking",
+            "status": "missing",
+            "evidence": "red line: no idea or quote is presented as a booking in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_invented_prices_schedules_visa_rules_or_availability_in_itinerary",
+            "status": "missing",
+            "evidence": "red line: no invented prices, schedules, visa rules or availability are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_routing_adopted_before_entry_transit_constraints_checked",
+            "status": "missing",
+            "evidence": "red line: no routing was adopted before its entry and transit constraints were checked"
+          },
+          {
+            "section": "red_lines",
+            "check": "no_booking_or_payment_without_traveller_authorization",
+            "status": "missing",
+            "evidence": "red line: no piece was booked or paid for without the traveller's authorization for that purchase"
+          }
+        ],
+        "computed_status": null,
+        "entries_count": null,
+        "booked_entries_count": null,
+        "computed_booked_total": null,
+        "booked_total_difference": null,
+        "duplicate_itinerary_entry_ids": null,
+        "itinerary_entry_ids_without_valid_state": null,
+        "movement_leg_break_entry_ids": null,
+        "entries_out_of_date_order": null,
+        "entries_ending_before_start": null,
+        "entries_outside_trip_window": null,
+        "summary": "0 pass, 0 fail, 45 missing of 45 checks across seven sections.",
+        "stamp": "SINGLE LIVING TRIP ITINERARY\ntrip_title: Minimal\nVERDICT: INSUFFICIENT_EVIDENCE\n  trip_header                                  insufficient_evidence\n  entry_and_transit_constraints                insufficient_evidence\n  entry_states_and_totals                      insufficient_evidence\n  skeleton_and_ordering                        insufficient_evidence\n  conflicts_flagged                            insufficient_evidence\n  predeparture_readthrough                     insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 45 missing of 45 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Exactly one documented type violation: header is a string where an object is required."
+      },
+      "input": {
+        "trip_title": "Family Trip to India",
+        "header": "should_be_an_object",
+        "constraints": {
+          "entry_checked_before_routing": true,
+          "transit_checked_before_routing": true,
+          "passport_validity_checked": true,
+          "visa_needs_checked": true,
+          "baggage_rules_checked": true,
+          "connection_minimums_checked": true
+        },
+        "entries": [
+          {
+            "entry_id": "leg_1",
+            "kind": "flight",
+            "state": "booked",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-01",
+            "origin": "JFK",
+            "destination": "DEL",
+            "total_amount": 1000.0,
+            "price_timestamp": "2024-12-01T10:00:00Z",
+            "booking_reference": "ABC123",
+            "terms_recorded": true
+          }
+        ],
+        "skeleton": {
+          "outbound_laid": true,
+          "stays_laid": true,
+          "internal_moves_laid_or_none_needed": true,
+          "return_laid": true
+        },
+        "totals": {
+          "declared_booked_total": 1000.0
+        },
+        "conflicts": {
+          "scanned_early": true,
+          "tight_connections_flagged": true,
+          "arrival_after_checkin_flagged": true,
+          "clashing_plans_flagged": true,
+          "conflicts_name_pieces_and_cost": true
+        },
+        "readiness": {
+          "full_readthrough_completed": true,
+          "documents_checked": true,
+          "times_with_timezones_checked": true,
+          "contacts_checked": true,
+          "gaps_checked": true
+        },
+        "red_lines": {
+          "date_change_suggested_present": false,
+          "idea_or_quote_presented_as_booking_present": false,
+          "invented_facts_present": false,
+          "routing_before_constraints_checked_present": false,
+          "unauthorized_booking_or_payment_present": false
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "header",
+        "detail": "header must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

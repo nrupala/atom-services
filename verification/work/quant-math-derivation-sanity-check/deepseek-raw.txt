@@ -1,0 +1,130 @@
+# Independent recompute — quant-math-derivation-sanity-check
+
+## Serialization rule (applied throughout)
+6dp round-half-up: `floor(v * 1000000 + 0.5) / 1000000`, formatted with exactly six decimals. Arithmetic and final-result comparisons are made on these 6dp serializations.
+
+---
+
+## Case 1: `full-pass`
+
+### Step arithmetic (step `s1`)
+- operation = `multiply`, operand_a = 10.0, operand_b = 5.0
+- recomputed = 10.0 × 5.0 = **50.0**
+- 6dp serialization: floor(50.0 × 1000000 + 0.5)/1000000 = floor(50000000.5)/1000000 = 50000000/1000000 = **50.000000**
+- declared_result = 999.0? No — declared_result = 50.0 → serialization **50.000000**
+- 50.000000 == 50.000000 → **recomputes** ✓
+
+### Unit algebra (step `s1`)
+- multiply → `<a_unit>*<b_unit>` = `m/s^2` * `s` = **`m/s^2*s`**
+- declared_result_unit = `m/s^2*s` → **matches** ✓
+
+### Final result value vs last step
+- last step declared_result = 50.0 → 6dp = **50.000000**
+- derivation.final_result_value = 50.0 → 6dp = **50.000000** → **match** ✓
+
+### Final result unit vs last step
+- last step declared_result_unit = `m/s^2*s`
+- derivation.final_result_unit = `m/s^2*s` → **match** ✓
+
+### Step ids / operations / divide-by-zero
+- one step, id `s1` unique ✓; operation `multiply` recognised ✓; no divide step ✓
+
+### Units declared
+- operand_a_unit `m/s^2`, operand_b_unit `s`, declared_result_unit `m/s^2*s` — all non-empty ✓
+
+### Ratios
+- arithmetic_match_ratio = (steps recomputing) / (declared steps) = 1/1 = 1.0 → floor(1.0×1000000+0.5)/1000000 = **1.000000**
+- unit_match_ratio = 1/1 = **1.000000**
+
+### Counts / lists
+- derivation_steps_count = 1 ✓
+- duplicate_derivation_step_ids = [] ✓
+- arithmetic_mismatch = [] ✓
+- unit_mismatch = [] ✓
+- missing_units = [] ✓
+
+### Verdict
+All 30 checks pass → `DERIVATION_SOUND`, `computed_status = within_stated_limits_on_declared_evidence`, summary "30 pass, 0 fail, 0 missing of 30".
+
+**Artifact values vs recompute:**
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| step s1 arithmetic | pass | 50.000000 == 50.000000 | MATCH |
+| step s1 unit | pass | m/s^2*s == m/s^2*s | MATCH |
+| final value match | pass | 50.000000 == 50.000000 | MATCH |
+| final unit match | pass | equal | MATCH |
+| arithmetic_match_ratio | "1.000000" | "1.000000" | MATCH |
+| unit_match_ratio | "1.000000" | "1.000000" | MATCH |
+| steps_count | 1 | 1 | MATCH |
+| verdict | DERIVATION_SOUND | DERIVATION_SOUND | MATCH |
+| computed_status | within_stated_limits... | within... | MATCH |
+| summary | 30 pass, 0 fail, 0 missing | 30/0/0 | MATCH |
+
+---
+
+## Case 2: `violations`
+
+Input identical to case 1 **except** `steps[0].declared_result = 999.0`.
+
+### Step arithmetic (step `s1`)
+- recomputed = 10.0 × 5.0 = **50.0** → 6dp **50.000000**
+- declared_result = 999.0 → 6dp **999.000000**
+- 50.000000 ≠ 999.000000 → **arithmetic mismatch** → check `every_derivation_step_arithmetic_recomputes` = **fail** ✓
+- step named in `derivation_steps_with_arithmetic_mismatch` = ["s1"] ✓
+
+### Unit algebra (step `s1`)
+- multiply → `m/s^2` * `s` = `m/s^2*s`; declared `m/s^2*s` → **match** ✓ (unit check still passes)
+
+### Final result value vs last step
+- last step declared_result = 999.0 → 6dp **999.000000**
+- derivation.final_result_value = 50.0 → 6dp **50.000000**
+- 50.000000 ≠ 999.000000 → **final value match fails** ✓
+
+### Final result unit vs last step
+- last step declared_result_unit = `m/s^2*s`; derivation.final_result_unit = `m/s^2*s` → **match** ✓
+
+### Other checks
+- ids unique ✓; operation recognised ✓; no divide ✓; all units declared ✓; all boolean attestations true; red lines all false → pass ✓
+
+### Ratios
+- arithmetic_match_ratio = 0/1 = 0.0 → **0.000000** ✓
+- unit_match_ratio = 1/1 = **1.000000** ✓
+
+### Counts / lists
+- steps_count = 1 ✓
+- duplicate ids = [] ✓
+- arithmetic_mismatch = ["s1"] ✓
+- unit_mismatch = [] ✓
+- missing_units = [] ✓
+
+### Verdict
+Two checks fail (arithmetic recompute, final value match) → `DERIVATION_NOT_SOUND`; sections derivation_structure = fail, step_arithmetic = fail, others pass; `computed_status = outside_stated_limits_on_declared_evidence`; summary "28 pass, 2 fail, 0 missing of 30".
+
+**Planted-wrong-value confirmation:** the only planted wrong value is `declared_result = 999.0`. It should fail exactly:
+1. `every_derivation_step_arithmetic_recomputes` (999 ≠ 50)
+2. `derivation_final_result_value_matches_last_step` (final 50 ≠ last-step 999)
+
+Both fail in the artifact; nothing else fails. **Exactly the expected two failures — confirmed.** ✓
+
+**Artifact values vs recompute:**
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| step s1 arithmetic | fail | 50.000000 ≠ 999.000000 | MATCH |
+| step s1 unit | pass | equal | MATCH |
+| final value match | fail | 50.000000 ≠ 999.000000 | MATCH |
+| final unit match | pass | equal | MATCH |
+| arithmetic_match_ratio | "0.000000" | "0.000000" | MATCH |
+| unit_match_ratio | "1.000000" | "1.000000" | MATCH |
+| arithmetic_mismatch list | ["s1"] | ["s1"] | MATCH |
+| unit_mismatch list | [] | [] | MATCH |
+| steps_count | 1 | 1 | MATCH |
+| verdict | DERIVATION_NOT_SOUND | DERIVATION_NOT_SOUND | MATCH |
+| computed_status | outside_stated_limits... | outside... | MATCH |
+| summary | 28 pass, 2 fail, 0 missing | 28/2/0 | MATCH |
+
+---
+
+## Conclusion
+Every computed quantity in both cases (step arithmetic, unit algebra, final value/unit matches, both ratios, step count, mismatch lists, verdict, computed_status, summary counts) recomputes to exactly the artifact's recorded values. In the violations case the two failing checks are precisely the two the planted `999.0` should break, and no others.
+
+AGREEMENT: full

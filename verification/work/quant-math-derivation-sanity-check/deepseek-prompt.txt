@@ -1,0 +1,896 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: quant-math-derivation-sanity-check
+
+=== contract.yaml ===
+service_name: quant-math-derivation-sanity-check
+display_name: Quant math derivation sanity check
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:quant-and-applied-math
+binding:
+  skill: quant-and-applied-math
+  skill_path: workspace/mymilo-build/skills/quant-and-applied-math/SKILL.md
+  skill_version: '?'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: CHECK
+endpoints:
+- agent
+keys:
+  namespace: quant_math_derivation_sanity_check
+  prefix: atm_1_quant_math_derivation_sanity_check_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Derivations for RA and EE analytics
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Quant math derivation sanity check — `quant-math-derivation-sanity-check`
+
+**Deliverable type:** CHECK. This atom sells the check it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): the rigorous math layer — linear algebra, probability, and statistics derived and sanity-checked, not just library calls. Its Practice line is this atom's method: derive before you trust; check dimensions and units; verify with a small numerical example; know each method's assumptions and failure modes; prefer the simplest method that fits.
+
+A caller submits the inputs the bound skill works on and receives one check back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this check on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Derivations for RA and EE analytics**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the derivation manifest
+
+The caller submits one JSON manifest: a declared mathematical
+derivation record for one derivation, made from the derivation
+as actually written. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`DERIVATION_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `derivation_title` (string; carried into the verdict output, not itself checked) | — |
+| `derivation.goal_quantity_stated` (boolean) | derivation_structure |
+| `derivation.givens_defined_before_use` (boolean) | derivation_structure |
+| `derivation.shown_step_by_step` (boolean) | derivation_structure |
+| `derivation.final_result_value` (number; computed — must equal the last step's declared result, see below) | derivation_structure |
+| `derivation.final_result_unit` (string; computed — must equal the last step's declared result unit) | derivation_structure |
+| `steps` (list of step-row objects, each with the entry fields below; computed, see below) | step_arithmetic, dimensions_and_units |
+| `steps[].step_id` (string; must be unique per row) | step_arithmetic |
+| `steps[].operation` (string; one of `add`, `subtract`, `multiply`, `divide`) | step_arithmetic, dimensions_and_units |
+| `steps[].operand_a` (number) | step_arithmetic |
+| `steps[].operand_b` (number; must be non-zero on a `divide` step) | step_arithmetic |
+| `steps[].declared_result` (number; computed — must recompute from the operands, see below) | step_arithmetic |
+| `steps[].operand_a_unit` (non-empty string) | dimensions_and_units |
+| `steps[].operand_b_unit` (non-empty string) | dimensions_and_units |
+| `steps[].declared_result_unit` (non-empty string; computed — must follow the unit algebra, see below) | dimensions_and_units |
+| `dimensions.dimensions_checked` (boolean) | dimensions_and_units |
+| `dimensions.units_checked` (boolean) | dimensions_and_units |
+| `dimensions.unit_conversions_shown_where_needed` (boolean) | dimensions_and_units |
+| `assumptions.assumptions_listed` (boolean) | assumptions_and_failure_modes |
+| `assumptions.normality_checked_where_assumed` (boolean) | assumptions_and_failure_modes |
+| `assumptions.independence_checked_where_assumed` (boolean) | assumptions_and_failure_modes |
+| `assumptions.stationarity_checked_where_assumed` (boolean) | assumptions_and_failure_modes |
+| `assumptions.failure_modes_named` (boolean) | assumptions_and_failure_modes |
+| `assumptions.domain_restrictions_stated` (boolean) | assumptions_and_failure_modes |
+| `method.method_named` (boolean) | method_choice_and_verification |
+| `method.simplest_method_that_fits_chosen` (boolean) | method_choice_and_verification |
+| `method.method_choice_justified_from_problem_structure` (boolean) | method_choice_and_verification |
+| `method.small_numerical_example_verified` (boolean) | method_choice_and_verification |
+| `red_lines.black_box_trust_without_derivation_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.assumptions_ignored_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.correlation_presented_as_causation_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.p_hacking_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+| `red_lines.overfitting_present` (boolean; must be `false` to pass — skill anti-pattern) | red_lines |
+
+Nine checks are computed from the declared rows, using only
+the skill's own stated practice plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Steps list declared:** the declared `steps` list passes
+  when it is present and names at least one step. An absent
+  list is missing evidence; an empty list fails — it declares
+  no derivation at all, and the skill's first practice rule is
+  to derive before trusting.
+- **Step ids unique:** no declared `step_id` may appear on
+  more than one row. A row with `step_id` absent is missing
+  evidence for this check.
+- **Operations recognised:** every declared step's `operation`
+  is one of `add`, `subtract`, `multiply`, `divide` — the four
+  operations whose arithmetic and unit algebra this record
+  format defines. A row with `operation` absent is missing
+  evidence; any other value fails.
+- **Step arithmetic recomputes:** every declared step's
+  `declared_result` must recompute from its declared operands
+  under its declared operation, compared on the fixed 6dp
+  serialization below. A row missing its operation or any of
+  its three values is missing evidence; a row whose recomputed
+  value differs fails, and is named in
+  `derivation_steps_with_arithmetic_mismatch`.
+- **No step divides by zero:** no declared `divide` step has a
+  zero `operand_b`. A row missing its operation or `operand_b`
+  is missing evidence for this check.
+- **Every step declares all units:** every declared step
+  declares `operand_a_unit`, `operand_b_unit` and
+  `declared_result_unit`, none empty. A row with a unit field
+  absent is missing evidence; a row declaring an empty unit
+  fails.
+- **Result units follow the unit algebra:** every declared
+  step's `declared_result_unit` must be the unit the record's
+  declared unit algebra produces from its operand units — for
+  `add` / `subtract` the operands must share one unit and the
+  result keeps it; for `multiply` the result unit is
+  `<a_unit>*<b_unit>`; for `divide` it is `<a_unit>/<b_unit>`;
+  the dimensionless unit `"1"` drops out of a product, a
+  quotient by `"1"` keeps the numerator unit, and a quotient of
+  a unit by itself is `"1"`. A row whose units are incomplete
+  is missing evidence for this check; a row whose result unit
+  differs fails, and is named in
+  `derivation_steps_with_unit_mismatch`.
+- **Final result value matches the last step:** the declared
+  `derivation.final_result_value` must equal the last declared
+  step's `declared_result`, compared on the 6dp serialization.
+  Missing steps, a missing final value, or a last step without
+  a declared result is missing evidence.
+- **Final result unit matches the last step:** the declared
+  `derivation.final_result_unit` must equal the last declared
+  step's `declared_result_unit`. Either side absent or empty
+  is missing evidence.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the nine computed checks above cannot be completed),
+`derivation_steps_count` (the declared list length, or null
+when the list is not declared — counts are reported as
+integers, exactly), `duplicate_derivation_step_ids` (ids
+declared on more than one row, in the order their second
+occurrence appears), the row-name lists
+`derivation_steps_with_arithmetic_mismatch` and
+`derivation_steps_with_unit_mismatch` (steps complete enough
+to verify whose declared values do not verify; a step with a
+field absent is missing evidence and does not appear),
+`derivation_steps_missing_units` (steps with any unit field
+absent or empty), and the ratios `arithmetic_match_ratio`
+(steps whose arithmetic recomputes ÷ declared steps) and
+`unit_match_ratio` (steps whose result unit follows the unit
+algebra ÷ declared steps). **Fixed serialization rule:**
+computed ratios are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp, `floor(v * 1000000 + 0.5) /
+1000000`, then format with exactly six decimals; arithmetic
+and final-result comparisons are made on the same 6dp
+serializations of the recomputed and declared values. A ratio
+is null when its denominator list is absent or empty. That
+fixed serialization is what makes the Python and TypeScript
+outputs byte-identical.
+
+The skill states no numeric tolerance and no numeric threshold
+at all — its demands are exact recomputation, declared
+assumption checks and qualitative declarations the record
+makes, not bars the atom can set. Quantities are computed and
+reported; the only bars on the computed rows are exact
+recomputation and completeness over the caller's own declared
+steps, exactly as stated above. Declined thresholds, named: an
+arithmetic tolerance or epsilon beyond the fixed 6dp
+serialization (the skill states none, so a declared step that
+differs at the 6dp serialization fails rather than passing
+approximately); a p-value or significance level (no hypothesis
+test is run or graded); a confidence level or interval width;
+a correlation, covariance or variance magnitude bar; a minimum
+or maximum number of derivation steps beyond at least one; a
+convergence epsilon, iteration count or gradient norm for
+optimization derivations; a probability-mass or distribution
+fit bar (normality and the other assumptions are checked as
+declared where-assumed attestations, never re-tested from
+data — the atom receives no data); a numerical-example size or
+closeness bar beyond the declaration that a small example was
+verified; any judgment that the chosen method is the
+mathematically right one for the problem (only that a method
+is named, is declared the simplest that fits, and is declared
+justified from the problem's structure is checked).
+
+The verdict is one of `DERIVATION_SOUND` (all 30 checks pass),
+`DERIVATION_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across six sections: derivation_structure,
+step_arithmetic, dimensions_and_units,
+assumptions_and_failure_modes, method_choice_and_verification,
+red_lines.
+
+## Distinct ground
+
+The nearest sibling is `forecast-with-ranges-and-scorecard`
+(a declared forecast artifact — computed baselines, a declared
+low/base/high range, base/best/worst scenarios with triggers,
+and a forecast-vs-actual scorecard whose declared MAE, MAPE
+and bias are recomputed from the declared history). The
+calculation-adjacent atoms (the pricing and unit-economics
+packs and the personal financial snapshot) likewise audit
+declared business or personal finance figures. This atom
+shares **zero checks** with any of them (verified mechanically
+by enumerating `evaluate({})` check names from every atom
+oracle in `services/*/src/*.py` and comparing — zero overlap):
+every check here is a derivation question — a goal quantity
+stated with givens defined before use and the derivation shown
+step by step, a declared final result that must equal the
+record's own last step in value and unit, every declared step
+recomputing exactly from its declared operands under one of
+four recognised operations with no division by zero, every
+step's result unit following the declared unit algebra,
+normality / independence / stationarity checked wherever
+assumed with failure modes and domain restrictions stated, the
+simplest fitting method chosen and justified from the
+problem's structure, verification with a small numerical
+example, and the derivation red lines (black-box trust,
+ignored assumptions, correlation as causation, p-hacking,
+overfitting). The boundary is: the internal consistency of a
+declared mathematical derivation here; a forecast artifact's
+ranges, scenarios and accuracy scorecard, and declared
+financial figures, there.
+
+## Honest scoping
+
+This atom reviews a **declared** derivation record — it derives
+nothing itself, solves no problem, runs no model, test or
+statistical procedure, inspects no data, code or paper, and
+does not verify that any declared check (of dimensions, units,
+assumptions or a numerical example) was ever actually carried
+out. A derivation is sound *on the caller's declared evidence*:
+a record that declares its assumptions checked, its failure
+modes named and every step recomputing passes those checks
+even if the real derivation did none of it. It is a
+completeness and consistency audit of the derivation record
+the skill requires, **not a proof checker, a mathematics
+review, or a guarantee that the derivation is correct**: it
+never judges whether a declared step is a valid mathematical
+inference (only that its declared arithmetic recomputes and
+its declared units follow the algebra), whether the declared
+assumptions actually hold, whether the named method is
+appropriate, or whether the final result answers the stated
+goal — only that the record contains what the skill's practice
+and anti-patterns demand, and that its declared steps are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): symbolic or multi-operand
+steps — the record format covers exactly the four binary
+operations above, and a derivation step that is a symbolic
+manipulation, a limit, an integral, a matrix operation or any
+other transformation is outside this atom's computed reach
+(it can be declared in the step record only insofar as it
+reduces to a declared binary arithmetic step; the atom takes
+no position on such steps' validity); no numeric thresholds
+at all (the skill states none — see the declined list above);
+no live verification of any declared fact; no judgment of
+derivation *quality* — whether the mathematics is right is the
+caller's work, checked only for declared presence and internal
+consistency; the skill's topic catalogue (linear algebra,
+probability, statistics, calculus and optimization, stochastic
+and quant methods) is not itself checked topic by topic — the
+atom checks the practice the skill wraps around every topic,
+not coverage of any topic.
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO with flag-with-controls
+(census class).** This atom is quant/finance-adjacent by
+keyword — its bound skill names portfolio optimization and
+risk metrics among its topics, and a derivation record could
+be about a financial quantity — so the screen was applied
+strictly, and the atom is flagged for the owner's per-unit
+ruling queue under U-13 on that adjacency. What prevents an
+advice reading, as named controls: (1) the atom audits a
+caller-**declared** derivation record for internal consistency
+only — arithmetic recomputation, unit algebra, step
+completeness, and declared assumption/method attestations;
+every output is a pass / fail / missing verdict on the record
+or a ratio recomputed from the caller's own declared steps;
+(2) it gives **no financial advice, no valuation, no
+recommendation, no forecast and no projection** — it never
+says what a quantity should be, whether a portfolio, price,
+risk metric or model is good, or what anyone should do; the
+skill's quant-application steps (mean-variance portfolio
+optimization, risk-metric computation, Monte Carlo and time
+series work itself) are excluded from production and named as
+exclusions above — this atom performs none of them, it only
+audits a declared record of steps; (3) it sets **no
+threshold** — no return, risk, significance or accuracy bar
+against which a caller's derivation could be graded as good
+or bad (see the declined list); (4) the record's subject is
+whatever mathematics the caller declares — the atom takes no
+position on any security, portfolio, credit or investment
+decision, and no output is addressed to one. Residual risk,
+stated plainly: a caller could paste the verdict into their
+own quant or financial work — that is their decision, made on
+their record; the artifact itself recommends nothing. This is
+the same class as the pricing-unit-economics-pack precedent
+(declared-record audit, advice-shaped skill steps excluded as
+controls); it is not the genuinely-open personal-financial-
+snapshot class, because no personal financial position is
+handled and the skill carries no advice-shaped step that this
+atom performs. Flagging never blocks authoring; no deploy
+happens on this atom without the owner's explicit per-unit
+ruling after the screen.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "derivation_title": "Simple Velocity Calculation",
+      "derivation": {
+        "goal_quantity_stated": true,
+        "givens_defined_before_use": true,
+        "shown_step_by_step": true,
+        "final_result_value": 50.0,
+        "final_result_unit": "m/s^2*s"
+      },
+      "steps": [
+        {
+          "step_id": "s1",
+          "operation": "multiply",
+          "operand_a": 10.0,
+          "operand_b": 5.0,
+          "declared_result": 50.0,
+          "operand_a_unit": "m/s^2",
+          "operand_b_unit": "s",
+          "declared_result_unit": "m/s^2*s"
+        }
+      ],
+      "dimensions": {
+        "dimensions_checked": true,
+        "units_checked": true,
+        "unit_conversions_shown_where_needed": true
+      },
+      "assumptions": {
+        "assumptions_listed": true,
+        "normality_checked_where_assumed": true,
+        "independence_checked_where_assumed": true,
+        "stationarity_checked_where_assumed": true,
+        "failure_modes_named": true,
+        "domain_restrictions_stated": true
+      },
+      "method": {
+        "method_named": true,
+        "simplest_method_that_fits_chosen": true,
+        "method_choice_justified_from_problem_structure": true,
+        "small_numerical_example_verified": true
+      },
+      "red_lines": {
+        "black_box_trust_without_derivation_present": false,
+        "assumptions_ignored_present": false,
+        "correlation_presented_as_causation_present": false,
+        "p_hacking_present": false,
+        "overfitting_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "quant-math-derivation-sanity-check",
+      "atom_version": "0.1.0",
+      "derivation_title": "Simple Velocity Calculation",
+      "verdict": "DERIVATION_SOUND",
+      "sections": {
+        "derivation_structure": "pass",
+        "step_arithmetic": "pass",
+        "dimensions_and_units": "pass",
+        "assumptions_and_failure_modes": "pass",
+        "method_choice_and_verification": "pass",
+        "red_lines": "pass"
+      },
+      "checks": [
+        {
+          "section": "derivation_structure",
+          "check": "derivation_goal_quantity_stated",
+          "status": "pass",
+          "evidence": "derivation: the goal quantity the derivation derives is stated"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_givens_defined_before_use",
+          "status": "pass",
+          "evidence": "derivation: every given quantity is defined before it is used"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_shown_step_by_step",
+          "status": "pass",
+          "evidence": "derivation: the derivation is shown step by step, not asserted as a black-box result"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_final_result_value_matches_last_step",
+          "status": "pass",
+          "evidence": "derivation: the declared final result value equals the last declared step's declared result value"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_final_result_unit_matches_last_step",
+          "status": "pass",
+          "evidence": "derivation: the declared final result unit equals the last declared step's declared result unit"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "derivation_steps_list_declared",
+          "status": "pass",
+          "evidence": "the declared record names its derivation steps \u2014 the steps list is present and names at least one step; an absent list is missing evidence and an empty list declares no derivation at all"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "every_derivation_step_id_unique",
+          "status": "pass",
+          "evidence": "derivation steps: no declared step_id is owned by more than one row"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "every_derivation_step_operation_recognised",
+          "status": "pass",
+          "evidence": "derivation steps: every declared step's operation is one of add, subtract, multiply, divide"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "every_derivation_step_arithmetic_recomputes",
+          "status": "pass",
+          "evidence": "derivation steps: every declared step's declared result recomputes exactly from its declared operands under its declared operation (6dp serialization)"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "no_derivation_step_divides_by_zero",
+          "status": "pass",
+          "evidence": "derivation steps: no declared divide step has a zero second operand"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "derivation_dimensions_checked",
+          "status": "pass",
+          "evidence": "dimensions: the derivation's dimensions are checked"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "derivation_units_checked",
+          "status": "pass",
+          "evidence": "units: the derivation's units are checked"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "derivation_unit_conversions_shown_where_needed",
+          "status": "pass",
+          "evidence": "units: every unit conversion the derivation needs is shown where it is used"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "every_derivation_step_declares_all_units",
+          "status": "pass",
+          "evidence": "derivation steps: every declared step declares its operand_a_unit, operand_b_unit and declared_result_unit, none empty"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "every_derivation_step_result_unit_follows_unit_algebra",
+          "status": "pass",
+          "evidence": "derivation steps: every declared step's result unit is the unit the declared unit algebra produces \u2014 add/subtract keep the shared operand unit, multiply gives <a>*<b>, divide gives <a>/<b>, and the dimensionless unit 1 drops out"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_assumptions_listed",
+          "status": "pass",
+          "evidence": "assumptions: the derivation's assumptions are listed"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_normality_checked_where_assumed",
+          "status": "pass",
+          "evidence": "assumptions: normality is checked wherever the derivation assumes it"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_independence_checked_where_assumed",
+          "status": "pass",
+          "evidence": "assumptions: independence is checked wherever the derivation assumes it"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_stationarity_checked_where_assumed",
+          "status": "pass",
+          "evidence": "assumptions: stationarity is checked wherever the derivation assumes it"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_failure_modes_named",
+          "status": "pass",
+          "evidence": "assumptions: the method's failure modes are named"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_domain_restrictions_stated",
+          "status": "pass",
+          "evidence": "assumptions: the derivation's domain restrictions are stated (where its steps are defined)"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_method_named",
+          "status": "pass",
+          "evidence": "method: the method the derivation uses is named"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_simplest_fitting_method_chosen",
+          "status": "pass",
+          "evidence": "method: the simplest method that fits is the method chosen"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_method_choice_justified_from_problem_structure",
+          "status": "pass",
+          "evidence": "method: the method choice is justified from the problem's structure, not from library habit"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_verified_with_small_numerical_example",
+          "status": "pass",
+          "evidence": "verification: the derivation is verified with a small numerical example"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_black_box_trust",
+          "status": "pass",
+          "evidence": "red line: no black-box result trusted without a derivation is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_ignored_assumptions",
+          "status": "pass",
+          "evidence": "red line: no ignored assumptions are present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_correlation_as_causation",
+          "status": "pass",
+          "evidence": "red line: no correlation presented as causation is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_p_hacking",
+          "status": "pass",
+          "evidence": "red line: no p-hacking is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_overfitting",
+          "status": "pass",
+          "evidence": "red line: no overfitting is present in the record"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "derivation_steps_count": 1,
+      "duplicate_derivation_step_ids": [],
+      "derivation_steps_with_arithmetic_mismatch": [],
+      "derivation_steps_with_unit_mismatch": [],
+      "derivation_steps_missing_units": [],
+      "arithmetic_match_ratio": "1.000000",
+      "unit_match_ratio": "1.000000",
+      "summary": "30 pass, 0 fail, 0 missing of 30 checks across six sections.",
+      "stamp": "QUANT MATH DERIVATION SANITY CHECK\nderivation_title: Simple Velocity Calculation\nVERDICT: DERIVATION_SOUND\n  derivation_structure                         pass\n  step_arithmetic                              pass\n  dimensions_and_units                         pass\n  assumptions_and_failure_modes                pass\n  method_choice_and_verification               pass\n  red_lines                                    pass\n30 pass, 0 fail, 0 missing of 30 checks across six sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "derivation_title": "Simple Velocity Calculation",
+      "derivation": {
+        "goal_quantity_stated": true,
+        "givens_defined_before_use": true,
+        "shown_step_by_step": true,
+        "final_result_value": 50.0,
+        "final_result_unit": "m/s^2*s"
+      },
+      "steps": [
+        {
+          "step_id": "s1",
+          "operation": "multiply",
+          "operand_a": 10.0,
+          "operand_b": 5.0,
+          "declared_result": 999.0,
+          "operand_a_unit": "m/s^2",
+          "operand_b_unit": "s",
+          "declared_result_unit": "m/s^2*s"
+        }
+      ],
+      "dimensions": {
+        "dimensions_checked": true,
+        "units_checked": true,
+        "unit_conversions_shown_where_needed": true
+      },
+      "assumptions": {
+        "assumptions_listed": true,
+        "normality_checked_where_assumed": true,
+        "independence_checked_where_assumed": true,
+        "stationarity_checked_where_assumed": true,
+        "failure_modes_named": true,
+        "domain_restrictions_stated": true
+      },
+      "method": {
+        "method_named": true,
+        "simplest_method_that_fits_chosen": true,
+        "method_choice_justified_from_problem_structure": true,
+        "small_numerical_example_verified": true
+      },
+      "red_lines": {
+        "black_box_trust_without_derivation_present": false,
+        "assumptions_ignored_present": false,
+        "correlation_presented_as_causation_present": false,
+        "p_hacking_present": false,
+        "overfitting_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "quant-math-derivation-sanity-check",
+      "atom_version": "0.1.0",
+      "derivation_title": "Simple Velocity Calculation",
+      "verdict": "DERIVATION_NOT_SOUND",
+      "sections": {
+        "derivation_structure": "fail",
+        "step_arithmetic": "fail",
+        "dimensions_and_units": "pass",
+        "assumptions_and_failure_modes": "pass",
+        "method_choice_and_verification": "pass",
+        "red_lines": "pass"
+      },
+      "checks": [
+        {
+          "section": "derivation_structure",
+          "check": "derivation_goal_quantity_stated",
+          "status": "pass",
+          "evidence": "derivation: the goal quantity the derivation derives is stated"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_givens_defined_before_use",
+          "status": "pass",
+          "evidence": "derivation: every given quantity is defined before it is used"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_shown_step_by_step",
+          "status": "pass",
+          "evidence": "derivation: the derivation is shown step by step, not asserted as a black-box result"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_final_result_value_matches_last_step",
+          "status": "fail",
+          "evidence": "derivation: the declared final result value equals the last declared step's declared result value"
+        },
+        {
+          "section": "derivation_structure",
+          "check": "derivation_final_result_unit_matches_last_step",
+          "status": "pass",
+          "evidence": "derivation: the declared final result unit equals the last declared step's declared result unit"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "derivation_steps_list_declared",
+          "status": "pass",
+          "evidence": "the declared record names its derivation steps \u2014 the steps list is present and names at least one step; an absent list is missing evidence and an empty list declares no derivation at all"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "every_derivation_step_id_unique",
+          "status": "pass",
+          "evidence": "derivation steps: no declared step_id is owned by more than one row"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "every_derivation_step_operation_recognised",
+          "status": "pass",
+          "evidence": "derivation steps: every declared step's operation is one of add, subtract, multiply, divide"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "every_derivation_step_arithmetic_recomputes",
+          "status": "fail",
+          "evidence": "derivation steps: every declared step's declared result recomputes exactly from its declared operands under its declared operation (6dp serialization)"
+        },
+        {
+          "section": "step_arithmetic",
+          "check": "no_derivation_step_divides_by_zero",
+          "status": "pass",
+          "evidence": "derivation steps: no declared divide step has a zero second operand"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "derivation_dimensions_checked",
+          "status": "pass",
+          "evidence": "dimensions: the derivation's dimensions are checked"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "derivation_units_checked",
+          "status": "pass",
+          "evidence": "units: the derivation's units are checked"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "derivation_unit_conversions_shown_where_needed",
+          "status": "pass",
+          "evidence": "units: every unit conversion the derivation needs is shown where it is used"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "every_derivation_step_declares_all_units",
+          "status": "pass",
+          "evidence": "derivation steps: every declared step declares its operand_a_unit, operand_b_unit and declared_result_unit, none empty"
+        },
+        {
+          "section": "dimensions_and_units",
+          "check": "every_derivation_step_result_unit_follows_unit_algebra",
+          "status": "pass",
+          "evidence": "derivation steps: every declared step's result unit is the unit the declared unit algebra produces \u2014 add/subtract keep the shared operand unit, multiply gives <a>*<b>, divide gives <a>/<b>, and the dimensionless unit 1 drops out"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_assumptions_listed",
+          "status": "pass",
+          "evidence": "assumptions: the derivation's assumptions are listed"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_normality_checked_where_assumed",
+          "status": "pass",
+          "evidence": "assumptions: normality is checked wherever the derivation assumes it"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_independence_checked_where_assumed",
+          "status": "pass",
+          "evidence": "assumptions: independence is checked wherever the derivation assumes it"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_stationarity_checked_where_assumed",
+          "status": "pass",
+          "evidence": "assumptions: stationarity is checked wherever the derivation assumes it"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_failure_modes_named",
+          "status": "pass",
+          "evidence": "assumptions: the method's failure modes are named"
+        },
+        {
+          "section": "assumptions_and_failure_modes",
+          "check": "derivation_domain_restrictions_stated",
+          "status": "pass",
+          "evidence": "assumptions: the derivation's domain restrictions are stated (where its steps are defined)"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_method_named",
+          "status": "pass",
+          "evidence": "method: the method the derivation uses is named"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_simplest_fitting_method_chosen",
+          "status": "pass",
+          "evidence": "method: the simplest method that fits is the method chosen"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_method_choice_justified_from_problem_structure",
+          "status": "pass",
+          "evidence": "method: the method choice is justified from the problem's structure, not from library habit"
+        },
+        {
+          "section": "method_choice_and_verification",
+          "check": "derivation_verified_with_small_numerical_example",
+          "status": "pass",
+          "evidence": "verification: the derivation is verified with a small numerical example"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_black_box_trust",
+          "status": "pass",
+          "evidence": "red line: no black-box result trusted without a derivation is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_ignored_assumptions",
+          "status": "pass",
+          "evidence": "red line: no ignored assumptions are present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_correlation_as_causation",
+          "status": "pass",
+          "evidence": "red line: no correlation presented as causation is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_p_hacking",
+          "status": "pass",
+          "evidence": "red line: no p-hacking is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "derivation_free_of_overfitting",
+          "status": "pass",
+          "evidence": "red line: no overfitting is present in the record"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "derivation_steps_count": 1,
+      "duplicate_derivation_step_ids": [],
+      "derivation_steps_with_arithmetic_mismatch": [
+        "s1"
+      ],
+      "derivation_steps_with_unit_mismatch": [],
+      "derivation_steps_missing_units": [],
+      "arithmetic_match_ratio": "0.000000",
+      "unit_match_ratio": "1.000000",
+      "summary": "28 pass, 2 fail, 0 missing of 30 checks across six sections.",
+      "stamp": "QUANT MATH DERIVATION SANITY CHECK\nderivation_title: Simple Velocity Calculation\nVERDICT: DERIVATION_NOT_SOUND\n  derivation_structure                         fail\n  step_arithmetic                              fail\n  dimensions_and_units                         pass\n  assumptions_and_failure_modes                pass\n  method_choice_and_verification               pass\n  red_lines                                    pass\n28 pass, 2 fail, 0 missing of 30 checks across six sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

@@ -1,0 +1,131 @@
+# Independent recompute — `sourced-visual-reference-search`
+
+I recomputed every computed quantity from the case inputs by hand, using the rules stated in SERVICE.md. I did not trust any number in the artifacts.
+
+## Serialization rule (applied to all ratios)
+
+`floor(v * 1000000 + 0.5) / 1000000`, formatted with exactly six decimals.
+
+---
+
+## Case 1: `full-pass`
+
+### Per-row facts (3 rows: r1, r2, r3)
+
+**Sourced pair coverage** — rows with both non-empty `direct_image_url` and `source_page_url`:
+- r1: img1.jpg + page1 → yes
+- r2: img2.jpg + page2 → yes
+- r3: img3.jpg + page3 → yes
+- Count = 3 of 3.
+
+Ratio = 3 / 3 = 1.0 → `floor(1.0 * 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0` → **"1.000000"**
+
+**Licence/attribution coverage** — rows with licence note present AND recognised status AND credit noted:
+- r1: note=true, status=`explicitly_licensed` (recognised), credit=true → complete
+- r2: note=true, status=`reference_only_no_licence_stated` (recognised), credit=true → complete
+- r3: note=true, status=`licence_unknown` (recognised), credit=true → complete
+- Count = 3 of 3.
+
+Ratio = 3/3 = 1.0 → **"1.000000"**
+
+**Match ratio** — rows with `matches_brief_by_viewing` true:
+- r1 true, r2 true, r3 true → 3 of 3.
+
+Ratio = 3/3 = 1.0 → **"1.000000"**
+
+### Other computed values
+- `visual_reference_results_count` = list length = **3**
+- `duplicate_visual_reference_result_ids`: ids r1, r2, r3 — all distinct → **[]**
+- `duplicate_visual_reference_direct_image_urls`: img1/img2/img3 — all distinct → **[]**
+- `visual_reference_results_missing_source_pair`: none → **[]**
+- `visual_reference_results_with_incomplete_licence_attribution`: none → **[]**
+- `computed_status`: all 17 computed checks completable and passing → **within_stated_limits_on_declared_evidence**
+- `verdict`: all 34 checks pass → **VISUAL_REFERENCE_SET_SOUND**
+- `summary`: 34 pass, 0 fail, 0 missing of 34 → **"34 pass, 0 fail, 0 missing of 34 checks across six sections."**
+
+### Comparison with artifact (full-pass)
+
+| Quantity | My recompute | Artifact | Result |
+|---|---|---|---|
+| sourced_pair_coverage_ratio | 1.000000 | 1.000000 | MATCH |
+| licence_attribution_coverage_ratio | 1.000000 | 1.000000 | MATCH |
+| visual_reference_match_ratio | 1.000000 | 1.000000 | MATCH |
+| results_count | 3 | 3 | MATCH |
+| duplicate ids | [] | [] | MATCH |
+| duplicate urls | [] | [] | MATCH |
+| missing_source_pair | [] | [] | MATCH |
+| incomplete_licence_attribution | [] | [] | MATCH |
+| computed_status | within_stated_limits_on_declared_evidence | same | MATCH |
+| verdict | VISUAL_REFERENCE_SET_SOUND | same | MATCH |
+| summary | 34 pass, 0 fail, 0 missing | same | MATCH |
+
+---
+
+## Case 2: `violations`
+
+### Per-row facts (3 rows)
+
+**Sourced pair coverage** — all three rows have both links non-empty → 3 of 3 → **"1.000000"**
+
+**Licence/attribution coverage** — all three rows complete (same statuses as case 1, all recognised) → 3 of 3 → **"1.000000"**
+
+**Match ratio** — rows with `matches_brief_by_viewing` true:
+- r1: **false**
+- r2: true
+- r3: true
+- Count = 2 of 3.
+
+Ratio = 2 / 3 = 0.6666666...
+`floor(0.6666666... * 1000000 + 0.5) = floor(666666.666... + 0.5) = floor(666667.166...) = 666667`
+→ 666667 / 1000000 = 0.666667 → **"0.666667"**
+
+### Other computed values
+- `visual_reference_results_count` = **3**
+- duplicate ids: r1, r2, r3 distinct → **[]**
+- duplicate urls: img1/img2/img3 distinct → **[]**
+- missing_source_pair: none → **[]**
+- incomplete_licence_attribution: none → **[]**
+- `computed_status`: at least one computed check fails → **outside_stated_limits_on_declared_evidence**
+- `verdict`: any check fails → **VISUAL_REFERENCE_SET_NOT_SOUND**
+
+### Which checks should fail (planted wrong values)
+
+The planted wrong values in r1 are: `matches_brief_by_viewing = false` and `misleading_cropping_present = true`. Everything else in r1 is clean (source pair present, verified, subject clear, resolution declared, no watermark, no caption mismatch, context noted, licence complete, claimed_cleared=true with `explicitly_licensed` status → consistent).
+
+So exactly two computed checks should fail:
+1. **`every_visual_reference_result_matches_brief_by_viewing`** — r1 declares false → FAIL.
+2. **`no_visual_reference_result_misleading_cropping_watermark_or_caption_mismatch`** — r1 declares `misleading_cropping_present = true` → FAIL.
+
+All other 15 computed checks pass. Note `claimed_cleared_for_commercial_use = true` on r1 is **not** a violation because its `licence_status` is `explicitly_licensed` — the consistency check passes.
+
+Section rollup: only `relevance_and_quality` contains failing checks → that section = fail; all other five sections = pass.
+
+Summary: 34 − 2 = 32 pass, 2 fail, 0 missing → **"32 pass, 2 fail, 0 missing of 34 checks across six sections."**
+
+### Comparison with artifact (violations)
+
+| Quantity | My recompute | Artifact | Result |
+|---|---|---|---|
+| sourced_pair_coverage_ratio | 1.000000 | 1.000000 | MATCH |
+| licence_attribution_coverage_ratio | 1.000000 | 1.000000 | MATCH |
+| visual_reference_match_ratio | 0.666667 | 0.666667 | MATCH |
+| results_count | 3 | 3 | MATCH |
+| duplicate ids | [] | [] | MATCH |
+| duplicate urls | [] | [] | MATCH |
+| missing_source_pair | [] | [] | MATCH |
+| incomplete_licence_attribution | [] | [] | MATCH |
+| computed_status | outside_stated_limits_on_declared_evidence | same | MATCH |
+| verdict | VISUAL_REFERENCE_SET_NOT_SOUND | same | MATCH |
+| failing checks | matches_brief_by_viewing; misleading_cropping/watermark/caption_mismatch | exactly those two | MATCH |
+| failing section | relevance_and_quality only | relevance_and_quality only | MATCH |
+| summary | 32 pass, 2 fail, 0 missing | same | MATCH |
+
+The two failing checks are exactly the ones the planted wrong values (`matches_brief_by_viewing=false`, `misleading_cropping_present=true`) should fail — confirmed.
+
+---
+
+## Conclusion
+
+Every computed quantity in both cases recomputes to the artifact's value under the stated rounding rule. The violations case fails exactly the two checks the planted wrong values target, in exactly the one section reported.
+
+AGREEMENT: full

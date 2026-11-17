@@ -1,0 +1,1793 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: sourced-podcast-episode-production
+
+=== contract.yaml ===
+service_name: sourced-podcast-episode-production
+display_name: Sourced podcast episode production
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:podcast-production
+binding:
+  skill: podcast-production
+  skill_path: workspace/mymilo-build/skills/podcast-production/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: sourced_podcast_episode_production
+  prefix: atm_1_sourced_podcast_episode_production_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Narrated briefings for content sites
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Sourced podcast episode production — `sourced-podcast-episode-production`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): research, script, and produce a podcast episode or narrated briefing grounded in traceable sources — scope, script, narrate, and document an episode where every claim traces to a source in the notes.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared episode production record** and receives the production audit verdict as the deliverable: the atom produces no audio, writes no script, fetches no source and publishes nothing (see Honest scoping).
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Writing & documents who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Narrated briefings for content sites**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the episode production manifest
+
+The caller submits one JSON manifest: a declared podcast
+episode production record for one episode, made from the
+production as actually carried out. Every field below is read
+by the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`EPISODE_PRODUCTION_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `episode_title` (string; carried into the verdict output, not itself checked) | — |
+| `scoping.topic_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.audience_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.target_length_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.main_point_scoped` (boolean) | episode_scoping_and_outline |
+| `scoping.distribution_intent_confirmed` (boolean) | episode_scoping_and_outline |
+| `scoping.scoped_before_writing` (boolean) | episode_scoping_and_outline |
+| `episode_sections` (list of outline-section-row objects, each with the entry fields below; computed, see below) | episode_scoping_and_outline |
+| `episode_sections[].section_id` (string; must be unique per row) | episode_scoping_and_outline |
+| `episode_sections[].purpose` (non-empty string) | episode_scoping_and_outline |
+| `episode_sections[].supports_main_point` (boolean) | episode_scoping_and_outline |
+| `source_work.sources_collected_before_writing` (boolean) | sources_and_claim_traceability |
+| `source_work.source_list_kept_beside_draft` (boolean) | sources_and_claim_traceability |
+| `source_work.script_checked_claim_by_claim_against_sources` (boolean) | sources_and_claim_traceability |
+| `source_work.unsupported_claims_cut_or_softened` (boolean) | sources_and_claim_traceability |
+| `sources` (list of source-row objects, each with the entry fields below; computed, see below) | sources_and_claim_traceability |
+| `sources[].source_id` (string; must be unique per row) | sources_and_claim_traceability |
+| `sources[].citation` (non-empty string; the citation or link as recorded) | sources_and_claim_traceability |
+| `claims` (list of claim-row objects, each with the entry fields below; computed, see below) | sources_and_claim_traceability |
+| `claims[].claim_id` (string; must be unique per row) | sources_and_claim_traceability |
+| `claims[].claim_kind` (string; one of `quote`, `statistic`) | sources_and_claim_traceability |
+| `claims[].source_id` (string; computed — must name a declared source, see below) | sources_and_claim_traceability |
+| `claims[].source_marked_in_script` (boolean) | sources_and_claim_traceability |
+| `script.written_for_the_ear` (boolean) | script_for_listening |
+| `script.uses_short_sentences` (boolean) | script_for_listening |
+| `script.uses_signposts` (boolean) | script_for_listening |
+| `script.has_no_visual_references` (boolean) | script_for_listening |
+| `script.opens_with_main_point` (boolean) | script_for_listening |
+| `script.supports_point_in_order` (boolean) | script_for_listening |
+| `script.closes_with_what_matters` (boolean) | script_for_listening |
+| `script.approved_before_narration` (boolean) | script_for_listening |
+| `narration.voice_confirmed` (boolean) | narration_and_assembly_qc |
+| `narration.pace_confirmed` (boolean) | narration_and_assembly_qc |
+| `narration.long_script_chunked_at_section_breaks_where_long` (boolean) | narration_and_assembly_qc |
+| `narration.audio_assembled` (boolean) | narration_and_assembly_qc |
+| `narration.opening_listen_back_checked` (boolean) | narration_and_assembly_qc |
+| `narration.section_joins_listen_back_checked` (boolean) | narration_and_assembly_qc |
+| `narration.misreads_and_awkward_joins_fixed` (boolean) | narration_and_assembly_qc |
+| `narration.ai_narrated` (boolean; gates the disclosure check below) | publishing_and_disclosure |
+| `show_notes.summary_included` (boolean) | show_notes_and_rights |
+| `show_notes.main_points_included` (boolean) | show_notes_and_rights |
+| `show_notes.complete_source_list_included` (boolean) | show_notes_and_rights |
+| `show_notes.source_ids_included` (list of strings; computed — must be exactly the declared source ids, see below) | show_notes_and_rights |
+| `rights.copyrighted_audio_or_music_used` (boolean; gates the rights check below) | show_notes_and_rights |
+| `rights.right_to_copyrighted_audio_or_music_cleared` (boolean; required when copyrighted audio/music use is declared; otherwise the check passes as not applicable) | show_notes_and_rights |
+| `guests.guest_voices_present` (boolean; gates the guest-release check below) | show_notes_and_rights |
+| `guests.releases_recorded_for_all_guests` (boolean; required when guest voices are declared present; otherwise the check passes as not applicable) | show_notes_and_rights |
+| `publishing.publishing_or_scheduling_planned` (boolean; gates the three publishing checks below) | publishing_and_disclosure |
+| `publishing.authorization_recorded_for_this_episode` (boolean; required when publishing/scheduling is declared planned; otherwise the check passes as not applicable) | publishing_and_disclosure |
+| `publishing.destination_matches_authorized_scope` (boolean; gated as above) | publishing_and_disclosure |
+| `publishing.timing_matches_authorized_scope` (boolean; gated as above) | publishing_and_disclosure |
+| `publishing.ai_narration_disclosure_made` (boolean; required when AI narration is declared; otherwise the check passes as not applicable) | publishing_and_disclosure |
+| `red_lines.fabricated_quote_statistic_or_source_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.words_attributed_beyond_source_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.publishing_beyond_authorized_scope_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.ai_narration_presented_as_human_without_disclosure_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.copyrighted_audio_without_clear_right_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Thirteen checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Outline sections declared:** the declared
+  `episode_sections` list passes when it is present and names
+  at least one section. An absent list is missing evidence; an
+  empty list fails — it declares no outline at all.
+- **Outline section ids unique:** no declared `section_id` may
+  appear on more than one row. A row with `section_id` absent
+  is missing evidence for this check.
+- **Purpose per outline section:** every declared section row
+  declares a non-empty `purpose` (the skill: outline the
+  episode so each section earns its place). A row with the
+  field absent is missing evidence; a row declaring an empty
+  purpose fails and is named in
+  `episode_outline_sections_without_purpose`.
+- **Every section supports the main point:** every declared
+  section row declares `supports_main_point: true`. A row with
+  the field absent is missing evidence; a row declaring it
+  false fails and is named in
+  `episode_outline_sections_not_supporting_main_point`.
+- **Sources declared:** the declared `sources` list passes
+  when it is present and names at least one source. An absent
+  list is missing evidence; an empty list fails — it declares
+  no sourced episode at all (the skill: collect sources before
+  writing anything).
+- **Source ids unique:** no declared `source_id` may appear on
+  more than one source row.
+- **Citation per source:** every declared source row declares
+  a non-empty `citation` — the link or citation as recorded. A
+  row with the field absent is missing evidence; a row
+  declaring an empty citation fails and is named in
+  `podcast_sources_without_citation`.
+- **Claims declared:** the declared `claims` list passes when
+  it is present and names at least one quote/statistic claim
+  row. An absent list is missing evidence; an empty list
+  fails — in this record format it declares no traced claims
+  at all (see Honest scoping for the no-quote/no-statistic
+  episode boundary).
+- **Claim ids unique:** no declared `claim_id` may appear on
+  more than one claim row.
+- **Claim kind recognised:** every declared claim's
+  `claim_kind` is one of `quote`, `statistic` — the two kinds
+  the skill names for source-marking ("mark every quote and
+  statistic"). Any other value fails and is named in
+  `podcast_claims_with_invalid_kind`.
+- **Every claim traced to a declared source:** every declared
+  claim's `source_id` names one of the declared sources. A
+  claim with `source_id` absent, or a record with the sources
+  list absent, is missing evidence; a claim naming an
+  undeclared source fails and is named in
+  `podcast_claims_with_unknown_source_reference`.
+- **Every claim's source marked in the script:** every
+  declared claim row declares `source_marked_in_script: true`.
+  A row with the field absent is missing evidence; a row
+  declaring it false fails and is named in
+  `podcast_claims_with_unmarked_source`.
+- **Show-notes source ids match the declared sources:** the
+  declared `show_notes.source_ids_included` list must be
+  exactly the declared source ids — none missing
+  (`podcast_sources_missing_from_show_notes`), none extra
+  (`show_notes_source_ids_not_declared_as_sources`). Either
+  list absent, or a source row without a `source_id`, is
+  missing evidence.
+
+Six further checks are gated on the record's own declared
+gate fields, following the skill's own conditional scope —
+when the gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **Copyrighted-audio rights:** a clear right is required
+  only where `rights.copyrighted_audio_or_music_used` is
+  declared `true`.
+- **Guest releases:** releases recorded for all guests are
+  required only where `guests.guest_voices_present` is
+  declared `true`.
+- **Publishing authorization, destination and timing:** each
+  is required only where
+  `publishing.publishing_or_scheduling_planned` is declared
+  `true` (the skill: publish or schedule only if authorized
+  for this episode, and confirm destination and timing match
+  that authorization exactly).
+- **AI-narration disclosure:** disclosure is required only
+  where `narration.ai_narrated` is declared `true` (the skill
+  red line: never present an AI-narrated episode as a human
+  recording without disclosure).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the thirteen primary computed checks above cannot be
+completed), `episode_outline_sections_count`,
+`podcast_sources_count` and `podcast_claims_count` (the
+declared list lengths, or null when a list is not declared —
+counts are reported as integers, exactly), the duplicate-id
+lists `duplicate_episode_outline_section_ids`,
+`duplicate_podcast_source_ids` and `duplicate_podcast_claim_ids`,
+the row-name lists named in the computed checks above, and
+the ratios `outline_section_support_ratio` (sections declared
+to support the main point ÷ declared sections),
+`source_citation_ratio` (sources with a recorded citation ÷
+declared sources), `traced_claim_ratio` (claims both traced
+to a declared source and marked in the script ÷ declared
+claims) and `show_notes_source_coverage_ratio` (declared
+sources appearing in the show-notes source list ÷ declared
+sources). **Fixed serialization rule:** computed ratios are
+reported as strings with exactly six decimal places, produced
+in both implementations by the same rule — round half up to
+6dp, `floor(v * 1000000 + 0.5) / 1000000`, then format with
+exactly six decimals. A ratio is null when its denominator
+list is absent or empty (the show-notes coverage ratio is
+also null when the show-notes source list is not declared).
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are scoping, traceability, listening-form, listen-back QC,
+complete show notes and authorized publishing, not bars the
+atom can set. Quantities are computed and reported; the only
+bars on the computed rows are exact traceability and
+completeness over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a target episode
+length in minutes or words, or a tolerance around it (length
+is checked as scoped, never measured); a minimum or maximum
+number of sources, claims or outline sections beyond at
+least one each; a source-quality, authority or recency bar
+for declared sources (a citation is checked as recorded,
+never graded); a quote/statistic accuracy bar beyond declared
+traceability to a declared source (the atom receives no
+source text and verifies nothing against the world); a
+sentence-length, signpost-density or reading-level bar for
+"written for the ear" (checked as declarations only); a
+loudness, sample-rate, bitrate or any other audio-quality bar
+for the assembled audio; a listen-back coverage bar beyond
+the opening and the section joins the skill names; a
+narration pace in words per minute; a publishing-window or
+scheduling-lead-time bar; any judgment that the episode is
+good, interesting or worth publishing (only that its declared
+production record contains what the skill requires).
+
+The verdict is one of `EPISODE_PRODUCTION_SOUND` (all 52
+checks pass), `EPISODE_PRODUCTION_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across seven sections:
+episode_scoping_and_outline, sources_and_claim_traceability,
+script_for_listening, narration_and_assembly_qc,
+show_notes_and_rights, publishing_and_disclosure, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `long-form-authoring-pipeline` (a
+declared long-form written work — approved outline, drafting
+loop, review passes, versioning and publishing of prose),
+`local-voice-stack-engineering-pack` (the engineering of a
+local TTS/STT voice stack itself — engine selection, cloning
+consent, latency and accessibility of the stack) and
+`meeting-decisions-and-actions-extract` (decisions, owned
+action items and open questions extracted from one meeting's
+notes or transcript). This atom shares **zero checks** with
+any of them (verified mechanically by enumerating
+`evaluate({})` check names from every atom oracle in
+`services/*/src/*.py` and comparing, with a grep of check
+strings over the same files as the fallback for oracles whose
+`evaluate({})` raises or returns a different shape — zero
+overlap by both methods): every check here is an
+episode-production question — an episode scoped (topic,
+audience, length, single main point, distribution intent)
+before writing, sources collected before writing and kept
+beside the draft, every declared quote/statistic claim marked
+in the script and tracing to a declared source with
+unsupported claims cut or softened, a script written for the
+ear that opens with the point and closes with what matters,
+narration of the approved script listened back at the opening
+and the section joins with misreads fixed, show notes whose
+declared source list is exactly the declared sources,
+copyrighted-audio rights and guest releases where declared,
+and publishing kept inside its exact authorized scope. The
+boundary is: one sourced episode's production record here; a
+written work's authoring pipeline, a voice stack's
+engineering, and a meeting's extraction there.
+
+## Honest scoping
+
+This atom reviews a **declared** episode production record —
+it researches nothing, writes no script, narrates nothing,
+assembles no audio, fetches or opens no source, verifies no
+citation, quote or statistic against the world, listens to
+nothing, and publishes or schedules nothing. An episode is
+sound *on the caller's declared evidence*: a record that
+declares its claims traced, its joins listened back and its
+publishing authorized passes those checks even if the real
+production did none of it. It is a completeness and
+consistency audit of the production record the skill
+requires, **not a production service, a fact-check, or a
+guarantee that the episode is accurate or good**: it never
+judges whether a declared citation actually supports the
+claim that cites it, whether the script is well written,
+whether the narration sounds right, or whether the episode
+should be published — only that the record contains what the
+skill's method, quality gates and red lines demand, and that
+its declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never performed or judged): the skill's
+research step itself (collecting and reading sources);
+script writing itself, including the related
+`authoring-pipeline` discipline the skill writes under;
+narration generation itself, including the related
+`voice-notes-and-narration` production step; audio assembly
+and editing itself; working through long source documents
+(the related `document-reader` step); and publishing or
+scheduling execution itself — each is EXCLUDED by name from
+this atom, which audits only the declared record of those
+steps. Boundary cases, named: an episode with genuinely no
+quote and no statistic cannot pass this record format's
+claims-declared check (the format requires at least one
+traced claim row — such an episode is outside this atom's
+computed reach, not failed on its merits); guest releases
+are a gated declaration in this record (the bound skill
+names no guest step — releases are required only where the
+caller declares guest voices present, and the atom judges no
+release's legal sufficiency); rights clearances likewise are
+declared presence only, never a legal judgment.
+
+## U-13 regulatory screen
+
+Screen classification: **(a) — No outright.** Keyword screen:
+the bound skill and this record name podcast production,
+narration, publishing, citations and copyrighted audio — no
+engineering-practice, securities/financial-advice or
+psychology-adjacent subject, and no regulated profession's
+vocabulary. Substance screen: this atom's output could not
+read as regulated professional advice — it audits a
+caller-**declared** episode production record for
+completeness and internal consistency only (scoping, outline,
+source/claim traceability recomputed over the declared rows,
+listening-form, listen-back, show-notes, rights, guest-release
+and publishing declarations, and the red lines refused);
+every output is a pass / fail / missing verdict on the record
+or a ratio recomputed from the caller's own declared rows.
+Named controls: (1) it produces **no episode content and no
+advice of any kind** — no script, no narration, no audio, no
+recommendation about any topic; the skill's creative and
+production steps (research, scripting, narration, assembly,
+publishing) are excluded from production by name above — this
+atom performs none of them; (2) it sets **no threshold** on
+any subject matter (see the declined list); (3) the episode's
+topic is whatever the caller declares — the atom receives no
+script text, takes no position on the episode's subject, and
+no output is addressed to any regulated decision; (4) the
+rights, guest-release and AI-disclosure checks judge declared
+presence only, never legal sufficiency — copyright and
+disclosure compliance remain the caller's responsibility, on
+their record. This is not the census class (no regulated
+adjacency to flag) and not the genuinely-open
+personal-financial-snapshot class (no personal position of
+any kind is handled). No deploy happens on this atom without
+the owner's explicit per-unit ruling in any case.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "sourced-podcast-episode-production",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "EPISODE_PRODUCTION_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: outline_section_support_ratio=1.000000, source_citation_ratio=1.000000, traced_claim_ratio=1.000000, show_notes_source_coverage_ratio=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "episode_outline_sections_count": 1,
+          "podcast_sources_count": 1,
+          "podcast_claims_count": 1,
+          "duplicate_episode_outline_section_ids": [],
+          "duplicate_podcast_source_ids": [],
+          "duplicate_podcast_claim_ids": [],
+          "episode_outline_sections_without_purpose": [],
+          "episode_outline_sections_not_supporting_main_point": [],
+          "podcast_sources_without_citation": [],
+          "podcast_claims_with_invalid_kind": [],
+          "podcast_claims_with_unknown_source_reference": [],
+          "podcast_claims_with_unmarked_source": [],
+          "podcast_sources_missing_from_show_notes": [],
+          "show_notes_source_ids_not_declared_as_sources": [],
+          "outline_section_support_ratio": "1.000000",
+          "source_citation_ratio": "1.000000",
+          "traced_claim_ratio": "1.000000",
+          "show_notes_source_coverage_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "episode_title": "The Future of AI",
+        "scoping": {
+          "topic_scoped": true,
+          "audience_scoped": true,
+          "target_length_scoped": true,
+          "main_point_scoped": true,
+          "distribution_intent_confirmed": true,
+          "scoped_before_writing": true
+        },
+        "episode_sections": [
+          {
+            "section_id": "s1",
+            "purpose": "Introduce the main point",
+            "supports_main_point": true
+          }
+        ],
+        "source_work": {
+          "sources_collected_before_writing": true,
+          "source_list_kept_beside_draft": true,
+          "script_checked_claim_by_claim_against_sources": true,
+          "unsupported_claims_cut_or_softened": true
+        },
+        "sources": [
+          {
+            "source_id": "src1",
+            "citation": "https://example.com/report"
+          }
+        ],
+        "claims": [
+          {
+            "claim_id": "c1",
+            "claim_kind": "statistic",
+            "source_id": "src1",
+            "source_marked_in_script": true
+          }
+        ],
+        "script": {
+          "written_for_the_ear": true,
+          "uses_short_sentences": true,
+          "uses_signposts": true,
+          "has_no_visual_references": true,
+          "opens_with_main_point": true,
+          "supports_point_in_order": true,
+          "closes_with_what_matters": true,
+          "approved_before_narration": true
+        },
+        "narration": {
+          "voice_confirmed": true,
+          "pace_confirmed": true,
+          "long_script_chunked_at_section_breaks_where_long": true,
+          "audio_assembled": true,
+          "opening_listen_back_checked": true,
+          "section_joins_listen_back_checked": true,
+          "misreads_and_awkward_joins_fixed": true,
+          "ai_narrated": false
+        },
+        "show_notes": {
+          "summary_included": true,
+          "main_points_included": true,
+          "complete_source_list_included": true,
+          "source_ids_included": [
+            "src1"
+          ]
+        },
+        "rights": {
+          "copyrighted_audio_or_music_used": false
+        },
+        "guests": {
+          "guest_voices_present": false
+        },
+        "publishing": {
+          "publishing_or_scheduling_planned": false
+        },
+        "red_lines": {
+          "fabricated_quote_statistic_or_source_present": false,
+          "words_attributed_beyond_source_present": false,
+          "publishing_beyond_authorized_scope_present": false,
+          "ai_narration_presented_as_human_without_disclosure_present": false,
+          "copyrighted_audio_without_clear_right_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "sourced-podcast-episode-production",
+        "atom_version": "0.1.0",
+        "episode_title": "The Future of AI",
+        "verdict": "EPISODE_PRODUCTION_SOUND",
+        "sections": {
+          "episode_scoping_and_outline": "pass",
+          "sources_and_claim_traceability": "pass",
+          "script_for_listening": "pass",
+          "narration_and_assembly_qc": "pass",
+          "show_notes_and_rights": "pass",
+          "publishing_and_disclosure": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_topic_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode topic was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_audience_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode audience was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_target_length_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode target length was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_main_point_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode's single main point was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_distribution_intent_confirmed",
+            "status": "pass",
+            "evidence": "scoping: whether the episode is for the caller alone or for publishing later was confirmed"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_scoped_before_writing",
+            "status": "pass",
+            "evidence": "scoping / quality gate: topic, audience, length and main point were scoped before writing began"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_outline_sections_list_declared",
+            "status": "pass",
+            "evidence": "outline: the declared record names its episode outline sections \u2014 the list is present and names at least one section; an absent list is missing evidence and an empty list declares no outline at all"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_id_unique",
+            "status": "pass",
+            "evidence": "outline sections: no declared section_id is owned by more than one row"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_purpose_declared",
+            "status": "pass",
+            "evidence": "outline: every declared section declares a non-empty purpose \u2014 each section earns its place"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_supports_main_point",
+            "status": "pass",
+            "evidence": "outline: every declared section is declared to support the episode's single main point"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_sources_collected_before_writing",
+            "status": "pass",
+            "evidence": "research: sources were collected before writing anything"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_source_list_kept_beside_draft",
+            "status": "pass",
+            "evidence": "research: the source list was kept beside the draft from the first line onward"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_script_checked_claim_by_claim",
+            "status": "pass",
+            "evidence": "claim check: the script was checked claim by claim against the source list"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_unsupported_claims_cut_or_softened",
+            "status": "pass",
+            "evidence": "claim check: anything no collected source supports was cut or softened"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_sources_list_declared",
+            "status": "pass",
+            "evidence": "sources: the declared record names its sources \u2014 the list is present and names at least one source; an absent list is missing evidence and an empty list declares no sourced episode at all"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_source_id_unique",
+            "status": "pass",
+            "evidence": "sources: no declared source_id is owned by more than one row"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_source_citation_recorded",
+            "status": "pass",
+            "evidence": "sources: every declared source declares a non-empty citation or link as recorded"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_claims_list_declared",
+            "status": "pass",
+            "evidence": "claims: the declared record names its quote and statistic claim rows \u2014 the list is present and names at least one claim; an absent list is missing evidence and an empty list declares no traced claims at all"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_id_unique",
+            "status": "pass",
+            "evidence": "claims: no declared claim_id is owned by more than one row"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_kind_recognised",
+            "status": "pass",
+            "evidence": "claims: every declared claim's kind is one of quote, statistic \u2014 the two kinds the skill requires to be marked with a source"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_traced_to_declared_source",
+            "status": "pass",
+            "evidence": "claims / quality gate: every declared quote and statistic traces to a source_id named in the declared source list"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_source_marked_in_script",
+            "status": "pass",
+            "evidence": "claims: every declared quote and statistic is marked in the script with the source it came from"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_written_for_the_ear",
+            "status": "pass",
+            "evidence": "script / quality gate: the script was written for listening, not adapted from dense prose"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_uses_short_sentences",
+            "status": "pass",
+            "evidence": "script: the script uses short sentences written for the ear"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_uses_signposts",
+            "status": "pass",
+            "evidence": "script: the script uses signposts written for the ear"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_has_no_visual_references",
+            "status": "pass",
+            "evidence": "script: the script contains no visual references"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_opens_with_main_point",
+            "status": "pass",
+            "evidence": "outline / script: the script opens with the point"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_supports_point_in_order",
+            "status": "pass",
+            "evidence": "outline / script: the script supports the point in order"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_closes_with_what_matters",
+            "status": "pass",
+            "evidence": "outline / script: the script closes with what matters"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_approved_before_narration",
+            "status": "pass",
+            "evidence": "script: the script was approved before narration \u2014 narration is of the approved script"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_narration_voice_confirmed",
+            "status": "pass",
+            "evidence": "narration: the narration voice was confirmed before narration"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_narration_pace_confirmed",
+            "status": "pass",
+            "evidence": "narration: the narration pace was confirmed before narration"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_long_script_chunked_at_section_breaks",
+            "status": "pass",
+            "evidence": "narration: a long script was chunked at section breaks, where the script is long"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_audio_assembled",
+            "status": "pass",
+            "evidence": "assembly: the episode audio was assembled"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_opening_listen_back_checked",
+            "status": "pass",
+            "evidence": "assembly / quality gate: narration was checked by listening back to the opening"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_section_joins_listen_back_checked",
+            "status": "pass",
+            "evidence": "assembly / quality gate: narration was checked by listening back at the section joins"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_misreads_and_awkward_joins_fixed",
+            "status": "pass",
+            "evidence": "assembly: misreads and awkward joins found on listen-back were fixed before the episode was called done"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_summary",
+            "status": "pass",
+            "evidence": "show notes: the show notes include a short summary"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_main_points",
+            "status": "pass",
+            "evidence": "show notes: the show notes include the main points"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_complete_source_list",
+            "status": "pass",
+            "evidence": "show notes / quality gate: the show notes include the complete source list"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_source_ids_match_declared_sources",
+            "status": "pass",
+            "evidence": "show notes: the source ids declared included in the show notes are exactly the declared source ids \u2014 none missing, none extra"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_copyrighted_audio_rights_cleared_where_used",
+            "status": "pass",
+            "evidence": "no copyrighted audio or music use declared"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_guest_releases_recorded_where_guests_present",
+            "status": "pass",
+            "evidence": "no guest voices declared"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_authorization_recorded_where_planned",
+            "status": "pass",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_destination_matches_authorization_where_planned",
+            "status": "pass",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_timing_matches_authorization_where_planned",
+            "status": "pass",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_ai_narration_disclosed_where_ai_narrated",
+            "status": "pass",
+            "evidence": "no AI narration declared"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_fabricated_quote_statistic_or_source",
+            "status": "pass",
+            "evidence": "red line: no fabricated quote, statistic or source is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_words_attributed_beyond_source",
+            "status": "pass",
+            "evidence": "red line: no words are attributed to a person that the source does not show them saying"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_publishing_beyond_authorized_scope",
+            "status": "pass",
+            "evidence": "red line: no publishing or scheduling beyond the scope authorized for this episode is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_ai_narration_presented_as_human_without_disclosure",
+            "status": "pass",
+            "evidence": "red line: no AI-narrated episode presented as a human recording without disclosure is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_copyrighted_audio_without_clear_right",
+            "status": "pass",
+            "evidence": "red line: no copyrighted audio or music used without a clear right to it is present in the record"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "episode_outline_sections_count": 1,
+        "podcast_sources_count": 1,
+        "podcast_claims_count": 1,
+        "duplicate_episode_outline_section_ids": [],
+        "duplicate_podcast_source_ids": [],
+        "duplicate_podcast_claim_ids": [],
+        "episode_outline_sections_without_purpose": [],
+        "episode_outline_sections_not_supporting_main_point": [],
+        "podcast_sources_without_citation": [],
+        "podcast_claims_with_invalid_kind": [],
+        "podcast_claims_with_unknown_source_reference": [],
+        "podcast_claims_with_unmarked_source": [],
+        "podcast_sources_missing_from_show_notes": [],
+        "show_notes_source_ids_not_declared_as_sources": [],
+        "outline_section_support_ratio": "1.000000",
+        "source_citation_ratio": "1.000000",
+        "traced_claim_ratio": "1.000000",
+        "show_notes_source_coverage_ratio": "1.000000",
+        "summary": "52 pass, 0 fail, 0 missing of 52 checks across seven sections.",
+        "stamp": "SOURCED PODCAST EPISODE PRODUCTION\nepisode_title: The Future of AI\nVERDICT: EPISODE_PRODUCTION_SOUND\n  episode_scoping_and_outline                  pass\n  sources_and_claim_traceability               pass\n  script_for_listening                         pass\n  narration_and_assembly_qc                    pass\n  show_notes_and_rights                        pass\n  publishing_and_disclosure                    pass\n  red_lines                                    pass\n52 pass, 0 fail, 0 missing of 52 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "EPISODE_PRODUCTION_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_podcast_episode_outline_section_supports_main_point",
+          "every_podcast_claim_kind_recognised",
+          "every_podcast_claim_traced_to_declared_source",
+          "podcast_episode_free_of_fabricated_quote_statistic_or_source"
+        ],
+        "notes": "Deep copy of full-pass with four planted mutations: episode_sections[0].supports_main_point=false, claims[0].claim_kind=invalid_kind, claims[0].source_id=src2 (undeclared), red_lines.fabricated_quote_statistic_or_source_present=true. Oracle failing set exactly those four checks.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "episode_outline_sections_count": 1,
+          "podcast_sources_count": 1,
+          "podcast_claims_count": 1,
+          "duplicate_episode_outline_section_ids": [],
+          "duplicate_podcast_source_ids": [],
+          "duplicate_podcast_claim_ids": [],
+          "episode_outline_sections_without_purpose": [],
+          "episode_outline_sections_not_supporting_main_point": [
+            "s1"
+          ],
+          "podcast_sources_without_citation": [],
+          "podcast_claims_with_invalid_kind": [
+            "c1"
+          ],
+          "podcast_claims_with_unknown_source_reference": [
+            "c1"
+          ],
+          "podcast_claims_with_unmarked_source": [],
+          "podcast_sources_missing_from_show_notes": [],
+          "show_notes_source_ids_not_declared_as_sources": [],
+          "outline_section_support_ratio": "0.000000",
+          "source_citation_ratio": "1.000000",
+          "traced_claim_ratio": "0.000000",
+          "show_notes_source_coverage_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "episode_title": "The Future of AI",
+        "scoping": {
+          "topic_scoped": true,
+          "audience_scoped": true,
+          "target_length_scoped": true,
+          "main_point_scoped": true,
+          "distribution_intent_confirmed": true,
+          "scoped_before_writing": true
+        },
+        "episode_sections": [
+          {
+            "section_id": "s1",
+            "purpose": "Introduce the main point",
+            "supports_main_point": false
+          }
+        ],
+        "source_work": {
+          "sources_collected_before_writing": true,
+          "source_list_kept_beside_draft": true,
+          "script_checked_claim_by_claim_against_sources": true,
+          "unsupported_claims_cut_or_softened": true
+        },
+        "sources": [
+          {
+            "source_id": "src1",
+            "citation": "https://example.com/report"
+          }
+        ],
+        "claims": [
+          {
+            "claim_id": "c1",
+            "claim_kind": "invalid_kind",
+            "source_id": "src2",
+            "source_marked_in_script": true
+          }
+        ],
+        "script": {
+          "written_for_the_ear": true,
+          "uses_short_sentences": true,
+          "uses_signposts": true,
+          "has_no_visual_references": true,
+          "opens_with_main_point": true,
+          "supports_point_in_order": true,
+          "closes_with_what_matters": true,
+          "approved_before_narration": true
+        },
+        "narration": {
+          "voice_confirmed": true,
+          "pace_confirmed": true,
+          "long_script_chunked_at_section_breaks_where_long": true,
+          "audio_assembled": true,
+          "opening_listen_back_checked": true,
+          "section_joins_listen_back_checked": true,
+          "misreads_and_awkward_joins_fixed": true,
+          "ai_narrated": false
+        },
+        "show_notes": {
+          "summary_included": true,
+          "main_points_included": true,
+          "complete_source_list_included": true,
+          "source_ids_included": [
+            "src1"
+          ]
+        },
+        "rights": {
+          "copyrighted_audio_or_music_used": false
+        },
+        "guests": {
+          "guest_voices_present": false
+        },
+        "publishing": {
+          "publishing_or_scheduling_planned": false
+        },
+        "red_lines": {
+          "fabricated_quote_statistic_or_source_present": true,
+          "words_attributed_beyond_source_present": false,
+          "publishing_beyond_authorized_scope_present": false,
+          "ai_narration_presented_as_human_without_disclosure_present": false,
+          "copyrighted_audio_without_clear_right_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "sourced-podcast-episode-production",
+        "atom_version": "0.1.0",
+        "episode_title": "The Future of AI",
+        "verdict": "EPISODE_PRODUCTION_NOT_SOUND",
+        "sections": {
+          "episode_scoping_and_outline": "fail",
+          "sources_and_claim_traceability": "fail",
+          "script_for_listening": "pass",
+          "narration_and_assembly_qc": "pass",
+          "show_notes_and_rights": "pass",
+          "publishing_and_disclosure": "pass",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_topic_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode topic was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_audience_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode audience was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_target_length_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode target length was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_main_point_scoped",
+            "status": "pass",
+            "evidence": "scoping: the episode's single main point was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_distribution_intent_confirmed",
+            "status": "pass",
+            "evidence": "scoping: whether the episode is for the caller alone or for publishing later was confirmed"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_scoped_before_writing",
+            "status": "pass",
+            "evidence": "scoping / quality gate: topic, audience, length and main point were scoped before writing began"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_outline_sections_list_declared",
+            "status": "pass",
+            "evidence": "outline: the declared record names its episode outline sections \u2014 the list is present and names at least one section; an absent list is missing evidence and an empty list declares no outline at all"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_id_unique",
+            "status": "pass",
+            "evidence": "outline sections: no declared section_id is owned by more than one row"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_purpose_declared",
+            "status": "pass",
+            "evidence": "outline: every declared section declares a non-empty purpose \u2014 each section earns its place"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_supports_main_point",
+            "status": "fail",
+            "evidence": "outline: every declared section is declared to support the episode's single main point"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_sources_collected_before_writing",
+            "status": "pass",
+            "evidence": "research: sources were collected before writing anything"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_source_list_kept_beside_draft",
+            "status": "pass",
+            "evidence": "research: the source list was kept beside the draft from the first line onward"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_script_checked_claim_by_claim",
+            "status": "pass",
+            "evidence": "claim check: the script was checked claim by claim against the source list"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_unsupported_claims_cut_or_softened",
+            "status": "pass",
+            "evidence": "claim check: anything no collected source supports was cut or softened"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_sources_list_declared",
+            "status": "pass",
+            "evidence": "sources: the declared record names its sources \u2014 the list is present and names at least one source; an absent list is missing evidence and an empty list declares no sourced episode at all"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_source_id_unique",
+            "status": "pass",
+            "evidence": "sources: no declared source_id is owned by more than one row"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_source_citation_recorded",
+            "status": "pass",
+            "evidence": "sources: every declared source declares a non-empty citation or link as recorded"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_claims_list_declared",
+            "status": "pass",
+            "evidence": "claims: the declared record names its quote and statistic claim rows \u2014 the list is present and names at least one claim; an absent list is missing evidence and an empty list declares no traced claims at all"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_id_unique",
+            "status": "pass",
+            "evidence": "claims: no declared claim_id is owned by more than one row"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_kind_recognised",
+            "status": "fail",
+            "evidence": "claims: every declared claim's kind is one of quote, statistic \u2014 the two kinds the skill requires to be marked with a source"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_traced_to_declared_source",
+            "status": "fail",
+            "evidence": "claims / quality gate: every declared quote and statistic traces to a source_id named in the declared source list"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_source_marked_in_script",
+            "status": "pass",
+            "evidence": "claims: every declared quote and statistic is marked in the script with the source it came from"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_written_for_the_ear",
+            "status": "pass",
+            "evidence": "script / quality gate: the script was written for listening, not adapted from dense prose"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_uses_short_sentences",
+            "status": "pass",
+            "evidence": "script: the script uses short sentences written for the ear"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_uses_signposts",
+            "status": "pass",
+            "evidence": "script: the script uses signposts written for the ear"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_has_no_visual_references",
+            "status": "pass",
+            "evidence": "script: the script contains no visual references"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_opens_with_main_point",
+            "status": "pass",
+            "evidence": "outline / script: the script opens with the point"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_supports_point_in_order",
+            "status": "pass",
+            "evidence": "outline / script: the script supports the point in order"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_closes_with_what_matters",
+            "status": "pass",
+            "evidence": "outline / script: the script closes with what matters"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_approved_before_narration",
+            "status": "pass",
+            "evidence": "script: the script was approved before narration \u2014 narration is of the approved script"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_narration_voice_confirmed",
+            "status": "pass",
+            "evidence": "narration: the narration voice was confirmed before narration"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_narration_pace_confirmed",
+            "status": "pass",
+            "evidence": "narration: the narration pace was confirmed before narration"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_long_script_chunked_at_section_breaks",
+            "status": "pass",
+            "evidence": "narration: a long script was chunked at section breaks, where the script is long"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_audio_assembled",
+            "status": "pass",
+            "evidence": "assembly: the episode audio was assembled"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_opening_listen_back_checked",
+            "status": "pass",
+            "evidence": "assembly / quality gate: narration was checked by listening back to the opening"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_section_joins_listen_back_checked",
+            "status": "pass",
+            "evidence": "assembly / quality gate: narration was checked by listening back at the section joins"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_misreads_and_awkward_joins_fixed",
+            "status": "pass",
+            "evidence": "assembly: misreads and awkward joins found on listen-back were fixed before the episode was called done"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_summary",
+            "status": "pass",
+            "evidence": "show notes: the show notes include a short summary"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_main_points",
+            "status": "pass",
+            "evidence": "show notes: the show notes include the main points"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_complete_source_list",
+            "status": "pass",
+            "evidence": "show notes / quality gate: the show notes include the complete source list"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_source_ids_match_declared_sources",
+            "status": "pass",
+            "evidence": "show notes: the source ids declared included in the show notes are exactly the declared source ids \u2014 none missing, none extra"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_copyrighted_audio_rights_cleared_where_used",
+            "status": "pass",
+            "evidence": "no copyrighted audio or music use declared"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_guest_releases_recorded_where_guests_present",
+            "status": "pass",
+            "evidence": "no guest voices declared"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_authorization_recorded_where_planned",
+            "status": "pass",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_destination_matches_authorization_where_planned",
+            "status": "pass",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_timing_matches_authorization_where_planned",
+            "status": "pass",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_ai_narration_disclosed_where_ai_narrated",
+            "status": "pass",
+            "evidence": "no AI narration declared"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_fabricated_quote_statistic_or_source",
+            "status": "fail",
+            "evidence": "red line: no fabricated quote, statistic or source is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_words_attributed_beyond_source",
+            "status": "pass",
+            "evidence": "red line: no words are attributed to a person that the source does not show them saying"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_publishing_beyond_authorized_scope",
+            "status": "pass",
+            "evidence": "red line: no publishing or scheduling beyond the scope authorized for this episode is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_ai_narration_presented_as_human_without_disclosure",
+            "status": "pass",
+            "evidence": "red line: no AI-narrated episode presented as a human recording without disclosure is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_copyrighted_audio_without_clear_right",
+            "status": "pass",
+            "evidence": "red line: no copyrighted audio or music used without a clear right to it is present in the record"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "episode_outline_sections_count": 1,
+        "podcast_sources_count": 1,
+        "podcast_claims_count": 1,
+        "duplicate_episode_outline_section_ids": [],
+        "duplicate_podcast_source_ids": [],
+        "duplicate_podcast_claim_ids": [],
+        "episode_outline_sections_without_purpose": [],
+        "episode_outline_sections_not_supporting_main_point": [
+          "s1"
+        ],
+        "podcast_sources_without_citation": [],
+        "podcast_claims_with_invalid_kind": [
+          "c1"
+        ],
+        "podcast_claims_with_unknown_source_reference": [
+          "c1"
+        ],
+        "podcast_claims_with_unmarked_source": [],
+        "podcast_sources_missing_from_show_notes": [],
+        "show_notes_source_ids_not_declared_as_sources": [],
+        "outline_section_support_ratio": "0.000000",
+        "source_citation_ratio": "1.000000",
+        "traced_claim_ratio": "0.000000",
+        "show_notes_source_coverage_ratio": "1.000000",
+        "summary": "48 pass, 4 fail, 0 missing of 52 checks across seven sections.",
+        "stamp": "SOURCED PODCAST EPISODE PRODUCTION\nepisode_title: The Future of AI\nVERDICT: EPISODE_PRODUCTION_NOT_SOUND\n  episode_scoping_and_outline                  fail\n  sources_and_claim_traceability               fail\n  script_for_listening                         pass\n  narration_and_assembly_qc                    pass\n  show_notes_and_rights                        pass\n  publishing_and_disclosure                    pass\n  red_lines                                    fail\n48 pass, 4 fail, 0 missing of 52 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists and boolean flags results in insufficient evidence."
+      },
+      "input": {
+        "episode_title": "Empty Record"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "sourced-podcast-episode-production",
+        "atom_version": "0.1.0",
+        "episode_title": "Empty Record",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "episode_scoping_and_outline": "insufficient_evidence",
+          "sources_and_claim_traceability": "insufficient_evidence",
+          "script_for_listening": "insufficient_evidence",
+          "narration_and_assembly_qc": "insufficient_evidence",
+          "show_notes_and_rights": "insufficient_evidence",
+          "publishing_and_disclosure": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_topic_scoped",
+            "status": "missing",
+            "evidence": "scoping: the episode topic was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_audience_scoped",
+            "status": "missing",
+            "evidence": "scoping: the episode audience was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_target_length_scoped",
+            "status": "missing",
+            "evidence": "scoping: the episode target length was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_main_point_scoped",
+            "status": "missing",
+            "evidence": "scoping: the episode's single main point was scoped before writing"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_distribution_intent_confirmed",
+            "status": "missing",
+            "evidence": "scoping: whether the episode is for the caller alone or for publishing later was confirmed"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_scoped_before_writing",
+            "status": "missing",
+            "evidence": "scoping / quality gate: topic, audience, length and main point were scoped before writing began"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "podcast_episode_outline_sections_list_declared",
+            "status": "missing",
+            "evidence": "outline: the declared record names its episode outline sections \u2014 the list is present and names at least one section; an absent list is missing evidence and an empty list declares no outline at all"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_id_unique",
+            "status": "missing",
+            "evidence": "outline sections: no declared section_id is owned by more than one row"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_purpose_declared",
+            "status": "missing",
+            "evidence": "outline: every declared section declares a non-empty purpose \u2014 each section earns its place"
+          },
+          {
+            "section": "episode_scoping_and_outline",
+            "check": "every_podcast_episode_outline_section_supports_main_point",
+            "status": "missing",
+            "evidence": "outline: every declared section is declared to support the episode's single main point"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_sources_collected_before_writing",
+            "status": "missing",
+            "evidence": "research: sources were collected before writing anything"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_source_list_kept_beside_draft",
+            "status": "missing",
+            "evidence": "research: the source list was kept beside the draft from the first line onward"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_script_checked_claim_by_claim",
+            "status": "missing",
+            "evidence": "claim check: the script was checked claim by claim against the source list"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_unsupported_claims_cut_or_softened",
+            "status": "missing",
+            "evidence": "claim check: anything no collected source supports was cut or softened"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_sources_list_declared",
+            "status": "missing",
+            "evidence": "sources: the declared record names its sources \u2014 the list is present and names at least one source; an absent list is missing evidence and an empty list declares no sourced episode at all"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_source_id_unique",
+            "status": "missing",
+            "evidence": "sources: no declared source_id is owned by more than one row"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_source_citation_recorded",
+            "status": "missing",
+            "evidence": "sources: every declared source declares a non-empty citation or link as recorded"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "podcast_episode_claims_list_declared",
+            "status": "missing",
+            "evidence": "claims: the declared record names its quote and statistic claim rows \u2014 the list is present and names at least one claim; an absent list is missing evidence and an empty list declares no traced claims at all"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_id_unique",
+            "status": "missing",
+            "evidence": "claims: no declared claim_id is owned by more than one row"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_kind_recognised",
+            "status": "missing",
+            "evidence": "claims: every declared claim's kind is one of quote, statistic \u2014 the two kinds the skill requires to be marked with a source"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_traced_to_declared_source",
+            "status": "missing",
+            "evidence": "claims / quality gate: every declared quote and statistic traces to a source_id named in the declared source list"
+          },
+          {
+            "section": "sources_and_claim_traceability",
+            "check": "every_podcast_claim_source_marked_in_script",
+            "status": "missing",
+            "evidence": "claims: every declared quote and statistic is marked in the script with the source it came from"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_written_for_the_ear",
+            "status": "missing",
+            "evidence": "script / quality gate: the script was written for listening, not adapted from dense prose"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_uses_short_sentences",
+            "status": "missing",
+            "evidence": "script: the script uses short sentences written for the ear"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_uses_signposts",
+            "status": "missing",
+            "evidence": "script: the script uses signposts written for the ear"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_has_no_visual_references",
+            "status": "missing",
+            "evidence": "script: the script contains no visual references"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_opens_with_main_point",
+            "status": "missing",
+            "evidence": "outline / script: the script opens with the point"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_supports_point_in_order",
+            "status": "missing",
+            "evidence": "outline / script: the script supports the point in order"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_closes_with_what_matters",
+            "status": "missing",
+            "evidence": "outline / script: the script closes with what matters"
+          },
+          {
+            "section": "script_for_listening",
+            "check": "podcast_episode_script_approved_before_narration",
+            "status": "missing",
+            "evidence": "script: the script was approved before narration \u2014 narration is of the approved script"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_narration_voice_confirmed",
+            "status": "missing",
+            "evidence": "narration: the narration voice was confirmed before narration"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_narration_pace_confirmed",
+            "status": "missing",
+            "evidence": "narration: the narration pace was confirmed before narration"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_long_script_chunked_at_section_breaks",
+            "status": "missing",
+            "evidence": "narration: a long script was chunked at section breaks, where the script is long"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_audio_assembled",
+            "status": "missing",
+            "evidence": "assembly: the episode audio was assembled"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_opening_listen_back_checked",
+            "status": "missing",
+            "evidence": "assembly / quality gate: narration was checked by listening back to the opening"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_section_joins_listen_back_checked",
+            "status": "missing",
+            "evidence": "assembly / quality gate: narration was checked by listening back at the section joins"
+          },
+          {
+            "section": "narration_and_assembly_qc",
+            "check": "podcast_episode_misreads_and_awkward_joins_fixed",
+            "status": "missing",
+            "evidence": "assembly: misreads and awkward joins found on listen-back were fixed before the episode was called done"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_summary",
+            "status": "missing",
+            "evidence": "show notes: the show notes include a short summary"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_main_points",
+            "status": "missing",
+            "evidence": "show notes: the show notes include the main points"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_include_complete_source_list",
+            "status": "missing",
+            "evidence": "show notes / quality gate: the show notes include the complete source list"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_show_notes_source_ids_match_declared_sources",
+            "status": "missing",
+            "evidence": "show notes: the source ids declared included in the show notes are exactly the declared source ids \u2014 none missing, none extra"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_copyrighted_audio_rights_cleared_where_used",
+            "status": "missing",
+            "evidence": "no copyrighted audio or music use declared"
+          },
+          {
+            "section": "show_notes_and_rights",
+            "check": "podcast_episode_guest_releases_recorded_where_guests_present",
+            "status": "missing",
+            "evidence": "no guest voices declared"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_authorization_recorded_where_planned",
+            "status": "missing",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_destination_matches_authorization_where_planned",
+            "status": "missing",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_publishing_timing_matches_authorization_where_planned",
+            "status": "missing",
+            "evidence": "no publishing or scheduling declared planned"
+          },
+          {
+            "section": "publishing_and_disclosure",
+            "check": "podcast_episode_ai_narration_disclosed_where_ai_narrated",
+            "status": "missing",
+            "evidence": "no AI narration declared"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_fabricated_quote_statistic_or_source",
+            "status": "missing",
+            "evidence": "red line: no fabricated quote, statistic or source is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_words_attributed_beyond_source",
+            "status": "missing",
+            "evidence": "red line: no words are attributed to a person that the source does not show them saying"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_publishing_beyond_authorized_scope",
+            "status": "missing",
+            "evidence": "red line: no publishing or scheduling beyond the scope authorized for this episode is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_ai_narration_presented_as_human_without_disclosure",
+            "status": "missing",
+            "evidence": "red line: no AI-narrated episode presented as a human recording without disclosure is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "podcast_episode_free_of_copyrighted_audio_without_clear_right",
+            "status": "missing",
+            "evidence": "red line: no copyrighted audio or music used without a clear right to it is present in the record"
+          }
+        ],
+        "computed_status": null,
+        "episode_outline_sections_count": null,
+        "podcast_sources_count": null,
+        "podcast_claims_count": null,
+        "duplicate_episode_outline_section_ids": null,
+        "duplicate_podcast_source_ids": null,
+        "duplicate_podcast_claim_ids": null,
+        "episode_outline_sections_without_purpose": null,
+        "episode_outline_sections_not_supporting_main_point": null,
+        "podcast_sources_without_citation": null,
+        "podcast_claims_with_invalid_kind": null,
+        "podcast_claims_with_unknown_source_reference": null,
+        "podcast_claims_with_unmarked_source": null,
+        "podcast_sources_missing_from_show_notes": null,
+        "show_notes_source_ids_not_declared_as_sources": null,
+        "outline_section_support_ratio": null,
+        "source_citation_ratio": null,
+        "traced_claim_ratio": null,
+        "show_notes_source_coverage_ratio": null,
+        "summary": "0 pass, 0 fail, 52 missing of 52 checks across seven sections.",
+        "stamp": "SOURCED PODCAST EPISODE PRODUCTION\nepisode_title: Empty Record\nVERDICT: INSUFFICIENT_EVIDENCE\n  episode_scoping_and_outline                  insufficient_evidence\n  sources_and_claim_traceability               insufficient_evidence\n  script_for_listening                         insufficient_evidence\n  narration_and_assembly_qc                    insufficient_evidence\n  show_notes_and_rights                        insufficient_evidence\n  publishing_and_disclosure                    insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 52 missing of 52 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on scoping field triggers 422."
+      },
+      "input": {
+        "episode_title": "Malformed",
+        "scoping": "not_an_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "scoping",
+        "detail": "scoping must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}
