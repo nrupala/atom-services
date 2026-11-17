@@ -1,0 +1,98 @@
+# Independent recompute — technical-documentation-pack
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+### Declared list lengths (counts)
+- `documents`: 1 row (`doc_001`) → `documentation_set_docs_count` = **1**. Artifact: 1 → **MATCH**
+- `config_options`: 1 row (`opt_001`) → `documentation_config_options_count` = **1**. Artifact: 1 → **MATCH**
+- `endpoints`: 1 row (`ep_001`) → `documentation_endpoints_count` = **1**. Artifact: 1 → **MATCH**
+- `decision_records`: 1 row (`adr_001`) → `documentation_decision_records_count` = **1**. Artifact: 1 → **MATCH**
+
+### Duplicate-id lists
+Each list has exactly one row, so no id can repeat.
+- `duplicate_technical_documentation_doc_ids` = [] → **MATCH**
+- `duplicate_technical_documentation_config_option_ids` = [] → **MATCH**
+- `duplicate_technical_documentation_endpoint_ids` = [] → **MATCH**
+- `duplicate_technical_documentation_decision_record_ids` = [] → **MATCH**
+
+### Row-name failure lists
+- `docs_with_invalid_kind`: `doc_001` kind = `readme`, which is in the allowed set {readme, runbook, api_doc, decision_record, changelog, reference, how_to, conceptual} → no invalid → [] → **MATCH**
+- `docs_without_source_location`: `source_location` = "src/README.md" (non-empty) → [] → **MATCH**
+- `docs_without_source_of_truth`: `source_of_truth` = "repo_root" (non-empty) → [] → **MATCH**
+- `config_options_without_default`: `default_value` = "true" (non-empty) → [] → **MATCH**
+- `config_options_not_documented`: `documented` = true → [] → **MATCH**
+- `endpoints_without_working_example`: `has_working_example` = true → [] → **MATCH**
+- `endpoints_with_unverified_example`: `example_verified_against_contract` = true → [] → **MATCH**
+- `endpoints_with_unknown_doc_reference`: `documented_in_doc_id` = "doc_001", which is a declared doc → [] → **MATCH**
+- `decision_records_not_cross_linked`: `cross_linked_from_code` = true → [] → **MATCH**
+- `decision_records_with_unknown_doc_reference`: `documented_in_doc_id` = "doc_001", declared → [] → **MATCH**
+
+### Ratios (rule: round half up to 6dp, `floor(v*1000000 + 0.5)/1000000`, format exactly 6 decimals)
+- `doc_source_of_truth_ratio` = docs with declared source of truth ÷ declared docs = 1/1 = 1.0 → floor(1.0·1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1 → "1.000000". Artifact: "1.000000" → **MATCH**
+- `config_option_documentation_ratio` = options (default declared AND documented) ÷ options = 1/1 = 1 → "1.000000". Artifact: "1.000000" → **MATCH**
+- `endpoint_worked_example_ratio` = endpoints (working example AND verified) ÷ endpoints = 1/1 = 1 → "1.000000". Artifact: "1.000000" → **MATCH**
+- `decision_record_cross_link_ratio` = records cross-linked ÷ records = 1/1 = 1 → "1.000000". Artifact: "1.000000" → **MATCH**
+
+### Check statuses / verdict
+All 46 checks: every declared boolean is true (or the red-line booleans are false, which is the passing value), all lists non-empty, all cross-references resolve, versions equal ("1.0.0" == "1.0.0"), screenshots gate = false so the currentness check passes as N/A. → 46 pass, 0 fail, 0 missing.
+- `computed_status` = `within_stated_limits_on_declared_evidence` → **MATCH**
+- `verdict` = `TECHNICAL_DOCUMENTATION_SOUND` → **MATCH**
+- `summary` = "46 pass, 0 fail, 0 missing of 46 checks across eight sections." → **MATCH**
+
+## Case 2: `violations`
+
+Planted wrong values: `documents[0].doc_kind` = "invalid_kind"; `config_options[0].documented` = false; `versioning.doc_set_version` = "9.9.9" vs `product_version` = "1.0.0".
+
+### Counts
+- docs = 1, config_options = 1, endpoints = 1, decision_records = 1 → all **MATCH** (artifact: 1,1,1,1)
+
+### Duplicate-id lists
+All single-row lists → all [] → **MATCH** (all four)
+
+### Row-name failure lists
+- `docs_with_invalid_kind`: "invalid_kind" ∉ allowed set → `doc_001` fails → ["doc_001"]. Artifact: ["doc_001"] → **MATCH**
+- `docs_without_source_location`: "src/README.md" non-empty → [] → **MATCH**
+- `docs_without_source_of_truth`: "repo_root" non-empty → [] → **MATCH**
+- `config_options_without_default`: "true" non-empty → [] → **MATCH**
+- `config_options_not_documented`: `documented` = false → `opt_001` fails → ["opt_001"]. Artifact: ["opt_001"] → **MATCH**
+- `endpoints_without_working_example`: true → [] → **MATCH**
+- `endpoints_with_unverified_example`: true → [] → **MATCH**
+- `endpoints_with_unknown_doc_reference`: "doc_001" declared → [] → **MATCH**
+- `decision_records_not_cross_linked`: true → [] → **MATCH**
+- `decision_records_with_unknown_doc_reference`: "doc_001" declared → [] → **MATCH**
+
+### Ratios
+- `doc_source_of_truth_ratio` = 1/1 = 1 → "1.000000". Artifact: "1.000000" → **MATCH**
+- `config_option_documentation_ratio` = options (default AND documented) ÷ options = 0/1 = 0 → floor(0·1000000 + 0.5)/1000000 = floor(0.5)/1000000 = 0/1000000 = 0 → "0.000000". Artifact: "0.000000" → **MATCH**
+- `endpoint_worked_example_ratio` = 1/1 = 1 → "1.000000". Artifact: "1.000000" → **MATCH**
+- `decision_record_cross_link_ratio` = 1/1 = 1 → "1.000000". Artifact: "1.000000" → **MATCH**
+
+### Which checks should fail
+The three planted wrong values should fail exactly three checks:
+1. `every_technical_documentation_doc_kind_recognised` (invalid_kind) — section `readme_and_doc_set_structure`
+2. `every_technical_documentation_config_option_documented` (documented=false) — section `docs_as_code_and_source_of_truth`
+3. `technical_documentation_doc_set_version_matches_product_version` ("9.9.9" ≠ "1.0.0") — section `changelog_and_versioning`
+
+Artifact fails exactly these three checks, and no others. → **MATCH** (fail set is exactly the planted ones).
+
+### Section statuses
+- `readme_and_doc_set_structure`: fail (check 1) → **MATCH**
+- `docs_as_code_and_source_of_truth`: fail (check 2) → **MATCH**
+- `api_docs_and_worked_examples`: pass → **MATCH**
+- `decision_records_and_cross_links`: pass → **MATCH**
+- `review_verification_and_testing`: pass → **MATCH**
+- `plain_language_and_examples`: pass → **MATCH**
+- `changelog_and_versioning`: fail (check 3) → **MATCH**
+- `red_lines`: pass → **MATCH**
+
+### Verdict / status / summary
+- `computed_status` = `outside_stated_limits_on_declared_evidence` (a check failed) → **MATCH**
+- `verdict` = `TECHNICAL_DOCUMENTATION_NOT_SOUND` → **MATCH**
+- `summary` = "43 pass, 3 fail, 0 missing of 46 checks across eight sections." (46 − 3 = 43 pass) → **MATCH**
+
+## Conclusion
+Every computed quantity in both cases — counts, duplicate lists, row-name failure lists, all four ratios (with the exact 6dp half-up serialization), section statuses, `computed_status`, verdict, and summary — recomputes to the artifact's recorded values. In the violations case the failing checks are exactly the three the planted wrong values should trigger.
+
+AGREEMENT: full

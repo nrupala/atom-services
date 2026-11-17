@@ -1,0 +1,466 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: testing-strategy-regression-pack
+
+=== contract.yaml ===
+service_name: testing-strategy-regression-pack
+display_name: Testing strategy regression pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:testing-strategy
+binding:
+  skill: testing-strategy
+  skill_path: workspace/mymilo-build/skills/testing-strategy/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: testing_strategy_regression_pack
+  prefix: atm_1_testing_strategy_regression_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: QA planning for product builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Testing strategy regression pack — `testing-strategy-regression-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Test at the right level for each risk — unit, integration, end-to-end — plus regression per defect and flake control.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared testing strategy + regression plan record** and receives the audit verdict as the deliverable: the atom runs no tests, inspects no code and executes no suite (see Honest scoping).
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **QA planning for product builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the testing strategy + regression plan manifest
+
+The caller submits one JSON manifest: a declared testing
+strategy and regression plan record for one system / change
+set, made from the plan as actually drawn up. Every field
+below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a
+field present but false / invalid = the check fails
+(`TESTING_STRATEGY_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `plan_title` (string; carried into the verdict output, not itself checked) | — |
+| `scoping.scope_declared` (boolean) | scope_and_risk_declaration |
+| `scoping.risks_identified_before_planning` (boolean) | scope_and_risk_declaration |
+| `scoping.p0_flows_identified` (boolean) | scope_and_risk_declaration |
+| `scoping.test_plan_document_present` (boolean) | scope_and_risk_declaration |
+| `scoping.test_plan_states_exclusions` (boolean) | scope_and_risk_declaration |
+| `risk_rows` (list of risk-row objects, each with the entry fields below; computed, see below) | scope_and_risk_declaration |
+| `risk_rows[].risk_id` (string; must be unique per row) | scope_and_risk_declaration |
+| `risk_rows[].description` (non-empty string) | scope_and_risk_declaration |
+| `risk_rows[].is_p0` (boolean; must be present per row) | scope_and_risk_declaration |
+| `level_planning.pyramid_applied` (boolean) | test_levels_and_pyramid |
+| `level_planning.logic_tested_at_unit_level` (boolean) | test_levels_and_pyramid |
+| `level_planning.boundaries_tested_at_integration_level` (boolean) | test_levels_and_pyramid |
+| `level_planning.critical_journeys_tested_at_e2e_level` (boolean) | test_levels_and_pyramid |
+| `level_planning.tricky_edge_cases_tested_at_unit_level` (boolean) | test_levels_and_pyramid |
+| `test_level_rows` (list of test-level-row objects, each with the entry fields below; computed, see below) | test_levels_and_pyramid |
+| `test_level_rows[].level_row_id` (string; must be unique per row) | test_levels_and_pyramid |
+| `test_level_rows[].risk_id` (string; computed — must name a declared risk, see below) | test_levels_and_pyramid |
+| `test_level_rows[].test_level` (string; one of `unit`, `integration`, `e2e`) | test_levels_and_pyramid |
+| `regression_planning.regression_test_written_before_defect_fix` (boolean) | regression_coverage |
+| `regression_planning.regression_tests_kept_permanently` (boolean) | regression_coverage |
+| `regression_planning.every_fixed_bug_has_regression_test` (boolean) | regression_coverage |
+| `declared_changes` (list of change-row objects, each with the entry fields below; computed, see below) | regression_coverage |
+| `declared_changes[].change_id` (string; must be unique per row) | regression_coverage |
+| `declared_changes[].change_kind` (string; one of `feature`, `defect_fix`, `refactor`) | regression_coverage |
+| `declared_changes[].description` (non-empty string) | regression_coverage |
+| `regression_rows` (list of regression-row objects, each with the entry fields below; computed, see below) | regression_coverage |
+| `regression_rows[].regression_id` (string; must be unique per row) | regression_coverage |
+| `regression_rows[].change_id` (string; computed — must name a declared change, see below) | regression_coverage |
+| `regression_rows[].kept_permanently` (boolean) | regression_coverage |
+| `fixtures.no_shared_mutable_state` (boolean) | fixtures_and_determinism |
+| `fixtures.explicit_seed_data_used` (boolean) | fixtures_and_determinism |
+| `fixtures.time_controlled` (boolean) | fixtures_and_determinism |
+| `fixtures.randomness_controlled` (boolean) | fixtures_and_determinism |
+| `fixtures.fixtures_declared_for_suites` (boolean) | fixtures_and_determinism |
+| `flake_policy.known_flakes_present` (boolean; gates the ticket check below) | flake_policy |
+| `flake_policy.flakes_quarantined_immediately` (boolean) | flake_policy |
+| `flake_policy.flakes_fixed_within_a_week_or_deleted_consciously` (boolean) | flake_policy |
+| `flake_policy.no_quarantined_test_without_tracked_ticket` (boolean) | flake_policy |
+| `flake_policy.quarantine_ticket_recorded` (boolean; required when known flakes are declared present; otherwise the check passes as not applicable) | flake_policy |
+| `negative_testing.invalid_input_tested` (boolean) | negative_testing |
+| `negative_testing.timeouts_tested` (boolean) | negative_testing |
+| `negative_testing.partial_failures_tested` (boolean) | negative_testing |
+| `negative_testing.retries_tested` (boolean) | negative_testing |
+| `negative_testing.sane_failure_asserted` (boolean) | negative_testing |
+| `entry_exit_and_reporting.entry_criteria_declared` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.exit_criteria_declared` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.full_suite_green_before_handoff` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.report_states_what_ran` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.report_states_what_passed` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.report_states_what_not_covered` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.coverage_gaps_stated_explicitly` (boolean) | entry_exit_and_reporting |
+| `red_lines.tests_depend_on_production_systems_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.tests_depend_on_live_data_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.assertion_weakened_to_fix_test_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Twenty-one checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Risk rows declared:** the declared `risk_rows` list
+  passes when it is present and names at least one risk. An
+  absent list is missing evidence; an empty list fails — it
+  declares no risk-first strategy at all.
+- **Risk ids unique:** no declared `risk_id` may appear on
+  more than one row.
+- **Description per risk:** every declared risk row declares
+  a non-empty `description`. A row with the field absent is
+  missing evidence; a row declaring an empty description
+  fails and is named in `risks_without_description`.
+- **P0 status per risk:** every declared risk row declares
+  its `is_p0` status. A row with the field absent is missing
+  evidence and is named in `risks_without_p0_status`.
+- **Test-level rows declared:** the declared
+  `test_level_rows` list passes when it is present and names
+  at least one row. An absent list is missing evidence; an
+  empty list fails.
+- **Test-level row ids unique:** no declared `level_row_id`
+  may appear on more than one row.
+- **Test level recognised:** every declared row's
+  `test_level` is one of `unit`, `integration`, `e2e` — the
+  three levels the skill names. Any other value fails and
+  is named in `test_level_rows_with_invalid_level`.
+- **Every level row's risk reference resolves:** every
+  declared row's `risk_id` names one of the declared risks.
+  A row with `risk_id` absent, or a record with the risk
+  list absent, is missing evidence; a row naming an
+  undeclared risk fails and is named in
+  `test_level_rows_with_unknown_risk_reference`.
+- **Every declared risk covered by a level row:** every
+  declared risk is named by at least one level row. An
+  uncovered risk fails and is named in
+  `declared_risks_without_test_level_row`.
+- **Every P0 risk covered by an e2e row:** every risk
+  declared `is_p0: true` is named by at least one e2e row
+  (the skill: P0 flows get e2e). A record declaring no P0
+  risks passes this check vacuously. An uncovered P0 risk
+  fails and is named in `p0_risks_without_e2e_row`.
+- **Pyramid level counts in declared order:** the declared
+  level-row counts follow the skill's stated order — at
+  least one row per level, with unit rows >= integration
+  rows >= e2e rows (many / fewer / few).
+- **Declared changes declared:** the declared
+  `declared_changes` list passes when it is present and
+  names at least one change. An absent list is missing
+  evidence; an empty list fails — it declares no regression
+  scope at all.
+- **Change ids unique:** no declared `change_id` may appear
+  on more than one row.
+- **Description per change:** every declared change row
+  declares a non-empty `description`, named in
+  `declared_changes_without_description` when empty.
+- **Change kind recognised:** every declared change's
+  `change_kind` is one of `feature`, `defect_fix`,
+  `refactor` — the work kinds the skill names (feature
+  build, bug fix, refactor). Any other value fails and is
+  named in `declared_changes_with_invalid_kind`.
+- **Regression rows declared:** the declared
+  `regression_rows` list passes when it is present and
+  names at least one row. An absent list is missing
+  evidence; an empty list fails.
+- **Regression row ids unique:** no declared
+  `regression_id` may appear on more than one row.
+- **Every regression row's change reference resolves:**
+  every declared row's `change_id` names one of the
+  declared changes, named in
+  `regression_rows_with_unknown_change_reference` when not.
+- **Every declared change covered by a regression row:**
+  every declared change is named by at least one regression
+  row. An uncovered change fails and is named in
+  `declared_changes_without_regression_row`.
+- **Every defect change covered by a regression row:**
+  every `defect_fix` change is named by at least one
+  regression row (the skill: every confirmed defect gets a
+  regression test). A record declaring no defect changes
+  passes vacuously. An uncovered defect change is named in
+  `defect_changes_without_regression_row`.
+- **Every regression row kept permanently:** every declared
+  regression row declares `kept_permanently: true` (the
+  skill: a regression test is kept forever). A row declaring
+  it false fails and is named in
+  `regression_rows_not_declared_permanent`.
+
+One further check is gated on the record's own declared
+gate field, following the skill's own conditional scope —
+when the gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **Quarantine ticket recorded:** a tracked ticket is
+  required only where `flake_policy.known_flakes_present`
+  is declared `true` (the skill's quality gate: no skipped
+  or quarantined test without a tracked ticket).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twenty-one primary computed checks above cannot be
+completed), `risk_rows_count`, `test_level_rows_count`,
+`declared_changes_count` and `regression_rows_count` (the
+declared list lengths, or null when a list is not declared —
+counts are reported as integers, exactly), the per-level
+counts `unit_level_row_count`,
+`integration_level_row_count` and `e2e_level_row_count`,
+the duplicate-id lists `duplicate_risk_ids`,
+`duplicate_test_level_row_ids`, `duplicate_change_ids` and
+`duplicate_regression_row_ids`, the row-name lists named in
+the computed checks above, and the ratios
+`risk_level_coverage_ratio` (declared risks covered by at
+least one level row ÷ declared risks),
+`p0_e2e_coverage_ratio` (P0 risks covered by an e2e row ÷
+declared P0 risks), `change_regression_coverage_ratio`
+(declared changes covered by a regression row ÷ declared
+changes) and `defect_regression_coverage_ratio` (defect
+changes covered by a regression row ÷ declared defect
+changes). **Fixed serialization rule:** computed ratios are
+reported as strings with exactly six decimal places,
+produced in both implementations by the same rule — round
+half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`, then
+format with exactly six decimals. A ratio is null when its
+denominator list is absent or empty (the P0 ratio is null
+when no P0 risk is declared; the defect ratio is null when
+no defect change is declared). That fixed serialization is
+what makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric coverage threshold at all — its
+demands are the pyramid's stated order, risk-first level
+assignment, regression per defect, deterministic fixtures,
+flake control, negative testing and honest gap reporting,
+not bars the atom can set. Quantities are computed and
+reported; the only bars on the computed rows are exact
+coverage and consistency over the caller's own declared
+rows, exactly as stated above. Declined thresholds, named:
+a code-coverage percentage bar (the skill: coverage is a
+signal, not a goal — no percentage is imported); a minimum
+or maximum number of risks, level rows, changes or
+regression rows beyond at least one each and the pyramid's
+stated count order; a test-count-per-risk bar beyond one
+covering level row (and one e2e row for P0 risks, as the
+skill states); a suite runtime or speed bar; a flake-rate
+bar; a defect-escape or pass-rate bar; any judgment that a
+declared test is well designed, that a declared level is
+the *right* level for a risk beyond the skill's stated
+assignments, or that the strategy will in fact catch
+defects (only that its declared record contains what the
+skill requires).
+
+The verdict is one of `TESTING_STRATEGY_SOUND` (all 58
+checks pass), `TESTING_STRATEGY_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across eight sections:
+scope_and_risk_declaration, test_levels_and_pyramid,
+regression_coverage, fixtures_and_determinism, flake_policy,
+negative_testing, entry_exit_and_reporting, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `designed-test-case-pack`
+(individual designed test cases — equivalence classes,
+boundaries, decision tables and state transitions for
+single cases), `uat-scenario-sign-off-pack` (authored in
+this same batch — business-user acceptance scenarios,
+realistic business data and their sign-off by business
+users) and `correctness-verification-certificate` (claims
+about code correctness carried at an assigned evidence
+level, with proof / verification artifacts). This atom
+shares **zero checks** with any of them (verified
+mechanically by enumerating `evaluate({})` check names from
+every atom oracle in `services/*/src/*.py` and comparing —
+zero overlap): every check here is a testing-strategy
+question — a strategy scoped risk-first with its P0 flows
+identified and a test plan stating its exclusions, every
+declared risk covered at a declared level with P0 risks
+covered end-to-end and the pyramid counts in the skill's
+stated order, every declared change (and in particular
+every defect fix) covered by a permanently kept regression
+row, deterministic fixtures, flakes quarantined immediately
+under a tracked ticket and fixed within a week or deleted
+consciously, negative paths (invalid input, timeouts,
+partial failures, retries) tested with sane failure
+asserted, entry / exit criteria declared, the full suite
+green before handoff, and what ran / passed / is not
+covered reported with gaps stated explicitly. The boundary
+is unmistakable: the engineering testing strategy and
+regression plan here; individual designed test cases, business-user
+acceptance scenarios and their sign-off, and correctness
+proof claims there.
+
+## Honest scoping
+
+This atom reviews a **declared** testing strategy +
+regression plan record — it runs no tests, executes no
+suite, inspects no code, opens no repository, measures no
+coverage and verifies no test result against the world. A
+strategy is sound *on the caller's declared evidence*: a
+record that declares its risks covered, its regression rows
+permanent and its suite green passes those checks even if
+the real plan did none of it. It is a completeness and
+consistency audit of the plan record the skill requires,
+**not a testing service, a test execution, or a guarantee
+that the software works**: it never judges whether a
+declared test is well written, whether a declared risk is
+the real risk, whether the declared levels will catch the
+defects that matter, or whether the product should ship —
+only that the record contains what the skill's method,
+quality gates and red lines demand, and that its declared
+rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never performed or judged): writing the
+tests themselves; running any suite; designing individual
+test cases (the `designed-test-case-pack` sibling's
+ground); business acceptance testing and its sign-off (the
+`uat-scenario-sign-off-pack` sibling's ground); fixing
+defects or flakes; and measuring actual coverage — each is
+EXCLUDED by name from this atom, which audits only the
+declared record of those steps. Boundary cases, named: a
+plan declaring no P0 risk passes the P0-e2e computed check
+vacuously and reports a null P0 ratio (the atom does not
+decide that a real P0 flow was misclassified — P0 status is
+the caller's declaration); a plan declaring no defect
+change likewise passes the defect-regression check
+vacuously with a null defect ratio; the pyramid check
+requires at least one declared row per level, so a
+genuinely unit-only library plan cannot pass this record
+format's pyramid check — such a plan is outside this
+atom's computed reach, not failed on its merits.
+
+## U-13 regulatory screen
+
+Screen classification: **(a) — No outright.** Keyword screen:
+the bound skill and this record name software testing,
+regression, fixtures and flakes — no engineering-practice,
+securities/financial-advice or psychology-adjacent subject,
+and no regulated profession's vocabulary. Substance screen:
+this atom's output could not read as regulated professional
+advice — it audits a caller-**declared** testing strategy +
+regression plan record for completeness and internal
+consistency only (scope / risk, level, change and regression
+declarations, coverage recomputed over the declared rows,
+fixture, flake, negative-testing, entry / exit and reporting
+declarations, and the red lines refused); every output is a
+pass / fail / missing verdict on the record or a ratio
+recomputed from the caller's own declared rows. Named
+controls: (1) it produces **no test, no code and no advice
+of any kind** — no test design, no recommendation about any
+system; the skill's execution steps (writing and running
+tests, fixing defects) are excluded from production by name
+above — this atom performs none of them; (2) it sets **no
+threshold** on any subject matter (see the declined list —
+in particular no coverage-percentage bar is imported);
+(3) the system under test is whatever the caller declares —
+the atom receives no code or test text, takes no position
+on the system's subject, and no output is addressed to any
+regulated decision; (4) the record's subject matter (a
+caller's own software, in whatever domain) is not judged —
+a caller testing regulated-domain software gets a verdict
+on their plan record only, never on the software or its
+compliance. This is not the census class (no regulated
+adjacency to flag) and not the genuinely-open
+personal-financial-snapshot class (no personal position of
+any kind is handled). No deploy happens on this atom without
+the owner's explicit per-unit ruling in any case.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

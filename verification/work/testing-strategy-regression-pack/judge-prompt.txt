@@ -1,0 +1,1978 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: testing-strategy-regression-pack
+
+=== contract.yaml ===
+service_name: testing-strategy-regression-pack
+display_name: Testing strategy regression pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:testing-strategy
+binding:
+  skill: testing-strategy
+  skill_path: workspace/mymilo-build/skills/testing-strategy/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: testing_strategy_regression_pack
+  prefix: atm_1_testing_strategy_regression_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: QA planning for product builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Testing strategy regression pack — `testing-strategy-regression-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Test at the right level for each risk — unit, integration, end-to-end — plus regression per defect and flake control.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared testing strategy + regression plan record** and receives the audit verdict as the deliverable: the atom runs no tests, inspects no code and executes no suite (see Honest scoping).
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **QA planning for product builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the testing strategy + regression plan manifest
+
+The caller submits one JSON manifest: a declared testing
+strategy and regression plan record for one system / change
+set, made from the plan as actually drawn up. Every field
+below is read by the named section's checks. A field
+**absent** = evidence missing (`INSUFFICIENT_EVIDENCE`); a
+field present but false / invalid = the check fails
+(`TESTING_STRATEGY_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `plan_title` (string; carried into the verdict output, not itself checked) | — |
+| `scoping.scope_declared` (boolean) | scope_and_risk_declaration |
+| `scoping.risks_identified_before_planning` (boolean) | scope_and_risk_declaration |
+| `scoping.p0_flows_identified` (boolean) | scope_and_risk_declaration |
+| `scoping.test_plan_document_present` (boolean) | scope_and_risk_declaration |
+| `scoping.test_plan_states_exclusions` (boolean) | scope_and_risk_declaration |
+| `risk_rows` (list of risk-row objects, each with the entry fields below; computed, see below) | scope_and_risk_declaration |
+| `risk_rows[].risk_id` (string; must be unique per row) | scope_and_risk_declaration |
+| `risk_rows[].description` (non-empty string) | scope_and_risk_declaration |
+| `risk_rows[].is_p0` (boolean; must be present per row) | scope_and_risk_declaration |
+| `level_planning.pyramid_applied` (boolean) | test_levels_and_pyramid |
+| `level_planning.logic_tested_at_unit_level` (boolean) | test_levels_and_pyramid |
+| `level_planning.boundaries_tested_at_integration_level` (boolean) | test_levels_and_pyramid |
+| `level_planning.critical_journeys_tested_at_e2e_level` (boolean) | test_levels_and_pyramid |
+| `level_planning.tricky_edge_cases_tested_at_unit_level` (boolean) | test_levels_and_pyramid |
+| `test_level_rows` (list of test-level-row objects, each with the entry fields below; computed, see below) | test_levels_and_pyramid |
+| `test_level_rows[].level_row_id` (string; must be unique per row) | test_levels_and_pyramid |
+| `test_level_rows[].risk_id` (string; computed — must name a declared risk, see below) | test_levels_and_pyramid |
+| `test_level_rows[].test_level` (string; one of `unit`, `integration`, `e2e`) | test_levels_and_pyramid |
+| `regression_planning.regression_test_written_before_defect_fix` (boolean) | regression_coverage |
+| `regression_planning.regression_tests_kept_permanently` (boolean) | regression_coverage |
+| `regression_planning.every_fixed_bug_has_regression_test` (boolean) | regression_coverage |
+| `declared_changes` (list of change-row objects, each with the entry fields below; computed, see below) | regression_coverage |
+| `declared_changes[].change_id` (string; must be unique per row) | regression_coverage |
+| `declared_changes[].change_kind` (string; one of `feature`, `defect_fix`, `refactor`) | regression_coverage |
+| `declared_changes[].description` (non-empty string) | regression_coverage |
+| `regression_rows` (list of regression-row objects, each with the entry fields below; computed, see below) | regression_coverage |
+| `regression_rows[].regression_id` (string; must be unique per row) | regression_coverage |
+| `regression_rows[].change_id` (string; computed — must name a declared change, see below) | regression_coverage |
+| `regression_rows[].kept_permanently` (boolean) | regression_coverage |
+| `fixtures.no_shared_mutable_state` (boolean) | fixtures_and_determinism |
+| `fixtures.explicit_seed_data_used` (boolean) | fixtures_and_determinism |
+| `fixtures.time_controlled` (boolean) | fixtures_and_determinism |
+| `fixtures.randomness_controlled` (boolean) | fixtures_and_determinism |
+| `fixtures.fixtures_declared_for_suites` (boolean) | fixtures_and_determinism |
+| `flake_policy.known_flakes_present` (boolean; gates the ticket check below) | flake_policy |
+| `flake_policy.flakes_quarantined_immediately` (boolean) | flake_policy |
+| `flake_policy.flakes_fixed_within_a_week_or_deleted_consciously` (boolean) | flake_policy |
+| `flake_policy.no_quarantined_test_without_tracked_ticket` (boolean) | flake_policy |
+| `flake_policy.quarantine_ticket_recorded` (boolean; required when known flakes are declared present; otherwise the check passes as not applicable) | flake_policy |
+| `negative_testing.invalid_input_tested` (boolean) | negative_testing |
+| `negative_testing.timeouts_tested` (boolean) | negative_testing |
+| `negative_testing.partial_failures_tested` (boolean) | negative_testing |
+| `negative_testing.retries_tested` (boolean) | negative_testing |
+| `negative_testing.sane_failure_asserted` (boolean) | negative_testing |
+| `entry_exit_and_reporting.entry_criteria_declared` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.exit_criteria_declared` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.full_suite_green_before_handoff` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.report_states_what_ran` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.report_states_what_passed` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.report_states_what_not_covered` (boolean) | entry_exit_and_reporting |
+| `entry_exit_and_reporting.coverage_gaps_stated_explicitly` (boolean) | entry_exit_and_reporting |
+| `red_lines.tests_depend_on_production_systems_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.tests_depend_on_live_data_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.assertion_weakened_to_fix_test_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Twenty-one checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Risk rows declared:** the declared `risk_rows` list
+  passes when it is present and names at least one risk. An
+  absent list is missing evidence; an empty list fails — it
+  declares no risk-first strategy at all.
+- **Risk ids unique:** no declared `risk_id` may appear on
+  more than one row.
+- **Description per risk:** every declared risk row declares
+  a non-empty `description`. A row with the field absent is
+  missing evidence; a row declaring an empty description
+  fails and is named in `risks_without_description`.
+- **P0 status per risk:** every declared risk row declares
+  its `is_p0` status. A row with the field absent is missing
+  evidence and is named in `risks_without_p0_status`.
+- **Test-level rows declared:** the declared
+  `test_level_rows` list passes when it is present and names
+  at least one row. An absent list is missing evidence; an
+  empty list fails.
+- **Test-level row ids unique:** no declared `level_row_id`
+  may appear on more than one row.
+- **Test level recognised:** every declared row's
+  `test_level` is one of `unit`, `integration`, `e2e` — the
+  three levels the skill names. Any other value fails and
+  is named in `test_level_rows_with_invalid_level`.
+- **Every level row's risk reference resolves:** every
+  declared row's `risk_id` names one of the declared risks.
+  A row with `risk_id` absent, or a record with the risk
+  list absent, is missing evidence; a row naming an
+  undeclared risk fails and is named in
+  `test_level_rows_with_unknown_risk_reference`.
+- **Every declared risk covered by a level row:** every
+  declared risk is named by at least one level row. An
+  uncovered risk fails and is named in
+  `declared_risks_without_test_level_row`.
+- **Every P0 risk covered by an e2e row:** every risk
+  declared `is_p0: true` is named by at least one e2e row
+  (the skill: P0 flows get e2e). A record declaring no P0
+  risks passes this check vacuously. An uncovered P0 risk
+  fails and is named in `p0_risks_without_e2e_row`.
+- **Pyramid level counts in declared order:** the declared
+  level-row counts follow the skill's stated order — at
+  least one row per level, with unit rows >= integration
+  rows >= e2e rows (many / fewer / few).
+- **Declared changes declared:** the declared
+  `declared_changes` list passes when it is present and
+  names at least one change. An absent list is missing
+  evidence; an empty list fails — it declares no regression
+  scope at all.
+- **Change ids unique:** no declared `change_id` may appear
+  on more than one row.
+- **Description per change:** every declared change row
+  declares a non-empty `description`, named in
+  `declared_changes_without_description` when empty.
+- **Change kind recognised:** every declared change's
+  `change_kind` is one of `feature`, `defect_fix`,
+  `refactor` — the work kinds the skill names (feature
+  build, bug fix, refactor). Any other value fails and is
+  named in `declared_changes_with_invalid_kind`.
+- **Regression rows declared:** the declared
+  `regression_rows` list passes when it is present and
+  names at least one row. An absent list is missing
+  evidence; an empty list fails.
+- **Regression row ids unique:** no declared
+  `regression_id` may appear on more than one row.
+- **Every regression row's change reference resolves:**
+  every declared row's `change_id` names one of the
+  declared changes, named in
+  `regression_rows_with_unknown_change_reference` when not.
+- **Every declared change covered by a regression row:**
+  every declared change is named by at least one regression
+  row. An uncovered change fails and is named in
+  `declared_changes_without_regression_row`.
+- **Every defect change covered by a regression row:**
+  every `defect_fix` change is named by at least one
+  regression row (the skill: every confirmed defect gets a
+  regression test). A record declaring no defect changes
+  passes vacuously. An uncovered defect change is named in
+  `defect_changes_without_regression_row`.
+- **Every regression row kept permanently:** every declared
+  regression row declares `kept_permanently: true` (the
+  skill: a regression test is kept forever). A row declaring
+  it false fails and is named in
+  `regression_rows_not_declared_permanent`.
+
+One further check is gated on the record's own declared
+gate field, following the skill's own conditional scope —
+when the gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **Quarantine ticket recorded:** a tracked ticket is
+  required only where `flake_policy.known_flakes_present`
+  is declared `true` (the skill's quality gate: no skipped
+  or quarantined test without a tracked ticket).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twenty-one primary computed checks above cannot be
+completed), `risk_rows_count`, `test_level_rows_count`,
+`declared_changes_count` and `regression_rows_count` (the
+declared list lengths, or null when a list is not declared —
+counts are reported as integers, exactly), the per-level
+counts `unit_level_row_count`,
+`integration_level_row_count` and `e2e_level_row_count`,
+the duplicate-id lists `duplicate_risk_ids`,
+`duplicate_test_level_row_ids`, `duplicate_change_ids` and
+`duplicate_regression_row_ids`, the row-name lists named in
+the computed checks above, and the ratios
+`risk_level_coverage_ratio` (declared risks covered by at
+least one level row ÷ declared risks),
+`p0_e2e_coverage_ratio` (P0 risks covered by an e2e row ÷
+declared P0 risks), `change_regression_coverage_ratio`
+(declared changes covered by a regression row ÷ declared
+changes) and `defect_regression_coverage_ratio` (defect
+changes covered by a regression row ÷ declared defect
+changes). **Fixed serialization rule:** computed ratios are
+reported as strings with exactly six decimal places,
+produced in both implementations by the same rule — round
+half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`, then
+format with exactly six decimals. A ratio is null when its
+denominator list is absent or empty (the P0 ratio is null
+when no P0 risk is declared; the defect ratio is null when
+no defect change is declared). That fixed serialization is
+what makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric coverage threshold at all — its
+demands are the pyramid's stated order, risk-first level
+assignment, regression per defect, deterministic fixtures,
+flake control, negative testing and honest gap reporting,
+not bars the atom can set. Quantities are computed and
+reported; the only bars on the computed rows are exact
+coverage and consistency over the caller's own declared
+rows, exactly as stated above. Declined thresholds, named:
+a code-coverage percentage bar (the skill: coverage is a
+signal, not a goal — no percentage is imported); a minimum
+or maximum number of risks, level rows, changes or
+regression rows beyond at least one each and the pyramid's
+stated count order; a test-count-per-risk bar beyond one
+covering level row (and one e2e row for P0 risks, as the
+skill states); a suite runtime or speed bar; a flake-rate
+bar; a defect-escape or pass-rate bar; any judgment that a
+declared test is well designed, that a declared level is
+the *right* level for a risk beyond the skill's stated
+assignments, or that the strategy will in fact catch
+defects (only that its declared record contains what the
+skill requires).
+
+The verdict is one of `TESTING_STRATEGY_SOUND` (all 58
+checks pass), `TESTING_STRATEGY_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across eight sections:
+scope_and_risk_declaration, test_levels_and_pyramid,
+regression_coverage, fixtures_and_determinism, flake_policy,
+negative_testing, entry_exit_and_reporting, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `designed-test-case-pack`
+(individual designed test cases — equivalence classes,
+boundaries, decision tables and state transitions for
+single cases), `uat-scenario-sign-off-pack` (authored in
+this same batch — business-user acceptance scenarios,
+realistic business data and their sign-off by business
+users) and `correctness-verification-certificate` (claims
+about code correctness carried at an assigned evidence
+level, with proof / verification artifacts). This atom
+shares **zero checks** with any of them (verified
+mechanically by enumerating `evaluate({})` check names from
+every atom oracle in `services/*/src/*.py` and comparing —
+zero overlap): every check here is a testing-strategy
+question — a strategy scoped risk-first with its P0 flows
+identified and a test plan stating its exclusions, every
+declared risk covered at a declared level with P0 risks
+covered end-to-end and the pyramid counts in the skill's
+stated order, every declared change (and in particular
+every defect fix) covered by a permanently kept regression
+row, deterministic fixtures, flakes quarantined immediately
+under a tracked ticket and fixed within a week or deleted
+consciously, negative paths (invalid input, timeouts,
+partial failures, retries) tested with sane failure
+asserted, entry / exit criteria declared, the full suite
+green before handoff, and what ran / passed / is not
+covered reported with gaps stated explicitly. The boundary
+is unmistakable: the engineering testing strategy and
+regression plan here; individual designed test cases, business-user
+acceptance scenarios and their sign-off, and correctness
+proof claims there.
+
+## Honest scoping
+
+This atom reviews a **declared** testing strategy +
+regression plan record — it runs no tests, executes no
+suite, inspects no code, opens no repository, measures no
+coverage and verifies no test result against the world. A
+strategy is sound *on the caller's declared evidence*: a
+record that declares its risks covered, its regression rows
+permanent and its suite green passes those checks even if
+the real plan did none of it. It is a completeness and
+consistency audit of the plan record the skill requires,
+**not a testing service, a test execution, or a guarantee
+that the software works**: it never judges whether a
+declared test is well written, whether a declared risk is
+the real risk, whether the declared levels will catch the
+defects that matter, or whether the product should ship —
+only that the record contains what the skill's method,
+quality gates and red lines demand, and that its declared
+rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never performed or judged): writing the
+tests themselves; running any suite; designing individual
+test cases (the `designed-test-case-pack` sibling's
+ground); business acceptance testing and its sign-off (the
+`uat-scenario-sign-off-pack` sibling's ground); fixing
+defects or flakes; and measuring actual coverage — each is
+EXCLUDED by name from this atom, which audits only the
+declared record of those steps. Boundary cases, named: a
+plan declaring no P0 risk passes the P0-e2e computed check
+vacuously and reports a null P0 ratio (the atom does not
+decide that a real P0 flow was misclassified — P0 status is
+the caller's declaration); a plan declaring no defect
+change likewise passes the defect-regression check
+vacuously with a null defect ratio; the pyramid check
+requires at least one declared row per level, so a
+genuinely unit-only library plan cannot pass this record
+format's pyramid check — such a plan is outside this
+atom's computed reach, not failed on its merits.
+
+## U-13 regulatory screen
+
+Screen classification: **(a) — No outright.** Keyword screen:
+the bound skill and this record name software testing,
+regression, fixtures and flakes — no engineering-practice,
+securities/financial-advice or psychology-adjacent subject,
+and no regulated profession's vocabulary. Substance screen:
+this atom's output could not read as regulated professional
+advice — it audits a caller-**declared** testing strategy +
+regression plan record for completeness and internal
+consistency only (scope / risk, level, change and regression
+declarations, coverage recomputed over the declared rows,
+fixture, flake, negative-testing, entry / exit and reporting
+declarations, and the red lines refused); every output is a
+pass / fail / missing verdict on the record or a ratio
+recomputed from the caller's own declared rows. Named
+controls: (1) it produces **no test, no code and no advice
+of any kind** — no test design, no recommendation about any
+system; the skill's execution steps (writing and running
+tests, fixing defects) are excluded from production by name
+above — this atom performs none of them; (2) it sets **no
+threshold** on any subject matter (see the declined list —
+in particular no coverage-percentage bar is imported);
+(3) the system under test is whatever the caller declares —
+the atom receives no code or test text, takes no position
+on the system's subject, and no output is addressed to any
+regulated decision; (4) the record's subject matter (a
+caller's own software, in whatever domain) is not judged —
+a caller testing regulated-domain software gets a verdict
+on their plan record only, never on the software or its
+compliance. This is not the census class (no regulated
+adjacency to flag) and not the genuinely-open
+personal-financial-snapshot class (no personal position of
+any kind is handled). No deploy happens on this atom without
+the owner's explicit per-unit ruling in any case.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "testing-strategy-regression-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "TESTING_STRATEGY_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All pyramid, coverage, and consistency checks pass. computed_spot_checks: risk_rows_count=1, test_level_rows_count=3, declared_changes_count=1, regression_rows_count=1.",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "risk_rows_count": 1,
+          "test_level_rows_count": 3,
+          "declared_changes_count": 1,
+          "regression_rows_count": 1,
+          "unit_level_row_count": 1,
+          "integration_level_row_count": 1,
+          "e2e_level_row_count": 1,
+          "duplicate_risk_ids": [],
+          "duplicate_test_level_row_ids": [],
+          "duplicate_change_ids": [],
+          "duplicate_regression_row_ids": [],
+          "risks_without_description": [],
+          "risks_without_p0_status": [],
+          "test_level_rows_with_invalid_level": [],
+          "test_level_rows_with_unknown_risk_reference": [],
+          "declared_risks_without_test_level_row": [],
+          "p0_risks_without_e2e_row": [],
+          "declared_changes_without_description": [],
+          "declared_changes_with_invalid_kind": [],
+          "regression_rows_with_unknown_change_reference": [],
+          "declared_changes_without_regression_row": [],
+          "defect_changes_without_regression_row": [],
+          "regression_rows_not_declared_permanent": [],
+          "risk_level_coverage_ratio": "1.000000",
+          "p0_e2e_coverage_ratio": "1.000000",
+          "change_regression_coverage_ratio": "1.000000",
+          "defect_regression_coverage_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "plan_title": "Core Service Regression",
+        "scoping": {
+          "scope_declared": true,
+          "risks_identified_before_planning": true,
+          "p0_flows_identified": true,
+          "test_plan_document_present": true,
+          "test_plan_states_exclusions": true
+        },
+        "risk_rows": [
+          {
+            "risk_id": "r1",
+            "description": "Auth failure",
+            "is_p0": true
+          }
+        ],
+        "level_planning": {
+          "pyramid_applied": true,
+          "logic_tested_at_unit_level": true,
+          "boundaries_tested_at_integration_level": true,
+          "critical_journeys_tested_at_e2e_level": true,
+          "tricky_edge_cases_tested_at_unit_level": true
+        },
+        "test_level_rows": [
+          {
+            "level_row_id": "l1",
+            "risk_id": "r1",
+            "test_level": "unit"
+          },
+          {
+            "level_row_id": "l2",
+            "risk_id": "r1",
+            "test_level": "integration"
+          },
+          {
+            "level_row_id": "l3",
+            "risk_id": "r1",
+            "test_level": "e2e"
+          }
+        ],
+        "regression_planning": {
+          "regression_test_written_before_defect_fix": true,
+          "regression_tests_kept_permanently": true,
+          "every_fixed_bug_has_regression_test": true
+        },
+        "declared_changes": [
+          {
+            "change_id": "c1",
+            "change_kind": "defect_fix",
+            "description": "Fix login bug"
+          }
+        ],
+        "regression_rows": [
+          {
+            "regression_id": "reg1",
+            "change_id": "c1",
+            "kept_permanently": true
+          }
+        ],
+        "fixtures": {
+          "no_shared_mutable_state": true,
+          "explicit_seed_data_used": true,
+          "time_controlled": true,
+          "randomness_controlled": true,
+          "fixtures_declared_for_suites": true
+        },
+        "flake_policy": {
+          "known_flakes_present": false,
+          "flakes_quarantined_immediately": true,
+          "flakes_fixed_within_a_week_or_deleted_consciously": true,
+          "no_quarantined_test_without_tracked_ticket": true
+        },
+        "negative_testing": {
+          "invalid_input_tested": true,
+          "timeouts_tested": true,
+          "partial_failures_tested": true,
+          "retries_tested": true,
+          "sane_failure_asserted": true
+        },
+        "entry_exit_and_reporting": {
+          "entry_criteria_declared": true,
+          "exit_criteria_declared": true,
+          "full_suite_green_before_handoff": true,
+          "report_states_what_ran": true,
+          "report_states_what_passed": true,
+          "report_states_what_not_covered": true,
+          "coverage_gaps_stated_explicitly": true
+        },
+        "red_lines": {
+          "tests_depend_on_production_systems_present": false,
+          "tests_depend_on_live_data_present": false,
+          "assertion_weakened_to_fix_test_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "testing-strategy-regression-pack",
+        "atom_version": "0.1.0",
+        "plan_title": "Core Service Regression",
+        "verdict": "TESTING_STRATEGY_SOUND",
+        "sections": {
+          "scope_and_risk_declaration": "pass",
+          "test_levels_and_pyramid": "pass",
+          "regression_coverage": "pass",
+          "fixtures_and_determinism": "pass",
+          "flake_policy": "pass",
+          "negative_testing": "pass",
+          "entry_exit_and_reporting": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_scope_declared",
+            "status": "pass",
+            "evidence": "scope: the system / change scope the strategy covers is declared"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_risks_identified_before_planning",
+            "status": "pass",
+            "evidence": "risk-first: the risks were identified before levels were planned \u2014 test what breaks expensively"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_p0_flows_identified",
+            "status": "pass",
+            "evidence": "risk-first: the P0 flows are identified in the declared record"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_test_plan_document_present",
+            "status": "pass",
+            "evidence": "artifacts: a short test-plan document is present for the work"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_test_plan_states_exclusions",
+            "status": "pass",
+            "evidence": "artifacts: the test plan states what is excluded"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_risk_rows_list_declared",
+            "status": "pass",
+            "evidence": "risk rows: the declared record names its risks \u2014 the list is present and names at least one risk; an absent list is missing evidence and an empty list declares no risk-first strategy at all"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_id_unique",
+            "status": "pass",
+            "evidence": "risk rows: no declared risk_id is owned by more than one row"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_description_declared",
+            "status": "pass",
+            "evidence": "risk rows: every declared risk declares a non-empty description"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_p0_status_declared",
+            "status": "pass",
+            "evidence": "risk rows: every declared risk declares whether it is a P0 risk"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_pyramid_applied",
+            "status": "pass",
+            "evidence": "pyramid: the test pyramid is applied \u2014 many unit, fewer integration, few e2e"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_logic_tested_at_unit_level",
+            "status": "pass",
+            "evidence": "pyramid: logic is tested at the unit level"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_boundaries_tested_at_integration_level",
+            "status": "pass",
+            "evidence": "pyramid: boundaries, DB and API are tested at the integration level"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_critical_journeys_tested_at_e2e_level",
+            "status": "pass",
+            "evidence": "pyramid / quality gate: critical journeys are covered end-to-end"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_tricky_edge_cases_tested_at_unit_level",
+            "status": "pass",
+            "evidence": "risk-first: tricky edge cases get unit tests"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_test_level_rows_list_declared",
+            "status": "pass",
+            "evidence": "level rows: the declared record names its test-level rows \u2014 the list is present and names at least one row; an absent list is missing evidence and an empty list declares no level plan at all"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_id_unique",
+            "status": "pass",
+            "evidence": "level rows: no declared level_row_id is owned by more than one row"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_level_recognised",
+            "status": "pass",
+            "evidence": "level rows: every declared row's level is one of unit, integration, e2e \u2014 the three levels the skill names"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_risk_reference_resolves",
+            "status": "pass",
+            "evidence": "level rows: every declared row's risk_id names a risk in the declared risk list"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_declared_risk_covered_by_level_row",
+            "status": "pass",
+            "evidence": "level rows / risk-first: every declared risk is covered by at least one declared test-level row"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_p0_risk_covered_by_e2e_row",
+            "status": "pass",
+            "evidence": "level rows / risk-first: every declared P0 risk is covered by at least one declared e2e row \u2014 P0 flows get e2e"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_pyramid_level_counts_in_declared_order",
+            "status": "pass",
+            "evidence": "pyramid: the declared level-row counts follow the skill's stated order \u2014 at least one row per level, unit rows >= integration rows >= e2e rows (many / fewer / few)"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_test_written_before_defect_fix",
+            "status": "pass",
+            "evidence": "bug -> test: for bug fixes the regression test is written first, before the fix"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_tests_kept_permanently_declared",
+            "status": "pass",
+            "evidence": "bug -> test: a regression test, once written for a confirmed defect, is kept forever"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_every_fixed_bug_has_regression_test_declared",
+            "status": "pass",
+            "evidence": "quality gate: every fixed bug has a regression test"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_declared_changes_list_declared",
+            "status": "pass",
+            "evidence": "declared changes: the declared record names its change rows \u2014 the list is present and names at least one change; an absent list is missing evidence and an empty list declares no regression scope at all"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_id_unique",
+            "status": "pass",
+            "evidence": "declared changes: no declared change_id is owned by more than one row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_description_declared",
+            "status": "pass",
+            "evidence": "declared changes: every declared change declares a non-empty description"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_kind_recognised",
+            "status": "pass",
+            "evidence": "declared changes: every declared change's kind is one of feature, defect_fix, refactor \u2014 the work kinds the skill names"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_rows_list_declared",
+            "status": "pass",
+            "evidence": "regression rows: the declared record names its regression-suite rows \u2014 the list is present and names at least one row; an absent list is missing evidence and an empty list declares no regression suite at all"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_id_unique",
+            "status": "pass",
+            "evidence": "regression rows: no declared regression_id is owned by more than one row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_change_reference_resolves",
+            "status": "pass",
+            "evidence": "regression rows: every declared row's change_id names a change in the declared change list"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_declared_change_covered_by_regression_row",
+            "status": "pass",
+            "evidence": "regression rows: every declared change is covered by at least one declared regression row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_defect_change_covered_by_regression_row",
+            "status": "pass",
+            "evidence": "regression rows / bug -> test: every declared defect_fix change is covered by at least one declared regression row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_kept_permanently",
+            "status": "pass",
+            "evidence": "regression rows: every declared regression row is declared kept permanently \u2014 it is kept forever"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_have_no_shared_mutable_state",
+            "status": "pass",
+            "evidence": "fixtures: fixtures have no shared mutable state"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_use_explicit_seed_data",
+            "status": "pass",
+            "evidence": "fixtures: fixtures use explicit seed data"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_time_controlled_in_fixtures",
+            "status": "pass",
+            "evidence": "fixtures: time is controlled in the fixtures"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_randomness_controlled_in_fixtures",
+            "status": "pass",
+            "evidence": "fixtures: randomness is controlled in the fixtures"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_declared_for_suites",
+            "status": "pass",
+            "evidence": "artifacts / fixtures: fixtures are declared for the suites per level"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_flakes_quarantined_immediately",
+            "status": "pass",
+            "evidence": "flake policy: a flaky test is quarantined immediately"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_flakes_fixed_within_a_week_or_deleted_consciously",
+            "status": "pass",
+            "evidence": "flake policy: a quarantined flake is fixed within a week, or deleted consciously"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_no_quarantined_test_without_tracked_ticket_declared",
+            "status": "pass",
+            "evidence": "quality gate: no skipped or quarantined test is left without a tracked ticket"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_quarantine_ticket_recorded_where_flakes_present",
+            "status": "pass",
+            "evidence": "no known flakes declared present"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_invalid_input_tested",
+            "status": "pass",
+            "evidence": "negative testing: invalid input is tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_timeouts_tested",
+            "status": "pass",
+            "evidence": "negative testing: timeouts are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_partial_failures_tested",
+            "status": "pass",
+            "evidence": "negative testing: partial failures are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_retries_tested",
+            "status": "pass",
+            "evidence": "negative testing: retries are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_sane_failure_asserted",
+            "status": "pass",
+            "evidence": "negative testing: sane failure is asserted, not just \"no crash\""
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_entry_criteria_declared",
+            "status": "pass",
+            "evidence": "entry / exit: the entry criteria for testing are declared"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_exit_criteria_declared",
+            "status": "pass",
+            "evidence": "entry / exit: the exit criteria for testing are declared"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_full_suite_green_before_handoff",
+            "status": "pass",
+            "evidence": "quality gate: the full suite is green before handoff"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_ran",
+            "status": "pass",
+            "evidence": "honest reporting: the report states what ran"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_passed",
+            "status": "pass",
+            "evidence": "honest reporting: the report states what passed"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_not_covered",
+            "status": "pass",
+            "evidence": "honest reporting: the report states what is NOT covered"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_coverage_gaps_stated_explicitly",
+            "status": "pass",
+            "evidence": "quality gate: coverage gaps are stated explicitly in the report"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_production_system_dependency",
+            "status": "pass",
+            "evidence": "red line: no test depends on a production system"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_live_data_dependency",
+            "status": "pass",
+            "evidence": "red line: no test depends on live data"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_assertion_weakened_to_fix_test",
+            "status": "pass",
+            "evidence": "red line: no test was \"fixed\" by weakening its assertion \u2014 the code was fixed, or the test deleted deliberately"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "risk_rows_count": 1,
+        "test_level_rows_count": 3,
+        "declared_changes_count": 1,
+        "regression_rows_count": 1,
+        "unit_level_row_count": 1,
+        "integration_level_row_count": 1,
+        "e2e_level_row_count": 1,
+        "duplicate_risk_ids": [],
+        "duplicate_test_level_row_ids": [],
+        "duplicate_change_ids": [],
+        "duplicate_regression_row_ids": [],
+        "risks_without_description": [],
+        "risks_without_p0_status": [],
+        "test_level_rows_with_invalid_level": [],
+        "test_level_rows_with_unknown_risk_reference": [],
+        "declared_risks_without_test_level_row": [],
+        "p0_risks_without_e2e_row": [],
+        "declared_changes_without_description": [],
+        "declared_changes_with_invalid_kind": [],
+        "regression_rows_with_unknown_change_reference": [],
+        "declared_changes_without_regression_row": [],
+        "defect_changes_without_regression_row": [],
+        "regression_rows_not_declared_permanent": [],
+        "risk_level_coverage_ratio": "1.000000",
+        "p0_e2e_coverage_ratio": "1.000000",
+        "change_regression_coverage_ratio": "1.000000",
+        "defect_regression_coverage_ratio": "1.000000",
+        "summary": "58 pass, 0 fail, 0 missing of 58 checks across eight sections.",
+        "stamp": "TESTING STRATEGY REGRESSION PACK\nplan_title: Core Service Regression\nVERDICT: TESTING_STRATEGY_SOUND\n  scope_and_risk_declaration                   pass\n  test_levels_and_pyramid                      pass\n  regression_coverage                          pass\n  fixtures_and_determinism                     pass\n  flake_policy                                 pass\n  negative_testing                             pass\n  entry_exit_and_reporting                     pass\n  red_lines                                    pass\n58 pass, 0 fail, 0 missing of 58 checks across eight sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "TESTING_STRATEGY_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_testing_strategy_risk_description_declared",
+          "every_testing_strategy_test_level_row_risk_reference_resolves",
+          "every_regression_pack_regression_row_kept_permanently",
+          "testing_strategy_free_of_production_system_dependency"
+        ],
+        "notes": "Violates internal consistency of references and red line constraints.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "risk_rows_count": 1,
+          "test_level_rows_count": 3,
+          "declared_changes_count": 1,
+          "regression_rows_count": 1,
+          "unit_level_row_count": 1,
+          "integration_level_row_count": 1,
+          "e2e_level_row_count": 1,
+          "duplicate_risk_ids": [],
+          "duplicate_test_level_row_ids": [],
+          "duplicate_change_ids": [],
+          "duplicate_regression_row_ids": [],
+          "risks_without_description": [
+            "r1"
+          ],
+          "risks_without_p0_status": [],
+          "test_level_rows_with_invalid_level": [],
+          "test_level_rows_with_unknown_risk_reference": [
+            "l1"
+          ],
+          "declared_risks_without_test_level_row": [],
+          "p0_risks_without_e2e_row": [],
+          "declared_changes_without_description": [],
+          "declared_changes_with_invalid_kind": [],
+          "regression_rows_with_unknown_change_reference": [],
+          "declared_changes_without_regression_row": [],
+          "defect_changes_without_regression_row": [],
+          "regression_rows_not_declared_permanent": [
+            "reg1"
+          ],
+          "risk_level_coverage_ratio": "1.000000",
+          "p0_e2e_coverage_ratio": "1.000000",
+          "change_regression_coverage_ratio": "1.000000",
+          "defect_regression_coverage_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "plan_title": "Core Service Regression",
+        "scoping": {
+          "scope_declared": true,
+          "risks_identified_before_planning": true,
+          "p0_flows_identified": true,
+          "test_plan_document_present": true,
+          "test_plan_states_exclusions": true
+        },
+        "risk_rows": [
+          {
+            "risk_id": "r1",
+            "description": "",
+            "is_p0": true
+          }
+        ],
+        "level_planning": {
+          "pyramid_applied": true,
+          "logic_tested_at_unit_level": true,
+          "boundaries_tested_at_integration_level": true,
+          "critical_journeys_tested_at_e2e_level": true,
+          "tricky_edge_cases_tested_at_unit_level": true
+        },
+        "test_level_rows": [
+          {
+            "level_row_id": "l1",
+            "risk_id": "nonexistent",
+            "test_level": "unit"
+          },
+          {
+            "level_row_id": "l2",
+            "risk_id": "r1",
+            "test_level": "integration"
+          },
+          {
+            "level_row_id": "l3",
+            "risk_id": "r1",
+            "test_level": "e2e"
+          }
+        ],
+        "regression_planning": {
+          "regression_test_written_before_defect_fix": true,
+          "regression_tests_kept_permanently": true,
+          "every_fixed_bug_has_regression_test": true
+        },
+        "declared_changes": [
+          {
+            "change_id": "c1",
+            "change_kind": "defect_fix",
+            "description": "Fix login bug"
+          }
+        ],
+        "regression_rows": [
+          {
+            "regression_id": "reg1",
+            "change_id": "c1",
+            "kept_permanently": false
+          }
+        ],
+        "fixtures": {
+          "no_shared_mutable_state": true,
+          "explicit_seed_data_used": true,
+          "time_controlled": true,
+          "randomness_controlled": true,
+          "fixtures_declared_for_suites": true
+        },
+        "flake_policy": {
+          "known_flakes_present": false,
+          "flakes_quarantined_immediately": true,
+          "flakes_fixed_within_a_week_or_deleted_consciously": true,
+          "no_quarantined_test_without_tracked_ticket": true
+        },
+        "negative_testing": {
+          "invalid_input_tested": true,
+          "timeouts_tested": true,
+          "partial_failures_tested": true,
+          "retries_tested": true,
+          "sane_failure_asserted": true
+        },
+        "entry_exit_and_reporting": {
+          "entry_criteria_declared": true,
+          "exit_criteria_declared": true,
+          "full_suite_green_before_handoff": true,
+          "report_states_what_ran": true,
+          "report_states_what_passed": true,
+          "report_states_what_not_covered": true,
+          "coverage_gaps_stated_explicitly": true
+        },
+        "red_lines": {
+          "tests_depend_on_production_systems_present": true,
+          "tests_depend_on_live_data_present": false,
+          "assertion_weakened_to_fix_test_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "testing-strategy-regression-pack",
+        "atom_version": "0.1.0",
+        "plan_title": "Core Service Regression",
+        "verdict": "TESTING_STRATEGY_NOT_SOUND",
+        "sections": {
+          "scope_and_risk_declaration": "fail",
+          "test_levels_and_pyramid": "fail",
+          "regression_coverage": "fail",
+          "fixtures_and_determinism": "pass",
+          "flake_policy": "pass",
+          "negative_testing": "pass",
+          "entry_exit_and_reporting": "pass",
+          "red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_scope_declared",
+            "status": "pass",
+            "evidence": "scope: the system / change scope the strategy covers is declared"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_risks_identified_before_planning",
+            "status": "pass",
+            "evidence": "risk-first: the risks were identified before levels were planned \u2014 test what breaks expensively"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_p0_flows_identified",
+            "status": "pass",
+            "evidence": "risk-first: the P0 flows are identified in the declared record"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_test_plan_document_present",
+            "status": "pass",
+            "evidence": "artifacts: a short test-plan document is present for the work"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_test_plan_states_exclusions",
+            "status": "pass",
+            "evidence": "artifacts: the test plan states what is excluded"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_risk_rows_list_declared",
+            "status": "pass",
+            "evidence": "risk rows: the declared record names its risks \u2014 the list is present and names at least one risk; an absent list is missing evidence and an empty list declares no risk-first strategy at all"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_id_unique",
+            "status": "pass",
+            "evidence": "risk rows: no declared risk_id is owned by more than one row"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_description_declared",
+            "status": "fail",
+            "evidence": "risk rows: every declared risk declares a non-empty description"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_p0_status_declared",
+            "status": "pass",
+            "evidence": "risk rows: every declared risk declares whether it is a P0 risk"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_pyramid_applied",
+            "status": "pass",
+            "evidence": "pyramid: the test pyramid is applied \u2014 many unit, fewer integration, few e2e"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_logic_tested_at_unit_level",
+            "status": "pass",
+            "evidence": "pyramid: logic is tested at the unit level"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_boundaries_tested_at_integration_level",
+            "status": "pass",
+            "evidence": "pyramid: boundaries, DB and API are tested at the integration level"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_critical_journeys_tested_at_e2e_level",
+            "status": "pass",
+            "evidence": "pyramid / quality gate: critical journeys are covered end-to-end"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_tricky_edge_cases_tested_at_unit_level",
+            "status": "pass",
+            "evidence": "risk-first: tricky edge cases get unit tests"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_test_level_rows_list_declared",
+            "status": "pass",
+            "evidence": "level rows: the declared record names its test-level rows \u2014 the list is present and names at least one row; an absent list is missing evidence and an empty list declares no level plan at all"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_id_unique",
+            "status": "pass",
+            "evidence": "level rows: no declared level_row_id is owned by more than one row"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_level_recognised",
+            "status": "pass",
+            "evidence": "level rows: every declared row's level is one of unit, integration, e2e \u2014 the three levels the skill names"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_risk_reference_resolves",
+            "status": "fail",
+            "evidence": "level rows: every declared row's risk_id names a risk in the declared risk list"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_declared_risk_covered_by_level_row",
+            "status": "pass",
+            "evidence": "level rows / risk-first: every declared risk is covered by at least one declared test-level row"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_p0_risk_covered_by_e2e_row",
+            "status": "pass",
+            "evidence": "level rows / risk-first: every declared P0 risk is covered by at least one declared e2e row \u2014 P0 flows get e2e"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_pyramid_level_counts_in_declared_order",
+            "status": "pass",
+            "evidence": "pyramid: the declared level-row counts follow the skill's stated order \u2014 at least one row per level, unit rows >= integration rows >= e2e rows (many / fewer / few)"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_test_written_before_defect_fix",
+            "status": "pass",
+            "evidence": "bug -> test: for bug fixes the regression test is written first, before the fix"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_tests_kept_permanently_declared",
+            "status": "pass",
+            "evidence": "bug -> test: a regression test, once written for a confirmed defect, is kept forever"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_every_fixed_bug_has_regression_test_declared",
+            "status": "pass",
+            "evidence": "quality gate: every fixed bug has a regression test"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_declared_changes_list_declared",
+            "status": "pass",
+            "evidence": "declared changes: the declared record names its change rows \u2014 the list is present and names at least one change; an absent list is missing evidence and an empty list declares no regression scope at all"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_id_unique",
+            "status": "pass",
+            "evidence": "declared changes: no declared change_id is owned by more than one row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_description_declared",
+            "status": "pass",
+            "evidence": "declared changes: every declared change declares a non-empty description"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_kind_recognised",
+            "status": "pass",
+            "evidence": "declared changes: every declared change's kind is one of feature, defect_fix, refactor \u2014 the work kinds the skill names"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_rows_list_declared",
+            "status": "pass",
+            "evidence": "regression rows: the declared record names its regression-suite rows \u2014 the list is present and names at least one row; an absent list is missing evidence and an empty list declares no regression suite at all"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_id_unique",
+            "status": "pass",
+            "evidence": "regression rows: no declared regression_id is owned by more than one row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_change_reference_resolves",
+            "status": "pass",
+            "evidence": "regression rows: every declared row's change_id names a change in the declared change list"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_declared_change_covered_by_regression_row",
+            "status": "pass",
+            "evidence": "regression rows: every declared change is covered by at least one declared regression row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_defect_change_covered_by_regression_row",
+            "status": "pass",
+            "evidence": "regression rows / bug -> test: every declared defect_fix change is covered by at least one declared regression row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_kept_permanently",
+            "status": "fail",
+            "evidence": "regression rows: every declared regression row is declared kept permanently \u2014 it is kept forever"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_have_no_shared_mutable_state",
+            "status": "pass",
+            "evidence": "fixtures: fixtures have no shared mutable state"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_use_explicit_seed_data",
+            "status": "pass",
+            "evidence": "fixtures: fixtures use explicit seed data"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_time_controlled_in_fixtures",
+            "status": "pass",
+            "evidence": "fixtures: time is controlled in the fixtures"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_randomness_controlled_in_fixtures",
+            "status": "pass",
+            "evidence": "fixtures: randomness is controlled in the fixtures"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_declared_for_suites",
+            "status": "pass",
+            "evidence": "artifacts / fixtures: fixtures are declared for the suites per level"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_flakes_quarantined_immediately",
+            "status": "pass",
+            "evidence": "flake policy: a flaky test is quarantined immediately"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_flakes_fixed_within_a_week_or_deleted_consciously",
+            "status": "pass",
+            "evidence": "flake policy: a quarantined flake is fixed within a week, or deleted consciously"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_no_quarantined_test_without_tracked_ticket_declared",
+            "status": "pass",
+            "evidence": "quality gate: no skipped or quarantined test is left without a tracked ticket"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_quarantine_ticket_recorded_where_flakes_present",
+            "status": "pass",
+            "evidence": "no known flakes declared present"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_invalid_input_tested",
+            "status": "pass",
+            "evidence": "negative testing: invalid input is tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_timeouts_tested",
+            "status": "pass",
+            "evidence": "negative testing: timeouts are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_partial_failures_tested",
+            "status": "pass",
+            "evidence": "negative testing: partial failures are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_retries_tested",
+            "status": "pass",
+            "evidence": "negative testing: retries are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_sane_failure_asserted",
+            "status": "pass",
+            "evidence": "negative testing: sane failure is asserted, not just \"no crash\""
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_entry_criteria_declared",
+            "status": "pass",
+            "evidence": "entry / exit: the entry criteria for testing are declared"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_exit_criteria_declared",
+            "status": "pass",
+            "evidence": "entry / exit: the exit criteria for testing are declared"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_full_suite_green_before_handoff",
+            "status": "pass",
+            "evidence": "quality gate: the full suite is green before handoff"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_ran",
+            "status": "pass",
+            "evidence": "honest reporting: the report states what ran"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_passed",
+            "status": "pass",
+            "evidence": "honest reporting: the report states what passed"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_not_covered",
+            "status": "pass",
+            "evidence": "honest reporting: the report states what is NOT covered"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_coverage_gaps_stated_explicitly",
+            "status": "pass",
+            "evidence": "quality gate: coverage gaps are stated explicitly in the report"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_production_system_dependency",
+            "status": "fail",
+            "evidence": "red line: no test depends on a production system"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_live_data_dependency",
+            "status": "pass",
+            "evidence": "red line: no test depends on live data"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_assertion_weakened_to_fix_test",
+            "status": "pass",
+            "evidence": "red line: no test was \"fixed\" by weakening its assertion \u2014 the code was fixed, or the test deleted deliberately"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "risk_rows_count": 1,
+        "test_level_rows_count": 3,
+        "declared_changes_count": 1,
+        "regression_rows_count": 1,
+        "unit_level_row_count": 1,
+        "integration_level_row_count": 1,
+        "e2e_level_row_count": 1,
+        "duplicate_risk_ids": [],
+        "duplicate_test_level_row_ids": [],
+        "duplicate_change_ids": [],
+        "duplicate_regression_row_ids": [],
+        "risks_without_description": [
+          "r1"
+        ],
+        "risks_without_p0_status": [],
+        "test_level_rows_with_invalid_level": [],
+        "test_level_rows_with_unknown_risk_reference": [
+          "l1"
+        ],
+        "declared_risks_without_test_level_row": [],
+        "p0_risks_without_e2e_row": [],
+        "declared_changes_without_description": [],
+        "declared_changes_with_invalid_kind": [],
+        "regression_rows_with_unknown_change_reference": [],
+        "declared_changes_without_regression_row": [],
+        "defect_changes_without_regression_row": [],
+        "regression_rows_not_declared_permanent": [
+          "reg1"
+        ],
+        "risk_level_coverage_ratio": "1.000000",
+        "p0_e2e_coverage_ratio": "1.000000",
+        "change_regression_coverage_ratio": "1.000000",
+        "defect_regression_coverage_ratio": "1.000000",
+        "summary": "54 pass, 4 fail, 0 missing of 58 checks across eight sections.",
+        "stamp": "TESTING STRATEGY REGRESSION PACK\nplan_title: Core Service Regression\nVERDICT: TESTING_STRATEGY_NOT_SOUND\n  scope_and_risk_declaration                   fail\n  test_levels_and_pyramid                      fail\n  regression_coverage                          fail\n  fixtures_and_determinism                     pass\n  flake_policy                                 pass\n  negative_testing                             pass\n  entry_exit_and_reporting                     pass\n  red_lines                                    fail\n54 pass, 4 fail, 0 missing of 58 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists and boolean fields for core checks."
+      },
+      "input": {
+        "plan_title": "Incomplete Plan"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "testing-strategy-regression-pack",
+        "atom_version": "0.1.0",
+        "plan_title": "Incomplete Plan",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "scope_and_risk_declaration": "insufficient_evidence",
+          "test_levels_and_pyramid": "insufficient_evidence",
+          "regression_coverage": "insufficient_evidence",
+          "fixtures_and_determinism": "insufficient_evidence",
+          "flake_policy": "insufficient_evidence",
+          "negative_testing": "insufficient_evidence",
+          "entry_exit_and_reporting": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_scope_declared",
+            "status": "missing",
+            "evidence": "scope: the system / change scope the strategy covers is declared"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_risks_identified_before_planning",
+            "status": "missing",
+            "evidence": "risk-first: the risks were identified before levels were planned \u2014 test what breaks expensively"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_p0_flows_identified",
+            "status": "missing",
+            "evidence": "risk-first: the P0 flows are identified in the declared record"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_test_plan_document_present",
+            "status": "missing",
+            "evidence": "artifacts: a short test-plan document is present for the work"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_test_plan_states_exclusions",
+            "status": "missing",
+            "evidence": "artifacts: the test plan states what is excluded"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "testing_strategy_risk_rows_list_declared",
+            "status": "missing",
+            "evidence": "risk rows: the declared record names its risks \u2014 the list is present and names at least one risk; an absent list is missing evidence and an empty list declares no risk-first strategy at all"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_id_unique",
+            "status": "missing",
+            "evidence": "risk rows: no declared risk_id is owned by more than one row"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_description_declared",
+            "status": "missing",
+            "evidence": "risk rows: every declared risk declares a non-empty description"
+          },
+          {
+            "section": "scope_and_risk_declaration",
+            "check": "every_testing_strategy_risk_p0_status_declared",
+            "status": "missing",
+            "evidence": "risk rows: every declared risk declares whether it is a P0 risk"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_pyramid_applied",
+            "status": "missing",
+            "evidence": "pyramid: the test pyramid is applied \u2014 many unit, fewer integration, few e2e"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_logic_tested_at_unit_level",
+            "status": "missing",
+            "evidence": "pyramid: logic is tested at the unit level"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_boundaries_tested_at_integration_level",
+            "status": "missing",
+            "evidence": "pyramid: boundaries, DB and API are tested at the integration level"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_critical_journeys_tested_at_e2e_level",
+            "status": "missing",
+            "evidence": "pyramid / quality gate: critical journeys are covered end-to-end"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_tricky_edge_cases_tested_at_unit_level",
+            "status": "missing",
+            "evidence": "risk-first: tricky edge cases get unit tests"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_test_level_rows_list_declared",
+            "status": "missing",
+            "evidence": "level rows: the declared record names its test-level rows \u2014 the list is present and names at least one row; an absent list is missing evidence and an empty list declares no level plan at all"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_id_unique",
+            "status": "missing",
+            "evidence": "level rows: no declared level_row_id is owned by more than one row"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_level_recognised",
+            "status": "missing",
+            "evidence": "level rows: every declared row's level is one of unit, integration, e2e \u2014 the three levels the skill names"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_test_level_row_risk_reference_resolves",
+            "status": "missing",
+            "evidence": "level rows: every declared row's risk_id names a risk in the declared risk list"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_declared_risk_covered_by_level_row",
+            "status": "missing",
+            "evidence": "level rows / risk-first: every declared risk is covered by at least one declared test-level row"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "every_testing_strategy_p0_risk_covered_by_e2e_row",
+            "status": "missing",
+            "evidence": "level rows / risk-first: every declared P0 risk is covered by at least one declared e2e row \u2014 P0 flows get e2e"
+          },
+          {
+            "section": "test_levels_and_pyramid",
+            "check": "testing_strategy_pyramid_level_counts_in_declared_order",
+            "status": "missing",
+            "evidence": "pyramid: the declared level-row counts follow the skill's stated order \u2014 at least one row per level, unit rows >= integration rows >= e2e rows (many / fewer / few)"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_test_written_before_defect_fix",
+            "status": "missing",
+            "evidence": "bug -> test: for bug fixes the regression test is written first, before the fix"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_tests_kept_permanently_declared",
+            "status": "missing",
+            "evidence": "bug -> test: a regression test, once written for a confirmed defect, is kept forever"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_every_fixed_bug_has_regression_test_declared",
+            "status": "missing",
+            "evidence": "quality gate: every fixed bug has a regression test"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_declared_changes_list_declared",
+            "status": "missing",
+            "evidence": "declared changes: the declared record names its change rows \u2014 the list is present and names at least one change; an absent list is missing evidence and an empty list declares no regression scope at all"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_id_unique",
+            "status": "missing",
+            "evidence": "declared changes: no declared change_id is owned by more than one row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_description_declared",
+            "status": "missing",
+            "evidence": "declared changes: every declared change declares a non-empty description"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_change_kind_recognised",
+            "status": "missing",
+            "evidence": "declared changes: every declared change's kind is one of feature, defect_fix, refactor \u2014 the work kinds the skill names"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "regression_pack_regression_rows_list_declared",
+            "status": "missing",
+            "evidence": "regression rows: the declared record names its regression-suite rows \u2014 the list is present and names at least one row; an absent list is missing evidence and an empty list declares no regression suite at all"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_id_unique",
+            "status": "missing",
+            "evidence": "regression rows: no declared regression_id is owned by more than one row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_change_reference_resolves",
+            "status": "missing",
+            "evidence": "regression rows: every declared row's change_id names a change in the declared change list"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_declared_change_covered_by_regression_row",
+            "status": "missing",
+            "evidence": "regression rows: every declared change is covered by at least one declared regression row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_defect_change_covered_by_regression_row",
+            "status": "missing",
+            "evidence": "regression rows / bug -> test: every declared defect_fix change is covered by at least one declared regression row"
+          },
+          {
+            "section": "regression_coverage",
+            "check": "every_regression_pack_regression_row_kept_permanently",
+            "status": "missing",
+            "evidence": "regression rows: every declared regression row is declared kept permanently \u2014 it is kept forever"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_have_no_shared_mutable_state",
+            "status": "missing",
+            "evidence": "fixtures: fixtures have no shared mutable state"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_use_explicit_seed_data",
+            "status": "missing",
+            "evidence": "fixtures: fixtures use explicit seed data"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_time_controlled_in_fixtures",
+            "status": "missing",
+            "evidence": "fixtures: time is controlled in the fixtures"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_randomness_controlled_in_fixtures",
+            "status": "missing",
+            "evidence": "fixtures: randomness is controlled in the fixtures"
+          },
+          {
+            "section": "fixtures_and_determinism",
+            "check": "testing_strategy_fixtures_declared_for_suites",
+            "status": "missing",
+            "evidence": "artifacts / fixtures: fixtures are declared for the suites per level"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_flakes_quarantined_immediately",
+            "status": "missing",
+            "evidence": "flake policy: a flaky test is quarantined immediately"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_flakes_fixed_within_a_week_or_deleted_consciously",
+            "status": "missing",
+            "evidence": "flake policy: a quarantined flake is fixed within a week, or deleted consciously"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_no_quarantined_test_without_tracked_ticket_declared",
+            "status": "missing",
+            "evidence": "quality gate: no skipped or quarantined test is left without a tracked ticket"
+          },
+          {
+            "section": "flake_policy",
+            "check": "testing_strategy_quarantine_ticket_recorded_where_flakes_present",
+            "status": "missing",
+            "evidence": "no known flakes declared present"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_invalid_input_tested",
+            "status": "missing",
+            "evidence": "negative testing: invalid input is tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_timeouts_tested",
+            "status": "missing",
+            "evidence": "negative testing: timeouts are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_partial_failures_tested",
+            "status": "missing",
+            "evidence": "negative testing: partial failures are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_retries_tested",
+            "status": "missing",
+            "evidence": "negative testing: retries are tested"
+          },
+          {
+            "section": "negative_testing",
+            "check": "testing_strategy_negative_sane_failure_asserted",
+            "status": "missing",
+            "evidence": "negative testing: sane failure is asserted, not just \"no crash\""
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_entry_criteria_declared",
+            "status": "missing",
+            "evidence": "entry / exit: the entry criteria for testing are declared"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_exit_criteria_declared",
+            "status": "missing",
+            "evidence": "entry / exit: the exit criteria for testing are declared"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_full_suite_green_before_handoff",
+            "status": "missing",
+            "evidence": "quality gate: the full suite is green before handoff"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_ran",
+            "status": "missing",
+            "evidence": "honest reporting: the report states what ran"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_passed",
+            "status": "missing",
+            "evidence": "honest reporting: the report states what passed"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_report_states_what_not_covered",
+            "status": "missing",
+            "evidence": "honest reporting: the report states what is NOT covered"
+          },
+          {
+            "section": "entry_exit_and_reporting",
+            "check": "testing_strategy_coverage_gaps_stated_explicitly",
+            "status": "missing",
+            "evidence": "quality gate: coverage gaps are stated explicitly in the report"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_production_system_dependency",
+            "status": "missing",
+            "evidence": "red line: no test depends on a production system"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_live_data_dependency",
+            "status": "missing",
+            "evidence": "red line: no test depends on live data"
+          },
+          {
+            "section": "red_lines",
+            "check": "testing_strategy_free_of_assertion_weakened_to_fix_test",
+            "status": "missing",
+            "evidence": "red line: no test was \"fixed\" by weakening its assertion \u2014 the code was fixed, or the test deleted deliberately"
+          }
+        ],
+        "computed_status": null,
+        "risk_rows_count": null,
+        "test_level_rows_count": null,
+        "declared_changes_count": null,
+        "regression_rows_count": null,
+        "unit_level_row_count": null,
+        "integration_level_row_count": null,
+        "e2e_level_row_count": null,
+        "duplicate_risk_ids": null,
+        "duplicate_test_level_row_ids": null,
+        "duplicate_change_ids": null,
+        "duplicate_regression_row_ids": null,
+        "risks_without_description": null,
+        "risks_without_p0_status": null,
+        "test_level_rows_with_invalid_level": null,
+        "test_level_rows_with_unknown_risk_reference": null,
+        "declared_risks_without_test_level_row": null,
+        "p0_risks_without_e2e_row": null,
+        "declared_changes_without_description": null,
+        "declared_changes_with_invalid_kind": null,
+        "regression_rows_with_unknown_change_reference": null,
+        "declared_changes_without_regression_row": null,
+        "defect_changes_without_regression_row": null,
+        "regression_rows_not_declared_permanent": null,
+        "risk_level_coverage_ratio": null,
+        "p0_e2e_coverage_ratio": null,
+        "change_regression_coverage_ratio": null,
+        "defect_regression_coverage_ratio": null,
+        "summary": "0 pass, 0 fail, 58 missing of 58 checks across eight sections.",
+        "stamp": "TESTING STRATEGY REGRESSION PACK\nplan_title: Incomplete Plan\nVERDICT: INSUFFICIENT_EVIDENCE\n  scope_and_risk_declaration                   insufficient_evidence\n  test_levels_and_pyramid                      insufficient_evidence\n  regression_coverage                          insufficient_evidence\n  fixtures_and_determinism                     insufficient_evidence\n  flake_policy                                 insufficient_evidence\n  negative_testing                             insufficient_evidence\n  entry_exit_and_reporting                     insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 58 missing of 58 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for plan_title and scoping fields."
+      },
+      "input": {
+        "plan_title": "Malformed Plan",
+        "scoping": "not_an_object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "scoping",
+        "detail": "scoping must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

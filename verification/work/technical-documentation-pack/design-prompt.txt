@@ -1,0 +1,468 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: technical-documentation-pack
+
+=== contract.yaml ===
+service_name: technical-documentation-pack
+display_name: Technical documentation pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:technical-writing
+binding:
+  skill: technical-writing
+  skill_path: workspace/mymilo-build/skills/technical-writing/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: technical_documentation_pack
+  prefix: atm_1_technical_documentation_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: READMEs and runbooks for products
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Technical documentation pack — `technical-documentation-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Write documentation that gets used — READMEs, runbooks, API docs, decision records, changelogs, kept close to source.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared technical documentation production record** for one product/system and receives the documentation audit verdict as the deliverable: the atom writes no documentation, opens no document and verifies no doc against the real product (see Honest scoping).
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Writing & documents who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **READMEs and runbooks for products**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the technical documentation production manifest
+
+The caller submits one JSON manifest: a declared technical
+documentation production record for one product/system, made
+from the documentation production as actually carried out.
+Every field below is read by the named section's checks. A
+field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails (`TECHNICAL_DOCUMENTATION_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `product_name` (string; carried into the verdict output, not itself checked) | — |
+| `product_version` (string; computed — must equal the declared doc-set version, see below) | changelog_and_versioning |
+| `readme.what_it_is_one_paragraph_declared` (boolean) | readme_and_doc_set_structure |
+| `readme.quickstart_present` (boolean) | readme_and_doc_set_structure |
+| `readme.quickstart_copy_paste_ready` (boolean) | readme_and_doc_set_structure |
+| `readme.usage_present` (boolean) | readme_and_doc_set_structure |
+| `readme.operations_present` (boolean) | readme_and_doc_set_structure |
+| `readme.troubleshooting_present` (boolean) | readme_and_doc_set_structure |
+| `readme.where_to_change_things_present` (boolean) | readme_and_doc_set_structure |
+| `documents` (list of documentation-row objects, each with the entry fields below; computed, see below) | readme_and_doc_set_structure, docs_as_code_and_source_of_truth |
+| `documents[].doc_id` (string; must be unique per row) | readme_and_doc_set_structure |
+| `documents[].doc_kind` (string; one of `readme`, `runbook`, `api_doc`, `decision_record`, `changelog`, `reference`, `how_to`, `conceptual`) | readme_and_doc_set_structure |
+| `documents[].source_location` (non-empty string) | readme_and_doc_set_structure |
+| `documents[].source_of_truth` (non-empty string) | docs_as_code_and_source_of_truth |
+| `source_of_truth.docs_live_with_source_they_describe` (boolean) | docs_as_code_and_source_of_truth |
+| `source_of_truth.no_wiki_only_oracle_docs` (boolean) | docs_as_code_and_source_of_truth |
+| `config_options` (list of config-option-row objects, each with the entry fields below; computed, see below) | docs_as_code_and_source_of_truth |
+| `config_options[].option_id` (string; must be unique per row) | docs_as_code_and_source_of_truth |
+| `config_options[].default_value` (non-empty string) | docs_as_code_and_source_of_truth |
+| `config_options[].documented` (boolean) | docs_as_code_and_source_of_truth |
+| `api_docs.generated_from_or_verified_against_contracts` (boolean) | api_docs_and_worked_examples |
+| `endpoints` (list of endpoint-row objects, each with the entry fields below; computed, see below) | api_docs_and_worked_examples |
+| `endpoints[].endpoint_id` (string; must be unique per row) | api_docs_and_worked_examples |
+| `endpoints[].documented_in_doc_id` (string; computed — must name a declared document, see below) | api_docs_and_worked_examples |
+| `endpoints[].has_working_example` (boolean) | api_docs_and_worked_examples |
+| `endpoints[].example_verified_against_contract` (boolean) | api_docs_and_worked_examples |
+| `decision_work.adrs_cross_linked_from_code_where_surprising` (boolean) | decision_records_and_cross_links |
+| `decision_records` (list of decision-record-row objects, each with the entry fields below; computed, see below) | decision_records_and_cross_links |
+| `decision_records[].adr_id` (string; must be unique per row) | decision_records_and_cross_links |
+| `decision_records[].documented_in_doc_id` (string; computed — must name a declared document, see below) | decision_records_and_cross_links |
+| `decision_records[].cross_linked_from_code` (boolean) | decision_records_and_cross_links |
+| `review_verification.docs_reviewed_like_code` (boolean) | review_verification_and_testing |
+| `review_verification.docs_updated_in_same_change_as_behavior_changes` (boolean) | review_verification_and_testing |
+| `review_verification.quickstart_run_from_clean_environment` (boolean) | review_verification_and_testing |
+| `review_verification.quickstart_works_verbatim_from_clean_state` (boolean) | review_verification_and_testing |
+| `review_verification.worked_examples_tested` (boolean) | review_verification_and_testing |
+| `review_verification.screenshots_or_commands_present` (boolean; gates the currentness check below) | review_verification_and_testing |
+| `review_verification.screenshots_and_commands_verified_current` (boolean; required when screenshots/commands are declared present; otherwise the check passes as not applicable) | review_verification_and_testing |
+| `plain_language.short_sentences_used` (boolean) | plain_language_and_examples |
+| `plain_language.jargon_defined_on_first_use` (boolean) | plain_language_and_examples |
+| `plain_language.steps_presented_as_lists` (boolean) | plain_language_and_examples |
+| `plain_language.examples_preferred_over_adjectives` (boolean) | plain_language_and_examples |
+| `changelog.kept_continuously` (boolean) | changelog_and_versioning |
+| `changelog.not_retrofitted_at_release_time` (boolean) | changelog_and_versioning |
+| `changelog.entry_for_current_version_present` (boolean) | changelog_and_versioning |
+| `versioning.doc_set_version` (string; computed — must equal `product_version`, see below) | changelog_and_versioning |
+| `versioning.doc_set_versioned_with_product` (boolean) | changelog_and_versioning |
+| `red_lines.private_contact_or_financial_data_published_in_docs_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.silent_todo_document_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Nineteen checks are computed from the declared rows and
+declared versions, using only the skill's own stated rules
+plus the consistency of the declared record itself — no
+outside threshold is imported:
+
+- **Documentation set declared:** the declared `documents`
+  list passes when it is present and names at least one
+  document. An absent list is missing evidence; an empty list
+  fails — it declares no documentation set at all.
+- **Document ids unique:** no declared `doc_id` may appear on
+  more than one row. A row with `doc_id` absent is missing
+  evidence for this check.
+- **Document kind recognised:** every declared document's
+  `doc_kind` is one of `readme`, `runbook`, `api_doc`,
+  `decision_record`, `changelog` — the artifacts the skill
+  names — plus `reference`, `how_to`, `conceptual`, the
+  reader-task groupings for guide and reference material in
+  the set. Any other value fails and is named in
+  `technical_documentation_docs_with_invalid_kind`.
+- **Source location per document:** every declared document
+  declares a non-empty `source_location` (docs-as-code: docs
+  live with the source they describe). A row with the field
+  absent is missing evidence; a row declaring an empty
+  location fails and is named in
+  `technical_documentation_docs_without_source_location`.
+- **Source of truth per document:** every declared document
+  declares a non-empty `source_of_truth` — the contract,
+  source or record it is generated from or verified against.
+  A row with the field absent is missing evidence; a row
+  declaring an empty source of truth fails and is named in
+  `technical_documentation_docs_without_source_of_truth`.
+- **Config options declared:** the declared `config_options`
+  list passes when it is present and names at least one
+  option. An absent list is missing evidence; an empty list
+  fails (see Honest scoping for the no-config boundary).
+- **Config option ids unique:** no declared `option_id` may
+  appear on more than one row.
+- **Default per config option:** every declared config option
+  declares a non-empty `default_value` (the skill's quality
+  gate: every config option documented with its default). A
+  row declaring an empty default fails and is named in
+  `technical_documentation_config_options_without_default`.
+- **Every config option documented:** every declared config
+  option row declares `documented: true`. A row declaring it
+  false fails and is named in
+  `technical_documentation_config_options_not_documented`.
+- **Endpoints declared:** the declared `endpoints` list
+  passes when it is present and names at least one endpoint.
+  An absent list is missing evidence; an empty list fails
+  (see Honest scoping for the no-API boundary).
+- **Endpoint ids unique:** no declared `endpoint_id` may
+  appear on more than one row.
+- **Working example per endpoint:** every declared endpoint
+  row declares `has_working_example: true` (the skill: one
+  working example per endpoint). A row declaring it false
+  fails and is named in
+  `technical_documentation_endpoints_without_working_example`.
+- **Endpoint example verified against contract:** every
+  declared endpoint row declares
+  `example_verified_against_contract: true`. A row declaring
+  it false fails and is named in
+  `technical_documentation_endpoints_with_unverified_example`.
+- **Every endpoint documented in a declared doc:** every
+  declared endpoint's `documented_in_doc_id` names one of the
+  declared documents. An endpoint with the field absent, or a
+  record with the documents list absent, is missing evidence;
+  an endpoint naming an undeclared document fails and is
+  named in
+  `technical_documentation_endpoints_with_unknown_doc_reference`.
+- **Decision records declared:** the declared
+  `decision_records` list passes when it is present and names
+  at least one record. An absent list is missing evidence; an
+  empty list fails (see Honest scoping).
+- **Decision record ids unique:** no declared `adr_id` may
+  appear on more than one row.
+- **Every decision record cross-linked from code:** every
+  declared decision-record row declares
+  `cross_linked_from_code: true`. A row declaring it false
+  fails and is named in
+  `technical_documentation_decision_records_not_cross_linked`.
+- **Every decision record documented in a declared doc:**
+  every declared decision record's `documented_in_doc_id`
+  names one of the declared documents, on the same
+  missing / fail terms as the endpoint cross-reference above,
+  with failures named in
+  `technical_documentation_decision_records_with_unknown_doc_reference`.
+- **Doc-set version matches product version:** the declared
+  `versioning.doc_set_version` must equal the declared
+  `product_version` exactly. Either field absent is missing
+  evidence; unequal declared versions fail.
+
+One further check is gated on the record's own declared gate
+field, following the skill's own conditional scope — when
+the gate is declared `false`, the check passes as not
+applicable; when the gate field is absent, the check is
+missing evidence; when the gate is `true`, the target
+declaration is required:
+
+- **Screenshots and commands current:** verified-current is
+  required only where
+  `review_verification.screenshots_or_commands_present` is
+  declared `true` (the skill's quality gate: no stale
+  screenshots or commands).
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the nineteen primary computed checks above cannot be
+completed), `documentation_set_docs_count`,
+`documentation_config_options_count`,
+`documentation_endpoints_count` and
+`documentation_decision_records_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), the duplicate-id lists
+`duplicate_technical_documentation_doc_ids`,
+`duplicate_technical_documentation_config_option_ids`,
+`duplicate_technical_documentation_endpoint_ids` and
+`duplicate_technical_documentation_decision_record_ids`, the
+row-name lists named in the computed checks above, and the
+ratios `doc_source_of_truth_ratio` (documents with a declared
+source of truth ÷ declared documents),
+`config_option_documentation_ratio` (config options both
+declaring a default and declared documented ÷ declared
+options), `endpoint_worked_example_ratio` (endpoints both
+carrying a working example and declaring it verified against
+the contract ÷ declared endpoints) and
+`decision_record_cross_link_ratio` (decision records declared
+cross-linked from code ÷ declared records). **Fixed
+serialization rule:** computed ratios are reported as strings
+with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals. A ratio is null when its denominator list is
+absent or empty. That fixed serialization is what makes the
+Python and TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are a complete README skeleton, docs-as-code with a named
+source of truth, contract-verified API docs with a working
+example per endpoint, cross-linked decision records, docs
+reviewed and tested like the product, plain language, and a
+continuously kept changelog, not bars the atom can set.
+Quantities are computed and reported; the only bars on the
+computed rows are exact completeness and cross-reference
+consistency over the caller's own declared rows, exactly as
+stated above. Declined thresholds, named: a minimum or
+maximum number of documents, config options, endpoints or
+decision records beyond at least one each; a reading-level,
+sentence-length or jargon-density bar for plain language
+(checked as declarations only); a documentation-coverage
+percentage for config options, endpoints or features beyond
+exact completeness over the declared rows; an example
+correctness bar beyond declared verification against the
+contract (the atom receives no contract and no example text
+and verifies nothing against the world); a freshness interval
+in days for screenshots, commands or any document; a
+changelog-entry format or length bar; a versioning-scheme bar
+beyond exact equality of the two declared version strings;
+any judgment that the documentation is good, clear or useful
+(only that its declared production record contains what the
+skill requires).
+
+The verdict is one of `TECHNICAL_DOCUMENTATION_SOUND` (all
+46 checks pass), `TECHNICAL_DOCUMENTATION_NOT_SOUND` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across eight sections:
+readme_and_doc_set_structure, docs_as_code_and_source_of_truth,
+api_docs_and_worked_examples, decision_records_and_cross_links,
+review_verification_and_testing, plain_language_and_examples,
+changelog_and_versioning, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `long-form-authoring-pipeline` (a
+declared long-form written work — approved outline, drafting
+loop, review passes, versioning and publishing of prose for a
+reader/learner), `document-operations-service` (document
+workflow operations — opening, finding, editing and
+converting documents) and `technical-explainer-content-pack`
+(authored in this same batch — learner-facing educational
+content built around learning objectives, whose reader is
+learning a subject). This atom shares **zero checks** with
+any of them (verified mechanically by enumerating
+`evaluate({})` check names from every atom oracle in
+`services/*/src/*.py` and comparing, with a grep of check
+strings over the same files as the fallback for oracles whose
+`evaluate({})` raises or returns a different shape — zero
+overlap by both methods): every check here is a
+product/system documentation question — a README skeleton
+complete for a user, operator or developer of the documented
+thing, a documentation set that lives with its source and
+names a source of truth per document, every declared config
+option documented with its default, every declared endpoint
+carrying a working example verified against its contract and
+pointing at a declared document, every declared decision
+record cross-linked from code and pointing at a declared
+document, docs reviewed like code, updated in the same change
+as behaviour, and tested from a clean environment, plain
+language, a continuously kept changelog, and a doc-set
+version that matches the product version. The boundary is
+unmistakable: one product/system documentation SET audited
+against its declared sources here; a written work's authoring
+loop, document workflow operations, and learner-facing
+explainer content there. In particular against the explainer
+pack: its reader learns a topic; this atom's reader operates,
+uses or develops the documented thing itself.
+
+## Honest scoping
+
+This atom reviews a **declared** technical documentation
+production record — it writes no documentation, opens no
+document, runs no quickstart, executes no example, fetches no
+contract and verifies no document against the real product.
+A documentation set is sound *on the caller's declared
+evidence*: a record that declares its quickstart tested, its
+examples verified and its versions matching passes those
+checks even if the real documentation work did none of it. It
+is a completeness and consistency audit of the documentation
+record the skill requires, **not a documentation service, a
+doc review, or a guarantee that the documentation is accurate
+or good**: it never judges whether a declared source of truth
+actually supports the document that cites it, whether a
+quickstart actually works, whether the writing is clear, or
+whether the docs should be published — only that the record
+contains what the skill's method, quality gates and red lines
+demand, and that its declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never performed or judged): writing or
+rewriting any document itself; generating API docs from a
+contract itself; running the quickstart or any worked example
+itself; reviewing document prose itself; and maintaining the
+changelog itself — each is EXCLUDED by name from this atom,
+which audits only the declared record of those steps.
+Boundary cases, named: a product/system with genuinely no
+config options, no API endpoints, or no decision records
+cannot pass this record format's corresponding list-declared
+check (the format requires at least one row in each declared
+list — such a system is outside this atom's computed reach,
+not failed on its merits).
+
+## U-13 regulatory screen
+
+Screen classification: **(a) — No outright.** Keyword screen:
+the bound skill and this record name documentation, READMEs,
+runbooks, API docs, decision records and changelogs — no
+engineering-practice, securities/financial-advice or
+psychology-adjacent subject, and no regulated profession's
+vocabulary. Substance screen: this atom's output could not
+read as regulated professional advice — it audits a
+caller-**declared** technical documentation production record
+for completeness and internal consistency only (README
+skeleton, doc-set rows, source-of-truth and config-option
+rows recomputed over the declared rows, endpoint worked
+examples and cross-references, decision-record cross-links,
+review/testing, plain-language and changelog declarations,
+doc-set/product version equality, and the red lines refused);
+every output is a pass / fail / missing verdict on the record
+or a ratio recomputed from the caller's own declared rows.
+Named controls: (1) it produces **no documentation and no
+advice of any kind** — no README, runbook, API doc or
+recommendation about any documented system; the skill's
+writing and production steps are excluded from production by
+name above — this atom performs none of them; (2) it sets
+**no threshold** on any subject matter (see the declined
+list); (3) the documented product/system is whatever the
+caller declares — the atom receives no document text, takes
+no position on the documented thing's subject, and no output
+is addressed to any regulated decision; (4) the red-line check
+on private, contact or financial data judges the caller's
+declared record only, never the content of any real document.
+This is not the census class (no regulated adjacency to flag)
+and not the genuinely-open personal-financial-snapshot class
+(no personal position of any kind is handled). No deploy
+happens on this atom without the owner's explicit per-unit
+ruling in any case.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

@@ -1,0 +1,96 @@
+# Independent recompute — structured-decision-making
+
+Serialization rule (from SERVICE.md): round half up to 6dp via `floor(v*1000000 + 0.5)/1000000`, then format with exactly six decimals.
+
+## Case 1: full-pass
+
+**Inputs:** 3 options (AWS, GCP, Azure), 1 criterion (Cost, weight 1.0). Scores: AWS 5.0, GCP 4.0, Azure 3.0. Scale [0, 10]. Declared totals: 5.0, 4.0, 3.0.
+
+### Computed quantities
+
+**criteria_weights_sum:** 1.0 → `floor(1.0*1e6+0.5)/1e6 = 1.000000`. Artifact: `"1.000000"` — **MATCH**
+
+**recomputed_weighted_totals** (Σ weight × score over declared criteria):
+- AWS: 1.0 × 5.0 = 5.0 → `5.000000`. Artifact: `"5.000000"` — **MATCH**
+- GCP: 1.0 × 4.0 = 4.0 → `4.000000`. Artifact: `"4.000000"` — **MATCH**
+- Azure: 1.0 × 3.0 = 3.0 → `3.000000`. Artifact: `"3.000000"` — **MATCH**
+
+**options_with_weighted_total_mismatch:** compare 6dp serializations: AWS 5.000000 vs declared 5.000000 ✓; GCP 4.000000 vs 4.000000 ✓; Azure 3.000000 vs 3.000000 ✓ → `[]`. Artifact: `[]` — **MATCH**
+
+**options_without_complete_scores:** each option scores the one declared criterion "Cost" → `[]`. Artifact: `[]` — **MATCH**
+
+**score_coverage_ratio:** complete options ÷ declared options = 3/3 = 1.0 → `1.000000`. Artifact: `"1.000000"` — **MATCH**
+
+**weighted_total_match_ratio:** recomputing options ÷ declared = 3/3 = 1.0 → `1.000000`. Artifact: `"1.000000"` — **MATCH**
+
+**options_count:** 3. Artifact: `3` — **MATCH**
+**criteria_count:** 1. Artifact: `1` — **MATCH**
+**duplicate_option_names:** AWS/GCP/Azure all distinct → `[]`. Artifact: `[]` — **MATCH**
+**duplicate_criterion_names:** one "Cost" → `[]`. Artifact: `[]` — **MATCH**
+**chosen_option:** "AWS". Artifact: `"AWS"` — **MATCH**
+
+### Checks (spot-verify the computed ones)
+- Classification "reversible" → recognised ✓; slowed deliberation not required (reversible) → pass ✓
+- ≥3 options: 3 ✓; names unique ✓; kinds action/status_quo/smaller_reversible_step all recognised ✓; status-quo row present (GCP) ✓; smaller-reversible-step row present (Azure) ✓
+- Criteria list present, 1 name ✓; weights non-negative, sum 1.0 > 0 ✓; defined_before_scoring true ✓
+- Every option scores every criterion ✓; no undeclared criterion ✓; no double-scoring ✓
+- Scale bounds 0 ≤ 10 coherent ✓; all scores 5,4,3 ∈ [0,10] ✓
+- Weighted totals recompute ✓
+- Method "decision_matrix" recognised ✓; uncertainty_flagged true ✓; base_rates_considered true ✓
+- probabilities_estimable=false → EV not required (pass) ✓; scenario_thinking_used=true required → pass ✓
+- decision_is_material=false → 3 pre-mortem checks N/A pass ✓
+- Log: choice recorded, chosen "AWS" matches declared option, rationale, assumptions, communicated ✓
+- Review: date set, outcomes-vs-expectations, luck-separated ✓
+- Red lines all false → pass ✓
+
+**computed_status:** all 46 pass, none fail, none missing → `within_stated_limits_on_declared_evidence`. Artifact: same — **MATCH**
+**verdict:** `DECISION_RECORD_SOUND`. Artifact: same — **MATCH**
+**summary:** "46 pass, 0 fail, 0 missing of 46". Artifact: same — **MATCH**
+
+## Case 2: violations
+
+**Inputs:** AWS score 11.0 (declared total 11.0), GCP score 4.0 (declared total **999.0**), Azure score 3.0 (declared total 3.0). Scale [0, 10]. scenario_thinking_used=false, uncertainty_flagged=false, base_rates_considered=false.
+
+### Computed quantities
+
+**criteria_weights_sum:** 1.0 → `1.000000`. Artifact: `"1.000000"` — **MATCH**
+
+**recomputed_weighted_totals:**
+- AWS: 1.0 × 11.0 = 11.0 → `11.000000`. Artifact: `"11.000000"` — **MATCH**
+- GCP: 1.0 × 4.0 = 4.0 → `4.000000`. Artifact: `"4.000000"` — **MATCH**
+- Azure: 1.0 × 3.0 = 3.0 → `3.000000`. Artifact: `"3.000000"` — **MATCH**
+
+**options_with_weighted_total_mismatch:** AWS 11.000000 vs 11.000000 ✓; GCP 4.000000 vs 999.000000 ✗; Azure 3.000000 vs 3.000000 ✓ → `["GCP"]`. Artifact: `["GCP"]` — **MATCH**
+
+**options_without_complete_scores:** all cover "Cost" → `[]`. Artifact: `[]` — **MATCH**
+
+**score_coverage_ratio:** 3/3 = 1.0 → `1.000000`. Artifact: `"1.000000"` — **MATCH**
+
+**weighted_total_match_ratio:** recomputing options = 3 (all three have complete scores and weights), declared = 3 → 3/3 = 1.0 → `1.000000`? 
+
+Wait — the artifact reports `"0.666667"`. Let me re-read the spec: "`weighted_total_match_ratio` reports recomputing options ÷ declared options." The numerator is "recomputing options" — i.e., options whose declared total *matches* the recompute. AWS ✓, GCP ✗, Azure ✓ → 2 matching ÷ 3 declared = 0.6666… → `floor(0.6666666…*1e6+0.5)/1e6 = floor(666667.166…)/1e6 = 0.666667` → `"0.666667"`. Artifact: `"0.666667"` — **MATCH** (my first reading was wrong; the spec's "recomputing options" means matching options, consistent with the mismatch list).
+
+**options_count:** 3 — **MATCH**; **criteria_count:** 1 — **MATCH**
+**duplicate_option_names:** `[]` — **MATCH**; **duplicate_criterion_names:** `[]` — **MATCH**
+**chosen_option:** "AWS" — **MATCH**
+
+### Checks that should fail from planted wrong values
+- **structured_every_score_lies_within_the_declared_scale:** AWS score 11.0 > scale_max 10.0 → **fail**. Artifact: fail — **MATCH**
+- **structured_every_declared_weighted_total_recomputes:** GCP declared 999.0 ≠ recomputed 4.0 → **fail**. Artifact: fail — **MATCH**
+- **structured_evaluation_uncertainty_is_flagged:** uncertainty_flagged=false → **fail**. Artifact: fail — **MATCH**
+- **structured_evaluation_base_rates_are_considered:** base_rates_considered=false → **fail**. Artifact: fail — **MATCH**
+- **structured_scenario_thinking_used_when_probabilities_not_estimable:** probabilities_estimable=false requires scenario_thinking_used=true, but it is false → **fail**. Artifact: fail — **MATCH**
+
+All other checks: framing all true ✓; options 3, unique, kinds valid, status-quo + smaller-step present ✓; criteria present, weights non-negative sum 1.0, defined-before-scoring ✓; coverage complete, no undeclared, no double ✓; scale bounds 0≤10 coherent ✓; method recognised ✓; EV not required (probabilities not estimable) → pass ✓; pre-mortem N/A (not material) → pass ✓; log/review all true, chosen matches ✓; red lines all false ✓.
+
+So exactly **5 fails**: the two matrix-scoring checks (out-of-scale score, GCP total mismatch) and the three evaluation checks (uncertainty, base rates, scenario thinking). Artifact reports exactly these 5 fails — **MATCH**.
+
+**computed_status:** any fail → `outside_stated_limits_on_declared_evidence`. Artifact: same — **MATCH**
+**verdict:** `DECISION_RECORD_NOT_SOUND`. Artifact: same — **MATCH**
+**summary:** "41 pass, 5 fail, 0 missing of 46". Artifact: same — **MATCH**
+
+## Conclusion
+
+Every computed quantity (weights sum, per-option recomputed totals, mismatch list, coverage list, both ratios, counts, duplicate lists, chosen option, computed_status, verdict, summary) and every check status in both cases recomputes to the artifact's recorded values. The violations case's 5 fails are exactly the checks the planted wrong values (score 11 > scale 10; GCP total 999 ≠ 4; three false evaluation flags) should trigger.
+
+AGREEMENT: full

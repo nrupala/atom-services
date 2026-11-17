@@ -1,0 +1,393 @@
+Design black-box test cases for a deterministic API atom, from its contract alone.
+
+ATOM: strict-typescript-engineering-pack
+
+=== contract.yaml ===
+service_name: strict-typescript-engineering-pack
+display_name: Strict typescript engineering pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:typescript-engineering
+binding:
+  skill: typescript-engineering
+  skill_path: workspace/mymilo-build/skills/typescript-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: strict_typescript_engineering_pack
+  prefix: atm_1_strict_typescript_engineering_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Frontend and tooling builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Strict TypeScript engineering pack — `strict-typescript-engineering-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Write production TypeScript — strict mode, no any, typed boundaries with schemas, small honest modules.
+
+A caller submits a declared strict TypeScript engineering record for one TypeScript codebase and receives one deliverable back: a deterministic verdict over that record. One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code — frontend, Node services and tooling codebases — who need a strict-TypeScript discipline verdict on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Frontend and tooling builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the strict TypeScript engineering manifest
+
+The caller submits one JSON manifest: a declared strict
+TypeScript engineering record for one TypeScript codebase,
+made from the codebase's actual practice. Every field below
+is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present
+but false / invalid = the check fails
+(`STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY`). All fields
+are booleans unless noted. A field present with the wrong
+JSON type raises a field-naming validation error and is
+never evaluated.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `tsconfig.strict_true_enabled` (boolean) | strict_tsconfig_and_compiler_gate |
+| `tsconfig.no_unchecked_indexed_access_enabled` (boolean) | strict_tsconfig_and_compiler_gate |
+| `tsconfig.tsc_no_emit_in_development_loop` (boolean) | strict_tsconfig_and_compiler_gate |
+| `tsconfig.tsc_no_emit_clean_under_strict` (boolean) | strict_tsconfig_and_compiler_gate |
+| `typing.unknown_used_and_narrowed_instead_of_any` (boolean) | typing_discipline_no_any |
+| `typing.no_any_in_src` (boolean) | typing_discipline_no_any |
+| `typing.casts_avoided_or_remaining_justified` (boolean) | typing_discipline_no_any |
+| `typing.non_null_assertion_chains_absent` (boolean) | typing_discipline_no_any |
+| `boundary_validation.external_input_validated_with_schema` (boolean) | typed_boundaries_and_schema_validation |
+| `boundary_validation.parse_not_trust_at_edges` (boolean) | typed_boundaries_and_schema_validation |
+| `boundaries` (list of boundary-row objects, each with the entry fields below; computed, see below) | typed_boundaries_and_schema_validation |
+| `boundaries[].name` (string; names the row in the computed outputs) | typed_boundaries_and_schema_validation |
+| `boundaries[].schema_validated` (boolean; must be `true` per row) | typed_boundaries_and_schema_validation |
+| `boundaries[].schema_tested` (boolean; must be `true` per row) | typed_boundaries_and_schema_validation |
+| `state_modelling.discriminated_unions_for_status_machines` (boolean) | state_modelling_with_discriminated_unions |
+| `state_modelling.exhaustive_switch_with_never_check` (boolean) | state_modelling_with_discriminated_unions |
+| `state_modelling.illegal_states_unrepresentable_by_design` (boolean) | state_modelling_with_discriminated_unions |
+| `module_structure.small_files_kept` (boolean) | module_structure_and_declared_modules |
+| `module_structure.deep_imports_preferred_over_barrel_files` (boolean) | module_structure_and_declared_modules |
+| `module_structure.explicit_public_surfaces` (boolean) | module_structure_and_declared_modules |
+| `modules` (list of module-row objects, each with the entry fields below; computed, see below) | module_structure_and_declared_modules |
+| `modules[].name` (string; names the row in the computed outputs) | module_structure_and_declared_modules |
+| `modules[].any_free` (boolean; must be `true` per row) | module_structure_and_declared_modules |
+| `modules[].explicit_public_surface` (boolean; must be `true` per row) | module_structure_and_declared_modules |
+| `async_practices.all_promises_awaited_or_handled` (boolean) | async_and_cancellation_discipline |
+| `async_practices.no_floating_promises` (boolean) | async_and_cancellation_discipline |
+| `async_practices.promise_handling_lint_rule_enabled` (boolean) | async_and_cancellation_discipline |
+| `async_practices.abort_controller_for_cancellable_work` (boolean) | async_and_cancellation_discipline |
+| `testing.unit_tests_for_logic_with_vitest` (boolean) | tests_build_and_tooling |
+| `testing.integration_tests_at_module_edges` (boolean) | tests_build_and_tooling |
+| `testing.types_tested_by_compilation` (boolean) | tests_build_and_tooling |
+| `build_tooling.tsc_for_types_and_bundler_for_bundling` (boolean) | tests_build_and_tooling |
+| `build_tooling.source_maps_enabled` (boolean) | tests_build_and_tooling |
+| `build_tooling.dependencies_pinned` (boolean) | tests_build_and_tooling |
+| `build_tooling.lint_clean` (boolean) | tests_build_and_tooling |
+| `red_lines.ts_ignore_or_ts_expect_error_without_tracked_reason_present` (boolean; must be `false` to pass — skill red line) | typescript_red_lines |
+| `red_lines.unvalidated_runtime_shapes_assumed_present` (boolean; must be `false` to pass — skill red line) | typescript_red_lines |
+| `red_lines.any_in_src_present` (boolean; must be `false` to pass — skill anti-pattern) | typescript_red_lines |
+| `red_lines.floating_promises_present` (boolean; must be `false` to pass — skill anti-pattern) | typescript_red_lines |
+
+Several checks are computed from the declared rows and the
+declared tsconfig flags, using only the skill's own stated
+rules plus the consistency of the declared record itself —
+no outside threshold is imported:
+
+- **Boundaries declared:** the declared `boundaries` list
+  passes when it is present. An absent list is missing
+  evidence. An empty list passes: it declares that the
+  codebase has no external boundaries, and the skill requires
+  no boundary.
+- **Schema validation per boundary:** every declared boundary
+  row must declare `schema_validated` true (the skill:
+  validate external input — API, storage, env — with a schema
+  such as zod/valibot; parse, don't trust). A row with the
+  field absent is missing evidence; a row declaring it false
+  fails. On an empty list the check passes vacuously.
+- **Schema testing per boundary:** every declared row must
+  declare `schema_tested` true (the skill's quality gate:
+  boundary schemas exist and are tested), under the same
+  absent/false/vacuous rules.
+- **No boundary name duplicated:** no declared boundary
+  `name` may appear on more than one row. A row with `name`
+  absent is missing evidence for this check.
+- **Modules declared:** the declared `modules` list passes
+  when it is present, under the same absent/empty rules.
+- **Any-free per module:** every declared module row must
+  declare `any_free` true (the skill: no `any` in `src/`),
+  under the same absent/false/vacuous rules.
+- **Explicit public surface per module:** every declared row
+  must declare `explicit_public_surface` true (the skill:
+  explicit public surfaces), under the same rules.
+- **No module name duplicated:** no declared module `name`
+  may appear on more than one row, under the same rules.
+- **Strict-flag coverage:** the two skill-named strict flags
+  (`strict` and `noUncheckedIndexedAccess`) are counted when
+  both are declared: the ratio of the two that are declared
+  true. It is null when either flag is absent. The ratio is
+  reported only; the bar is the two boolean checks
+  themselves, not a coverage percentage.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the eight primary computed checks above cannot be
+completed), `boundaries_count` and `modules_count` (the
+declared list lengths, or null when a list is not declared —
+counts are reported as integers, exactly), the row-name lists
+`boundaries_without_schema_validation`,
+`boundaries_without_schema_tests`, `modules_not_any_free` and
+`modules_without_explicit_public_surface` (rows whose field
+is present but not true; a row with the field absent is
+missing evidence and does not appear),
+`duplicate_boundary_names` and `duplicate_module_names`
+(names declared on more than one row, in the order their
+second occurrence appears), and the coverage ratios
+`strict_flag_coverage`, `schema_validation_coverage`,
+`schema_test_coverage`, `any_free_coverage` and
+`explicit_public_surface_coverage`. **Fixed serialization
+rule:** computed ratios are reported as strings with exactly
+six decimal places, produced in both implementations by the
+same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio
+is null when its denominator list is absent or empty (for
+`strict_flag_coverage`, when either named flag is absent).
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are qualitative declarations the record makes, not bars the
+atom can set. Quantities are computed and reported; the only
+bar on the computed rows is completeness over the caller's
+own declared rows, exactly as stated above. Declined
+thresholds, named: a strict-flag set beyond the two flags the
+skill itself names (`strict` and `noUncheckedIndexedAccess`)
+— no additional tsconfig flag (for example
+`exactOptionalPropertyTypes` or `noImplicitOverride`) is
+required or counted; a maximum file size or line count for
+what counts as a "small" module file; a maximum number of
+justified `as` casts, a cast rate, or a non-null-assertion
+count beyond the declared absence of `!` chains; a module
+count, a boundary count, or a dependency count; a test
+coverage percentage, a test count, or a test-duration limit;
+a bundle-size budget or a build-time limit; a mandated schema
+library (zod and valibot are the skill's examples — only that
+schema validation is declared and tested is checked, never
+which library); a named lint rule or a lint-warning count
+beyond lint being declared clean and a promise-handling rule
+being declared enabled; a cancellation latency or an
+`AbortController` adoption percentage beyond its use for
+cancellable work being declared.
+
+The verdict is one of
+`STRICT_TYPESCRIPT_ENGINEERING_PACK_READY` (all 39 checks
+pass), `STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails
+but evidence is missing), across eight sections:
+strict_tsconfig_and_compiler_gate, typing_discipline_no_any,
+typed_boundaries_and_schema_validation,
+state_modelling_with_discriminated_unions,
+module_structure_and_declared_modules,
+async_and_cancellation_discipline, tests_build_and_tooling,
+typescript_red_lines.
+
+## Distinct ground
+
+This atom's ground is TypeScript-specific strictness and
+typing discipline, and it shares **zero check names** with
+every sibling — verified mechanically by enumerating
+`evaluate({})` check names from every `services/*/src/*.py`
+oracle (131 oracles, 4,229 other check names) and
+intersecting: this atom's register (39 names) overlaps none.
+Against each named sibling:
+
+- `production-python-engineering-pack` and
+  `production-python-engineering-pack-expert`: declared
+  Python records — virtualenv per project, pyproject pinning
+  plus lockfile, pytest fixtures/parametrize, mutable default
+  arguments, pathlib, Python packaging and (expert) Python
+  profiling/API surfaces. No tsconfig, no `any`, no
+  discriminated unions, no TypeScript boundaries or modules.
+- `production-rust-engineering-pack` and
+  `production-rust-engineering-pack-expert`: declared Rust
+  records — ownership and lifetimes, borrow-before-cloning,
+  unsafe/FFI rows with `// SAFETY:` comments and miri,
+  RustCrypto/`ring`, cargo/clippy discipline. No TypeScript
+  question is asked there.
+- `javascript-review-and-build`: a plain JavaScript record —
+  ESM and strict mode, `var`/`const` discipline, DOM safety
+  (`textContent` over `innerHTML`), promise and bundling
+  practice **without a type system**. This atom is the typed
+  counterpart's distinct ground: everything here presupposes
+  the TypeScript compiler — tsconfig strictness, `any` vs
+  `unknown`, casts, non-null assertions, schema-typed
+  boundaries, discriminated unions with a `never` check —
+  questions plain JavaScript cannot ask.
+- `c-engineering-review` and `cpp-engineering-review`:
+  declared C and C++ records — memory ownership, RAII and
+  value semantics, sanitizers and C/C++ tooling. Unrelated
+  type systems and failure modes.
+
+The boundary is: strict TypeScript discipline here; Python,
+Rust, plain JavaScript, C and C++ practice in their own
+atoms; general backend, frontend or code-review judgment in
+theirs.
+
+## Honest scoping
+
+This atom reviews a **declared** strict TypeScript
+engineering record — it compiles nothing itself, runs no
+tsc, vitest, linter or bundler, inspects no repository or
+source file, and does not verify that declared practice was
+ever carried out. A codebase is ready *on the caller's
+declared evidence*: a record that declares `strict: true`,
+no `any` and every boundary schema-tested passes those
+checks even if the real codebase did none of it. It is a
+completeness and consistency audit of the engineering record
+the skill requires, **not a compiler, a type checker, a code
+review, or a guarantee that the code is type-safe or
+correct**: it never judges whether a declared schema actually
+matches the real runtime shape, whether a discriminated union
+actually models the real states well, or whether a justified
+cast is actually sound — only that the record contains what
+the skill's strict TypeScript practice demands, and that its
+declared boundary and module rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): the skill's
+write-my-code steps are EXCLUDED by name — converting
+JavaScript to TypeScript, writing or rewriting any TypeScript
+code, authoring a tsconfig, writing a zod/valibot schema,
+designing a discriminated union for a caller's state machine,
+refactoring modules or barrel files, fixing a floating
+promise, and migrating a JS project to TS are never performed
+or emitted; the atom only checks declared
+presence/consistency and refuses the skill's anti-patterns as
+red-line declarations. Also excluded: no numeric thresholds
+at all (the skill states none — see the declined list above);
+no live verification of any declared fact; no judgment of
+practice *quality* — whether the strictness, typing or module
+design is adequate for the real codebase is the caller's
+declaration, checked only for declared presence and
+consistency.
+
+## U-13 regulatory screen
+
+Classification: **(b) screen-NO — flag-with-controls (census
+class).** This atom's output could not read as regulated
+professional advice — it audits a declared software-engineering
+record for completeness and consistency against a strict
+TypeScript practice skill; it offers no engineering-practice
+advice in the APEGA sense (no design, stamping, or safety
+judgment over physical systems), no financial or securities
+advice, and nothing psychology-adjacent. Its subject is
+software practice only, the same class as the
+software-engineering titles that stayed live at the census
+pending the owner's review. Named controls: (1)
+declared-record audit only — the atom audits the record the
+caller declares, never inspects real code and never verifies
+practice; (2) advice-shaped and write-my-code skill steps are
+excluded as red lines / named exclusions — the skill's
+prescriptive moves (how to convert JS to TS, how to model a
+state machine, how to write a schema) are never emitted as
+advice or code; the atom only checks declared
+presence/consistency and refuses the skill's anti-patterns as
+red-line declarations; (3) no numeric threshold is invented —
+every bar is the skill's own stated rule or completeness over
+the caller's declared rows.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+Design EXACTLY 4 cases:
+1. kind "full-pass": an input manifest that satisfies every requirement the
+   documents state, so the atom must return its PASS outcome (the pass
+   verdict/status named in the documents).
+2. kind "violations": a manifest of the same shape whose values are present
+   but wrong in specific ways, so the atom must return its FAIL outcome and
+   the checks covering those wrong values must fail. List the check names
+   (as named in the documents/output format) you expect to fail.
+3. kind "sparse": a manifest with only one or two fields present, so the
+   atom must return its INSUFFICIENT_EVIDENCE outcome (or the equivalent
+   named in the documents).
+4. kind "malformed": a manifest with clear TYPE violations (e.g. a string
+   where an object or list is required, a number where a boolean is
+   required), so the atom must answer a clean input error (HTTP 422),
+   never a 500 and never a verdict.
+
+Inputs must follow the documented input format exactly (field names,
+nesting, value types) — you are testing the atom, so your valid cases must
+be genuinely valid per the documents. For computed/report atoms (whose
+output is a computed artifact with a status such as complete / partial /
+insufficient_evidence), adapt: full-pass = a complete well-formed input
+expecting the complete status; violations = an input whose data violates
+documented consistency rules expecting the documented failure/partial
+behaviour; sparse = a minimal input expecting insufficient_evidence;
+malformed = type violations expecting HTTP 422. Where the atom computes
+numbers, add "computed_spot_checks" to the full-pass expect: a short list
+of quantities the judge can recompute from the input by hand.
+
+Return JSON only, exactly this shape:
+{"cases": [
+  {"id": "full-pass", "kind": "full-pass", "input": {...},
+    "expect": {"outcome": "<expected verdict/status value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "violations", "kind": "violations", "input": {...},
+    "expect": {"outcome": "<expected fail verdict/status>", "http": 200,
+               "failing_checks": ["<check name>", ...], "notes": "..."}},
+  {"id": "sparse", "kind": "sparse", "input": {...},
+    "expect": {"outcome": "<expected insufficient-evidence value>", "http": 200,
+               "failing_checks": [], "notes": "..."}},
+  {"id": "malformed", "kind": "malformed", "input": {...},
+    "expect": {"outcome": null, "http": 422, "failing_checks": [],
+               "notes": "..."}}
+]}

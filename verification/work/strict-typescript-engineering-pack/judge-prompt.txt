@@ -1,0 +1,1444 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: strict-typescript-engineering-pack
+
+=== contract.yaml ===
+service_name: strict-typescript-engineering-pack
+display_name: Strict typescript engineering pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:typescript-engineering
+binding:
+  skill: typescript-engineering
+  skill_path: workspace/mymilo-build/skills/typescript-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: strict_typescript_engineering_pack
+  prefix: atm_1_strict_typescript_engineering_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Frontend and tooling builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Strict TypeScript engineering pack — `strict-typescript-engineering-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Write production TypeScript — strict mode, no any, typed boundaries with schemas, small honest modules.
+
+A caller submits a declared strict TypeScript engineering record for one TypeScript codebase and receives one deliverable back: a deterministic verdict over that record. One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code — frontend, Node services and tooling codebases — who need a strict-TypeScript discipline verdict on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Frontend and tooling builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the strict TypeScript engineering manifest
+
+The caller submits one JSON manifest: a declared strict
+TypeScript engineering record for one TypeScript codebase,
+made from the codebase's actual practice. Every field below
+is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present
+but false / invalid = the check fails
+(`STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY`). All fields
+are booleans unless noted. A field present with the wrong
+JSON type raises a field-naming validation error and is
+never evaluated.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `tsconfig.strict_true_enabled` (boolean) | strict_tsconfig_and_compiler_gate |
+| `tsconfig.no_unchecked_indexed_access_enabled` (boolean) | strict_tsconfig_and_compiler_gate |
+| `tsconfig.tsc_no_emit_in_development_loop` (boolean) | strict_tsconfig_and_compiler_gate |
+| `tsconfig.tsc_no_emit_clean_under_strict` (boolean) | strict_tsconfig_and_compiler_gate |
+| `typing.unknown_used_and_narrowed_instead_of_any` (boolean) | typing_discipline_no_any |
+| `typing.no_any_in_src` (boolean) | typing_discipline_no_any |
+| `typing.casts_avoided_or_remaining_justified` (boolean) | typing_discipline_no_any |
+| `typing.non_null_assertion_chains_absent` (boolean) | typing_discipline_no_any |
+| `boundary_validation.external_input_validated_with_schema` (boolean) | typed_boundaries_and_schema_validation |
+| `boundary_validation.parse_not_trust_at_edges` (boolean) | typed_boundaries_and_schema_validation |
+| `boundaries` (list of boundary-row objects, each with the entry fields below; computed, see below) | typed_boundaries_and_schema_validation |
+| `boundaries[].name` (string; names the row in the computed outputs) | typed_boundaries_and_schema_validation |
+| `boundaries[].schema_validated` (boolean; must be `true` per row) | typed_boundaries_and_schema_validation |
+| `boundaries[].schema_tested` (boolean; must be `true` per row) | typed_boundaries_and_schema_validation |
+| `state_modelling.discriminated_unions_for_status_machines` (boolean) | state_modelling_with_discriminated_unions |
+| `state_modelling.exhaustive_switch_with_never_check` (boolean) | state_modelling_with_discriminated_unions |
+| `state_modelling.illegal_states_unrepresentable_by_design` (boolean) | state_modelling_with_discriminated_unions |
+| `module_structure.small_files_kept` (boolean) | module_structure_and_declared_modules |
+| `module_structure.deep_imports_preferred_over_barrel_files` (boolean) | module_structure_and_declared_modules |
+| `module_structure.explicit_public_surfaces` (boolean) | module_structure_and_declared_modules |
+| `modules` (list of module-row objects, each with the entry fields below; computed, see below) | module_structure_and_declared_modules |
+| `modules[].name` (string; names the row in the computed outputs) | module_structure_and_declared_modules |
+| `modules[].any_free` (boolean; must be `true` per row) | module_structure_and_declared_modules |
+| `modules[].explicit_public_surface` (boolean; must be `true` per row) | module_structure_and_declared_modules |
+| `async_practices.all_promises_awaited_or_handled` (boolean) | async_and_cancellation_discipline |
+| `async_practices.no_floating_promises` (boolean) | async_and_cancellation_discipline |
+| `async_practices.promise_handling_lint_rule_enabled` (boolean) | async_and_cancellation_discipline |
+| `async_practices.abort_controller_for_cancellable_work` (boolean) | async_and_cancellation_discipline |
+| `testing.unit_tests_for_logic_with_vitest` (boolean) | tests_build_and_tooling |
+| `testing.integration_tests_at_module_edges` (boolean) | tests_build_and_tooling |
+| `testing.types_tested_by_compilation` (boolean) | tests_build_and_tooling |
+| `build_tooling.tsc_for_types_and_bundler_for_bundling` (boolean) | tests_build_and_tooling |
+| `build_tooling.source_maps_enabled` (boolean) | tests_build_and_tooling |
+| `build_tooling.dependencies_pinned` (boolean) | tests_build_and_tooling |
+| `build_tooling.lint_clean` (boolean) | tests_build_and_tooling |
+| `red_lines.ts_ignore_or_ts_expect_error_without_tracked_reason_present` (boolean; must be `false` to pass — skill red line) | typescript_red_lines |
+| `red_lines.unvalidated_runtime_shapes_assumed_present` (boolean; must be `false` to pass — skill red line) | typescript_red_lines |
+| `red_lines.any_in_src_present` (boolean; must be `false` to pass — skill anti-pattern) | typescript_red_lines |
+| `red_lines.floating_promises_present` (boolean; must be `false` to pass — skill anti-pattern) | typescript_red_lines |
+
+Several checks are computed from the declared rows and the
+declared tsconfig flags, using only the skill's own stated
+rules plus the consistency of the declared record itself —
+no outside threshold is imported:
+
+- **Boundaries declared:** the declared `boundaries` list
+  passes when it is present. An absent list is missing
+  evidence. An empty list passes: it declares that the
+  codebase has no external boundaries, and the skill requires
+  no boundary.
+- **Schema validation per boundary:** every declared boundary
+  row must declare `schema_validated` true (the skill:
+  validate external input — API, storage, env — with a schema
+  such as zod/valibot; parse, don't trust). A row with the
+  field absent is missing evidence; a row declaring it false
+  fails. On an empty list the check passes vacuously.
+- **Schema testing per boundary:** every declared row must
+  declare `schema_tested` true (the skill's quality gate:
+  boundary schemas exist and are tested), under the same
+  absent/false/vacuous rules.
+- **No boundary name duplicated:** no declared boundary
+  `name` may appear on more than one row. A row with `name`
+  absent is missing evidence for this check.
+- **Modules declared:** the declared `modules` list passes
+  when it is present, under the same absent/empty rules.
+- **Any-free per module:** every declared module row must
+  declare `any_free` true (the skill: no `any` in `src/`),
+  under the same absent/false/vacuous rules.
+- **Explicit public surface per module:** every declared row
+  must declare `explicit_public_surface` true (the skill:
+  explicit public surfaces), under the same rules.
+- **No module name duplicated:** no declared module `name`
+  may appear on more than one row, under the same rules.
+- **Strict-flag coverage:** the two skill-named strict flags
+  (`strict` and `noUncheckedIndexedAccess`) are counted when
+  both are declared: the ratio of the two that are declared
+  true. It is null when either flag is absent. The ratio is
+  reported only; the bar is the two boolean checks
+  themselves, not a coverage percentage.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the eight primary computed checks above cannot be
+completed), `boundaries_count` and `modules_count` (the
+declared list lengths, or null when a list is not declared —
+counts are reported as integers, exactly), the row-name lists
+`boundaries_without_schema_validation`,
+`boundaries_without_schema_tests`, `modules_not_any_free` and
+`modules_without_explicit_public_surface` (rows whose field
+is present but not true; a row with the field absent is
+missing evidence and does not appear),
+`duplicate_boundary_names` and `duplicate_module_names`
+(names declared on more than one row, in the order their
+second occurrence appears), and the coverage ratios
+`strict_flag_coverage`, `schema_validation_coverage`,
+`schema_test_coverage`, `any_free_coverage` and
+`explicit_public_surface_coverage`. **Fixed serialization
+rule:** computed ratios are reported as strings with exactly
+six decimal places, produced in both implementations by the
+same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio
+is null when its denominator list is absent or empty (for
+`strict_flag_coverage`, when either named flag is absent).
+That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are qualitative declarations the record makes, not bars the
+atom can set. Quantities are computed and reported; the only
+bar on the computed rows is completeness over the caller's
+own declared rows, exactly as stated above. Declined
+thresholds, named: a strict-flag set beyond the two flags the
+skill itself names (`strict` and `noUncheckedIndexedAccess`)
+— no additional tsconfig flag (for example
+`exactOptionalPropertyTypes` or `noImplicitOverride`) is
+required or counted; a maximum file size or line count for
+what counts as a "small" module file; a maximum number of
+justified `as` casts, a cast rate, or a non-null-assertion
+count beyond the declared absence of `!` chains; a module
+count, a boundary count, or a dependency count; a test
+coverage percentage, a test count, or a test-duration limit;
+a bundle-size budget or a build-time limit; a mandated schema
+library (zod and valibot are the skill's examples — only that
+schema validation is declared and tested is checked, never
+which library); a named lint rule or a lint-warning count
+beyond lint being declared clean and a promise-handling rule
+being declared enabled; a cancellation latency or an
+`AbortController` adoption percentage beyond its use for
+cancellable work being declared.
+
+The verdict is one of
+`STRICT_TYPESCRIPT_ENGINEERING_PACK_READY` (all 39 checks
+pass), `STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY`
+(any check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails
+but evidence is missing), across eight sections:
+strict_tsconfig_and_compiler_gate, typing_discipline_no_any,
+typed_boundaries_and_schema_validation,
+state_modelling_with_discriminated_unions,
+module_structure_and_declared_modules,
+async_and_cancellation_discipline, tests_build_and_tooling,
+typescript_red_lines.
+
+## Distinct ground
+
+This atom's ground is TypeScript-specific strictness and
+typing discipline, and it shares **zero check names** with
+every sibling — verified mechanically by enumerating
+`evaluate({})` check names from every `services/*/src/*.py`
+oracle (131 oracles, 4,229 other check names) and
+intersecting: this atom's register (39 names) overlaps none.
+Against each named sibling:
+
+- `production-python-engineering-pack` and
+  `production-python-engineering-pack-expert`: declared
+  Python records — virtualenv per project, pyproject pinning
+  plus lockfile, pytest fixtures/parametrize, mutable default
+  arguments, pathlib, Python packaging and (expert) Python
+  profiling/API surfaces. No tsconfig, no `any`, no
+  discriminated unions, no TypeScript boundaries or modules.
+- `production-rust-engineering-pack` and
+  `production-rust-engineering-pack-expert`: declared Rust
+  records — ownership and lifetimes, borrow-before-cloning,
+  unsafe/FFI rows with `// SAFETY:` comments and miri,
+  RustCrypto/`ring`, cargo/clippy discipline. No TypeScript
+  question is asked there.
+- `javascript-review-and-build`: a plain JavaScript record —
+  ESM and strict mode, `var`/`const` discipline, DOM safety
+  (`textContent` over `innerHTML`), promise and bundling
+  practice **without a type system**. This atom is the typed
+  counterpart's distinct ground: everything here presupposes
+  the TypeScript compiler — tsconfig strictness, `any` vs
+  `unknown`, casts, non-null assertions, schema-typed
+  boundaries, discriminated unions with a `never` check —
+  questions plain JavaScript cannot ask.
+- `c-engineering-review` and `cpp-engineering-review`:
+  declared C and C++ records — memory ownership, RAII and
+  value semantics, sanitizers and C/C++ tooling. Unrelated
+  type systems and failure modes.
+
+The boundary is: strict TypeScript discipline here; Python,
+Rust, plain JavaScript, C and C++ practice in their own
+atoms; general backend, frontend or code-review judgment in
+theirs.
+
+## Honest scoping
+
+This atom reviews a **declared** strict TypeScript
+engineering record — it compiles nothing itself, runs no
+tsc, vitest, linter or bundler, inspects no repository or
+source file, and does not verify that declared practice was
+ever carried out. A codebase is ready *on the caller's
+declared evidence*: a record that declares `strict: true`,
+no `any` and every boundary schema-tested passes those
+checks even if the real codebase did none of it. It is a
+completeness and consistency audit of the engineering record
+the skill requires, **not a compiler, a type checker, a code
+review, or a guarantee that the code is type-safe or
+correct**: it never judges whether a declared schema actually
+matches the real runtime shape, whether a discriminated union
+actually models the real states well, or whether a justified
+cast is actually sound — only that the record contains what
+the skill's strict TypeScript practice demands, and that its
+declared boundary and module rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): the skill's
+write-my-code steps are EXCLUDED by name — converting
+JavaScript to TypeScript, writing or rewriting any TypeScript
+code, authoring a tsconfig, writing a zod/valibot schema,
+designing a discriminated union for a caller's state machine,
+refactoring modules or barrel files, fixing a floating
+promise, and migrating a JS project to TS are never performed
+or emitted; the atom only checks declared
+presence/consistency and refuses the skill's anti-patterns as
+red-line declarations. Also excluded: no numeric thresholds
+at all (the skill states none — see the declined list above);
+no live verification of any declared fact; no judgment of
+practice *quality* — whether the strictness, typing or module
+design is adequate for the real codebase is the caller's
+declaration, checked only for declared presence and
+consistency.
+
+## U-13 regulatory screen
+
+Classification: **(b) screen-NO — flag-with-controls (census
+class).** This atom's output could not read as regulated
+professional advice — it audits a declared software-engineering
+record for completeness and consistency against a strict
+TypeScript practice skill; it offers no engineering-practice
+advice in the APEGA sense (no design, stamping, or safety
+judgment over physical systems), no financial or securities
+advice, and nothing psychology-adjacent. Its subject is
+software practice only, the same class as the
+software-engineering titles that stayed live at the census
+pending the owner's review. Named controls: (1)
+declared-record audit only — the atom audits the record the
+caller declares, never inspects real code and never verifies
+practice; (2) advice-shaped and write-my-code skill steps are
+excluded as red lines / named exclusions — the skill's
+prescriptive moves (how to convert JS to TS, how to model a
+state machine, how to write a schema) are never emitted as
+advice or code; the atom only checks declared
+presence/consistency and refuses the skill's anti-patterns as
+red-line declarations; (3) no numeric threshold is invented —
+every bar is the skill's own stated rule or completeness over
+the caller's declared rows.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "strict-typescript-engineering-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "STRICT_TYPESCRIPT_ENGINEERING_PACK_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 39 checks pass. Computed spot checks: boundaries_count=1, modules_count=1, strict_flag_coverage=1.000000",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "boundaries_count": 1,
+          "modules_count": 1,
+          "boundaries_without_schema_validation": [],
+          "boundaries_without_schema_tests": [],
+          "modules_not_any_free": [],
+          "modules_without_explicit_public_surface": [],
+          "strict_flag_coverage": "1.000000",
+          "schema_validation_coverage": "1.000000",
+          "schema_test_coverage": "1.000000",
+          "any_free_coverage": "1.000000",
+          "explicit_public_surface_coverage": "1.000000",
+          "duplicate_boundary_names": [],
+          "duplicate_module_names": []
+        }
+      },
+      "input": {
+        "project": "test-project",
+        "tsconfig": {
+          "strict_true_enabled": true,
+          "no_unchecked_indexed_access_enabled": true,
+          "tsc_no_emit_in_development_loop": true,
+          "tsc_no_emit_clean_under_strict": true
+        },
+        "typing": {
+          "unknown_used_and_narrowed_instead_of_any": true,
+          "no_any_in_src": true,
+          "casts_avoided_or_remaining_justified": true,
+          "non_null_assertion_chains_absent": true
+        },
+        "boundary_validation": {
+          "external_input_validated_with_schema": true,
+          "parse_not_trust_at_edges": true
+        },
+        "boundaries": [
+          {
+            "name": "api-boundary",
+            "schema_validated": true,
+            "schema_tested": true
+          }
+        ],
+        "state_modelling": {
+          "discriminated_unions_for_status_machines": true,
+          "exhaustive_switch_with_never_check": true,
+          "illegal_states_unrepresentable_by_design": true
+        },
+        "module_structure": {
+          "small_files_kept": true,
+          "deep_imports_preferred_over_barrel_files": true,
+          "explicit_public_surfaces": true
+        },
+        "modules": [
+          {
+            "name": "auth-module",
+            "any_free": true,
+            "explicit_public_surface": true
+          }
+        ],
+        "async_practices": {
+          "all_promises_awaited_or_handled": true,
+          "no_floating_promises": true,
+          "promise_handling_lint_rule_enabled": true,
+          "abort_controller_for_cancellable_work": true
+        },
+        "testing": {
+          "unit_tests_for_logic_with_vitest": true,
+          "integration_tests_at_module_edges": true,
+          "types_tested_by_compilation": true
+        },
+        "build_tooling": {
+          "tsc_for_types_and_bundler_for_bundling": true,
+          "source_maps_enabled": true,
+          "dependencies_pinned": true,
+          "lint_clean": true
+        },
+        "red_lines": {
+          "ts_ignore_or_ts_expect_error_without_tracked_reason_present": false,
+          "unvalidated_runtime_shapes_assumed_present": false,
+          "any_in_src_present": false,
+          "floating_promises_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "strict-typescript-engineering-pack",
+        "atom_version": "0.1.0",
+        "project": "test-project",
+        "verdict": "STRICT_TYPESCRIPT_ENGINEERING_PACK_READY",
+        "sections": {
+          "strict_tsconfig_and_compiler_gate": "pass",
+          "typing_discipline_no_any": "pass",
+          "typed_boundaries_and_schema_validation": "pass",
+          "state_modelling_with_discriminated_unions": "pass",
+          "module_structure_and_declared_modules": "pass",
+          "async_and_cancellation_discipline": "pass",
+          "tests_build_and_tooling": "pass",
+          "typescript_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_strict_true_enabled",
+            "status": "pass",
+            "evidence": "strict tsconfig: strict mode is always on - the tsconfig declares strict true"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_no_unchecked_indexed_access_enabled",
+            "status": "pass",
+            "evidence": "strict tsconfig: noUncheckedIndexedAccess is enabled alongside strict"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_tsc_no_emit_in_loop",
+            "status": "pass",
+            "evidence": "strict tsconfig: tsc --noEmit runs in the development loop"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_tsc_no_emit_clean_under_strict",
+            "status": "pass",
+            "evidence": "quality gate: tsc --noEmit is clean under strict"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_unknown_narrowed_instead_of_any",
+            "status": "pass",
+            "evidence": "typing discipline: unknown is used and narrowed instead of any"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_src_declared_any_free",
+            "status": "pass",
+            "evidence": "typing discipline: no any appears in src"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_casts_avoided_or_justified",
+            "status": "pass",
+            "evidence": "typing discipline: as casts are avoided, and any that remain are justified"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_non_null_assertion_chains_absent",
+            "status": "pass",
+            "evidence": "typing discipline: no non-null assertion chains are used"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_external_input_schema_validated",
+            "status": "pass",
+            "evidence": "typed boundaries: external input - API, storage, env - is validated with a schema such as zod or valibot"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_boundaries_parse_not_trust",
+            "status": "pass",
+            "evidence": "typed boundaries: boundaries parse rather than trust - validate at the edges and trust the compiler inside"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_boundaries_declared",
+            "status": "pass",
+            "evidence": "the declared record names its boundaries - the boundaries list is present; an empty list declares that the codebase has no external boundaries"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "every_ts_boundary_schema_validated",
+            "status": "pass",
+            "evidence": "boundaries: every declared boundary row declares schema validation"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "every_ts_boundary_schema_tested",
+            "status": "pass",
+            "evidence": "boundaries: every declared boundary row declares its schema is tested"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "no_ts_boundary_name_duplicated",
+            "status": "pass",
+            "evidence": "boundaries: no declared boundary name is owned by more than one row"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_status_machines_as_discriminated_unions",
+            "status": "pass",
+            "evidence": "state modelling: status machines are modelled as discriminated unions"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_exhaustive_switch_never_check",
+            "status": "pass",
+            "evidence": "state modelling: switches are exhaustive with a never check"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_illegal_states_unrepresentable",
+            "status": "pass",
+            "evidence": "state modelling: illegal states are made unrepresentable by the type design"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_small_module_files_kept",
+            "status": "pass",
+            "evidence": "modules: module files are kept small"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_deep_imports_over_cycle_hiding_barrels",
+            "status": "pass",
+            "evidence": "modules: deep imports are preferred over barrel files that hide cycles"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_explicit_public_surfaces_declared",
+            "status": "pass",
+            "evidence": "modules: public surfaces are explicit"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_modules_declared",
+            "status": "pass",
+            "evidence": "the declared record names its modules - the modules list is present; an empty list declares no module rows"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "every_ts_module_any_free",
+            "status": "pass",
+            "evidence": "modules: every declared module row declares it is any-free"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "every_ts_module_explicit_public_surface",
+            "status": "pass",
+            "evidence": "modules: every declared module row declares an explicit public surface"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "no_ts_module_name_duplicated",
+            "status": "pass",
+            "evidence": "modules: no declared module name is owned by more than one row"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_all_promises_awaited_or_handled",
+            "status": "pass",
+            "evidence": "async: all promises are awaited or handled"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_no_floating_promises_declared",
+            "status": "pass",
+            "evidence": "async: no floating promises are present"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_promise_handling_lint_rule_enabled",
+            "status": "pass",
+            "evidence": "async: a lint rule enforces that promises are awaited or handled"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_abort_controller_for_cancellable_work",
+            "status": "pass",
+            "evidence": "async: AbortController is used for cancellable work"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_logic_unit_tested_with_vitest",
+            "status": "pass",
+            "evidence": "tests: unit tests for logic run under vitest"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_module_edge_integration_tested",
+            "status": "pass",
+            "evidence": "tests: integration tests run at the module edges"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_types_tested_by_compilation",
+            "status": "pass",
+            "evidence": "tests: types are tested by compilation"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_tsc_for_types_bundler_for_bundling",
+            "status": "pass",
+            "evidence": "build: tsc is used for types and esbuild or vite for bundling"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_source_maps_enabled",
+            "status": "pass",
+            "evidence": "build: source maps are on"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_dependencies_pinned_for_build",
+            "status": "pass",
+            "evidence": "build: dependencies are pinned"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_lint_clean_declared",
+            "status": "pass",
+            "evidence": "quality gate: lint is clean"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_no_untracked_ts_ignore_or_expect_error",
+            "status": "pass",
+            "evidence": "red line: no ts-ignore or ts-expect-error without a tracked reason is present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_no_unvalidated_runtime_shape_assumption",
+            "status": "pass",
+            "evidence": "red line: no runtime shapes assumed that were not validated are present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_red_line_any_absent_from_src",
+            "status": "pass",
+            "evidence": "red line: no any in src is present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_red_line_floating_promises_absent",
+            "status": "pass",
+            "evidence": "red line: no floating promises are present in the record"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "boundaries_count": 1,
+        "modules_count": 1,
+        "boundaries_without_schema_validation": [],
+        "boundaries_without_schema_tests": [],
+        "modules_not_any_free": [],
+        "modules_without_explicit_public_surface": [],
+        "strict_flag_coverage": "1.000000",
+        "schema_validation_coverage": "1.000000",
+        "schema_test_coverage": "1.000000",
+        "any_free_coverage": "1.000000",
+        "explicit_public_surface_coverage": "1.000000",
+        "duplicate_boundary_names": [],
+        "duplicate_module_names": [],
+        "summary": "39 pass, 0 fail, 0 missing of 39 checks across eight sections.",
+        "stamp": "STRICT TYPESCRIPT ENGINEERING PACK\nproject: test-project\nVERDICT: STRICT_TYPESCRIPT_ENGINEERING_PACK_READY\n  strict_tsconfig_and_compiler_gate            pass\n  typing_discipline_no_any                     pass\n  typed_boundaries_and_schema_validation       pass\n  state_modelling_with_discriminated_unions    pass\n  module_structure_and_declared_modules        pass\n  async_and_cancellation_discipline            pass\n  tests_build_and_tooling                      pass\n  typescript_red_lines                         pass\n39 pass, 0 fail, 0 missing of 39 checks across eight sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "every_ts_boundary_schema_validated",
+          "every_ts_boundary_schema_tested",
+          "every_ts_module_any_free",
+          "every_ts_module_explicit_public_surface"
+        ],
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "boundaries_count": 1,
+          "modules_count": 1,
+          "boundaries_without_schema_validation": [
+            "api-boundary"
+          ],
+          "boundaries_without_schema_tests": [
+            "api-boundary"
+          ],
+          "modules_not_any_free": [
+            "auth-module"
+          ],
+          "modules_without_explicit_public_surface": [
+            "auth-module"
+          ],
+          "strict_flag_coverage": "1.000000",
+          "schema_validation_coverage": "0.000000",
+          "schema_test_coverage": "0.000000",
+          "any_free_coverage": "0.000000",
+          "explicit_public_surface_coverage": "0.000000",
+          "duplicate_boundary_names": [],
+          "duplicate_module_names": []
+        },
+        "notes": "Deep copy of full-pass with planted mutations: boundaries[0].schema_validated=false, boundaries[0].schema_tested=false, modules[0].any_free=false, modules[0].explicit_public_surface=false."
+      },
+      "input": {
+        "project": "test-project",
+        "tsconfig": {
+          "strict_true_enabled": true,
+          "no_unchecked_indexed_access_enabled": true,
+          "tsc_no_emit_in_development_loop": true,
+          "tsc_no_emit_clean_under_strict": true
+        },
+        "typing": {
+          "unknown_used_and_narrowed_instead_of_any": true,
+          "no_any_in_src": true,
+          "casts_avoided_or_remaining_justified": true,
+          "non_null_assertion_chains_absent": true
+        },
+        "boundary_validation": {
+          "external_input_validated_with_schema": true,
+          "parse_not_trust_at_edges": true
+        },
+        "boundaries": [
+          {
+            "name": "api-boundary",
+            "schema_validated": false,
+            "schema_tested": false
+          }
+        ],
+        "state_modelling": {
+          "discriminated_unions_for_status_machines": true,
+          "exhaustive_switch_with_never_check": true,
+          "illegal_states_unrepresentable_by_design": true
+        },
+        "module_structure": {
+          "small_files_kept": true,
+          "deep_imports_preferred_over_barrel_files": true,
+          "explicit_public_surfaces": true
+        },
+        "modules": [
+          {
+            "name": "auth-module",
+            "any_free": false,
+            "explicit_public_surface": false
+          }
+        ],
+        "async_practices": {
+          "all_promises_awaited_or_handled": true,
+          "no_floating_promises": true,
+          "promise_handling_lint_rule_enabled": true,
+          "abort_controller_for_cancellable_work": true
+        },
+        "testing": {
+          "unit_tests_for_logic_with_vitest": true,
+          "integration_tests_at_module_edges": true,
+          "types_tested_by_compilation": true
+        },
+        "build_tooling": {
+          "tsc_for_types_and_bundler_for_bundling": true,
+          "source_maps_enabled": true,
+          "dependencies_pinned": true,
+          "lint_clean": true
+        },
+        "red_lines": {
+          "ts_ignore_or_ts_expect_error_without_tracked_reason_present": false,
+          "unvalidated_runtime_shapes_assumed_present": false,
+          "any_in_src_present": false,
+          "floating_promises_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "strict-typescript-engineering-pack",
+        "atom_version": "0.1.0",
+        "project": "test-project",
+        "verdict": "STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY",
+        "sections": {
+          "strict_tsconfig_and_compiler_gate": "pass",
+          "typing_discipline_no_any": "pass",
+          "typed_boundaries_and_schema_validation": "fail",
+          "state_modelling_with_discriminated_unions": "pass",
+          "module_structure_and_declared_modules": "fail",
+          "async_and_cancellation_discipline": "pass",
+          "tests_build_and_tooling": "pass",
+          "typescript_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_strict_true_enabled",
+            "status": "pass",
+            "evidence": "strict tsconfig: strict mode is always on - the tsconfig declares strict true"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_no_unchecked_indexed_access_enabled",
+            "status": "pass",
+            "evidence": "strict tsconfig: noUncheckedIndexedAccess is enabled alongside strict"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_tsc_no_emit_in_loop",
+            "status": "pass",
+            "evidence": "strict tsconfig: tsc --noEmit runs in the development loop"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_tsc_no_emit_clean_under_strict",
+            "status": "pass",
+            "evidence": "quality gate: tsc --noEmit is clean under strict"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_unknown_narrowed_instead_of_any",
+            "status": "pass",
+            "evidence": "typing discipline: unknown is used and narrowed instead of any"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_src_declared_any_free",
+            "status": "pass",
+            "evidence": "typing discipline: no any appears in src"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_casts_avoided_or_justified",
+            "status": "pass",
+            "evidence": "typing discipline: as casts are avoided, and any that remain are justified"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_non_null_assertion_chains_absent",
+            "status": "pass",
+            "evidence": "typing discipline: no non-null assertion chains are used"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_external_input_schema_validated",
+            "status": "pass",
+            "evidence": "typed boundaries: external input - API, storage, env - is validated with a schema such as zod or valibot"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_boundaries_parse_not_trust",
+            "status": "pass",
+            "evidence": "typed boundaries: boundaries parse rather than trust - validate at the edges and trust the compiler inside"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_boundaries_declared",
+            "status": "pass",
+            "evidence": "the declared record names its boundaries - the boundaries list is present; an empty list declares that the codebase has no external boundaries"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "every_ts_boundary_schema_validated",
+            "status": "fail",
+            "evidence": "boundaries: every declared boundary row declares schema validation"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "every_ts_boundary_schema_tested",
+            "status": "fail",
+            "evidence": "boundaries: every declared boundary row declares its schema is tested"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "no_ts_boundary_name_duplicated",
+            "status": "pass",
+            "evidence": "boundaries: no declared boundary name is owned by more than one row"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_status_machines_as_discriminated_unions",
+            "status": "pass",
+            "evidence": "state modelling: status machines are modelled as discriminated unions"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_exhaustive_switch_never_check",
+            "status": "pass",
+            "evidence": "state modelling: switches are exhaustive with a never check"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_illegal_states_unrepresentable",
+            "status": "pass",
+            "evidence": "state modelling: illegal states are made unrepresentable by the type design"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_small_module_files_kept",
+            "status": "pass",
+            "evidence": "modules: module files are kept small"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_deep_imports_over_cycle_hiding_barrels",
+            "status": "pass",
+            "evidence": "modules: deep imports are preferred over barrel files that hide cycles"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_explicit_public_surfaces_declared",
+            "status": "pass",
+            "evidence": "modules: public surfaces are explicit"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_modules_declared",
+            "status": "pass",
+            "evidence": "the declared record names its modules - the modules list is present; an empty list declares no module rows"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "every_ts_module_any_free",
+            "status": "fail",
+            "evidence": "modules: every declared module row declares it is any-free"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "every_ts_module_explicit_public_surface",
+            "status": "fail",
+            "evidence": "modules: every declared module row declares an explicit public surface"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "no_ts_module_name_duplicated",
+            "status": "pass",
+            "evidence": "modules: no declared module name is owned by more than one row"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_all_promises_awaited_or_handled",
+            "status": "pass",
+            "evidence": "async: all promises are awaited or handled"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_no_floating_promises_declared",
+            "status": "pass",
+            "evidence": "async: no floating promises are present"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_promise_handling_lint_rule_enabled",
+            "status": "pass",
+            "evidence": "async: a lint rule enforces that promises are awaited or handled"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_abort_controller_for_cancellable_work",
+            "status": "pass",
+            "evidence": "async: AbortController is used for cancellable work"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_logic_unit_tested_with_vitest",
+            "status": "pass",
+            "evidence": "tests: unit tests for logic run under vitest"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_module_edge_integration_tested",
+            "status": "pass",
+            "evidence": "tests: integration tests run at the module edges"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_types_tested_by_compilation",
+            "status": "pass",
+            "evidence": "tests: types are tested by compilation"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_tsc_for_types_bundler_for_bundling",
+            "status": "pass",
+            "evidence": "build: tsc is used for types and esbuild or vite for bundling"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_source_maps_enabled",
+            "status": "pass",
+            "evidence": "build: source maps are on"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_dependencies_pinned_for_build",
+            "status": "pass",
+            "evidence": "build: dependencies are pinned"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_lint_clean_declared",
+            "status": "pass",
+            "evidence": "quality gate: lint is clean"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_no_untracked_ts_ignore_or_expect_error",
+            "status": "pass",
+            "evidence": "red line: no ts-ignore or ts-expect-error without a tracked reason is present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_no_unvalidated_runtime_shape_assumption",
+            "status": "pass",
+            "evidence": "red line: no runtime shapes assumed that were not validated are present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_red_line_any_absent_from_src",
+            "status": "pass",
+            "evidence": "red line: no any in src is present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_red_line_floating_promises_absent",
+            "status": "pass",
+            "evidence": "red line: no floating promises are present in the record"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "boundaries_count": 1,
+        "modules_count": 1,
+        "boundaries_without_schema_validation": [
+          "api-boundary"
+        ],
+        "boundaries_without_schema_tests": [
+          "api-boundary"
+        ],
+        "modules_not_any_free": [
+          "auth-module"
+        ],
+        "modules_without_explicit_public_surface": [
+          "auth-module"
+        ],
+        "strict_flag_coverage": "1.000000",
+        "schema_validation_coverage": "0.000000",
+        "schema_test_coverage": "0.000000",
+        "any_free_coverage": "0.000000",
+        "explicit_public_surface_coverage": "0.000000",
+        "duplicate_boundary_names": [],
+        "duplicate_module_names": [],
+        "summary": "35 pass, 4 fail, 0 missing of 39 checks across eight sections.",
+        "stamp": "STRICT TYPESCRIPT ENGINEERING PACK\nproject: test-project\nVERDICT: STRICT_TYPESCRIPT_ENGINEERING_PACK_NOT_READY\n  strict_tsconfig_and_compiler_gate            pass\n  typing_discipline_no_any                     pass\n  typed_boundaries_and_schema_validation       fail\n  state_modelling_with_discriminated_unions    pass\n  module_structure_and_declared_modules        fail\n  async_and_cancellation_discipline            pass\n  tests_build_and_tooling                      pass\n  typescript_red_lines                         pass\n35 pass, 4 fail, 0 missing of 39 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing majority of fields results in insufficient evidence."
+      },
+      "input": {
+        "project": "sparse-project",
+        "tsconfig": {
+          "strict_true_enabled": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "strict-typescript-engineering-pack",
+        "atom_version": "0.1.0",
+        "project": "sparse-project",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "strict_tsconfig_and_compiler_gate": "insufficient_evidence",
+          "typing_discipline_no_any": "insufficient_evidence",
+          "typed_boundaries_and_schema_validation": "insufficient_evidence",
+          "state_modelling_with_discriminated_unions": "insufficient_evidence",
+          "module_structure_and_declared_modules": "insufficient_evidence",
+          "async_and_cancellation_discipline": "insufficient_evidence",
+          "tests_build_and_tooling": "insufficient_evidence",
+          "typescript_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_strict_true_enabled",
+            "status": "pass",
+            "evidence": "strict tsconfig: strict mode is always on - the tsconfig declares strict true"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_no_unchecked_indexed_access_enabled",
+            "status": "missing",
+            "evidence": "strict tsconfig: noUncheckedIndexedAccess is enabled alongside strict"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_tsc_no_emit_in_loop",
+            "status": "missing",
+            "evidence": "strict tsconfig: tsc --noEmit runs in the development loop"
+          },
+          {
+            "section": "strict_tsconfig_and_compiler_gate",
+            "check": "ts_tsc_no_emit_clean_under_strict",
+            "status": "missing",
+            "evidence": "quality gate: tsc --noEmit is clean under strict"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_unknown_narrowed_instead_of_any",
+            "status": "missing",
+            "evidence": "typing discipline: unknown is used and narrowed instead of any"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_src_declared_any_free",
+            "status": "missing",
+            "evidence": "typing discipline: no any appears in src"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_casts_avoided_or_justified",
+            "status": "missing",
+            "evidence": "typing discipline: as casts are avoided, and any that remain are justified"
+          },
+          {
+            "section": "typing_discipline_no_any",
+            "check": "ts_non_null_assertion_chains_absent",
+            "status": "missing",
+            "evidence": "typing discipline: no non-null assertion chains are used"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_external_input_schema_validated",
+            "status": "missing",
+            "evidence": "typed boundaries: external input - API, storage, env - is validated with a schema such as zod or valibot"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_boundaries_parse_not_trust",
+            "status": "missing",
+            "evidence": "typed boundaries: boundaries parse rather than trust - validate at the edges and trust the compiler inside"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "ts_boundaries_declared",
+            "status": "missing",
+            "evidence": "the declared record names its boundaries - the boundaries list is present; an empty list declares that the codebase has no external boundaries"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "every_ts_boundary_schema_validated",
+            "status": "missing",
+            "evidence": "boundaries: every declared boundary row declares schema validation"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "every_ts_boundary_schema_tested",
+            "status": "missing",
+            "evidence": "boundaries: every declared boundary row declares its schema is tested"
+          },
+          {
+            "section": "typed_boundaries_and_schema_validation",
+            "check": "no_ts_boundary_name_duplicated",
+            "status": "missing",
+            "evidence": "boundaries: no declared boundary name is owned by more than one row"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_status_machines_as_discriminated_unions",
+            "status": "missing",
+            "evidence": "state modelling: status machines are modelled as discriminated unions"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_exhaustive_switch_never_check",
+            "status": "missing",
+            "evidence": "state modelling: switches are exhaustive with a never check"
+          },
+          {
+            "section": "state_modelling_with_discriminated_unions",
+            "check": "ts_illegal_states_unrepresentable",
+            "status": "missing",
+            "evidence": "state modelling: illegal states are made unrepresentable by the type design"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_small_module_files_kept",
+            "status": "missing",
+            "evidence": "modules: module files are kept small"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_deep_imports_over_cycle_hiding_barrels",
+            "status": "missing",
+            "evidence": "modules: deep imports are preferred over barrel files that hide cycles"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_explicit_public_surfaces_declared",
+            "status": "missing",
+            "evidence": "modules: public surfaces are explicit"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "ts_modules_declared",
+            "status": "missing",
+            "evidence": "the declared record names its modules - the modules list is present; an empty list declares no module rows"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "every_ts_module_any_free",
+            "status": "missing",
+            "evidence": "modules: every declared module row declares it is any-free"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "every_ts_module_explicit_public_surface",
+            "status": "missing",
+            "evidence": "modules: every declared module row declares an explicit public surface"
+          },
+          {
+            "section": "module_structure_and_declared_modules",
+            "check": "no_ts_module_name_duplicated",
+            "status": "missing",
+            "evidence": "modules: no declared module name is owned by more than one row"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_all_promises_awaited_or_handled",
+            "status": "missing",
+            "evidence": "async: all promises are awaited or handled"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_no_floating_promises_declared",
+            "status": "missing",
+            "evidence": "async: no floating promises are present"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_promise_handling_lint_rule_enabled",
+            "status": "missing",
+            "evidence": "async: a lint rule enforces that promises are awaited or handled"
+          },
+          {
+            "section": "async_and_cancellation_discipline",
+            "check": "ts_abort_controller_for_cancellable_work",
+            "status": "missing",
+            "evidence": "async: AbortController is used for cancellable work"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_logic_unit_tested_with_vitest",
+            "status": "missing",
+            "evidence": "tests: unit tests for logic run under vitest"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_module_edge_integration_tested",
+            "status": "missing",
+            "evidence": "tests: integration tests run at the module edges"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_types_tested_by_compilation",
+            "status": "missing",
+            "evidence": "tests: types are tested by compilation"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_tsc_for_types_bundler_for_bundling",
+            "status": "missing",
+            "evidence": "build: tsc is used for types and esbuild or vite for bundling"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_source_maps_enabled",
+            "status": "missing",
+            "evidence": "build: source maps are on"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_dependencies_pinned_for_build",
+            "status": "missing",
+            "evidence": "build: dependencies are pinned"
+          },
+          {
+            "section": "tests_build_and_tooling",
+            "check": "ts_lint_clean_declared",
+            "status": "missing",
+            "evidence": "quality gate: lint is clean"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_no_untracked_ts_ignore_or_expect_error",
+            "status": "missing",
+            "evidence": "red line: no ts-ignore or ts-expect-error without a tracked reason is present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_no_unvalidated_runtime_shape_assumption",
+            "status": "missing",
+            "evidence": "red line: no runtime shapes assumed that were not validated are present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_red_line_any_absent_from_src",
+            "status": "missing",
+            "evidence": "red line: no any in src is present in the record"
+          },
+          {
+            "section": "typescript_red_lines",
+            "check": "ts_red_line_floating_promises_absent",
+            "status": "missing",
+            "evidence": "red line: no floating promises are present in the record"
+          }
+        ],
+        "computed_status": null,
+        "boundaries_count": null,
+        "modules_count": null,
+        "boundaries_without_schema_validation": null,
+        "boundaries_without_schema_tests": null,
+        "modules_not_any_free": null,
+        "modules_without_explicit_public_surface": null,
+        "strict_flag_coverage": null,
+        "schema_validation_coverage": null,
+        "schema_test_coverage": null,
+        "any_free_coverage": null,
+        "explicit_public_surface_coverage": null,
+        "duplicate_boundary_names": null,
+        "duplicate_module_names": null,
+        "summary": "1 pass, 0 fail, 38 missing of 39 checks across eight sections.",
+        "stamp": "STRICT TYPESCRIPT ENGINEERING PACK\nproject: sparse-project\nVERDICT: INSUFFICIENT_EVIDENCE\n  strict_tsconfig_and_compiler_gate            insufficient_evidence\n  typing_discipline_no_any                     insufficient_evidence\n  typed_boundaries_and_schema_validation       insufficient_evidence\n  state_modelling_with_discriminated_unions    insufficient_evidence\n  module_structure_and_declared_modules        insufficient_evidence\n  async_and_cancellation_discipline            insufficient_evidence\n  tests_build_and_tooling                      insufficient_evidence\n  typescript_red_lines                         insufficient_evidence\n1 pass, 0 fail, 38 missing of 39 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on tsconfig field triggers 422."
+      },
+      "input": {
+        "project": "malformed-project",
+        "tsconfig": "not-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "tsconfig",
+        "detail": "tsconfig must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

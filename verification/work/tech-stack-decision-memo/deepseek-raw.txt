@@ -1,0 +1,109 @@
+# Independent recompute — tech-stack-decision-memo
+
+I recompute every computed quantity from the case inputs, using the SERVICE.md rule: round half up to 6dp via `floor(v*1000000 + 0.5)/1000000`, then format with exactly six decimals.
+
+## Case 1: full-pass
+
+### Declared rows
+- Candidates: c1 (PostgreSQL, proven, note "Industry standard", score perf=10, total 10.0), c2 (FoundationDB, novel, note "High throughput", score perf=8, total 8.0). Count = **2**.
+- Criteria: perf (Performance, weight 1.0). Count = **1**.
+
+### Computed checks (14 primary + gated)
+
+1. **Candidates declared** — list present, 2 ≥ 2 → pass. ✓
+2. **Candidate ids unique** — {c1, c2}, no dup → pass. Duplicate list = `[]`. ✓
+3. **Stack name per candidate** — "PostgreSQL", "FoundationDB" both non-empty → pass. `without_stack_name = []`. ✓
+4. **Novelty recognised** — "proven", "novel" both valid → pass. `invalid_novelty = []`. ✓
+5. **Evidence note per candidate** — both non-empty → pass. `without_evidence_note = []`. ✓
+6. **Criteria declared** — 1 ≥ 1 → pass. ✓
+7. **Criterion ids unique** — {perf} → pass. `duplicate_criterion_ids = []`. ✓
+8. **Criterion name** — "Performance" non-empty → pass. `criteria_without_name = []`. ✓
+9. **Weights non-negative** — 1.0 ≥ 0 → pass. `criteria_with_invalid_weight = []`. ✓
+10. **Weights sum positive** — sum = 1.0 > 0 → pass. `weights_sum = 1.0` → `floor(1.0*1e6+0.5)/1e6 = 1.000000`. ✓
+11. **Every candidate scores every criterion** — c1 scores {perf}, c2 scores {perf}; declared criteria = {perf}; each exactly once, no extras → pass. `incomplete_or_extra = []`. ✓
+12. **Weighted total recomputes** — c1: 1.0×10 = 10.0 vs declared 10.0 ✓; c2: 1.0×8 = 8.0 vs declared 8.0 ✓ → pass. `weighted_total_mismatch = []`. ✓
+13. **Chosen candidate resolves** — chosen "c1" ∈ {c1,c2} → pass. ✓
+14. **Declared ranking matches candidates** — ranking [c1,c2] vs candidates {c1,c2}: none missing, none extra, none dup → pass. `missing_from_ranking = []`, `ranking_not_declared = []`, `duplicate_ranking = []`. ✓
+15. **Hidden fragility (gated)** — `free_tier_or_free_choice_used = false` → not applicable → pass. ✓
+
+### Ratios
+- **candidate_score_coverage_ratio** = candidates scoring every criterion exactly ÷ candidates = 2/2 = 1.0 → `1.000000`. ✓
+- **candidate_weighted_total_match_ratio** = 2/2 = 1.0 → `1.000000`. ✓
+- **candidate_evidence_note_ratio** = 2/2 = 1.0 → `1.000000`. ✓
+
+### Verdict
+All 51 checks pass → `TECH_STACK_DECISION_SOUND`, `computed_status = within_stated_limits_on_declared_evidence`, summary "51 pass, 0 fail, 0 missing of 51".
+
+**Artifact comparison (full-pass):**
+| Quantity | Artifact | Recompute | Status |
+|---|---|---|---|
+| candidates_count | 2 | 2 | MATCH |
+| criteria_count | 1 | 1 | MATCH |
+| weights_sum | 1.000000 | 1.000000 | MATCH |
+| score_coverage_ratio | 1.000000 | 1.000000 | MATCH |
+| weighted_total_match_ratio | 1.000000 | 1.000000 | MATCH |
+| evidence_note_ratio | 1.000000 | 1.000000 | MATCH |
+| all duplicate/name lists | [] | [] | MATCH |
+| verdict | SOUND | SOUND | MATCH |
+| computed_status | within_limits | within_limits | MATCH |
+| summary | 51/0/0 | 51/0/0 | MATCH |
+
+## Case 2: violations
+
+### Declared rows
+- c1: stack_name = "" (empty), novelty "proven", note "Industry standard", score perf=10, total 10.0.
+- c2: stack_name "FoundationDB", novelty "unknown", note "" (empty), score perf=8, total 8.0.
+- Criteria: perf weight 1.0. Counts: candidates = 2, criteria = 1.
+
+### Computed checks
+1. Candidates declared — 2 ≥ 2 → pass.
+2. Ids unique — {c1,c2} → pass, `[]`.
+3. **Stack name** — c1 empty → **fail**, `without_stack_name = ["c1"]`. ✓
+4. **Novelty** — c2 "unknown" invalid → **fail**, `invalid_novelty = ["c2"]`. ✓
+5. **Evidence note** — c2 empty → **fail**, `without_evidence_note = ["c2"]`. ✓
+6. Criteria declared — pass.
+7. Criterion ids unique — pass, `[]`.
+8. Criterion name — pass, `[]`.
+9. Weights non-negative — pass, `[]`.
+10. Weights sum positive — 1.0 → pass, `1.000000`.
+11. Scores coverage — c1 {perf}, c2 {perf} → pass, `[]`.
+12. Weighted totals — c1 1.0×10=10.0 ✓, c2 1.0×8=8.0 ✓ → pass, `[]`.
+13. Chosen resolves — "c1" ∈ {c1,c2} → pass.
+14. Ranking matches — [c1,c2] vs {c1,c2} → pass, all `[]`.
+15. Hidden fragility — gate false → pass.
+
+### Ratios
+- score_coverage = 2/2 = `1.000000`. ✓
+- weighted_total_match = 2/2 = `1.000000`. ✓
+- **evidence_note_ratio** = candidates with non-empty note ÷ candidates = 1/2 = 0.5 → `floor(0.5*1e6+0.5)/1e6 = 0.500000`. ✓
+
+### Red lines
+`framework_of_the_week_chosen_for_novelty_present = true` → red-line check **fails**. Other four false → pass.
+
+### Verdict
+Failing checks: stack_name (c1), novelty (c2), evidence_note (c2), framework-of-the-week red line = **4 fails**, 0 missing, 47 pass → `TECH_STACK_DECISION_NOT_SOUND`, `computed_status = outside_stated_limits_on_declared_evidence`.
+
+**Planted-wrong-value confirmation:** the planted wrong values are exactly: c1 empty stack_name, c2 invalid novelty "unknown", c2 empty evidence_note, and red_lines.framework_of_the_week = true. These map 1:1 to the four failing checks — no other check fails, and no check that should pass fails. Confirmed.
+
+**Artifact comparison (violations):**
+| Quantity | Artifact | Recompute | Status |
+|---|---|---|---|
+| candidates_count | 2 | 2 | MATCH |
+| criteria_count | 1 | 1 | MATCH |
+| weights_sum | 1.000000 | 1.000000 | MATCH |
+| score_coverage_ratio | 1.000000 | 1.000000 | MATCH |
+| weighted_total_match_ratio | 1.000000 | 1.000000 | MATCH |
+| evidence_note_ratio | 0.500000 | 0.500000 | MATCH |
+| without_stack_name | ["c1"] | ["c1"] | MATCH |
+| invalid_novelty | ["c2"] | ["c2"] | MATCH |
+| without_evidence_note | ["c2"] | ["c2"] | MATCH |
+| other lists | [] | [] | MATCH |
+| failing checks | 4 (name, novelty, note, red line) | same 4 | MATCH |
+| verdict | NOT_SOUND | NOT_SOUND | MATCH |
+| computed_status | outside_limits | outside_limits | MATCH |
+| summary | 47/4/0 | 47/4/0 | MATCH |
+
+## Conclusion
+Every computed quantity, ratio, list, verdict, status, and summary in both recorded artifacts recomputes exactly from the inputs under the stated 6dp half-up serialization rule. The violations case fails exactly the four checks the planted wrong values target.
+
+AGREEMENT: full

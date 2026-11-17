@@ -1,0 +1,37 @@
+[
+  {
+    "rule": "R1",
+    "detail": "failing_checks names 'Every score within the declared scale', which is not in the atom's check register (46 checks)",
+    "fix": "Rebuilt the violations case as a deep copy of the final corrected full-pass input with planted value mutations (AWS score 11.0 over the declared scale max 10.0, GCP declared_weighted_total 999.0, uncertainty_flagged false, base_rates_considered false, scenario_thinking_used false); ran the Python oracle on the mutated input and set expect.failing_checks to exactly the oracle's failing set."
+  },
+  {
+    "rule": "R1",
+    "detail": "failing_checks names 'Every declared weighted total recomputes', which is not in the atom's check register (46 checks)",
+    "fix": "Same rebuild as the companion R1 correction: expect.failing_checks was set to exactly the oracle's failing set on the mutated deep-copy input, using exact register names only."
+  },
+  {
+    "rule": "R2",
+    "detail": "expect.computed_spot_checks is absent, empty or not structured (a non-empty object of quantity -> expected value, or a list of {quantity, expected} objects, is required); quantities stated only in prose notes do not count",
+    "fix": "Injected expect.computed_spot_checks as a structured object into the full-pass case, taken from the Python oracle output on the exact final corrected full-pass input (computed_status, options_count, criteria_count, duplicate lists, criteria_weights_sum, recomputed_weighted_totals, mismatch/coverage lists and ratios, chosen_option)."
+  },
+  {
+    "rule": "R2",
+    "detail": "expect.computed_spot_checks is absent, empty or not structured (a non-empty object of quantity -> expected value, or a list of {quantity, expected} objects, is required); quantities stated only in prose notes do not count",
+    "fix": "Injected expect.computed_spot_checks as a structured object into the violations case, taken from the Python oracle output on the exact mutated violations input."
+  },
+  {
+    "rule": "R3",
+    "detail": "violations input is missing key paths present in the full-pass manifest (a sparse violations input reads as missing evidence, not as failure): premortem, premortem.conducted, premortem.decision_is_material, premortem.failure_reasons_named, premortem.top_reasons_fixed_or_hedged",
+    "fix": "Rebuilt the violations input as a deep copy of the final corrected full-pass input, restoring premortem and all other key paths in full, changing values only via the planted mutations, so every key path present in the full-pass manifest is present in the violations input."
+  },
+  {
+    "rule": "R4",
+    "detail": "malformed input carries 2 type violations (decision must be a string, framing must be a object); exactly one is required so the 422 field is unambiguous",
+    "fix": "Rebuilt the malformed case as a deep copy of the final full-pass input with exactly one documented typed field given a wrong-typed value (decision = 12345, a number where a string is required); the raw second violation (framing as a string) was removed. Confirmed validate_cases.type_violations(input, MANIFEST_SPEC, '') returns exactly 1."
+  },
+  {
+    "rule": "oracle-pre-check",
+    "detail": "Oracle pre-check on the raw full-pass input returned DECISION_RECORD_NOT_SOUND (44 pass, 1 fail, 1 missing of 46 checks): fail structured_evaluation_uncertainty_is_flagged, missing structured_every_declared_weighted_total_recomputes; the raw design set evaluation.uncertainty_flagged=false and placed declared_weighted_total at the top level (undocumented) instead of per-option.",
+    "fix": "Corrected the full-pass design values only (contract unchanged): set evaluation.uncertainty_flagged=true, removed the top-level declared_weighted_total, and added per-option declared_weighted_total values AWS 5.0, GCP 4.0, Azure 3.0 (weight 1.0 x scores 5.0/4.0/3.0). Re-ran the oracle: DECISION_RECORD_SOUND, 46 pass / 0 fail / 0 missing."
+  }
+]

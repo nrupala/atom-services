@@ -1,0 +1,110 @@
+# Independent recompute — testing-strategy-regression-pack
+
+I recompute every computed quantity from the recorded inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+### Declared list lengths (counts)
+- `risk_rows`: 1 row (`r1`) → `risk_rows_count = 1`
+- `test_level_rows`: 3 rows (`l1`,`l2`,`l3`) → `test_level_rows_count = 3`
+- `declared_changes`: 1 row (`c1`) → `declared_changes_count = 1`
+- `regression_rows`: 1 row (`reg1`) → `regression_rows_count = 1`
+
+Per-level counts: unit = 1 (`l1`), integration = 1 (`l2`), e2e = 1 (`l3`).
+
+Artifact: 1 / 3 / 1 / 1 and 1 / 1 / 1 → **MATCH**.
+
+### Duplicate-id lists
+- risk_ids: {r1} — no repeats → `[]`
+- level_row_ids: {l1,l2,l3} — no repeats → `[]`
+- change_ids: {c1} → `[]`
+- regression_ids: {reg1} → `[]`
+
+Artifact: all `[]` → **MATCH**.
+
+### Row-name lists
+- `risks_without_description`: r1 has "Auth failure" (non-empty) → `[]`
+- `risks_without_p0_status`: r1 has `is_p0: true` present → `[]`
+- `test_level_rows_with_invalid_level`: levels unit/integration/e2e all valid → `[]`
+- `test_level_rows_with_unknown_risk_reference`: l1→r1, l2→r1, l3→r1, all resolve → `[]`
+- `declared_risks_without_test_level_row`: r1 covered by l1,l2,l3 → `[]`
+- `p0_risks_without_e2e_row`: P0 = {r1}; e2e rows name r1 (l3) → `[]`
+- `declared_changes_without_description`: c1 "Fix login bug" → `[]`
+- `declared_changes_with_invalid_kind`: c1 = defect_fix (valid) → `[]`
+- `regression_rows_with_unknown_change_reference`: reg1→c1 resolves → `[]`
+- `declared_changes_without_regression_row`: c1 covered by reg1 → `[]`
+- `defect_changes_without_regression_row`: defect changes = {c1}; covered by reg1 → `[]`
+- `regression_rows_not_declared_permanent`: reg1 `kept_permanently: true` → `[]`
+
+Artifact: all `[]` → **MATCH**.
+
+### Pyramid order check
+unit=1 ≥ integration=1 ≥ e2e=1, each ≥1 → passes. Artifact: pass → **MATCH**.
+
+### Ratios (rule: `floor(v*1000000 + 0.5)/1000000`, 6dp)
+- `risk_level_coverage_ratio` = risks covered by ≥1 level row ÷ risks = 1/1 = 1.0 → `"1.000000"`
+- `p0_e2e_coverage_ratio` = P0 covered by e2e ÷ P0 = 1/1 = 1.0 → `"1.000000"`
+- `change_regression_coverage_ratio` = changes covered ÷ changes = 1/1 → `"1.000000"`
+- `defect_regression_coverage_ratio` = defect changes covered ÷ defect changes = 1/1 → `"1.000000"`
+
+Artifact: all `"1.000000"` → **MATCH**.
+
+### Verdict / status / summary
+All 58 checks pass (I verified the failing set is empty: every boolean input is true, red-line "present" flags all false, gate `known_flakes_present=false` makes the ticket check N/A-pass). → `TESTING_STRATEGY_SOUND`, `computed_status = within_stated_limits_on_declared_evidence`, summary "58 pass, 0 fail, 0 missing of 58".
+
+Artifact: **MATCH**.
+
+## Case 2: `violations`
+
+### Counts
+Same structure: risk_rows=1, test_level_rows=3, changes=1, regression_rows=1; unit=1, integration=1, e2e=1. Artifact: 1/3/1/1, 1/1/1 → **MATCH**.
+
+### Duplicate-id lists
+All ids unique → all `[]`. Artifact: all `[]` → **MATCH**.
+
+### Row-name lists (recomputed)
+- `risks_without_description`: r1 description = "" (empty) → **["r1"]**
+- `risks_without_p0_status`: r1 has is_p0 → `[]`
+- `test_level_rows_with_invalid_level`: unit/integration/e2e valid → `[]`
+- `test_level_rows_with_unknown_risk_reference`: l1→"nonexistent" not in {r1} → **["l1"]**; l2,l3 resolve
+- `declared_risks_without_test_level_row`: r1 named by l2,l3 → `[]`
+- `p0_risks_without_e2e_row`: P0={r1}; e2e row l3 names r1 → `[]`
+- `declared_changes_without_description`: c1 non-empty → `[]`
+- `declared_changes_with_invalid_kind`: defect_fix valid → `[]`
+- `regression_rows_with_unknown_change_reference`: reg1→c1 resolves → `[]`
+- `declared_changes_without_regression_row`: c1 covered by reg1 → `[]`
+- `defect_changes_without_regression_row`: c1 covered → `[]`
+- `regression_rows_not_declared_permanent`: reg1 `kept_permanently: false` → **["reg1"]**
+
+Artifact: `["r1"]`, `["l1"]`, `["reg1"]`, rest `[]` → **MATCH**.
+
+### Ratios
+- risk_level_coverage: r1 covered by l2/l3 → 1/1 = `"1.000000"`
+- p0_e2e: r1 covered by e2e l3 → 1/1 = `"1.000000"`
+- change_regression: c1 covered → 1/1 = `"1.000000"`
+- defect_regression: c1 covered → 1/1 = `"1.000000"`
+
+Artifact: all `"1.000000"` → **MATCH**. (Note: the unknown-reference row l1 does not reduce risk coverage because r1 is still covered by l2/l3 — consistent with the rule "every declared risk named by at least one level row".)
+
+### Which checks should fail (planted wrong values)
+Planted defects: (a) r1 empty description; (b) l1 references nonexistent risk; (c) reg1 not kept permanently; (d) red line `tests_depend_on_production_systems_present: true`.
+
+Expected failing checks:
+1. `every_testing_strategy_risk_description_declared` — fail (a)
+2. `every_testing_strategy_test_level_row_risk_reference_resolves` — fail (b)
+3. `every_regression_pack_regression_row_kept_permanently` — fail (c)
+4. `testing_strategy_free_of_production_system_dependency` — fail (d)
+
+That is exactly 4 fails. Artifact's failing checks: those same four, and no others. → **MATCH**.
+
+### Verdict / status / summary
+Any fail → `TESTING_STRATEGY_NOT_SOUND`; `computed_status = outside_stated_limits_on_declared_evidence`; summary "54 pass, 4 fail, 0 missing of 58" (58−4=54). Artifact: **MATCH**.
+
+## Cross-check of section rollups
+- Case 1: all eight sections pass → consistent.
+- Case 2: sections containing a fail = scope_and_risk_declaration (check 1), test_levels_and_pyramid (check 2), regression_coverage (check 3), red_lines (check 4); the other four pass. Artifact's section map matches exactly → **MATCH**.
+
+## Conclusion
+Every computed quantity — counts, per-level counts, duplicate-id lists, all twelve row-name lists, all four ratios (with the 6dp floor(v·1e6+0.5) rule), the pyramid order, the verdict, `computed_status`, and the pass/fail/missing summary — recomputes to the artifact's recorded values in both cases. The violations case fails exactly the four checks its planted wrong values should fail.
+
+AGREEMENT: full

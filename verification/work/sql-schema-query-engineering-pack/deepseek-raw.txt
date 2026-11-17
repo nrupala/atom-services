@@ -1,0 +1,98 @@
+# Independent recompute — sql-schema-query-engineering-pack
+
+I recompute every computed quantity from the recorded inputs, using only the rules stated in SERVICE.md. I do not trust any number in the artifacts.
+
+## Case 1: `full-pass`
+
+Input: 1 table (`users`), 1 index (`idx_users_email` on `users`, columns `["email"]`), 1 query (`get_user_by_email`, table `users`, supporting_index_name `idx_users_email`). All boolean attestations true; all four red-line flags false.
+
+### Counts
+- `tables_count` = len(tables) = **1**. Artifact: 1 → MATCH
+- `indexes_count` = len(indexes) = **1**. Artifact: 1 → MATCH
+- `queries_count` = len(queries) = **1**. Artifact: 1 → MATCH
+
+### Row-name lists
+- `tables_without_primary_key`: table `users` has `primary_key_declared: true` → not listed → **[]**. Artifact: [] → MATCH
+- `tables_without_schema_constraints`: `schema_constraints_declared: true` → **[]**. Artifact: [] → MATCH
+- `tables_without_not_null_default`: `not_null_default_declared: true` → **[]**. Artifact: [] → MATCH
+- `tables_with_non_snake_case_names`: `users` matches `[a-z][a-z0-9_]*` in full (u-s-e-r-s, all lowercase letters) → **[]**. Artifact: [] → MATCH
+- `duplicate_sql_table_names`: one name `users`, no repeat → **[]**. Artifact: [] → MATCH
+- `indexes_without_columns`: `columns: ["email"]` present, non-empty → **[]**. Artifact: [] → MATCH
+- `duplicate_sql_index_names`: one name → **[]**. Artifact: [] → MATCH
+- `queries_without_explicit_column_list`: `explicit_column_list_declared: true` → **[]**. Artifact: [] → MATCH
+- `queries_without_bounded_or_paginated_access`: `bounded_or_paginated_declared: true` → **[]**. Artifact: [] → MATCH
+- `queries_without_parameterized_inputs`: `parameterized_inputs_declared: true` → **[]**. Artifact: [] → MATCH
+- `queries_without_n_plus_one_avoidance`: `n_plus_one_avoidance_declared: true` → **[]**. Artifact: [] → MATCH
+- `uncovered_sql_queries`: query names `idx_users_email` on table `users`; index `idx_users_email` exists with table `users` → name equal AND table equal → covered → **[]**. Artifact: [] → MATCH
+- `duplicate_sql_query_names`: one name → **[]**. Artifact: [] → MATCH
+
+### Coverage ratios (rule: `floor(v*1000000 + 0.5)/1000000`, formatted to exactly 6 dp)
+- `table_primary_key_coverage` = 1/1 = 1.0 → floor(1000000.5)/1000000 = 1.0 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `table_schema_constraints_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `table_not_null_default_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `index_columns_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_explicit_column_list_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_bounded_or_paginated_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_parameterized_inputs_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_n_plus_one_avoidance_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_index_support_coverage` = 1 covered / 1 query = 1.0 → **"1.000000"**. Artifact: "1.000000" → MATCH
+
+### Verdict / status / summary
+- All 44 checks: every boolean attestation true, all four red lines false, all computed row checks pass → 44 pass, 0 fail, 0 missing. `computed_status` = **within_stated_limits_on_declared_evidence**. Artifact: same → MATCH
+- `verdict` = **SQL_SCHEMA_QUERY_ENGINEERING_PACK_READY**. Artifact: same → MATCH
+- `summary` = "44 pass, 0 fail, 0 missing of 44 checks across eight sections." Artifact: same → MATCH
+- All eight sections "pass". Artifact: all pass → MATCH
+
+## Case 2: `violations`
+
+Input: 1 table `InvalidTableName` with `primary_key_declared: false`, `schema_constraints_declared: true`, `not_null_default_declared: true`; 1 index `idx_users_email` on `users`; 1 query `get_user_by_email` on `users` with `supporting_index_name: non_existent_index`. All other attestations true; red lines false.
+
+### Counts
+- `tables_count` = **1**. Artifact: 1 → MATCH
+- `indexes_count` = **1**. Artifact: 1 → MATCH
+- `queries_count` = **1**. Artifact: 1 → MATCH
+
+### Row-name lists
+- `tables_without_primary_key`: `InvalidTableName` has `primary_key_declared: false` → listed → **["InvalidTableName"]**. Artifact: ["InvalidTableName"] → MATCH
+- `tables_without_schema_constraints`: true → **[]**. Artifact: [] → MATCH
+- `tables_without_not_null_default`: true → **[]**. Artifact: [] → MATCH
+- `tables_with_non_snake_case_names`: `InvalidTableName` — contains uppercase `I`, `T`, `N`; does not match `[a-z][a-z0-9_]*` in full → listed → **["InvalidTableName"]**. Artifact: ["InvalidTableName"] → MATCH
+- `duplicate_sql_table_names`: one name → **[]**. Artifact: [] → MATCH
+- `indexes_without_columns`: `["email"]` non-empty → **[]**. Artifact: [] → MATCH
+- `duplicate_sql_index_names`: one name → **[]**. Artifact: [] → MATCH
+- `queries_without_explicit_column_list`: true → **[]**. Artifact: [] → MATCH
+- `queries_without_bounded_or_paginated_access`: true → **[]**. Artifact: [] → MATCH
+- `queries_without_parameterized_inputs`: true → **[]**. Artifact: [] → MATCH
+- `queries_without_n_plus_one_avoidance`: true → **[]**. Artifact: [] → MATCH
+- `uncovered_sql_queries`: query names `non_existent_index` on table `users`; declared index is `idx_users_email` — name does not equal `non_existent_index` → no match → **["get_user_by_email"]**. Artifact: ["get_user_by_email"] → MATCH
+- `duplicate_sql_query_names`: one name → **[]**. Artifact: [] → MATCH
+
+### Coverage ratios
+- `table_primary_key_coverage` = 0/1 = 0.0 → floor(0.5)/1000000 = 0 → **"0.000000"**. Artifact: "0.000000" → MATCH
+- `table_schema_constraints_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `table_not_null_default_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `index_columns_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_explicit_column_list_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_bounded_or_paginated_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_parameterized_inputs_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_n_plus_one_avoidance_coverage` = 1/1 → **"1.000000"**. Artifact: "1.000000" → MATCH
+- `query_index_support_coverage` = 0 covered / 1 query = 0.0 → **"0.000000"**. Artifact: "0.000000" → MATCH
+
+### Verdict / status / summary
+- Failing checks: `every_sql_table_declares_primary_key` (false row), `every_sql_table_name_is_snake_case` (InvalidTableName), `every_declared_sql_query_has_matching_declared_index` (non_existent_index). That is **3 fail**, 41 pass, 0 missing. `computed_status` = **outside_stated_limits_on_declared_evidence**. Artifact: same → MATCH
+- `verdict` = **SQL_SCHEMA_QUERY_ENGINEERING_PACK_NOT_READY**. Artifact: same → MATCH
+- `summary` = "41 pass, 3 fail, 0 missing of 44 checks across eight sections." Artifact: same → MATCH
+- Sections: `schema_constraints_and_naming` fail (2 failing checks), `index_design_from_access_patterns` fail (1 failing check), all other six pass. Artifact: exactly that → MATCH
+
+### Confirmation that the failing checks are exactly the planted wrong values
+The planted wrong values are: (1) `primary_key_declared: false` on the table, (2) table name `InvalidTableName` (non-snake_case), (3) query `supporting_index_name: non_existent_index` (no matching declared index). Each maps to exactly one failing check:
+- (1) → `every_sql_table_declares_primary_key` — fail ✓
+- (2) → `every_sql_table_name_is_snake_case` — fail ✓
+- (3) → `every_declared_sql_query_has_matching_declared_index` — fail ✓
+
+No other check fails, and no planted value is missed. The three failing checks are exactly the ones the planted wrong values should fail. ✓
+
+## Conclusion
+Every computed quantity in both artifacts — counts, all thirteen row-name lists, all nine coverage ratios (with the exact 6-dp half-up serialization), `computed_status`, `verdict`, `summary`, and per-section statuses — recomputes to the artifact's value. No mismatches found.
+
+AGREEMENT: full

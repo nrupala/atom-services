@@ -1,0 +1,1193 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: statistical-study-design-report
+
+=== contract.yaml ===
+service_name: statistical-study-design-report
+display_name: Statistical study design report
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:statistical-consulting
+binding:
+  skill: statistical-consulting
+  skill_path: workspace/mymilo-build/skills/statistical-consulting/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REPORT
+endpoints:
+- agent
+- human
+keys:
+  namespace: statistical_study_design_report
+  prefix: atm_1_statistical_study_design_report_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Studies behind RA and product decisions
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Statistical study design report — `statistical-study-design-report`
+
+**Deliverable type:** REPORT. This atom sells the report it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): run statistics engagements — problem framing, study design, assumption checks, reports clients can act on. Its method is this atom's frame: statistics fails when the analysis starts before the decision is defined, so the engagement runs frame → design → analyze → validate → deliver, with an audit trail; power/precision analysis happens before collection and the analysis plan is pre-registered.
+
+A caller submits the inputs the bound skill works on and receives one report back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this report on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Studies behind RA and product decisions**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the study design manifest
+
+The caller submits one JSON manifest: a declared statistical
+study design record for one study, made from the design as
+actually planned. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`STUDY_DESIGN_NOT_READY`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `study_title` (string; carried into the verdict output, not itself checked) | — |
+| `framing.decision_stated` (boolean) | decision_framing |
+| `framing.research_question_stated` (boolean) | decision_framing |
+| `framing.outcome_defined` (boolean) | decision_framing |
+| `framing.unit_of_analysis_defined` (boolean) | decision_framing |
+| `framing.population_defined` (boolean) | decision_framing |
+| `framing.timeframe_defined` (boolean) | decision_framing |
+| `design.design_type` (string; computed — must be a recognised design type, see below) | design_and_variables |
+| `design.assignment_mechanism_stated` (boolean) | design_and_variables |
+| `design.estimand_stated` (boolean) | design_and_variables |
+| `design.confounders_identified` (boolean) | design_and_variables |
+| `variables` (list of variable-row objects, each with the entry fields below; computed, see below) | design_and_variables |
+| `variables[].variable_id` (string; must be unique per row) | design_and_variables |
+| `variables[].role` (string; one of `outcome`, `exposure`, `predictor`, `confounder`, `covariate`, `stratification`) | design_and_variables |
+| `sampling.sampling_frame_defined` (boolean) | sampling_and_power |
+| `sampling.sampling_method_stated` (boolean) | sampling_and_power |
+| `sampling.inclusion_exclusion_criteria_stated` (boolean) | sampling_and_power |
+| `sampling.power_analysis_done_before_collection` (boolean) | sampling_and_power |
+| `sampling.declared_total_sample_size` (number; computed — must equal the sum of the declared group sizes, see below) | sampling_and_power |
+| `sampling.declared_alpha` (number; computed — must lie strictly between 0 and 1, see below) | sampling_and_power |
+| `sampling.declared_target_power` (number; computed — must lie strictly between 0 and 1, see below) | sampling_and_power |
+| `sampling.declared_effect_size` (number; computed — must be non-zero, see below) | sampling_and_power |
+| `groups` (list of group-row objects, each with the entry fields below; computed, see below) | sampling_and_power |
+| `groups[].group_id` (string; must be unique per row) | sampling_and_power |
+| `groups[].declared_size` (number; must be a positive whole number) | sampling_and_power |
+| `analysis.plan_written_before_collection` (boolean) | analysis_plan |
+| `analysis.plan_preregistered` (boolean) | analysis_plan |
+| `analysis.primary_method_named` (boolean) | analysis_plan |
+| `analysis.assumption_checks_planned` (boolean) | analysis_plan |
+| `analysis.effect_size_with_uncertainty_planned` (boolean) | analysis_plan |
+| `analysis.multiple_comparison_discipline_planned` (boolean) | analysis_plan |
+| `analysis.deviations_logging_planned` (boolean) | analysis_plan |
+| `validation.sensitivity_analyses_planned` (boolean) | validation_and_bias_controls |
+| `validation.robustness_checks_planned` (boolean) | validation_and_bias_controls |
+| `validation.leakage_audit_planned` (boolean) | validation_and_bias_controls |
+| `validation.limitations_section_planned` (boolean) | validation_and_bias_controls |
+| `validation.what_would_change_conclusion_stated` (boolean) | validation_and_bias_controls |
+| `delivery.executive_summary_planned` (boolean) | delivery_and_reproducibility |
+| `delivery.methods_memo_planned` (boolean) | delivery_and_reproducibility |
+| `delivery.reproducible_appendix_planned` (boolean) | delivery_and_reproducibility |
+| `delivery.pipeline_sealed_for_rerun` (boolean) | delivery_and_reproducibility |
+| `red_lines.significance_without_effect_size_and_uncertainty_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.p_hacking_or_selective_reporting_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.causal_language_from_observational_without_design_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.unredacted_pii_or_unapproved_reuse_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.outcome_guarantee_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Twelve checks are computed from the declared rows and values,
+using only the skill's own stated method plus the consistency
+of the declared record itself — no outside threshold is
+imported:
+
+- **Design type recognised:** the declared `design.design_type`
+  is one of `randomized_experiment`, `factorial_experiment`,
+  `sequential_experiment`, `quasi_experiment`, `observational`
+  — the record format's types for the skill's design step
+  (experimental: randomization, factorial/DOE, sequential
+  testing; observational; and quasi-experimental designs
+  between them). An absent type is missing evidence; any other
+  value fails.
+- **Variables list declared:** the declared `variables` list
+  passes when it is present and names at least one variable.
+  An absent list is missing evidence; an empty list fails — it
+  declares no variables at all, and the skill's intake defines
+  the outcome before design begins.
+- **Variable ids unique:** no declared `variable_id` may appear
+  on more than one row. A row with `variable_id` absent is
+  missing evidence for this check.
+- **Variable roles recognised:** every declared variable's
+  `role` is one of `outcome`, `exposure`, `predictor`,
+  `confounder`, `covariate`, `stratification`. A row with
+  `role` absent is missing evidence; any other value fails,
+  and the row is named in `variables_with_unrecognised_role`.
+- **At least one outcome variable:** at least one declared
+  variable has the `outcome` role — the intake outcome is
+  among the declared variables. Rows without a `role` are
+  missing evidence for this check.
+- **Groups list declared:** the declared `groups` list passes
+  when it is present and names at least one group. An absent
+  list is missing evidence; an empty list fails.
+- **Group ids unique:** no declared `group_id` may appear on
+  more than one row. A row with `group_id` absent is missing
+  evidence for this check.
+- **Group sizes positive whole numbers:** every declared
+  group's `declared_size` is a whole number of at least one —
+  a group size is a count of units. A row missing its size is
+  missing evidence; a zero, negative or fractional size fails.
+- **Total sample size matches the group sum:** the declared
+  `sampling.declared_total_sample_size` must equal the sum of
+  the declared group sizes, compared on the fixed 6dp
+  serialization below. Missing groups, a missing total, or a
+  group without a numeric size is missing evidence; a
+  differing total fails.
+- **Alpha in the valid probability range:** the declared
+  `sampling.declared_alpha` lies strictly between 0 and 1 —
+  alpha is a probability. Absent is missing evidence; 0, 1 or
+  anything outside fails. No significance level is prescribed:
+  any value inside the range passes.
+- **Target power in the valid probability range:** the
+  declared `sampling.declared_target_power` lies strictly
+  between 0 and 1 — power is a probability. Absent is missing
+  evidence; 0, 1 or anything outside fails. No minimum power
+  is imposed: a declared target power of 0.2 passes exactly as
+  0.8 does — the value is reported, never graded.
+- **Effect size non-zero:** the declared
+  `sampling.declared_effect_size` is not zero — a zero effect
+  is the null the design exists to detect a departure from.
+  Absent is missing evidence; zero fails; any non-zero value,
+  positive or negative, of any magnitude, passes.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twelve computed checks above cannot be completed),
+`variables_count` and `groups_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), `outcome_variable_count`,
+`duplicate_variable_ids` and `duplicate_group_ids` (ids
+declared on more than one row, in the order their second
+occurrence appears), `variables_with_unrecognised_role`,
+`computed_total_sample_size` (the sum of the declared group
+sizes, or null when it cannot be computed),
+`declared_total_sample_size` (the declared total, or null),
+`total_sample_size_difference` (declared total minus computed
+total, or null), the declared power inputs reported verbatim
+(`declared_alpha`, `declared_target_power`,
+`declared_effect_size`, each null when not declared as a
+number), and `largest_group_share` (the largest declared
+group size ÷ the computed total sample size). **Fixed
+serialization rule:** `largest_group_share` is reported as a
+string with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; the total sample-size comparison is made on the
+same 6dp serializations of the declared and recomputed
+values. That fixed serialization is what makes the Python and
+TypeScript outputs byte-identical.
+
+The skill states no sample-size or power adequacy threshold
+at all — its demands are a power/precision analysis done
+before collection, a pre-registered plan, declared assumption
+checks and qualitative declarations the record makes, not bars
+the atom can set. Quantities are computed and reported; the
+only bars on the computed rows are the valid probability
+ranges, non-zero effect, positive whole group counts, exact
+recomputation of the declared total from the declared groups,
+and completeness over the caller's own declared record,
+exactly as stated above. Declined thresholds, named: a
+sample-size adequacy bar (no minimum total or per-group
+sample size beyond a positive whole count — a design with
+tiny groups passes the computed checks if its arithmetic
+agrees; adequacy for the caller's question is not judged);
+a minimum target power (the conventional 0.8 is **not**
+imposed — power is reported verbatim, never graded); a
+prescribed significance level / alpha (no 0.05 or any other
+level is required — any alpha strictly between 0 and 1
+passes); an effect-size magnitude bar (no small/medium/large
+grading — only non-zero is checked, because zero is the
+null); a required number of groups, variables or outcomes
+beyond at least one variable, one group and one outcome
+variable; an allocation-ratio or group-balance bar (unequal
+groups are reported via `largest_group_share`, never failed);
+a precision or confidence-interval width bar; a required
+sample-size / power formula (no z-test, t-test or any other
+closed-form recomputation of required sample size is
+performed — the skill names no formula, and choosing one
+would import a distributional assumption the record does not
+declare); any judgment that the chosen design type, sampling
+method or primary analysis method is the right one for the
+caller's actual study (only that a recognised type is
+declared, the method is named, and the plan is pre-registered
+is checked).
+
+The verdict is one of `STUDY_DESIGN_READY` (all 46 checks
+pass), `STUDY_DESIGN_NOT_READY` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: decision_framing,
+design_and_variables, sampling_and_power, analysis_plan,
+validation_and_bias_controls, delivery_and_reproducibility,
+red_lines.
+
+## Distinct ground
+
+The nearest siblings are `bias-controlled-quant-study-pack`
+(a declared market quant study pack — hypothesis
+pre-registration before looking at results, market-data
+hygiene: adjusted prices, delisted names, point-in-time
+fundamentals; distribution reality, stability across periods,
+multiple-testing counts, stated trading costs, and
+reproducibility of a market study), `quant-math-derivation-sanity-check`
+(a declared mathematical derivation — every declared step
+recomputing from its operands with a declared unit algebra,
+and a final result equal to its last step), and
+`forecast-with-ranges-and-scorecard` (a declared forecast
+artifact — baselines, a declared low/base/high range,
+base/best/worst scenarios with triggers, and a
+forecast-vs-actual scorecard whose declared MAE, MAPE and
+bias are recomputed from the declared history). This atom
+shares **zero checks** with any of them (verified mechanically
+by enumerating `evaluate({})` check names from every atom
+oracle in `services/*/src/*.py` and comparing, with a grep of
+the check strings as fallback for oracles that do not answer
+`evaluate({})` — zero overlap): every check here is a
+study-design question — a decision framed and written before
+the design with its research question, outcome, unit of
+analysis, population and timeframe defined; a recognised
+design type with assignment mechanism, target estimand and
+confounders stated; declared variables with unique ids,
+recognised roles and at least one outcome; a sampling plan
+whose declared group sizes are positive whole numbers summing
+exactly to the declared total, with declared alpha and target
+power in the valid probability range and a non-zero declared
+effect size; a pre-registered analysis plan reporting effect
+sizes with uncertainty under multiple-comparison discipline,
+with deviations logged; sensitivity, robustness and leakage
+controls with an honest limitations section; a reproducible
+delivery with a sealed pipeline; and the consulting red lines
+(significance without effect and uncertainty, p-hacking or
+selective reporting, unsupported causal language, unredacted
+PII or unapproved reuse, outcome guarantees). The boundary
+is: the internal consistency of a declared statistical study
+design record here; a market quant study pack, a mathematical
+derivation, and a forecast artifact there.
+
+## Honest scoping
+
+This atom reviews a **declared** study design record — it
+runs no study, collects or analyses no data, performs no
+power calculation of its own, tests no hypothesis, and does
+not verify that any declared plan (of randomization, sampling,
+assumption checks, sensitivity analyses or a reproducible
+pipeline) was ever actually carried out. A design is ready
+*on the caller's declared evidence*: a record that declares
+its plan pre-registered, its confounders identified and its
+group sizes summing to its total passes those checks even if
+the real study did none of it. It is a completeness and
+consistency audit of the study design record the skill
+requires, **not a study, a statistical analysis, a peer
+review, or a guarantee that the design will answer the
+research question**: it never judges whether the declared
+design can identify the declared estimand, whether the
+declared sample size is adequate for the caller's question,
+whether the named method's assumptions will hold, or whether
+any future result is true — only that the record contains
+what the skill's method, quality gates and red lines demand,
+and that its declared numbers are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged or performed):
+recommending a design for the caller's actual study —
+choosing between experimental and observational designs,
+recommending a sample size, a significance level, a target
+power or an analysis method for a real question is
+advice-shaped work this atom **does not do**; interpreting
+results — no dataset is received, no estimate, interval,
+p-value or finding is produced or interpreted, and no
+conclusion about any real-world claim is given; running the
+skill's Analyze step itself (EDA, assumption tests on data,
+the model ladder, effect-size estimation) — the atom checks
+only that those steps are *planned* in the declared record;
+executing the skill's Validate step on real results
+(sensitivity and robustness are checked as planned
+declarations only); writing the caller's executive summary,
+methods memo or report — delivery artifacts are checked as
+planned, never authored; any numeric adequacy bar (see the
+declined list above).
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO with flag-with-controls
+(census class).** This atom sits near research/statistics
+advice by keyword and by substance — its bound skill is a
+consulting engagement discipline, and a study design record
+could concern a regulated domain (a clinical, engineering or
+financial study) — so the screen was applied strictly, and
+the atom is flagged for the owner's per-unit ruling queue
+under U-13 on that adjacency. What prevents an advice
+reading, as named controls: (1) the atom audits a
+caller-**declared** study design record for completeness and
+internal consistency only — declared-framing, design,
+sampling, analysis-plan, validation and delivery attestations,
+plus recomputation of the caller's own declared group sizes
+against the caller's own declared total and the valid
+probability ranges of the caller's own declared alpha and
+power; every output is a pass / fail / missing verdict on the
+record or a quantity recomputed from it; (2) it gives **no
+statistical advice, no design recommendation, no analysis, no
+interpretation and no conclusion about any real-world
+claim** — it never says what design, sample size, method or
+level the caller should use, whether a study is well designed
+for its actual question, or what any result means; the
+skill's advice-shaped and execution-shaped steps (designing
+the caller's study, analysing their data, interpreting
+findings, delivering the engagement's own report) are
+excluded from production and named as exclusions above —
+this atom performs none of them, it only audits a declared
+record of a design; (3) it sets **no adequacy threshold** —
+no sample-size, power, significance, effect-size or precision
+bar against which a caller's design could be graded as good
+or bad (see the declined list); (4) the record's subject is
+whatever study the caller declares — the atom takes no
+position on any clinical, engineering, financial or other
+regulated decision, and no output is addressed to one.
+Residual risk, stated plainly: a caller could paste the
+verdict into their own study documentation — that is their
+decision, made on their record; the artifact itself
+recommends nothing. This is the same class as the
+quant-math-derivation-sanity-check precedent (declared-record
+audit, advice-shaped skill steps excluded as controls); it is
+not the genuinely-open personal-financial-snapshot class,
+because no personal position or regulated subject matter is
+handled and the skill carries no advice-shaped step that this
+atom performs. Flagging never blocks authoring; no deploy
+happens on this atom without the owner's explicit per-unit
+ruling after the screen.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "study_title": "Test Study",
+      "framing": {
+        "decision_stated": true,
+        "research_question_stated": true,
+        "outcome_defined": true,
+        "unit_of_analysis_defined": true,
+        "population_defined": true,
+        "timeframe_defined": true
+      },
+      "design": {
+        "design_type": "randomized_experiment",
+        "assignment_mechanism_stated": true,
+        "estimand_stated": true,
+        "confounders_identified": true
+      },
+      "variables": [
+        {
+          "variable_id": "v1",
+          "role": "outcome"
+        }
+      ],
+      "sampling": {
+        "sampling_frame_defined": true,
+        "sampling_method_stated": true,
+        "inclusion_exclusion_criteria_stated": true,
+        "power_analysis_done_before_collection": true,
+        "declared_total_sample_size": 100,
+        "declared_alpha": 0.05,
+        "declared_target_power": 0.8,
+        "declared_effect_size": 0.5
+      },
+      "groups": [
+        {
+          "group_id": "g1",
+          "declared_size": 100
+        }
+      ],
+      "analysis": {
+        "plan_written_before_collection": true,
+        "plan_preregistered": true,
+        "primary_method_named": true,
+        "assumption_checks_planned": true,
+        "effect_size_with_uncertainty_planned": true,
+        "multiple_comparison_discipline_planned": true,
+        "deviations_logging_planned": true
+      },
+      "validation": {
+        "sensitivity_analyses_planned": true,
+        "robustness_checks_planned": true,
+        "leakage_audit_planned": true,
+        "limitations_section_planned": true,
+        "what_would_change_conclusion_stated": true
+      },
+      "delivery": {
+        "executive_summary_planned": true,
+        "methods_memo_planned": true,
+        "reproducible_appendix_planned": true,
+        "pipeline_sealed_for_rerun": true
+      },
+      "red_lines": {
+        "significance_without_effect_size_and_uncertainty_present": false,
+        "p_hacking_or_selective_reporting_present": false,
+        "causal_language_from_observational_without_design_present": false,
+        "unredacted_pii_or_unapproved_reuse_present": false,
+        "outcome_guarantee_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "statistical-study-design-report",
+      "atom_version": "0.1.0",
+      "study_title": "Test Study",
+      "verdict": "STUDY_DESIGN_READY",
+      "sections": {
+        "decision_framing": "pass",
+        "design_and_variables": "pass",
+        "sampling_and_power": "pass",
+        "analysis_plan": "pass",
+        "validation_and_bias_controls": "pass",
+        "delivery_and_reproducibility": "pass",
+        "red_lines": "pass"
+      },
+      "checks": [
+        {
+          "section": "decision_framing",
+          "check": "study_design_decision_stated_before_design",
+          "status": "pass",
+          "evidence": "intake: the decision that changes with the answer is stated and written before the design"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_research_question_stated",
+          "status": "pass",
+          "evidence": "intake: the research question the study answers is stated"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_primary_outcome_defined",
+          "status": "pass",
+          "evidence": "intake: the outcome is defined before design"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_unit_of_analysis_defined",
+          "status": "pass",
+          "evidence": "intake: the unit of analysis is defined"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_target_population_defined",
+          "status": "pass",
+          "evidence": "intake: the target population is defined"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_timeframe_defined",
+          "status": "pass",
+          "evidence": "intake: the timeframe is defined"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_type_recognised",
+          "status": "pass",
+          "evidence": "design: the declared design type is one of randomized_experiment, factorial_experiment, sequential_experiment, quasi_experiment, observational"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_assignment_mechanism_stated",
+          "status": "pass",
+          "evidence": "design: the assignment or exposure mechanism is stated (randomization, factorial allocation, blocking, sequential rule, or observational exposure as the design provides)"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_estimand_stated",
+          "status": "pass",
+          "evidence": "design: the target estimand is stated"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_confounders_identified",
+          "status": "pass",
+          "evidence": "design: confounders are identified, with matching or weighting declared where the design uses them"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_variables_list_declared",
+          "status": "pass",
+          "evidence": "the declared record names its variables \u2014 the variables list is present and names at least one variable; an absent list is missing evidence and an empty list declares no variables at all"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_every_variable_id_unique",
+          "status": "pass",
+          "evidence": "variables: no declared variable_id is owned by more than one row"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_every_variable_role_recognised",
+          "status": "pass",
+          "evidence": "variables: every declared variable's role is one of outcome, exposure, predictor, confounder, covariate, stratification"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_at_least_one_outcome_variable_declared",
+          "status": "pass",
+          "evidence": "variables: at least one declared variable has the outcome role \u2014 the intake outcome is among the declared variables"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_sampling_frame_defined",
+          "status": "pass",
+          "evidence": "sampling: the sampling frame is defined"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_sampling_method_stated",
+          "status": "pass",
+          "evidence": "sampling: the sampling method is stated"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_inclusion_exclusion_criteria_stated",
+          "status": "pass",
+          "evidence": "sampling: inclusion and exclusion criteria are stated"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_power_analysis_done_before_collection",
+          "status": "pass",
+          "evidence": "design: power / precision analysis is done before collection, not after"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_groups_list_declared",
+          "status": "pass",
+          "evidence": "the declared record names its groups \u2014 the groups list is present and names at least one group; an absent list is missing evidence and an empty list declares no groups at all"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_every_group_id_unique",
+          "status": "pass",
+          "evidence": "groups: no declared group_id is owned by more than one row"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_every_group_size_positive_whole",
+          "status": "pass",
+          "evidence": "groups: every declared group size is a positive whole number (at least one)"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_total_sample_size_matches_group_sum",
+          "status": "pass",
+          "evidence": "sample size: the declared total sample size equals the sum of the declared group sizes (6dp serialization)"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_alpha_in_valid_probability_range",
+          "status": "pass",
+          "evidence": "power inputs: the declared alpha is a probability \u2014 strictly between 0 and 1"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_target_power_in_valid_probability_range",
+          "status": "pass",
+          "evidence": "power inputs: the declared target power is a probability \u2014 strictly between 0 and 1"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_effect_size_nonzero",
+          "status": "pass",
+          "evidence": "power inputs: the declared effect size is non-zero \u2014 a zero effect is the null, not an effect to detect"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_analysis_plan_written_before_collection",
+          "status": "pass",
+          "evidence": "analysis plan: the analysis plan is written before collection"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_analysis_plan_preregistered",
+          "status": "pass",
+          "evidence": "analysis plan: the analysis plan is pre-registered"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_primary_analysis_method_named",
+          "status": "pass",
+          "evidence": "analysis plan: the primary analysis method is named (the model ladder starts simple)"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_assumption_checks_planned",
+          "status": "pass",
+          "evidence": "analysis plan: assumption checks are planned \u2014 assumptions tested, not assumed"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_effect_size_with_uncertainty_planned",
+          "status": "pass",
+          "evidence": "analysis plan: effect sizes with uncertainty (confidence / credible intervals) are planned \u2014 never bare p-values"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_multiple_comparison_discipline_planned",
+          "status": "pass",
+          "evidence": "analysis plan: multiple-comparison discipline is planned"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_analysis_plan_deviations_logging_planned",
+          "status": "pass",
+          "evidence": "quality gate: deviations from the analysis plan will be logged with reasons"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_sensitivity_analyses_planned",
+          "status": "pass",
+          "evidence": "validate: sensitivity analyses are planned"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_robustness_checks_planned",
+          "status": "pass",
+          "evidence": "validate: robustness to outliers and misspecification is planned"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_leakage_audit_planned",
+          "status": "pass",
+          "evidence": "intake audit: a leakage audit of the data is planned (with provenance and missingness)"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_limitations_section_planned",
+          "status": "pass",
+          "evidence": "quality gate: a limitations section is planned and honest"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_what_would_change_conclusion_stated",
+          "status": "pass",
+          "evidence": "handoff: what would change the conclusion is documented"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_executive_summary_planned",
+          "status": "pass",
+          "evidence": "deliver: a one-page executive summary is planned (findings, decisions, limitations)"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_methods_memo_planned",
+          "status": "pass",
+          "evidence": "deliver: a methods memo is planned"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_reproducible_appendix_planned",
+          "status": "pass",
+          "evidence": "deliver: a reproducible appendix is planned (script, data checksums, environment)"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_pipeline_sealed_for_rerun",
+          "status": "pass",
+          "evidence": "handoff: the pipeline is sealed so the analysis can be re-run when data updates"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_significance_without_uncertainty",
+          "status": "pass",
+          "evidence": "red line: no significance reported without effect size and uncertainty is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_p_hacking_or_selective_reporting",
+          "status": "pass",
+          "evidence": "red line: no p-hacking or selective reporting is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_unsupported_causal_language",
+          "status": "pass",
+          "evidence": "red line: no causal language from observational data without the design to back it is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_unredacted_pii_or_unapproved_reuse",
+          "status": "pass",
+          "evidence": "red line: no unredacted PII or unapproved reuse of client data is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_outcome_guarantees",
+          "status": "pass",
+          "evidence": "red line: no guarantee of outcomes is present in the record"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "variables_count": 1,
+      "outcome_variable_count": 1,
+      "duplicate_variable_ids": [],
+      "variables_with_unrecognised_role": [],
+      "groups_count": 1,
+      "duplicate_group_ids": [],
+      "computed_total_sample_size": 100,
+      "declared_total_sample_size": 100,
+      "total_sample_size_difference": 0,
+      "largest_group_share": "1.000000",
+      "declared_alpha": 0.05,
+      "declared_target_power": 0.8,
+      "declared_effect_size": 0.5,
+      "summary": "46 pass, 0 fail, 0 missing of 46 checks across seven sections.",
+      "stamp": "STATISTICAL STUDY DESIGN REPORT\nstudy_title: Test Study\nVERDICT: STUDY_DESIGN_READY\n  decision_framing                             pass\n  design_and_variables                         pass\n  sampling_and_power                           pass\n  analysis_plan                                pass\n  validation_and_bias_controls                 pass\n  delivery_and_reproducibility                 pass\n  red_lines                                    pass\n46 pass, 0 fail, 0 missing of 46 checks across seven sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "study_title": "Test Study",
+      "framing": {
+        "decision_stated": true,
+        "research_question_stated": true,
+        "outcome_defined": true,
+        "unit_of_analysis_defined": true,
+        "population_defined": true,
+        "timeframe_defined": true
+      },
+      "design": {
+        "design_type": "invalid_type",
+        "assignment_mechanism_stated": true,
+        "estimand_stated": true,
+        "confounders_identified": true
+      },
+      "variables": [
+        {
+          "variable_id": "v1",
+          "role": "outcome"
+        }
+      ],
+      "sampling": {
+        "sampling_frame_defined": true,
+        "sampling_method_stated": true,
+        "inclusion_exclusion_criteria_stated": true,
+        "power_analysis_done_before_collection": true,
+        "declared_total_sample_size": 50,
+        "declared_alpha": 1.5,
+        "declared_target_power": 0.8,
+        "declared_effect_size": 0
+      },
+      "groups": [
+        {
+          "group_id": "g1",
+          "declared_size": 100
+        }
+      ],
+      "analysis": {
+        "plan_written_before_collection": true,
+        "plan_preregistered": true,
+        "primary_method_named": true,
+        "assumption_checks_planned": true,
+        "effect_size_with_uncertainty_planned": true,
+        "multiple_comparison_discipline_planned": true,
+        "deviations_logging_planned": true
+      },
+      "validation": {
+        "sensitivity_analyses_planned": true,
+        "robustness_checks_planned": true,
+        "leakage_audit_planned": true,
+        "limitations_section_planned": true,
+        "what_would_change_conclusion_stated": true
+      },
+      "delivery": {
+        "executive_summary_planned": true,
+        "methods_memo_planned": true,
+        "reproducible_appendix_planned": true,
+        "pipeline_sealed_for_rerun": true
+      },
+      "red_lines": {
+        "significance_without_effect_size_and_uncertainty_present": false,
+        "p_hacking_or_selective_reporting_present": false,
+        "causal_language_from_observational_without_design_present": false,
+        "unredacted_pii_or_unapproved_reuse_present": false,
+        "outcome_guarantee_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "statistical-study-design-report",
+      "atom_version": "0.1.0",
+      "study_title": "Test Study",
+      "verdict": "STUDY_DESIGN_NOT_READY",
+      "sections": {
+        "decision_framing": "pass",
+        "design_and_variables": "fail",
+        "sampling_and_power": "fail",
+        "analysis_plan": "pass",
+        "validation_and_bias_controls": "pass",
+        "delivery_and_reproducibility": "pass",
+        "red_lines": "pass"
+      },
+      "checks": [
+        {
+          "section": "decision_framing",
+          "check": "study_design_decision_stated_before_design",
+          "status": "pass",
+          "evidence": "intake: the decision that changes with the answer is stated and written before the design"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_research_question_stated",
+          "status": "pass",
+          "evidence": "intake: the research question the study answers is stated"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_primary_outcome_defined",
+          "status": "pass",
+          "evidence": "intake: the outcome is defined before design"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_unit_of_analysis_defined",
+          "status": "pass",
+          "evidence": "intake: the unit of analysis is defined"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_target_population_defined",
+          "status": "pass",
+          "evidence": "intake: the target population is defined"
+        },
+        {
+          "section": "decision_framing",
+          "check": "study_design_timeframe_defined",
+          "status": "pass",
+          "evidence": "intake: the timeframe is defined"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_type_recognised",
+          "status": "fail",
+          "evidence": "design: the declared design type is one of randomized_experiment, factorial_experiment, sequential_experiment, quasi_experiment, observational"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_assignment_mechanism_stated",
+          "status": "pass",
+          "evidence": "design: the assignment or exposure mechanism is stated (randomization, factorial allocation, blocking, sequential rule, or observational exposure as the design provides)"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_estimand_stated",
+          "status": "pass",
+          "evidence": "design: the target estimand is stated"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_confounders_identified",
+          "status": "pass",
+          "evidence": "design: confounders are identified, with matching or weighting declared where the design uses them"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_variables_list_declared",
+          "status": "pass",
+          "evidence": "the declared record names its variables \u2014 the variables list is present and names at least one variable; an absent list is missing evidence and an empty list declares no variables at all"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_every_variable_id_unique",
+          "status": "pass",
+          "evidence": "variables: no declared variable_id is owned by more than one row"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_every_variable_role_recognised",
+          "status": "pass",
+          "evidence": "variables: every declared variable's role is one of outcome, exposure, predictor, confounder, covariate, stratification"
+        },
+        {
+          "section": "design_and_variables",
+          "check": "study_design_at_least_one_outcome_variable_declared",
+          "status": "pass",
+          "evidence": "variables: at least one declared variable has the outcome role \u2014 the intake outcome is among the declared variables"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_sampling_frame_defined",
+          "status": "pass",
+          "evidence": "sampling: the sampling frame is defined"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_sampling_method_stated",
+          "status": "pass",
+          "evidence": "sampling: the sampling method is stated"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_inclusion_exclusion_criteria_stated",
+          "status": "pass",
+          "evidence": "sampling: inclusion and exclusion criteria are stated"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_power_analysis_done_before_collection",
+          "status": "pass",
+          "evidence": "design: power / precision analysis is done before collection, not after"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_groups_list_declared",
+          "status": "pass",
+          "evidence": "the declared record names its groups \u2014 the groups list is present and names at least one group; an absent list is missing evidence and an empty list declares no groups at all"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_every_group_id_unique",
+          "status": "pass",
+          "evidence": "groups: no declared group_id is owned by more than one row"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_every_group_size_positive_whole",
+          "status": "pass",
+          "evidence": "groups: every declared group size is a positive whole number (at least one)"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_total_sample_size_matches_group_sum",
+          "status": "fail",
+          "evidence": "sample size: the declared total sample size equals the sum of the declared group sizes (6dp serialization)"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_alpha_in_valid_probability_range",
+          "status": "fail",
+          "evidence": "power inputs: the declared alpha is a probability \u2014 strictly between 0 and 1"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_target_power_in_valid_probability_range",
+          "status": "pass",
+          "evidence": "power inputs: the declared target power is a probability \u2014 strictly between 0 and 1"
+        },
+        {
+          "section": "sampling_and_power",
+          "check": "study_design_effect_size_nonzero",
+          "status": "fail",
+          "evidence": "power inputs: the declared effect size is non-zero \u2014 a zero effect is the null, not an effect to detect"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_analysis_plan_written_before_collection",
+          "status": "pass",
+          "evidence": "analysis plan: the analysis plan is written before collection"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_analysis_plan_preregistered",
+          "status": "pass",
+          "evidence": "analysis plan: the analysis plan is pre-registered"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_primary_analysis_method_named",
+          "status": "pass",
+          "evidence": "analysis plan: the primary analysis method is named (the model ladder starts simple)"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_assumption_checks_planned",
+          "status": "pass",
+          "evidence": "analysis plan: assumption checks are planned \u2014 assumptions tested, not assumed"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_effect_size_with_uncertainty_planned",
+          "status": "pass",
+          "evidence": "analysis plan: effect sizes with uncertainty (confidence / credible intervals) are planned \u2014 never bare p-values"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_multiple_comparison_discipline_planned",
+          "status": "pass",
+          "evidence": "analysis plan: multiple-comparison discipline is planned"
+        },
+        {
+          "section": "analysis_plan",
+          "check": "study_design_analysis_plan_deviations_logging_planned",
+          "status": "pass",
+          "evidence": "quality gate: deviations from the analysis plan will be logged with reasons"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_sensitivity_analyses_planned",
+          "status": "pass",
+          "evidence": "validate: sensitivity analyses are planned"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_robustness_checks_planned",
+          "status": "pass",
+          "evidence": "validate: robustness to outliers and misspecification is planned"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_leakage_audit_planned",
+          "status": "pass",
+          "evidence": "intake audit: a leakage audit of the data is planned (with provenance and missingness)"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_limitations_section_planned",
+          "status": "pass",
+          "evidence": "quality gate: a limitations section is planned and honest"
+        },
+        {
+          "section": "validation_and_bias_controls",
+          "check": "study_design_what_would_change_conclusion_stated",
+          "status": "pass",
+          "evidence": "handoff: what would change the conclusion is documented"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_executive_summary_planned",
+          "status": "pass",
+          "evidence": "deliver: a one-page executive summary is planned (findings, decisions, limitations)"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_methods_memo_planned",
+          "status": "pass",
+          "evidence": "deliver: a methods memo is planned"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_reproducible_appendix_planned",
+          "status": "pass",
+          "evidence": "deliver: a reproducible appendix is planned (script, data checksums, environment)"
+        },
+        {
+          "section": "delivery_and_reproducibility",
+          "check": "study_design_pipeline_sealed_for_rerun",
+          "status": "pass",
+          "evidence": "handoff: the pipeline is sealed so the analysis can be re-run when data updates"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_significance_without_uncertainty",
+          "status": "pass",
+          "evidence": "red line: no significance reported without effect size and uncertainty is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_p_hacking_or_selective_reporting",
+          "status": "pass",
+          "evidence": "red line: no p-hacking or selective reporting is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_unsupported_causal_language",
+          "status": "pass",
+          "evidence": "red line: no causal language from observational data without the design to back it is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_unredacted_pii_or_unapproved_reuse",
+          "status": "pass",
+          "evidence": "red line: no unredacted PII or unapproved reuse of client data is present in the record"
+        },
+        {
+          "section": "red_lines",
+          "check": "study_design_free_of_outcome_guarantees",
+          "status": "pass",
+          "evidence": "red line: no guarantee of outcomes is present in the record"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "variables_count": 1,
+      "outcome_variable_count": 1,
+      "duplicate_variable_ids": [],
+      "variables_with_unrecognised_role": [],
+      "groups_count": 1,
+      "duplicate_group_ids": [],
+      "computed_total_sample_size": 100,
+      "declared_total_sample_size": 50,
+      "total_sample_size_difference": -50,
+      "largest_group_share": "1.000000",
+      "declared_alpha": 1.5,
+      "declared_target_power": 0.8,
+      "declared_effect_size": 0,
+      "summary": "42 pass, 4 fail, 0 missing of 46 checks across seven sections.",
+      "stamp": "STATISTICAL STUDY DESIGN REPORT\nstudy_title: Test Study\nVERDICT: STUDY_DESIGN_NOT_READY\n  decision_framing                             pass\n  design_and_variables                         fail\n  sampling_and_power                           fail\n  analysis_plan                                pass\n  validation_and_bias_controls                 pass\n  delivery_and_reproducibility                 pass\n  red_lines                                    pass\n42 pass, 4 fail, 0 missing of 46 checks across seven sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

@@ -1,0 +1,114 @@
+# Independent recompute — statistical-study-design-report
+
+## Case 1: `full-pass`
+
+### Inputs (as declared)
+- variables: `[{v1, outcome}]` → 1 row
+- groups: `[{g1, 100}]` → 1 row
+- sampling: total=100, alpha=0.05, power=0.8, effect=0.5
+- design_type = `randomized_experiment`
+- all booleans true; all red_lines false
+
+### Computed quantities
+
+**variables_count** = length of variables list = 1. Artifact: `1`. **MATCH**
+
+**outcome_variable_count** = count of rows with role=="outcome" = 1 (v1). Artifact: `1`. **MATCH**
+
+**duplicate_variable_ids** = ids appearing on >1 row. Only "v1" once → `[]`. Artifact: `[]`. **MATCH**
+
+**variables_with_unrecognised_role** = rows whose role ∉ {outcome, exposure, predictor, confounder, covariate, stratification}. "outcome" is recognised → `[]`. Artifact: `[]`. **MATCH**
+
+**groups_count** = 1. Artifact: `1`. **MATCH**
+
+**duplicate_group_ids** = "g1" once → `[]`. Artifact: `[]`. **MATCH**
+
+**computed_total_sample_size** = Σ declared_size = 100. Artifact: `100`. **MATCH**
+
+**declared_total_sample_size** = 100. Artifact: `100`. **MATCH**
+
+**total_sample_size_difference** = declared − computed = 100 − 100 = 0. Artifact: `0`. **MATCH**
+
+**largest_group_share** = max group size ÷ computed total = 100 / 100 = 1.0.
+Serialization: floor(1.0 × 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0 → format 6dp = `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+**declared_alpha / target_power / effect_size** reported verbatim: 0.05 / 0.8 / 0.5. Artifact: `0.05 / 0.8 / 0.5`. **MATCH**
+
+### The twelve computed checks
+1. design_type recognised: `randomized_experiment` ∈ set → pass. Artifact pass. **MATCH**
+2. variables list declared: present, ≥1 → pass. **MATCH**
+3. variable ids unique: v1 once → pass. **MATCH**
+4. roles recognised: outcome → pass. **MATCH**
+5. ≥1 outcome variable: yes → pass. **MATCH**
+6. groups list declared: present, ≥1 → pass. **MATCH**
+7. group ids unique: g1 once → pass. **MATCH**
+8. group sizes positive whole: 100 is whole ≥1 → pass. **MATCH**
+9. total matches group sum: 6dp(100) vs 6dp(100) equal → pass. **MATCH**
+10. alpha in (0,1): 0 < 0.05 < 1 → pass. **MATCH**
+11. target power in (0,1): 0 < 0.8 < 1 → pass. **MATCH**
+12. effect size non-zero: 0.5 ≠ 0 → pass. **MATCH**
+
+### Verdict / status
+All 12 computed checks pass; all 34 boolean checks true/false as required → 46 pass, 0 fail, 0 missing.
+- **computed_status** = `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+- **verdict** = `STUDY_DESIGN_READY`. Artifact: same. **MATCH**
+- **summary** = "46 pass, 0 fail, 0 missing of 46 checks across seven sections." Artifact: same. **MATCH**
+- All 7 sections "pass". Artifact: same. **MATCH**
+
+---
+
+## Case 2: `violations`
+
+### Inputs (planted wrong values)
+- design_type = `invalid_type`
+- sampling: total=50, alpha=1.5, power=0.8, effect=0
+- groups: `[{g1, 100}]`
+- everything else true / red_lines false
+
+### Computed quantities
+
+**variables_count** = 1. Artifact `1`. **MATCH**
+**outcome_variable_count** = 1. Artifact `1`. **MATCH**
+**duplicate_variable_ids** = `[]`. Artifact `[]`. **MATCH**
+**variables_with_unrecognised_role** = `[]` (role "outcome"). Artifact `[]`. **MATCH**
+**groups_count** = 1. Artifact `1`. **MATCH**
+**duplicate_group_ids** = `[]`. Artifact `[]`. **MATCH**
+
+**computed_total_sample_size** = Σ group sizes = 100. Artifact `100`. **MATCH**
+
+**declared_total_sample_size** = 50. Artifact `50`. **MATCH**
+
+**total_sample_size_difference** = declared − computed = 50 − 100 = **−50**. Artifact `-50`. **MATCH**
+
+**largest_group_share** = 100 / 100 = 1.0 → `"1.000000"`. Artifact `"1.000000"`. **MATCH**
+
+**declared_alpha / target_power / effect_size** verbatim: 1.5 / 0.8 / 0. Artifact `1.5 / 0.8 / 0`. **MATCH**
+
+### The twelve computed checks — which should fail
+1. design_type recognised: `invalid_type` ∉ set → **fail**. Artifact fail. **MATCH**
+2. variables list declared: present → pass. **MATCH**
+3. variable ids unique: pass. **MATCH**
+4. roles recognised: pass. **MATCH**
+5. ≥1 outcome: pass. **MATCH**
+6. groups list declared: pass. **MATCH**
+7. group ids unique: pass. **MATCH**
+8. group sizes positive whole: 100 → pass. **MATCH**
+9. total matches group sum: 6dp(50) ≠ 6dp(100) → **fail**. Artifact fail. **MATCH**
+10. alpha in (0,1): 1.5 not < 1 → **fail**. Artifact fail. **MATCH**
+11. target power in (0,1): 0.8 → pass. Artifact pass. **MATCH**
+12. effect size non-zero: 0 → **fail**. Artifact fail. **MATCH**
+
+So exactly 4 computed checks fail: design_type, total-match, alpha, effect-size. These are precisely the four planted wrong values (invalid_type, total=50 vs 100, alpha=1.5, effect=0). The planted power=0.8 is valid and correctly passes. **Confirmed: failing checks are exactly the ones the planted wrong values should fail.**
+
+### Verdict / status
+- **computed_status** = `outside_stated_limits_on_declared_evidence` (any computed check fails). Artifact: same. **MATCH**
+- **verdict** = `STUDY_DESIGN_NOT_READY`. Artifact: same. **MATCH**
+- **summary** = "42 pass, 4 fail, 0 missing of 46 checks across seven sections." 46 − 4 = 42 pass. Artifact: same. **MATCH**
+- Sections: design_and_variables fail (design_type), sampling_and_power fail (total, alpha, effect), all others pass. Artifact: same. **MATCH**
+
+---
+
+## Summary
+Every computed quantity (counts, duplicates, unrecognised roles, total sample size, difference, largest_group_share serialization, verbatim power inputs), every one of the twelve computed checks, the computed_status, verdict, section statuses, and the pass/fail/missing tallies all recompute to the artifact's recorded values in both cases. The violations case fails exactly the four checks corresponding to its four planted wrong values.
+
+AGREEMENT: full

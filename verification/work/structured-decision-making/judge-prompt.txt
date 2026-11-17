@@ -1,0 +1,1812 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: structured-decision-making
+
+=== contract.yaml ===
+service_name: structured-decision-making
+display_name: Structured decision making
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:decision-making
+binding:
+  skill: decision-making
+  skill_path: workspace/mymilo-build/skills/decision-making/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+- human
+keys:
+  namespace: structured_decision_making
+  prefix: atm_1_structured_decision_making_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Technical and project decisions
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Structured decision making — `structured-decision-making`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Decide deliberately — reversible vs irreversible, options, criteria, expected value, pre-mortems, decision logs. Its method is this atom's record structure: frame → options → criteria → evaluate → commit → review; speed where reversible, care where not.
+
+A caller submits one declared structured decision record and receives one deliverable back: a deterministic verdict on that record's structure and its declared arithmetic. One unit of sale = one delivered result. **The atom makes no decision, recommends no option as the answer, ranks no option for the caller, and predicts nothing** — it audits the record the caller declares and recomputes the arithmetic the record itself declares.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Thinking & decisions who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Technical and project decisions**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the structured decision manifest
+
+The caller submits one JSON manifest: a declared structured
+decision record for one decision, made from the decision as
+actually recorded. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`DECISION_RECORD_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `decision` (string; carried into the verdict output, not itself checked) | — |
+| `framing.decision_restated_crisp` (boolean) | structured_framing |
+| `framing.decide_by_date_stated` (boolean) | structured_framing |
+| `framing.constraints_named` (boolean) | structured_framing |
+| `framing.out_of_scope_named` (boolean) | structured_framing |
+| `framing.classification` (string; computed — must be `reversible` or `irreversible`, see below) | structured_framing |
+| `framing.stakes_assessed` (boolean) | structured_framing |
+| `framing.effort_budget_matched_to_stakes_and_reversibility` (boolean) | structured_framing |
+| `framing.slowed_deliberation_declared` (boolean; required when the classification is declared `irreversible`, see below) | structured_framing |
+| `options` (list of option-row objects, each with the entry fields below; computed, see below) | structured_options, structured_matrix_scoring, structured_commit_log_and_review |
+| `options[].name` (string; names the row in the computed outputs) | structured_options |
+| `options[].kind` (string; computed — one of `action`, `status_quo`, `smaller_reversible_step`) | structured_options |
+| `options[].scores` (list of score-row objects, each with the entry fields below; computed, see below) | structured_matrix_scoring |
+| `options[].scores[].criterion` (string; must name a declared criterion) | structured_matrix_scoring |
+| `options[].scores[].score` (number; computed — must lie inside the declared scale, see below) | structured_matrix_scoring |
+| `options[].declared_weighted_total` (number; computed — must recompute from the declared scores × declared weights, see below) | structured_matrix_scoring |
+| `criteria` (list of criterion-row objects, each with the entry fields below; computed, see below) | structured_criteria, structured_matrix_scoring |
+| `criteria[].name` (string; names the row in the computed outputs) | structured_criteria |
+| `criteria[].weight` (number; computed — must be non-negative, and the weights must sum positive, see below) | structured_criteria |
+| `criteria[].defined_before_scoring` (boolean) | structured_criteria |
+| `evaluation.method` (string; computed — one of `decision_matrix`, `expected_value`, `decision_tree`, `scenario_thinking`) | structured_evaluation_and_uncertainty |
+| `evaluation.score_scale_min` (number; computed — the caller's declared scale bound) | structured_matrix_scoring |
+| `evaluation.score_scale_max` (number; computed — the caller's declared scale bound) | structured_matrix_scoring |
+| `evaluation.probabilities_estimable` (boolean; gates the two fitting-tool checks below) | structured_evaluation_and_uncertainty |
+| `evaluation.expected_value_used` (boolean; required when probabilities are declared estimable; otherwise the check passes as not applicable) | structured_evaluation_and_uncertainty |
+| `evaluation.scenario_thinking_used` (boolean; required when probabilities are declared not estimable; otherwise the check passes as not applicable) | structured_evaluation_and_uncertainty |
+| `evaluation.uncertainty_flagged` (boolean) | structured_evaluation_and_uncertainty |
+| `evaluation.base_rates_considered` (boolean) | structured_evaluation_and_uncertainty |
+| `premortem.decision_is_material` (boolean; gates the three pre-mortem checks below) | structured_pre_mortem |
+| `premortem.conducted` (boolean; required when the decision is declared material; otherwise the check passes as not applicable) | structured_pre_mortem |
+| `premortem.failure_reasons_named` (boolean; required when the decision is declared material; otherwise the check passes as not applicable) | structured_pre_mortem |
+| `premortem.top_reasons_fixed_or_hedged` (boolean; required when the decision is declared material; otherwise the check passes as not applicable) | structured_pre_mortem |
+| `log.choice_recorded` (boolean) | structured_commit_log_and_review |
+| `log.chosen_option` (string; computed — must name a declared option row, see below) | structured_commit_log_and_review |
+| `log.rationale_recorded` (boolean) | structured_commit_log_and_review |
+| `log.assumptions_recorded` (boolean) | structured_commit_log_and_review |
+| `log.communicated_with_why` (boolean) | structured_commit_log_and_review |
+| `review.review_date_set` (boolean) | structured_commit_log_and_review |
+| `review.outcomes_vs_expectations_review_planned` (boolean) | structured_commit_log_and_review |
+| `review.luck_separated_from_process_declared` (boolean) | structured_commit_log_and_review |
+| `red_lines.decision_without_options_present` (boolean; must be `false` to pass — skill red line) | structured_red_lines |
+| `red_lines.criteria_invented_after_scores_present` (boolean; must be `false` to pass — skill red line) | structured_red_lines |
+| `red_lines.irreversible_decision_rushed_present` (boolean; must be `false` to pass — skill red line) | structured_red_lines |
+| `red_lines.irreversible_decision_made_in_mood_present` (boolean; must be `false` to pass — skill red line) | structured_red_lines |
+
+Fourteen checks are computed from the declared rows and
+values, using only the skill's own stated rules plus the
+consistency of the declared record itself — no outside
+threshold is imported:
+
+- **Classification recognised:** the declared
+  `framing.classification` is `reversible` or `irreversible`.
+  An absent classification is missing evidence; any other
+  value fails.
+- **Slowed deliberation when irreversible:** the skill binds
+  care to irreversibility ("slow down, deliberate").
+  `framing.slowed_deliberation_declared` is therefore required
+  only when the classification is declared `irreversible`;
+  for a reversible decision the check passes as not
+  applicable, and an absent classification is missing evidence.
+- **At least three options:** the skill states "at least
+  three" options — binary choices are usually false binaries.
+  The declared `options` list passes only when it names at
+  least three rows; an absent list is missing evidence, a
+  shorter list fails.
+- **Option names unique:** no declared option `name` may
+  appear on more than one row. A row with `name` absent is
+  missing evidence for this check; duplicates are named in
+  `duplicate_option_names`.
+- **Criteria list declared:** the declared `criteria` list
+  passes when it is present and names at least one criterion.
+  An absent list is missing evidence; an empty list fails.
+- **Criterion names unique:** as for options, with duplicates
+  named in `duplicate_criterion_names`.
+- **Weights sum positive:** every declared criterion declares
+  a non-negative `weight`, and the declared weights must sum
+  to a positive total — a matrix whose weights sum to zero
+  scores nothing (internal consistency of the declared rows,
+  not an imported bar; the skill states no weight-sum target
+  such as 1.0 or 100, so none is checked). The sum is reported
+  as `criteria_weights_sum`.
+- **Every option scores every declared criterion:** each
+  option's score rows cover all declared criterion names. An
+  option short of full coverage is named in
+  `options_without_complete_scores`, and
+  `score_coverage_ratio` reports complete options ÷ declared
+  options.
+- **No undeclared criterion scored:** no score row names a
+  criterion the record does not declare.
+- **No criterion scored twice:** no option scores the same
+  criterion on more than one score row.
+- **Score scale bounds coherent:** the record's own declared
+  `score_scale_min` does not exceed its `score_scale_max`.
+  Either bound absent is missing evidence.
+- **Every score within the declared scale:** every declared
+  `score` lies between the record's declared scale bounds,
+  inclusive. The scale is the caller's own declaration — the
+  skill states no scale, so none is imposed.
+- **Every declared weighted total recomputes:** every
+  option's `declared_weighted_total` must recompute as
+  Σ (declared criterion weight × declared score) over the
+  declared criteria, compared on the fixed 6dp serialization
+  below. An option complete enough to verify whose declared
+  total differs is named in
+  `options_with_weighted_total_mismatch`;
+  `recomputed_weighted_totals` reports the recomputed total
+  per option (null for an option whose scores or the weights
+  are incomplete), and `weighted_total_match_ratio` reports
+  recomputing options ÷ declared options.
+- **Logged chosen option matches a declared option:** the
+  declared `log.chosen_option` string must equal the `name`
+  of a declared option row. An absent chosen option, or an
+  absent options list, is missing evidence; a choice naming
+  no declared option fails. **This check never compares the
+  chosen option against the recomputed totals** — which
+  option to commit to is the caller's decision, and the
+  highest total is not this atom's answer (see Honest
+  scoping).
+
+Three check groups are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Fitting evaluation tool:** expected value / decision-tree
+  evaluation is required only when
+  `evaluation.probabilities_estimable` is declared `true`;
+  scenario thinking is required only when it is declared
+  `false` ("expected value / decision trees when probabilities
+  are estimable; scenario thinking when they're not"). An
+  absent gate field is missing evidence for both checks.
+- **Pre-mortem for material decisions:** the quality gate
+  binds the pre-mortem to material decisions, so `conducted`,
+  `failure_reasons_named` and `top_reasons_fixed_or_hedged`
+  are required only when `premortem.decision_is_material` is
+  declared `true`; otherwise those checks pass as not
+  applicable. An absent gate field is missing evidence.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the fourteen computed checks above cannot be completed),
+`options_count` and `criteria_count` (the declared list
+lengths, or null when the list is not declared — counts are
+reported as integers, exactly), `duplicate_option_names` and
+`duplicate_criterion_names` (names declared on more than one
+row, in the order their second occurrence appears; null when
+the underlying list is not declared), and `chosen_option`
+(the declared logged choice string, or null when it is not
+declared). **Fixed serialization rule:** computed quantities
+are reported as strings with exactly six decimal places,
+produced in both implementations by the same rule — round
+half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`, then
+format with exactly six decimals; weighted-total comparisons
+are made on the same 6dp serializations of the recomputed and
+declared values. A ratio is null when its denominator list is
+absent or empty, or when the criteria/weights it needs are
+incomplete. That fixed serialization is what makes the Python
+and TypeScript outputs byte-identical.
+
+The skill states no numeric threshold beyond "at least three"
+options — so no numeric threshold check is invented beyond the
+skill's own count and the internal consistency of the declared
+rows. Quantities are computed and reported; the only bars on
+the computed rows are exact recomputation, the caller's own
+declared scale, and completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a criterion weight-sum target (1.0, 100, or any other —
+weights are checked non-negative and positive in total, never
+against a target sum); a score scale of the atom's own (no
+0–5, 0–10 or 1–100 scale is imposed — only the record's
+declared bounds bind its scores); a minimum winning margin or
+a rule that the chosen option must hold the highest (or any
+rank of) recomputed total — **declined by design: picking the
+winner from the totals would be a recommendation, and this
+atom recommends nothing**; a stakes level or numeric
+stakes × reversibility effort formula (stakes and the effort
+match are caller declarations); a probability, expected-value
+or scenario-quality bar (the fitting tool's use is declared
+and gated on the caller's estimability declaration; no
+expected value is computed, because the record declares no
+probabilities); a base-rate value or reference-class bar
+(base rates are declared considered; sourcing and recomputing
+a base rate is the `base-rate-card` atom's ground); a
+pre-mortem risk count or severity bar; a review interval in
+days (a review date is declared set, its distance is the
+caller's); any judgment that the declared criteria, weights or
+scores are the right ones for this decision (only that they
+are declared, ordered before scoring, complete and internally
+consistent is checked).
+
+The verdict is one of `DECISION_RECORD_SOUND` (all 46 checks
+pass), `DECISION_RECORD_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across eight sections: structured_framing,
+structured_options, structured_criteria,
+structured_matrix_scoring, structured_evaluation_and_uncertainty,
+structured_pre_mortem, structured_commit_log_and_review,
+structured_red_lines.
+
+## Distinct ground
+
+The nearest siblings are `decision-process-design`,
+`decision-trap-sweep`, `base-rate-card` and
+`assumption-audit`. `decision-process-design` audits how a
+decision process is engineered — who decides vs who informs,
+pre-commitment and change-my-mind thresholds, a loss function
+with costs in both directions, rigor sizing, evidence
+discipline and process-vs-outcome review — over boolean and
+loss-cost declarations, with no option or criterion rows and
+no score matrix. `decision-trap-sweep` is bound to the same
+skill as this atom and sweeps a declared record for its traps
+— framing attestations, an option-name list of at least three,
+criteria-set-before-scoring attestations, expected-value and
+pre-mortem gating, rush/mood gating and log attestations — all
+as scalar boolean declarations, with no per-option rows, no
+criterion weights, no scores and no arithmetic of any kind.
+`base-rate-card` audits one judgment card (claim, evidence
+hierarchy, steelman, fallacy spot-check, calibration) and
+recomputes a declared base rate from reference-class counts —
+a probability for one claim, not a decision record.
+`assumption-audit` audits a decision-process evidence manifest
+of assumption attestations (framing, preset criteria, loss,
+rigor, data discipline, review booleans), with no rows and no
+arithmetic. This atom shares **zero checks** with any of them
+(verified mechanically by enumerating `evaluate({})` check
+names from every atom oracle in `services/*/src/*.py` and
+comparing, plus a grep sweep over the oracles that do not
+enumerate — zero overlap): every check here is a question
+about the single decision RECORD's row structure and declared
+arithmetic — named option rows of recognised kinds including
+a status-quo row and a smaller-reversible-step row, named
+criterion rows with declared non-negative weights summing
+positive and declared defined before scoring, a score matrix
+complete over exactly the declared criteria with every score
+inside the record's own declared scale, declared weighted
+totals that recompute exactly from declared scores × declared
+weights, a logged choice that must name a declared option row
+(and is never graded against the totals), and the framing,
+classification-gated deliberation, fitting-tool gating,
+materiality-gated pre-mortem, commit/review and red-line
+declarations the skill wraps around that matrix. The boundary
+is: the structure and declared arithmetic of one decision
+record here; process engineering, trap attestations, a single
+claim's base rate, and assumption attestations there.
+
+## Honest scoping
+
+This atom audits a **declared** decision record — it makes no
+decision, generates no options or criteria, assigns no weights
+or scores, runs no expected-value, decision-tree or scenario
+analysis, performs no pre-mortem, and does not verify that any
+declared step (criteria defined before scoring, a pre-mortem
+conducted, deliberation slowed, a decision communicated) ever
+actually happened. A record is sound *on the caller's declared
+evidence*: a record that declares its criteria defined before
+scoring, its pre-mortem conducted and every weighted total
+recomputing passes those checks even if the real decision did
+none of it. It is a completeness and consistency audit of the
+decision record the skill requires, **not a decision service,
+a recommendation engine, or a decision-quality
+certification**: it never judges whether the decision is the
+right one, whether the named options are the genuinely real
+ones, whether the criteria and weights are the right ones,
+whether the scores are fair, or whether the logged choice is
+wise — only that the record contains what the skill's method,
+quality gates and red lines demand, and that its declared
+rows and totals are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): **decide-for-me and
+recommendation-shaped steps are EXCLUDED by name** — the
+skill's evaluation step performed *for* the caller (generating
+options, setting criteria or weights, scoring options,
+computing an expected value or a decision tree, running
+scenario analysis, picking or recommending the winning
+option, and conducting the pre-mortem for the caller) is not
+performed by this atom in any form; the atom only audits a
+record in which the caller declares those steps done, and its
+recomputed totals are reported per option with no ranking,
+no winner and no advice attached. Also excluded: no
+probability or expected-value computation (the record
+declares no probabilities, and none are invented); no
+verification that criteria were *actually* defined before
+scoring (timing is attested in the record, never
+timestamp-verified); no judgment of framing quality, stakes
+level, or whether the effort truly matched them; no live
+verification of any declared fact; no review of the decision's
+actual outcome (the review is checked as a declared plan with
+a date, never performed).
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO with flag-with-controls
+(census class).** This atom is decision/finance-adjacent by
+keyword — the bound skill names financial choices among the
+decisions its method fits, its criteria examples include cost
+and risk, and a decision record could be about a financial,
+health or legal choice — so the screen was applied strictly,
+and the atom is flagged for the owner's per-unit ruling queue
+under U-13 on that adjacency. What prevents an advice reading,
+as named controls: (1) the atom audits a caller-**declared**
+decision record for structure and internal consistency only —
+framing/classification declarations, option and criterion row
+completeness, score-matrix completeness, and exact
+recomputation of the caller's own declared weighted totals;
+every output is a pass / fail / missing verdict on the record,
+a count, a ratio, or a total recomputed from the caller's own
+declared scores and weights; (2) it gives **no advice, no
+recommendation and no domain guidance of any kind** — it never
+says which option to choose, never ranks options, never checks
+the logged choice against the recomputed totals, and takes no
+position on any financial, health, legal or other domain
+question the record may be about; the skill's performative
+steps (deciding, evaluating *for* the caller, recommending)
+are excluded from production and named as exclusions above —
+this atom performs none of them, it only audits a declared
+record of them; (3) it sets **no threshold** — no return,
+risk, score, margin or quality bar against which a caller's
+decision could be graded as good or bad (see the declined
+list; the only scale that binds scores is the record's own
+declared scale); (4) the record's subject is whatever decision
+the caller declares — the atom reads no domain content beyond
+row names the caller supplies, and no output is addressed to
+a domain decision. Residual risk, stated plainly: a caller
+could paste the verdict, or the recomputed totals, into their
+own decision work — that is their decision, made on their
+record; the artifact itself recommends nothing and decides
+nothing. This is the same class as the
+quant-math-derivation-sanity-check precedent (declared-record
+audit, advice-shaped skill steps excluded as controls); it is
+not the genuinely-open personal-financial-snapshot class,
+because no personal financial position is handled and no
+advice-shaped step of the skill is performed. Flagging never
+blocks authoring; no deploy happens on this atom without the
+owner's explicit per-unit ruling after the screen.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "structured-decision-making",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "DECISION_RECORD_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 46 checks pass on the corrected full-pass input; per-option declared weighted totals recompute (AWS 5.000000, GCP 4.000000, Azure 3.000000) and uncertainty_flagged is true.",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "options_count": 3,
+          "criteria_count": 1,
+          "duplicate_option_names": [],
+          "duplicate_criterion_names": [],
+          "criteria_weights_sum": "1.000000",
+          "recomputed_weighted_totals": [
+            {
+              "option": "AWS",
+              "recomputed_weighted_total": "5.000000"
+            },
+            {
+              "option": "GCP",
+              "recomputed_weighted_total": "4.000000"
+            },
+            {
+              "option": "Azure",
+              "recomputed_weighted_total": "3.000000"
+            }
+          ],
+          "options_with_weighted_total_mismatch": [],
+          "options_without_complete_scores": [],
+          "score_coverage_ratio": "1.000000",
+          "weighted_total_match_ratio": "1.000000",
+          "chosen_option": "AWS"
+        }
+      },
+      "input": {
+        "decision": "Choose cloud provider",
+        "framing": {
+          "decision_restated_crisp": true,
+          "decide_by_date_stated": true,
+          "constraints_named": true,
+          "out_of_scope_named": true,
+          "classification": "reversible",
+          "stakes_assessed": true,
+          "effort_budget_matched_to_stakes_and_reversibility": true,
+          "slowed_deliberation_declared": true
+        },
+        "options": [
+          {
+            "name": "AWS",
+            "kind": "action",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 5.0
+              }
+            ],
+            "declared_weighted_total": 5.0
+          },
+          {
+            "name": "GCP",
+            "kind": "status_quo",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 4.0
+              }
+            ],
+            "declared_weighted_total": 4.0
+          },
+          {
+            "name": "Azure",
+            "kind": "smaller_reversible_step",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 3.0
+              }
+            ],
+            "declared_weighted_total": 3.0
+          }
+        ],
+        "criteria": [
+          {
+            "name": "Cost",
+            "weight": 1.0,
+            "defined_before_scoring": true
+          }
+        ],
+        "evaluation": {
+          "method": "decision_matrix",
+          "score_scale_min": 0.0,
+          "score_scale_max": 10.0,
+          "probabilities_estimable": false,
+          "expected_value_used": false,
+          "scenario_thinking_used": true,
+          "uncertainty_flagged": true,
+          "base_rates_considered": true
+        },
+        "premortem": {
+          "decision_is_material": false,
+          "conducted": false,
+          "failure_reasons_named": false,
+          "top_reasons_fixed_or_hedged": false
+        },
+        "log": {
+          "choice_recorded": true,
+          "chosen_option": "AWS",
+          "rationale_recorded": true,
+          "assumptions_recorded": true,
+          "communicated_with_why": true
+        },
+        "review": {
+          "review_date_set": true,
+          "outcomes_vs_expectations_review_planned": true,
+          "luck_separated_from_process_declared": true
+        },
+        "red_lines": {
+          "decision_without_options_present": false,
+          "criteria_invented_after_scores_present": false,
+          "irreversible_decision_rushed_present": false,
+          "irreversible_decision_made_in_mood_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "structured-decision-making",
+        "atom_version": "0.1.0",
+        "decision": "Choose cloud provider",
+        "verdict": "DECISION_RECORD_SOUND",
+        "sections": {
+          "structured_framing": "pass",
+          "structured_options": "pass",
+          "structured_criteria": "pass",
+          "structured_matrix_scoring": "pass",
+          "structured_evaluation_and_uncertainty": "pass",
+          "structured_pre_mortem": "pass",
+          "structured_commit_log_and_review": "pass",
+          "structured_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_decision_restated_crisp",
+            "status": "pass",
+            "evidence": "frame: the actual decision is restated until it is crisp \u2014 what needs deciding is stated"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_decide_by_date_stated",
+            "status": "pass",
+            "evidence": "frame: by when the decision must be made is stated"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_constraints_named",
+            "status": "pass",
+            "evidence": "frame: the constraints on the decision are named"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_out_of_scope_named",
+            "status": "pass",
+            "evidence": "frame: what is out of scope for the decision is named"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_classification_is_reversible_or_irreversible",
+            "status": "pass",
+            "evidence": "classify: the decision is classified reversible or irreversible \u2014 speed where reversible, care where not"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_stakes_assessed",
+            "status": "pass",
+            "evidence": "classify: the stakes of the decision are assessed \u2014 stakes x reversibility sets the effort budget"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_effort_budget_matched_to_stakes_and_reversibility",
+            "status": "pass",
+            "evidence": "classify: the effort spent on the decision is declared matched to its stakes and reversibility"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_slowed_deliberation_when_irreversible",
+            "status": "pass",
+            "evidence": "decision is not classified irreversible \u2014 slowed deliberation is not required by the classification"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_list_declares_at_least_three",
+            "status": "pass",
+            "evidence": "options: the declared record names at least three options \u2014 binary choices are usually false binaries; an absent list is missing evidence and a shorter list fails"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_every_option_row_names_the_option",
+            "status": "pass",
+            "evidence": "options: every declared option row names the option (a non-empty name)"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_option_names_are_unique",
+            "status": "pass",
+            "evidence": "options: no declared option name is owned by more than one row"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_every_option_kind_is_recognised",
+            "status": "pass",
+            "evidence": "options: every declared option's kind is one of action, status_quo, smaller_reversible_step"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_include_a_status_quo_row",
+            "status": "pass",
+            "evidence": "options: the declared rows include a status-quo option ('do nothing / wait')"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_include_a_smaller_reversible_step_row",
+            "status": "pass",
+            "evidence": "options: the declared rows include a smaller reversible step option"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criteria_list_is_declared",
+            "status": "pass",
+            "evidence": "criteria: the declared record names its criteria \u2014 the criteria list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no criteria at all"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_row_names_the_criterion",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion row names the criterion (a non-empty name)"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criterion_names_are_unique",
+            "status": "pass",
+            "evidence": "criteria: no declared criterion name is owned by more than one row"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_weight_is_nonnegative",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-negative weight"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criteria_weights_sum_is_positive",
+            "status": "pass",
+            "evidence": "criteria: the declared criterion weights sum to a positive total \u2014 a matrix whose weights sum to zero scores nothing"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_defined_before_scoring",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion is declared defined before scoring \u2014 criteria first, weights before scores"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_option_scores_every_declared_criterion",
+            "status": "pass",
+            "evidence": "matrix: every declared option scores every declared criterion \u2014 the score matrix is complete over the record's own declared criteria"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_no_option_scores_an_undeclared_criterion",
+            "status": "pass",
+            "evidence": "matrix: no declared option scores a criterion the record does not declare"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_no_option_scores_a_criterion_twice",
+            "status": "pass",
+            "evidence": "matrix: no declared option scores the same criterion on more than one score row"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_score_scale_bounds_are_coherent",
+            "status": "pass",
+            "evidence": "matrix: the record's declared score scale bounds are coherent \u2014 score_scale_min does not exceed score_scale_max"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_score_lies_within_the_declared_scale",
+            "status": "pass",
+            "evidence": "matrix: every declared score lies within the score scale the record itself declares"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_declared_weighted_total_recomputes",
+            "status": "pass",
+            "evidence": "matrix: every declared option's declared weighted total recomputes exactly as sum(declared criterion weight x declared score) over the declared criteria (6dp serialization)"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_method_is_recognised",
+            "status": "pass",
+            "evidence": "evaluation: the declared evaluation method is one of decision_matrix, expected_value, decision_tree, scenario_thinking \u2014 a fitting tool for the decision"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_uncertainty_is_flagged",
+            "status": "pass",
+            "evidence": "evaluation: the uncertainty in the evaluation is flagged"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_base_rates_are_considered",
+            "status": "pass",
+            "evidence": "evaluation: base-rate / reference information is declared considered before the inside view of this decision (its arithmetic, if any, is the base-rate-card atom's ground, not this record's)"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_expected_value_used_when_probabilities_estimable",
+            "status": "pass",
+            "evidence": "probabilities are not declared estimable \u2014 expected-value evaluation is not required"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_scenario_thinking_used_when_probabilities_not_estimable",
+            "status": "pass",
+            "evidence": "evaluation: when probabilities are declared not estimable, scenario thinking is declared used"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_conducted_when_decision_is_material",
+            "status": "pass",
+            "evidence": "decision is not declared material \u2014 a pre-mortem is not required by the quality gate"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_failure_reasons_named_when_material",
+            "status": "pass",
+            "evidence": "decision is not declared material \u2014 pre-mortem failure reasons are not required"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_top_reasons_fixed_or_hedged_when_material",
+            "status": "pass",
+            "evidence": "decision is not declared material \u2014 pre-mortem hedging is not required"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_choice_is_recorded",
+            "status": "pass",
+            "evidence": "commit: the choice is recorded in the decision log"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_logged_chosen_option_matches_a_declared_option",
+            "status": "pass",
+            "evidence": "commit: the logged chosen option names a declared option row \u2014 the log commits to an option the record actually evaluated (which option is chosen is the caller's decision; this atom never checks it against the recomputed totals)"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_rationale_is_recorded",
+            "status": "pass",
+            "evidence": "commit: the rationale for the choice is recorded"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_assumptions_are_recorded",
+            "status": "pass",
+            "evidence": "commit: the assumptions behind the choice are recorded in the log"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_decision_communicated_with_why",
+            "status": "pass",
+            "evidence": "commit: the decision is declared communicated with the 'why'"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_date_is_set",
+            "status": "pass",
+            "evidence": "review: a review date is set \u2014 review on schedule"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_compares_outcomes_to_expectations",
+            "status": "pass",
+            "evidence": "review: the review is declared to compare outcomes against the expectations recorded at commit time"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_separates_luck_from_process",
+            "status": "pass",
+            "evidence": "review: the review is declared to separate luck from process and update the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_decision_without_options",
+            "status": "pass",
+            "evidence": "red line: no decision without options is present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_criteria_invented_after_scores",
+            "status": "pass",
+            "evidence": "red line: no criteria invented after scores are present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_irreversible_decision_rushed",
+            "status": "pass",
+            "evidence": "red line: no irreversible decision made in a rush is present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_irreversible_decision_in_a_mood",
+            "status": "pass",
+            "evidence": "red line: no irreversible decision made in a mood is present in the record"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "options_count": 3,
+        "criteria_count": 1,
+        "duplicate_option_names": [],
+        "duplicate_criterion_names": [],
+        "criteria_weights_sum": "1.000000",
+        "recomputed_weighted_totals": [
+          {
+            "option": "AWS",
+            "recomputed_weighted_total": "5.000000"
+          },
+          {
+            "option": "GCP",
+            "recomputed_weighted_total": "4.000000"
+          },
+          {
+            "option": "Azure",
+            "recomputed_weighted_total": "3.000000"
+          }
+        ],
+        "options_with_weighted_total_mismatch": [],
+        "options_without_complete_scores": [],
+        "score_coverage_ratio": "1.000000",
+        "weighted_total_match_ratio": "1.000000",
+        "chosen_option": "AWS",
+        "summary": "46 pass, 0 fail, 0 missing of 46 checks across eight sections.",
+        "stamp": "STRUCTURED DECISION MAKING\ndecision: Choose cloud provider\nVERDICT: DECISION_RECORD_SOUND\n  structured_framing                           pass\n  structured_options                           pass\n  structured_criteria                          pass\n  structured_matrix_scoring                    pass\n  structured_evaluation_and_uncertainty        pass\n  structured_pre_mortem                        pass\n  structured_commit_log_and_review             pass\n  structured_red_lines                         pass\n46 pass, 0 fail, 0 missing of 46 checks across eight sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "DECISION_RECORD_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "structured_every_score_lies_within_the_declared_scale",
+          "structured_every_declared_weighted_total_recomputes",
+          "structured_evaluation_uncertainty_is_flagged",
+          "structured_evaluation_base_rates_are_considered",
+          "structured_scenario_thinking_used_when_probabilities_not_estimable"
+        ],
+        "notes": "Deep copy of final full-pass with planted mutations: options[0] AWS score 11.0 exceeds declared scale max 10.0 (its declared total set to 11.0 so it still recomputes), options[1] GCP declared_weighted_total 999.0 mismatches recomputed 4.000000, evaluation.uncertainty_flagged false, evaluation.base_rates_considered false, evaluation.scenario_thinking_used false while probabilities_estimable false.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "options_count": 3,
+          "criteria_count": 1,
+          "duplicate_option_names": [],
+          "duplicate_criterion_names": [],
+          "criteria_weights_sum": "1.000000",
+          "recomputed_weighted_totals": [
+            {
+              "option": "AWS",
+              "recomputed_weighted_total": "11.000000"
+            },
+            {
+              "option": "GCP",
+              "recomputed_weighted_total": "4.000000"
+            },
+            {
+              "option": "Azure",
+              "recomputed_weighted_total": "3.000000"
+            }
+          ],
+          "options_with_weighted_total_mismatch": [
+            "GCP"
+          ],
+          "options_without_complete_scores": [],
+          "score_coverage_ratio": "1.000000",
+          "weighted_total_match_ratio": "0.666667",
+          "chosen_option": "AWS"
+        }
+      },
+      "input": {
+        "decision": "Choose cloud provider",
+        "framing": {
+          "decision_restated_crisp": true,
+          "decide_by_date_stated": true,
+          "constraints_named": true,
+          "out_of_scope_named": true,
+          "classification": "reversible",
+          "stakes_assessed": true,
+          "effort_budget_matched_to_stakes_and_reversibility": true,
+          "slowed_deliberation_declared": true
+        },
+        "options": [
+          {
+            "name": "AWS",
+            "kind": "action",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 11.0
+              }
+            ],
+            "declared_weighted_total": 11.0
+          },
+          {
+            "name": "GCP",
+            "kind": "status_quo",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 4.0
+              }
+            ],
+            "declared_weighted_total": 999.0
+          },
+          {
+            "name": "Azure",
+            "kind": "smaller_reversible_step",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 3.0
+              }
+            ],
+            "declared_weighted_total": 3.0
+          }
+        ],
+        "criteria": [
+          {
+            "name": "Cost",
+            "weight": 1.0,
+            "defined_before_scoring": true
+          }
+        ],
+        "evaluation": {
+          "method": "decision_matrix",
+          "score_scale_min": 0.0,
+          "score_scale_max": 10.0,
+          "probabilities_estimable": false,
+          "expected_value_used": false,
+          "scenario_thinking_used": false,
+          "uncertainty_flagged": false,
+          "base_rates_considered": false
+        },
+        "premortem": {
+          "decision_is_material": false,
+          "conducted": false,
+          "failure_reasons_named": false,
+          "top_reasons_fixed_or_hedged": false
+        },
+        "log": {
+          "choice_recorded": true,
+          "chosen_option": "AWS",
+          "rationale_recorded": true,
+          "assumptions_recorded": true,
+          "communicated_with_why": true
+        },
+        "review": {
+          "review_date_set": true,
+          "outcomes_vs_expectations_review_planned": true,
+          "luck_separated_from_process_declared": true
+        },
+        "red_lines": {
+          "decision_without_options_present": false,
+          "criteria_invented_after_scores_present": false,
+          "irreversible_decision_rushed_present": false,
+          "irreversible_decision_made_in_mood_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "structured-decision-making",
+        "atom_version": "0.1.0",
+        "decision": "Choose cloud provider",
+        "verdict": "DECISION_RECORD_NOT_SOUND",
+        "sections": {
+          "structured_framing": "pass",
+          "structured_options": "pass",
+          "structured_criteria": "pass",
+          "structured_matrix_scoring": "fail",
+          "structured_evaluation_and_uncertainty": "fail",
+          "structured_pre_mortem": "pass",
+          "structured_commit_log_and_review": "pass",
+          "structured_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_decision_restated_crisp",
+            "status": "pass",
+            "evidence": "frame: the actual decision is restated until it is crisp \u2014 what needs deciding is stated"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_decide_by_date_stated",
+            "status": "pass",
+            "evidence": "frame: by when the decision must be made is stated"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_constraints_named",
+            "status": "pass",
+            "evidence": "frame: the constraints on the decision are named"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_out_of_scope_named",
+            "status": "pass",
+            "evidence": "frame: what is out of scope for the decision is named"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_classification_is_reversible_or_irreversible",
+            "status": "pass",
+            "evidence": "classify: the decision is classified reversible or irreversible \u2014 speed where reversible, care where not"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_stakes_assessed",
+            "status": "pass",
+            "evidence": "classify: the stakes of the decision are assessed \u2014 stakes x reversibility sets the effort budget"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_effort_budget_matched_to_stakes_and_reversibility",
+            "status": "pass",
+            "evidence": "classify: the effort spent on the decision is declared matched to its stakes and reversibility"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_slowed_deliberation_when_irreversible",
+            "status": "pass",
+            "evidence": "decision is not classified irreversible \u2014 slowed deliberation is not required by the classification"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_list_declares_at_least_three",
+            "status": "pass",
+            "evidence": "options: the declared record names at least three options \u2014 binary choices are usually false binaries; an absent list is missing evidence and a shorter list fails"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_every_option_row_names_the_option",
+            "status": "pass",
+            "evidence": "options: every declared option row names the option (a non-empty name)"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_option_names_are_unique",
+            "status": "pass",
+            "evidence": "options: no declared option name is owned by more than one row"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_every_option_kind_is_recognised",
+            "status": "pass",
+            "evidence": "options: every declared option's kind is one of action, status_quo, smaller_reversible_step"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_include_a_status_quo_row",
+            "status": "pass",
+            "evidence": "options: the declared rows include a status-quo option ('do nothing / wait')"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_include_a_smaller_reversible_step_row",
+            "status": "pass",
+            "evidence": "options: the declared rows include a smaller reversible step option"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criteria_list_is_declared",
+            "status": "pass",
+            "evidence": "criteria: the declared record names its criteria \u2014 the criteria list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no criteria at all"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_row_names_the_criterion",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion row names the criterion (a non-empty name)"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criterion_names_are_unique",
+            "status": "pass",
+            "evidence": "criteria: no declared criterion name is owned by more than one row"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_weight_is_nonnegative",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion declares a non-negative weight"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criteria_weights_sum_is_positive",
+            "status": "pass",
+            "evidence": "criteria: the declared criterion weights sum to a positive total \u2014 a matrix whose weights sum to zero scores nothing"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_defined_before_scoring",
+            "status": "pass",
+            "evidence": "criteria: every declared criterion is declared defined before scoring \u2014 criteria first, weights before scores"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_option_scores_every_declared_criterion",
+            "status": "pass",
+            "evidence": "matrix: every declared option scores every declared criterion \u2014 the score matrix is complete over the record's own declared criteria"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_no_option_scores_an_undeclared_criterion",
+            "status": "pass",
+            "evidence": "matrix: no declared option scores a criterion the record does not declare"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_no_option_scores_a_criterion_twice",
+            "status": "pass",
+            "evidence": "matrix: no declared option scores the same criterion on more than one score row"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_score_scale_bounds_are_coherent",
+            "status": "pass",
+            "evidence": "matrix: the record's declared score scale bounds are coherent \u2014 score_scale_min does not exceed score_scale_max"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_score_lies_within_the_declared_scale",
+            "status": "fail",
+            "evidence": "matrix: every declared score lies within the score scale the record itself declares"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_declared_weighted_total_recomputes",
+            "status": "fail",
+            "evidence": "matrix: every declared option's declared weighted total recomputes exactly as sum(declared criterion weight x declared score) over the declared criteria (6dp serialization)"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_method_is_recognised",
+            "status": "pass",
+            "evidence": "evaluation: the declared evaluation method is one of decision_matrix, expected_value, decision_tree, scenario_thinking \u2014 a fitting tool for the decision"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_uncertainty_is_flagged",
+            "status": "fail",
+            "evidence": "evaluation: the uncertainty in the evaluation is flagged"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_base_rates_are_considered",
+            "status": "fail",
+            "evidence": "evaluation: base-rate / reference information is declared considered before the inside view of this decision (its arithmetic, if any, is the base-rate-card atom's ground, not this record's)"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_expected_value_used_when_probabilities_estimable",
+            "status": "pass",
+            "evidence": "probabilities are not declared estimable \u2014 expected-value evaluation is not required"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_scenario_thinking_used_when_probabilities_not_estimable",
+            "status": "fail",
+            "evidence": "evaluation: when probabilities are declared not estimable, scenario thinking is declared used"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_conducted_when_decision_is_material",
+            "status": "pass",
+            "evidence": "decision is not declared material \u2014 a pre-mortem is not required by the quality gate"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_failure_reasons_named_when_material",
+            "status": "pass",
+            "evidence": "decision is not declared material \u2014 pre-mortem failure reasons are not required"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_top_reasons_fixed_or_hedged_when_material",
+            "status": "pass",
+            "evidence": "decision is not declared material \u2014 pre-mortem hedging is not required"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_choice_is_recorded",
+            "status": "pass",
+            "evidence": "commit: the choice is recorded in the decision log"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_logged_chosen_option_matches_a_declared_option",
+            "status": "pass",
+            "evidence": "commit: the logged chosen option names a declared option row \u2014 the log commits to an option the record actually evaluated (which option is chosen is the caller's decision; this atom never checks it against the recomputed totals)"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_rationale_is_recorded",
+            "status": "pass",
+            "evidence": "commit: the rationale for the choice is recorded"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_assumptions_are_recorded",
+            "status": "pass",
+            "evidence": "commit: the assumptions behind the choice are recorded in the log"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_decision_communicated_with_why",
+            "status": "pass",
+            "evidence": "commit: the decision is declared communicated with the 'why'"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_date_is_set",
+            "status": "pass",
+            "evidence": "review: a review date is set \u2014 review on schedule"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_compares_outcomes_to_expectations",
+            "status": "pass",
+            "evidence": "review: the review is declared to compare outcomes against the expectations recorded at commit time"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_separates_luck_from_process",
+            "status": "pass",
+            "evidence": "review: the review is declared to separate luck from process and update the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_decision_without_options",
+            "status": "pass",
+            "evidence": "red line: no decision without options is present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_criteria_invented_after_scores",
+            "status": "pass",
+            "evidence": "red line: no criteria invented after scores are present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_irreversible_decision_rushed",
+            "status": "pass",
+            "evidence": "red line: no irreversible decision made in a rush is present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_irreversible_decision_in_a_mood",
+            "status": "pass",
+            "evidence": "red line: no irreversible decision made in a mood is present in the record"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "options_count": 3,
+        "criteria_count": 1,
+        "duplicate_option_names": [],
+        "duplicate_criterion_names": [],
+        "criteria_weights_sum": "1.000000",
+        "recomputed_weighted_totals": [
+          {
+            "option": "AWS",
+            "recomputed_weighted_total": "11.000000"
+          },
+          {
+            "option": "GCP",
+            "recomputed_weighted_total": "4.000000"
+          },
+          {
+            "option": "Azure",
+            "recomputed_weighted_total": "3.000000"
+          }
+        ],
+        "options_with_weighted_total_mismatch": [
+          "GCP"
+        ],
+        "options_without_complete_scores": [],
+        "score_coverage_ratio": "1.000000",
+        "weighted_total_match_ratio": "0.666667",
+        "chosen_option": "AWS",
+        "summary": "41 pass, 5 fail, 0 missing of 46 checks across eight sections.",
+        "stamp": "STRUCTURED DECISION MAKING\ndecision: Choose cloud provider\nVERDICT: DECISION_RECORD_NOT_SOUND\n  structured_framing                           pass\n  structured_options                           pass\n  structured_criteria                          pass\n  structured_matrix_scoring                    fail\n  structured_evaluation_and_uncertainty        fail\n  structured_pre_mortem                        pass\n  structured_commit_log_and_review             pass\n  structured_red_lines                         pass\n41 pass, 5 fail, 0 missing of 46 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required framing, options, and criteria fields."
+      },
+      "input": {
+        "decision": "Empty decision"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "structured-decision-making",
+        "atom_version": "0.1.0",
+        "decision": "Empty decision",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "structured_framing": "insufficient_evidence",
+          "structured_options": "insufficient_evidence",
+          "structured_criteria": "insufficient_evidence",
+          "structured_matrix_scoring": "insufficient_evidence",
+          "structured_evaluation_and_uncertainty": "insufficient_evidence",
+          "structured_pre_mortem": "insufficient_evidence",
+          "structured_commit_log_and_review": "insufficient_evidence",
+          "structured_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_decision_restated_crisp",
+            "status": "missing",
+            "evidence": "frame: the actual decision is restated until it is crisp \u2014 what needs deciding is stated"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_decide_by_date_stated",
+            "status": "missing",
+            "evidence": "frame: by when the decision must be made is stated"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_constraints_named",
+            "status": "missing",
+            "evidence": "frame: the constraints on the decision are named"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_out_of_scope_named",
+            "status": "missing",
+            "evidence": "frame: what is out of scope for the decision is named"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_classification_is_reversible_or_irreversible",
+            "status": "missing",
+            "evidence": "classify: the decision is classified reversible or irreversible \u2014 speed where reversible, care where not"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_framing_stakes_assessed",
+            "status": "missing",
+            "evidence": "classify: the stakes of the decision are assessed \u2014 stakes x reversibility sets the effort budget"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_effort_budget_matched_to_stakes_and_reversibility",
+            "status": "missing",
+            "evidence": "classify: the effort spent on the decision is declared matched to its stakes and reversibility"
+          },
+          {
+            "section": "structured_framing",
+            "check": "structured_slowed_deliberation_when_irreversible",
+            "status": "missing",
+            "evidence": "decision is not classified irreversible \u2014 slowed deliberation is not required by the classification"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_list_declares_at_least_three",
+            "status": "missing",
+            "evidence": "options: the declared record names at least three options \u2014 binary choices are usually false binaries; an absent list is missing evidence and a shorter list fails"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_every_option_row_names_the_option",
+            "status": "missing",
+            "evidence": "options: every declared option row names the option (a non-empty name)"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_option_names_are_unique",
+            "status": "missing",
+            "evidence": "options: no declared option name is owned by more than one row"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_every_option_kind_is_recognised",
+            "status": "missing",
+            "evidence": "options: every declared option's kind is one of action, status_quo, smaller_reversible_step"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_include_a_status_quo_row",
+            "status": "missing",
+            "evidence": "options: the declared rows include a status-quo option ('do nothing / wait')"
+          },
+          {
+            "section": "structured_options",
+            "check": "structured_options_include_a_smaller_reversible_step_row",
+            "status": "missing",
+            "evidence": "options: the declared rows include a smaller reversible step option"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criteria_list_is_declared",
+            "status": "missing",
+            "evidence": "criteria: the declared record names its criteria \u2014 the criteria list is present and names at least one criterion; an absent list is missing evidence and an empty list declares no criteria at all"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_row_names_the_criterion",
+            "status": "missing",
+            "evidence": "criteria: every declared criterion row names the criterion (a non-empty name)"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criterion_names_are_unique",
+            "status": "missing",
+            "evidence": "criteria: no declared criterion name is owned by more than one row"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_weight_is_nonnegative",
+            "status": "missing",
+            "evidence": "criteria: every declared criterion declares a non-negative weight"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_criteria_weights_sum_is_positive",
+            "status": "missing",
+            "evidence": "criteria: the declared criterion weights sum to a positive total \u2014 a matrix whose weights sum to zero scores nothing"
+          },
+          {
+            "section": "structured_criteria",
+            "check": "structured_every_criterion_defined_before_scoring",
+            "status": "missing",
+            "evidence": "criteria: every declared criterion is declared defined before scoring \u2014 criteria first, weights before scores"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_option_scores_every_declared_criterion",
+            "status": "missing",
+            "evidence": "matrix: every declared option scores every declared criterion \u2014 the score matrix is complete over the record's own declared criteria"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_no_option_scores_an_undeclared_criterion",
+            "status": "missing",
+            "evidence": "matrix: no declared option scores a criterion the record does not declare"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_no_option_scores_a_criterion_twice",
+            "status": "missing",
+            "evidence": "matrix: no declared option scores the same criterion on more than one score row"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_score_scale_bounds_are_coherent",
+            "status": "missing",
+            "evidence": "matrix: the record's declared score scale bounds are coherent \u2014 score_scale_min does not exceed score_scale_max"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_score_lies_within_the_declared_scale",
+            "status": "missing",
+            "evidence": "matrix: every declared score lies within the score scale the record itself declares"
+          },
+          {
+            "section": "structured_matrix_scoring",
+            "check": "structured_every_declared_weighted_total_recomputes",
+            "status": "missing",
+            "evidence": "matrix: every declared option's declared weighted total recomputes exactly as sum(declared criterion weight x declared score) over the declared criteria (6dp serialization)"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_method_is_recognised",
+            "status": "missing",
+            "evidence": "evaluation: the declared evaluation method is one of decision_matrix, expected_value, decision_tree, scenario_thinking \u2014 a fitting tool for the decision"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_uncertainty_is_flagged",
+            "status": "missing",
+            "evidence": "evaluation: the uncertainty in the evaluation is flagged"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_evaluation_base_rates_are_considered",
+            "status": "missing",
+            "evidence": "evaluation: base-rate / reference information is declared considered before the inside view of this decision (its arithmetic, if any, is the base-rate-card atom's ground, not this record's)"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_expected_value_used_when_probabilities_estimable",
+            "status": "missing",
+            "evidence": "probabilities are not declared estimable \u2014 expected-value evaluation is not required"
+          },
+          {
+            "section": "structured_evaluation_and_uncertainty",
+            "check": "structured_scenario_thinking_used_when_probabilities_not_estimable",
+            "status": "missing",
+            "evidence": "probabilities are not declared non-estimable \u2014 scenario thinking is not the required fitting tool"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_conducted_when_decision_is_material",
+            "status": "missing",
+            "evidence": "decision is not declared material \u2014 a pre-mortem is not required by the quality gate"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_failure_reasons_named_when_material",
+            "status": "missing",
+            "evidence": "decision is not declared material \u2014 pre-mortem failure reasons are not required"
+          },
+          {
+            "section": "structured_pre_mortem",
+            "check": "structured_premortem_top_reasons_fixed_or_hedged_when_material",
+            "status": "missing",
+            "evidence": "decision is not declared material \u2014 pre-mortem hedging is not required"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_choice_is_recorded",
+            "status": "missing",
+            "evidence": "commit: the choice is recorded in the decision log"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_logged_chosen_option_matches_a_declared_option",
+            "status": "missing",
+            "evidence": "commit: the logged chosen option names a declared option row \u2014 the log commits to an option the record actually evaluated (which option is chosen is the caller's decision; this atom never checks it against the recomputed totals)"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_rationale_is_recorded",
+            "status": "missing",
+            "evidence": "commit: the rationale for the choice is recorded"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_assumptions_are_recorded",
+            "status": "missing",
+            "evidence": "commit: the assumptions behind the choice are recorded in the log"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_log_decision_communicated_with_why",
+            "status": "missing",
+            "evidence": "commit: the decision is declared communicated with the 'why'"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_date_is_set",
+            "status": "missing",
+            "evidence": "review: a review date is set \u2014 review on schedule"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_compares_outcomes_to_expectations",
+            "status": "missing",
+            "evidence": "review: the review is declared to compare outcomes against the expectations recorded at commit time"
+          },
+          {
+            "section": "structured_commit_log_and_review",
+            "check": "structured_review_separates_luck_from_process",
+            "status": "missing",
+            "evidence": "review: the review is declared to separate luck from process and update the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_decision_without_options",
+            "status": "missing",
+            "evidence": "red line: no decision without options is present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_criteria_invented_after_scores",
+            "status": "missing",
+            "evidence": "red line: no criteria invented after scores are present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_irreversible_decision_rushed",
+            "status": "missing",
+            "evidence": "red line: no irreversible decision made in a rush is present in the record"
+          },
+          {
+            "section": "structured_red_lines",
+            "check": "structured_record_free_of_irreversible_decision_in_a_mood",
+            "status": "missing",
+            "evidence": "red line: no irreversible decision made in a mood is present in the record"
+          }
+        ],
+        "computed_status": null,
+        "options_count": null,
+        "criteria_count": null,
+        "duplicate_option_names": null,
+        "duplicate_criterion_names": null,
+        "criteria_weights_sum": null,
+        "recomputed_weighted_totals": null,
+        "options_with_weighted_total_mismatch": null,
+        "options_without_complete_scores": null,
+        "score_coverage_ratio": null,
+        "weighted_total_match_ratio": null,
+        "chosen_option": null,
+        "summary": "0 pass, 0 fail, 46 missing of 46 checks across eight sections.",
+        "stamp": "STRUCTURED DECISION MAKING\ndecision: Empty decision\nVERDICT: INSUFFICIENT_EVIDENCE\n  structured_framing                           insufficient_evidence\n  structured_options                           insufficient_evidence\n  structured_criteria                          insufficient_evidence\n  structured_matrix_scoring                    insufficient_evidence\n  structured_evaluation_and_uncertainty        insufficient_evidence\n  structured_pre_mortem                        insufficient_evidence\n  structured_commit_log_and_review             insufficient_evidence\n  structured_red_lines                         insufficient_evidence\n0 pass, 0 fail, 46 missing of 46 checks across eight sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Deep copy of full-pass with exactly one type violation: decision = 12345 (number where a string is required)."
+      },
+      "input": {
+        "decision": 12345,
+        "framing": {
+          "decision_restated_crisp": true,
+          "decide_by_date_stated": true,
+          "constraints_named": true,
+          "out_of_scope_named": true,
+          "classification": "reversible",
+          "stakes_assessed": true,
+          "effort_budget_matched_to_stakes_and_reversibility": true,
+          "slowed_deliberation_declared": true
+        },
+        "options": [
+          {
+            "name": "AWS",
+            "kind": "action",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 5.0
+              }
+            ],
+            "declared_weighted_total": 5.0
+          },
+          {
+            "name": "GCP",
+            "kind": "status_quo",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 4.0
+              }
+            ],
+            "declared_weighted_total": 4.0
+          },
+          {
+            "name": "Azure",
+            "kind": "smaller_reversible_step",
+            "scores": [
+              {
+                "criterion": "Cost",
+                "score": 3.0
+              }
+            ],
+            "declared_weighted_total": 3.0
+          }
+        ],
+        "criteria": [
+          {
+            "name": "Cost",
+            "weight": 1.0,
+            "defined_before_scoring": true
+          }
+        ],
+        "evaluation": {
+          "method": "decision_matrix",
+          "score_scale_min": 0.0,
+          "score_scale_max": 10.0,
+          "probabilities_estimable": false,
+          "expected_value_used": false,
+          "scenario_thinking_used": true,
+          "uncertainty_flagged": true,
+          "base_rates_considered": true
+        },
+        "premortem": {
+          "decision_is_material": false,
+          "conducted": false,
+          "failure_reasons_named": false,
+          "top_reasons_fixed_or_hedged": false
+        },
+        "log": {
+          "choice_recorded": true,
+          "chosen_option": "AWS",
+          "rationale_recorded": true,
+          "assumptions_recorded": true,
+          "communicated_with_why": true
+        },
+        "review": {
+          "review_date_set": true,
+          "outcomes_vs_expectations_review_planned": true,
+          "luck_separated_from_process_declared": true
+        },
+        "red_lines": {
+          "decision_without_options_present": false,
+          "criteria_invented_after_scores_present": false,
+          "irreversible_decision_rushed_present": false,
+          "irreversible_decision_made_in_mood_present": false
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "decision",
+        "detail": "decision must be a string"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

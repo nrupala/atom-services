@@ -1,0 +1,1679 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: ux-flow-component-spec-pack
+
+=== contract.yaml ===
+service_name: ux-flow-component-spec-pack
+display_name: Ux flow component spec pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:ux-ui-design
+binding:
+  skill: ux-ui-design
+  skill_path: workspace/mymilo-build/skills/ux-ui-design/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: ux_flow_component_spec_pack
+  prefix: atm_1_ux_flow_component_spec_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Designing product interfaces before build
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Ux flow component spec pack — `ux-flow-component-spec-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Design user flows and interfaces — tokens, component specs, states, and accessibility — before implementation.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result. In this atom's deterministic form, the caller submits a **declared UX flow + component specification record** and receives the spec audit verdict as the deliverable: the atom designs no interface, builds no frontend, renders nothing, measures no contrast, tests no keyboard path and certifies no accessibility conformance (see Honest scoping).
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Designing product interfaces before build**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the UX flow + component specification manifest
+
+The caller submits one JSON manifest: a declared UX flow and
+component specification record for one product surface, made
+from the specification as actually produced. Every field below
+is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but
+false / invalid = the check fails (`UX_SPEC_NOT_SOUND`).
+All fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `spec_title` (string; carried into the verdict output, not itself checked) | — |
+| `flow_design.flows_designed_before_implementation` (boolean) | ux_flows_and_hierarchy |
+| `flow_design.primary_journeys_documented_as_step_diagrams` (boolean) | ux_flows_and_hierarchy |
+| `flow_design.information_hierarchy_defined_per_screen` (boolean) | ux_flows_and_hierarchy |
+| `flow_design.content_before_decoration` (boolean) | ux_flows_and_hierarchy |
+| `flow_steps` (list of flow-step-row objects, each with the entry fields below; computed, see below) | ux_flows_and_hierarchy |
+| `flow_steps[].step_id` (string; must be unique per row) | ux_flows_and_hierarchy |
+| `flow_steps[].intent` (non-empty string; one intent per step) | ux_flows_and_hierarchy |
+| `flow_steps[].entry_condition` (non-empty string) | ux_flows_and_hierarchy |
+| `flow_steps[].exit_condition` (non-empty string) | ux_flows_and_hierarchy |
+| `flow_steps[].next_step_ids` (list of strings; computed — every id must name a declared step, see below; an empty list declares a terminal step) | ux_flows_and_hierarchy |
+| `design_tokens.tokens_single_source_declared` (boolean) | ux_design_tokens |
+| `design_tokens.color_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.type_scale_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.spacing_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.radius_tokens_defined` (boolean) | ux_design_tokens |
+| `design_tokens.elevation_tokens_defined` (boolean) | ux_design_tokens |
+| `components` (list of component-row objects, each with the entry fields below; computed, see below) | ux_component_inventory_and_states |
+| `components[].component_id` (string; must be unique per row) | ux_component_inventory_and_states |
+| `components[].purpose` (non-empty string) | ux_component_inventory_and_states |
+| `components[].variants_declared` (non-empty string) | ux_component_inventory_and_states |
+| `components[].interactive` (boolean; gates the state-inventory and decorative-only checks below) | ux_component_inventory_and_states |
+| `components[].decorative_only` (boolean; must not be `true` on an interactive row) | ux_component_inventory_and_states |
+| `components[].states_declared` (list of strings; computed for interactive rows — must contain all seven skill-named states, see below) | ux_component_inventory_and_states |
+| `screens` (list of screen-row objects, each with the entry fields below; computed, see below) | ux_data_surface_states, ux_accessibility_declarations |
+| `screens[].screen_id` (string; must be unique per row) | ux_data_surface_states |
+| `screens[].is_data_surface` (boolean; gates the empty/loading/error checks below) | ux_data_surface_states |
+| `screens[].empty_state_designed` (boolean; required when the screen is declared a data surface; otherwise not applicable) | ux_data_surface_states |
+| `screens[].loading_state_designed` (boolean; gated as above) | ux_data_surface_states |
+| `screens[].error_state_designed` (boolean; gated as above) | ux_data_surface_states |
+| `screens[].contrast_check_noted` (boolean) | ux_accessibility_declarations |
+| `screens[].keyboard_check_noted` (boolean) | ux_accessibility_declarations |
+| `accessibility.wcag_target_declared` (non-empty string; declaration only — no conformance is certified, see below) | ux_accessibility_declarations |
+| `accessibility.keyboard_reachable_declared` (boolean) | ux_accessibility_declarations |
+| `accessibility.labels_on_all_fields_declared` (boolean) | ux_accessibility_declarations |
+| `accessibility.visible_focus_declared` (boolean) | ux_accessibility_declarations |
+| `accessibility.reduced_motion_respected_declared` (boolean) | ux_accessibility_declarations |
+| `microcopy.buttons_say_what_they_do` (boolean) | ux_microcopy_and_critique |
+| `microcopy.errors_say_how_to_fix` (boolean) | ux_microcopy_and_critique |
+| `microcopy.empty_states_say_what_to_do_next` (boolean) | ux_microcopy_and_critique |
+| `microcopy.microcopy_reviewed_for_clarity` (boolean) | ux_microcopy_and_critique |
+| `critique.compared_against_brief` (boolean) | ux_microcopy_and_critique |
+| `critique.compared_against_domain_conventions` (boolean) | ux_microcopy_and_critique |
+| `critique.non_orienting_decoration_cut` (boolean) | ux_microcopy_and_critique |
+| `red_lines.placeholder_lorem_shipped_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.dead_controls_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.accessibility_traded_for_aesthetics_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.aesthetics_traded_for_accessibility_present` (boolean; must be `false` to pass — skill red line, vice-versa direction) | red_lines |
+
+Twenty checks are computed from the declared rows, using
+only the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Flow steps declared:** the declared `flow_steps` list
+  passes when it is present and names at least one step. An
+  absent list is missing evidence; an empty list fails — it
+  declares no flow at all.
+- **Flow step ids unique:** no declared `step_id` may appear
+  on more than one row. A row with `step_id` absent is missing
+  evidence for this check.
+- **Intent / entry / exit per flow step:** every declared
+  step row declares a non-empty `intent` (each step carries
+  one intent), a non-empty `entry_condition` and a non-empty
+  `exit_condition`. A row with the field absent is missing
+  evidence; a row declaring it empty fails and is named in
+  `ux_flow_steps_without_intent`,
+  `ux_flow_steps_without_entry_condition` or
+  `ux_flow_steps_without_exit_condition`.
+- **Every next-step reference resolves:** every id in every
+  row's `next_step_ids` names a declared `step_id`. An empty
+  list declares a terminal step and resolves vacuously. A row
+  with the field absent is missing evidence; a row naming an
+  undeclared step fails and is named in
+  `ux_flow_steps_with_unresolved_next_step_references`.
+- **Components declared:** the declared `components` list
+  passes when it is present and names at least one component.
+  An absent list is missing evidence; an empty list fails.
+- **Component ids unique:** no declared `component_id` may
+  appear on more than one row.
+- **Purpose and variants per component:** every declared
+  component row declares a non-empty `purpose` and a
+  non-empty `variants_declared`. Absent is missing evidence;
+  empty fails and is named in `ux_components_without_purpose`
+  or `ux_components_without_variants`.
+- **Interactive state inventory complete:** every row
+  declared `interactive: true` has a `states_declared` list
+  containing all seven states the skill names — `default`,
+  `hover`, `active`, `disabled`, `focus`, `loading`, `error`.
+  An interactive row with the field absent is missing
+  evidence; an incomplete inventory fails and is named in
+  `interactive_ux_components_with_incomplete_states`.
+  Non-interactive rows are not required to carry the seven.
+- **No interactive component decorative-only:** no row
+  declared interactive may also declare
+  `decorative_only: true` (quality gate: none decorative-only).
+  A row missing either field is missing evidence; a violating
+  row fails and is named in
+  `interactive_ux_components_declared_decorative_only`.
+- **Screens declared:** the declared `screens` list passes
+  when it is present and names at least one screen. An absent
+  list is missing evidence; an empty list fails.
+- **Screen ids unique:** no declared `screen_id` may appear
+  on more than one row.
+- **Empty / loading / error per data surface:** for every
+  screen row declared `is_data_surface: true`, each of
+  `empty_state_designed`, `loading_state_designed` and
+  `error_state_designed` must be declared `true` (quality
+  gate: empty, loading and error states designed for every
+  data surface). A data-surface row with a field absent is
+  missing evidence; a field declared false fails and the
+  screen is named in the matching
+  `ux_data_surfaces_without_*_state` list. Non-data-surface
+  screens pass these checks as not applicable.
+- **Accessibility target declared:** `accessibility.wcag_target_declared`
+  must be a non-empty string. The skill names WCAG AA; this
+  check verifies only that a target is **declared** — it
+  imposes no conformance level of its own and certifies none.
+  An absent field is missing evidence; an empty string fails.
+- **Contrast / keyboard check noted per screen:** every
+  declared screen row declares `contrast_check_noted: true`
+  and `keyboard_check_noted: true` (quality gate: contrast +
+  keyboard checks noted per screen). A row with a field absent
+  is missing evidence; a row declaring it false fails and is
+  named in `ux_screens_without_contrast_check` or
+  `ux_screens_without_keyboard_check`. Noted is a declaration
+  only — no contrast is measured and no keyboard path is tested.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the twenty primary computed checks above cannot be
+completed), `ux_flow_steps_count`, `ux_components_count`,
+`ux_screens_count`, `ux_interactive_components_count` and
+`ux_data_surfaces_count` (the declared list lengths / gated
+row counts, or null when the parent list is not declared —
+counts are reported as integers, exactly), the duplicate-id
+lists `duplicate_ux_flow_step_ids`,
+`duplicate_ux_component_ids` and `duplicate_ux_screen_ids`,
+the row-name lists named in the computed checks above, and
+the ratios `flow_step_reference_resolution_ratio` (steps
+whose declared next-step references all resolve ÷ declared
+steps), `interactive_component_complete_state_ratio`
+(interactive components with a complete seven-state inventory
+÷ interactive components; null when there are none),
+`data_surface_complete_state_ratio` (data surfaces with all
+three of empty/loading/error designed ÷ data surfaces; null
+when there are none) and `screen_accessibility_check_ratio`
+(screens with both contrast and keyboard checks noted ÷
+declared screens). **Fixed serialization rule:** computed
+ratios are reported as strings with exactly six decimal
+places, produced in both implementations by the same rule —
+round half up to 6dp, `floor(v * 1000000 + 0.5) / 1000000`,
+then format with exactly six decimals. A ratio is null when
+its denominator list is absent or empty (or, for the gated
+ratios, when no row falls under the gate). That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are flows-first, hierarchy, single-source tokens, complete
+state inventories, per-surface states, noted accessibility
+checks and clear microcopy, not bars the atom can set.
+Quantities are computed and reported; the only bars on the
+computed rows are exact completeness and reference resolution
+over the caller's own declared rows, exactly as stated above.
+Declined thresholds, named: any external accessibility
+conformance level imposed as a pass bar — including treating
+the skill's named WCAG AA as a certification (the atom checks
+only that a target is declared, plus the per-screen and
+per-component declarations; it never certifies conformance);
+a measured contrast ratio (no contrast is measured); a
+keyboard-traversal time, tab-count or focus-order bar beyond
+the declared per-screen keyboard check; a minimum or maximum
+number of flow steps, components or screens beyond at least
+one each; a token count, type-scale ratio, spacing unit or
+elevation scale bar (tokens are checked as defined and
+single-source, never graded); a state list beyond the seven
+states the skill itself names for interactive components; a
+requirement that every product carry every component type the
+skill lists as examples (inputs, buttons, cards, tables, nav,
+lists — a component row is checked on its own declarations,
+not on a universal inventory); any judgment that the flow is
+usable, the interface is beautiful, or the design is good
+(only that its declared specification record contains what
+the skill requires).
+
+The verdict is one of `UX_SPEC_SOUND` (all 45 checks pass),
+`UX_SPEC_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across seven sections: ux_flows_and_hierarchy,
+ux_design_tokens, ux_component_inventory_and_states,
+ux_data_surface_states, ux_accessibility_declarations,
+ux_microcopy_and_critique, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `frontend-implementation` (building
+the frontend itself — implemented views, states in code,
+performance and shipped behaviour), `semantic-html-review`
+(the built markup's semantics — landmarks, headings and
+labels in actual HTML) and `audience-contract-design` (an
+audience/offer contract — who it is for and what is promised,
+a different artifact). This atom shares **zero checks** with
+any of them (verified mechanically by enumerating
+`evaluate({})` check names from every atom oracle in
+`services/*/src/*.py` and comparing, with a grep of check
+strings over the same files as the fallback for oracles whose
+`evaluate({})` raises or returns a different shape — zero
+overlap by both methods): every check here is a
+pre-implementation specification question — a flow step with
+one intent, an entry and an exit, whose next-step references
+resolve; a single-source token set covering color, type
+scale, spacing, radius and elevation; a component inventory
+where every interactive component declares all seven
+skill-named states and none is decorative-only; a data
+surface with empty, loading and error states designed; an
+accessibility target merely declared with contrast and
+keyboard checks noted per screen; microcopy and critique
+declared. The boundary is: the flow/component specification
+record here; the built frontend, the built markup's
+semantics, and the audience contract there.
+
+## Honest scoping
+
+This atom reviews a **declared** UX flow + component
+specification record — it designs no interface, produces no
+flow diagram, token file or component spec, builds no
+frontend, renders nothing, opens no screen, measures no
+contrast, traverses no keyboard path, and **certifies no
+accessibility conformance of any kind, to WCAG or to any
+other standard**: a declared target, a noted contrast check
+and a noted keyboard check are declarations in the record,
+not findings about a real interface. A spec is sound *on the
+caller's declared evidence*: a record that declares its steps
+resolving, its interactive states complete and its checks
+noted passes those checks even if the real specification does
+none of it. It is a completeness and consistency audit of the
+specification record the skill requires, **not a design
+service, a usability test, or an accessibility audit or
+certification**: it never judges whether a flow is usable,
+whether a hierarchy is right, whether the declared contrast
+actually holds, or whether the design should be built — only
+that the record contains what the skill's method, quality
+gates and red lines demand, and that its declared rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never performed or judged): the design
+work itself (drawing flows, defining tokens, specifying
+components); usability testing with real users; accessibility
+testing, measurement and conformance evaluation of any built
+or unbuilt interface; frontend implementation (the sibling
+`frontend-implementation` ground); and review of built markup
+(the sibling `semantic-html-review` ground) — each is
+EXCLUDED by name from this atom, which audits only the
+declared record of the specification step. Boundary case,
+named: a specification with genuinely no interactive
+component and no data surface passes the gated state checks
+vacuously on its declared rows, and its gated ratios are null
+— the atom reports that shape honestly rather than failing a
+static specification on gates that do not apply to it.
+
+## U-13 regulatory screen
+
+Screen classification: **(b) — screen-NO, with the
+accessibility boundary as the named control.** Keyword
+screen: the bound skill and this record name accessibility
+and WCAG — no engineering-practice, securities/financial-
+advice or psychology-adjacent subject, and no regulated
+profession's advice vocabulary; the adjacency is not a
+regulated-advice subject but a legal-conformance adjacency:
+accessibility conformance can carry legal weight for a caller
+in some jurisdictions, so an output that read as certifying
+conformance would be an exposure. Substance screen: this
+atom's output does not and cannot certify any such thing —
+it audits a caller-**declared** specification record for
+completeness and internal consistency only (flow, hierarchy,
+token, component-state, data-surface-state, accessibility,
+microcopy and critique declarations, computed row consistency
+recomputed over the declared rows, and the red lines refused);
+every output is a pass / fail / missing verdict on the record
+or a ratio recomputed from the caller's own declared rows.
+Named control: (1) the atom **certifies NO legal or
+accessibility conformance** — the WCAG check verifies only
+that a non-empty target is declared in the record, plus that
+per-screen contrast/keyboard checks are declared noted and
+per-component state inventories are declared; it measures no
+contrast, tests no keyboard path, evaluates no interface, and
+no output states or implies that any product meets WCAG, any
+accessibility law, or any other standard — conformance, and
+any legal reliance on it, remain the caller's responsibility,
+on their own testing; (2) it produces **no design and no
+advice of any kind** — no flow, no token set, no component
+spec, no recommendation about any interface; the skill's
+design steps are excluded from production by name above —
+this atom performs none of them; (3) it sets **no threshold**
+on any subject matter beyond the skill's own stated lists
+(see the declined list). Subject to that named control, the
+screen outcome is NO: the output could not read as regulated
+professional advice, and with control (1) in force it does
+not read as an accessibility-conformance certification
+either. No deploy happens on this atom without the owner's
+explicit per-unit ruling in any case.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **AUTHORED + STAGED — not deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "ux-flow-component-spec-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "UX_SPEC_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. Computed spot checks: ux_flow_steps_count=1, ux_components_count=1, ux_screens_count=1, ux_interactive_components_count=1, ux_data_surfaces_count=1.",
+        "computed_spot_checks": {
+          "computed_status": "within_stated_limits_on_declared_evidence",
+          "ux_flow_steps_count": 1,
+          "ux_components_count": 1,
+          "ux_screens_count": 1,
+          "ux_interactive_components_count": 1,
+          "ux_data_surfaces_count": 1,
+          "duplicate_ux_flow_step_ids": [],
+          "duplicate_ux_component_ids": [],
+          "duplicate_ux_screen_ids": [],
+          "ux_flow_steps_without_intent": [],
+          "ux_flow_steps_without_entry_condition": [],
+          "ux_flow_steps_without_exit_condition": [],
+          "ux_flow_steps_with_unresolved_next_step_references": [],
+          "ux_components_without_purpose": [],
+          "ux_components_without_variants": [],
+          "interactive_ux_components_with_incomplete_states": [],
+          "interactive_ux_components_declared_decorative_only": [],
+          "ux_data_surfaces_without_empty_state": [],
+          "ux_data_surfaces_without_loading_state": [],
+          "ux_data_surfaces_without_error_state": [],
+          "ux_screens_without_contrast_check": [],
+          "ux_screens_without_keyboard_check": [],
+          "flow_step_reference_resolution_ratio": "1.000000",
+          "interactive_component_complete_state_ratio": "1.000000",
+          "data_surface_complete_state_ratio": "1.000000",
+          "screen_accessibility_check_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "spec_title": "Dashboard Flow",
+        "flow_design": {
+          "flows_designed_before_implementation": true,
+          "primary_journeys_documented_as_step_diagrams": true,
+          "information_hierarchy_defined_per_screen": true,
+          "content_before_decoration": true
+        },
+        "flow_steps": [
+          {
+            "step_id": "s1",
+            "intent": "Login",
+            "entry_condition": "User at landing",
+            "exit_condition": "Authenticated",
+            "next_step_ids": []
+          }
+        ],
+        "design_tokens": {
+          "tokens_single_source_declared": true,
+          "color_tokens_defined": true,
+          "type_scale_tokens_defined": true,
+          "spacing_tokens_defined": true,
+          "radius_tokens_defined": true,
+          "elevation_tokens_defined": true
+        },
+        "components": [
+          {
+            "component_id": "c1",
+            "purpose": "Button",
+            "variants_declared": "Primary, Secondary",
+            "interactive": true,
+            "decorative_only": false,
+            "states_declared": [
+              "default",
+              "hover",
+              "active",
+              "disabled",
+              "focus",
+              "loading",
+              "error"
+            ]
+          }
+        ],
+        "screens": [
+          {
+            "screen_id": "scr1",
+            "is_data_surface": true,
+            "empty_state_designed": true,
+            "loading_state_designed": true,
+            "error_state_designed": true,
+            "contrast_check_noted": true,
+            "keyboard_check_noted": true
+          }
+        ],
+        "accessibility": {
+          "wcag_target_declared": "WCAG AA",
+          "keyboard_reachable_declared": true,
+          "labels_on_all_fields_declared": true,
+          "visible_focus_declared": true,
+          "reduced_motion_respected_declared": true
+        },
+        "microcopy": {
+          "buttons_say_what_they_do": true,
+          "errors_say_how_to_fix": true,
+          "empty_states_say_what_to_do_next": true,
+          "microcopy_reviewed_for_clarity": true
+        },
+        "critique": {
+          "compared_against_brief": true,
+          "compared_against_domain_conventions": true,
+          "non_orienting_decoration_cut": true
+        },
+        "red_lines": {
+          "placeholder_lorem_shipped_present": false,
+          "dead_controls_present": false,
+          "accessibility_traded_for_aesthetics_present": false,
+          "aesthetics_traded_for_accessibility_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "ux-flow-component-spec-pack",
+        "atom_version": "0.1.0",
+        "spec_title": "Dashboard Flow",
+        "verdict": "UX_SPEC_SOUND",
+        "sections": {
+          "ux_flows_and_hierarchy": "pass",
+          "ux_design_tokens": "pass",
+          "ux_component_inventory_and_states": "pass",
+          "ux_data_surface_states": "pass",
+          "ux_accessibility_declarations": "pass",
+          "ux_microcopy_and_critique": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_flow_designed_before_implementation",
+            "status": "pass",
+            "evidence": "flows first: the flows were designed before implementation"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_primary_journeys_documented_as_step_diagrams",
+            "status": "pass",
+            "evidence": "flows first: the primary journeys are documented as step diagrams"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_information_hierarchy_defined_per_screen",
+            "status": "pass",
+            "evidence": "hierarchy: primary, secondary and tertiary hierarchy is defined per screen"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_content_before_decoration_declared",
+            "status": "pass",
+            "evidence": "hierarchy: content is placed before decoration"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_flow_steps_list_declared",
+            "status": "pass",
+            "evidence": "flow steps: the declared record names its flow steps \u2014 the list is present and names at least one step; an absent list is missing evidence and an empty list declares no flow at all"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_id_unique",
+            "status": "pass",
+            "evidence": "flow steps: no declared step_id is owned by more than one row"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_intent_declared",
+            "status": "pass",
+            "evidence": "flow steps: every declared step declares a non-empty intent \u2014 each step carries one intent"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_entry_condition_declared",
+            "status": "pass",
+            "evidence": "flow steps: every declared step declares a non-empty entry condition"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_exit_condition_declared",
+            "status": "pass",
+            "evidence": "flow steps: every declared step declares a non-empty exit condition"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_next_step_reference_resolves",
+            "status": "pass",
+            "evidence": "flow steps: every declared next_step_id on every row names a declared step_id \u2014 no dangling flow reference; an empty next list declares a terminal step"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_design_tokens_single_source_declared",
+            "status": "pass",
+            "evidence": "tokens: the design tokens are declared as a single source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_color_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: color tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_type_scale_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: type scale tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_spacing_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: spacing tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_radius_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: radius tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_elevation_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: elevation tokens are defined in the token source"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "ux_components_list_declared",
+            "status": "pass",
+            "evidence": "components: the declared record names its components \u2014 the list is present and names at least one component; an absent list is missing evidence and an empty list declares no inventory at all"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_id_unique",
+            "status": "pass",
+            "evidence": "components: no declared component_id is owned by more than one row"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_purpose_declared",
+            "status": "pass",
+            "evidence": "components: every declared component declares a non-empty purpose"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_variants_declared",
+            "status": "pass",
+            "evidence": "components: every declared component declares its variants in a non-empty declaration"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_interactive_ux_component_state_inventory_complete",
+            "status": "pass",
+            "evidence": "components / quality gate: every interactive component's declared states contain all seven states the skill names \u2014 default, hover, active, disabled, focus, loading, error \u2014 none missing"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "no_interactive_ux_component_decorative_only",
+            "status": "pass",
+            "evidence": "components / quality gate: no interactive component is declared decorative-only"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "ux_screens_list_declared",
+            "status": "pass",
+            "evidence": "screens: the declared record names its screens \u2014 the list is present and names at least one screen; an absent list is missing evidence and an empty list declares no screens at all"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_screen_id_unique",
+            "status": "pass",
+            "evidence": "screens: no declared screen_id is owned by more than one row"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_empty_state_designed",
+            "status": "pass",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its empty state designed"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_loading_state_designed",
+            "status": "pass",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its loading state designed"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_error_state_designed",
+            "status": "pass",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its error state designed"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_accessibility_wcag_target_declared",
+            "status": "pass",
+            "evidence": "accessibility: the record declares its accessibility target in a non-empty declaration (the skill names WCAG AA) \u2014 declaration only; this atom certifies no conformance with any target"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_keyboard_reachable_declared",
+            "status": "pass",
+            "evidence": "accessibility: keyboard reachability is declared for the design"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_labels_on_all_fields_declared",
+            "status": "pass",
+            "evidence": "accessibility: labels on all fields are declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_visible_focus_declared",
+            "status": "pass",
+            "evidence": "accessibility: visible focus is declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_reduced_motion_respected_declared",
+            "status": "pass",
+            "evidence": "accessibility: reduced motion being respected is declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "every_ux_screen_contrast_check_noted",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: every declared screen declares its contrast check noted \u2014 noted as a declaration only; no contrast is measured and no conformance is certified"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "every_ux_screen_keyboard_check_noted",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: every declared screen declares its keyboard check noted \u2014 noted as a declaration only; no keyboard path is tested"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_buttons_say_what_they_do",
+            "status": "pass",
+            "evidence": "microcopy: buttons say what they do"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_errors_say_how_to_fix",
+            "status": "pass",
+            "evidence": "microcopy: errors say how to fix the problem"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_empty_states_say_what_to_do_next",
+            "status": "pass",
+            "evidence": "microcopy: empty states say what to do next"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_reviewed_for_clarity",
+            "status": "pass",
+            "evidence": "microcopy / quality gate: the microcopy was reviewed for clarity"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_compared_against_brief",
+            "status": "pass",
+            "evidence": "critique: the design was compared against the brief"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_compared_against_domain_conventions",
+            "status": "pass",
+            "evidence": "critique: the design was compared against the domain's conventions"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_non_orienting_decoration_cut",
+            "status": "pass",
+            "evidence": "critique: decoration that doesn't orient was cut"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_placeholder_lorem_shipped",
+            "status": "pass",
+            "evidence": "red line: no placeholder lorem shipped is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_dead_controls",
+            "status": "pass",
+            "evidence": "red line: no dead controls are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_accessibility_traded_for_aesthetics",
+            "status": "pass",
+            "evidence": "red line: no trade of accessibility for aesthetics is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_aesthetics_traded_for_accessibility",
+            "status": "pass",
+            "evidence": "red line: no trade of aesthetics for accessibility is present in the record \u2014 the skill forbids the trade in either direction"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "ux_flow_steps_count": 1,
+        "ux_components_count": 1,
+        "ux_screens_count": 1,
+        "ux_interactive_components_count": 1,
+        "ux_data_surfaces_count": 1,
+        "duplicate_ux_flow_step_ids": [],
+        "duplicate_ux_component_ids": [],
+        "duplicate_ux_screen_ids": [],
+        "ux_flow_steps_without_intent": [],
+        "ux_flow_steps_without_entry_condition": [],
+        "ux_flow_steps_without_exit_condition": [],
+        "ux_flow_steps_with_unresolved_next_step_references": [],
+        "ux_components_without_purpose": [],
+        "ux_components_without_variants": [],
+        "interactive_ux_components_with_incomplete_states": [],
+        "interactive_ux_components_declared_decorative_only": [],
+        "ux_data_surfaces_without_empty_state": [],
+        "ux_data_surfaces_without_loading_state": [],
+        "ux_data_surfaces_without_error_state": [],
+        "ux_screens_without_contrast_check": [],
+        "ux_screens_without_keyboard_check": [],
+        "flow_step_reference_resolution_ratio": "1.000000",
+        "interactive_component_complete_state_ratio": "1.000000",
+        "data_surface_complete_state_ratio": "1.000000",
+        "screen_accessibility_check_ratio": "1.000000",
+        "summary": "45 pass, 0 fail, 0 missing of 45 checks across seven sections.",
+        "stamp": "UX FLOW COMPONENT SPEC PACK\nspec_title: Dashboard Flow\nVERDICT: UX_SPEC_SOUND\n  ux_flows_and_hierarchy                       pass\n  ux_design_tokens                             pass\n  ux_component_inventory_and_states            pass\n  ux_data_surface_states                       pass\n  ux_accessibility_declarations                pass\n  ux_microcopy_and_critique                    pass\n  red_lines                                    pass\n45 pass, 0 fail, 0 missing of 45 checks across seven sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "UX_SPEC_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_ux_flow_step_intent_declared",
+          "every_ux_flow_step_next_step_reference_resolves",
+          "every_interactive_ux_component_state_inventory_complete",
+          "no_interactive_ux_component_decorative_only"
+        ],
+        "notes": "Deep copy of full-pass with four planted mutations: flow_steps[0].intent empty, flow_steps[0].next_step_ids ['nonexistent'], components[0].states_declared ['default'] (incomplete), components[0].decorative_only true.",
+        "computed_spot_checks": {
+          "computed_status": "outside_stated_limits_on_declared_evidence",
+          "ux_flow_steps_count": 1,
+          "ux_components_count": 1,
+          "ux_screens_count": 1,
+          "ux_interactive_components_count": 1,
+          "ux_data_surfaces_count": 1,
+          "duplicate_ux_flow_step_ids": [],
+          "duplicate_ux_component_ids": [],
+          "duplicate_ux_screen_ids": [],
+          "ux_flow_steps_without_intent": [
+            "s1"
+          ],
+          "ux_flow_steps_without_entry_condition": [],
+          "ux_flow_steps_without_exit_condition": [],
+          "ux_flow_steps_with_unresolved_next_step_references": [
+            "s1"
+          ],
+          "ux_components_without_purpose": [],
+          "ux_components_without_variants": [],
+          "interactive_ux_components_with_incomplete_states": [
+            "c1"
+          ],
+          "interactive_ux_components_declared_decorative_only": [
+            "c1"
+          ],
+          "ux_data_surfaces_without_empty_state": [],
+          "ux_data_surfaces_without_loading_state": [],
+          "ux_data_surfaces_without_error_state": [],
+          "ux_screens_without_contrast_check": [],
+          "ux_screens_without_keyboard_check": [],
+          "flow_step_reference_resolution_ratio": "0.000000",
+          "interactive_component_complete_state_ratio": "0.000000",
+          "data_surface_complete_state_ratio": "1.000000",
+          "screen_accessibility_check_ratio": "1.000000"
+        }
+      },
+      "input": {
+        "spec_title": "Dashboard Flow",
+        "flow_design": {
+          "flows_designed_before_implementation": true,
+          "primary_journeys_documented_as_step_diagrams": true,
+          "information_hierarchy_defined_per_screen": true,
+          "content_before_decoration": true
+        },
+        "flow_steps": [
+          {
+            "step_id": "s1",
+            "intent": "",
+            "entry_condition": "User at landing",
+            "exit_condition": "Authenticated",
+            "next_step_ids": [
+              "nonexistent"
+            ]
+          }
+        ],
+        "design_tokens": {
+          "tokens_single_source_declared": true,
+          "color_tokens_defined": true,
+          "type_scale_tokens_defined": true,
+          "spacing_tokens_defined": true,
+          "radius_tokens_defined": true,
+          "elevation_tokens_defined": true
+        },
+        "components": [
+          {
+            "component_id": "c1",
+            "purpose": "Button",
+            "variants_declared": "Primary, Secondary",
+            "interactive": true,
+            "decorative_only": true,
+            "states_declared": [
+              "default"
+            ]
+          }
+        ],
+        "screens": [
+          {
+            "screen_id": "scr1",
+            "is_data_surface": true,
+            "empty_state_designed": true,
+            "loading_state_designed": true,
+            "error_state_designed": true,
+            "contrast_check_noted": true,
+            "keyboard_check_noted": true
+          }
+        ],
+        "accessibility": {
+          "wcag_target_declared": "WCAG AA",
+          "keyboard_reachable_declared": true,
+          "labels_on_all_fields_declared": true,
+          "visible_focus_declared": true,
+          "reduced_motion_respected_declared": true
+        },
+        "microcopy": {
+          "buttons_say_what_they_do": true,
+          "errors_say_how_to_fix": true,
+          "empty_states_say_what_to_do_next": true,
+          "microcopy_reviewed_for_clarity": true
+        },
+        "critique": {
+          "compared_against_brief": true,
+          "compared_against_domain_conventions": true,
+          "non_orienting_decoration_cut": true
+        },
+        "red_lines": {
+          "placeholder_lorem_shipped_present": false,
+          "dead_controls_present": false,
+          "accessibility_traded_for_aesthetics_present": false,
+          "aesthetics_traded_for_accessibility_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "ux-flow-component-spec-pack",
+        "atom_version": "0.1.0",
+        "spec_title": "Dashboard Flow",
+        "verdict": "UX_SPEC_NOT_SOUND",
+        "sections": {
+          "ux_flows_and_hierarchy": "fail",
+          "ux_design_tokens": "pass",
+          "ux_component_inventory_and_states": "fail",
+          "ux_data_surface_states": "pass",
+          "ux_accessibility_declarations": "pass",
+          "ux_microcopy_and_critique": "pass",
+          "red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_flow_designed_before_implementation",
+            "status": "pass",
+            "evidence": "flows first: the flows were designed before implementation"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_primary_journeys_documented_as_step_diagrams",
+            "status": "pass",
+            "evidence": "flows first: the primary journeys are documented as step diagrams"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_information_hierarchy_defined_per_screen",
+            "status": "pass",
+            "evidence": "hierarchy: primary, secondary and tertiary hierarchy is defined per screen"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_content_before_decoration_declared",
+            "status": "pass",
+            "evidence": "hierarchy: content is placed before decoration"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_flow_steps_list_declared",
+            "status": "pass",
+            "evidence": "flow steps: the declared record names its flow steps \u2014 the list is present and names at least one step; an absent list is missing evidence and an empty list declares no flow at all"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_id_unique",
+            "status": "pass",
+            "evidence": "flow steps: no declared step_id is owned by more than one row"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_intent_declared",
+            "status": "fail",
+            "evidence": "flow steps: every declared step declares a non-empty intent \u2014 each step carries one intent"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_entry_condition_declared",
+            "status": "pass",
+            "evidence": "flow steps: every declared step declares a non-empty entry condition"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_exit_condition_declared",
+            "status": "pass",
+            "evidence": "flow steps: every declared step declares a non-empty exit condition"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_next_step_reference_resolves",
+            "status": "fail",
+            "evidence": "flow steps: every declared next_step_id on every row names a declared step_id \u2014 no dangling flow reference; an empty next list declares a terminal step"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_design_tokens_single_source_declared",
+            "status": "pass",
+            "evidence": "tokens: the design tokens are declared as a single source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_color_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: color tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_type_scale_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: type scale tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_spacing_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: spacing tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_radius_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: radius tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_elevation_tokens_defined",
+            "status": "pass",
+            "evidence": "tokens: elevation tokens are defined in the token source"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "ux_components_list_declared",
+            "status": "pass",
+            "evidence": "components: the declared record names its components \u2014 the list is present and names at least one component; an absent list is missing evidence and an empty list declares no inventory at all"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_id_unique",
+            "status": "pass",
+            "evidence": "components: no declared component_id is owned by more than one row"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_purpose_declared",
+            "status": "pass",
+            "evidence": "components: every declared component declares a non-empty purpose"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_variants_declared",
+            "status": "pass",
+            "evidence": "components: every declared component declares its variants in a non-empty declaration"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_interactive_ux_component_state_inventory_complete",
+            "status": "fail",
+            "evidence": "components / quality gate: every interactive component's declared states contain all seven states the skill names \u2014 default, hover, active, disabled, focus, loading, error \u2014 none missing"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "no_interactive_ux_component_decorative_only",
+            "status": "fail",
+            "evidence": "components / quality gate: no interactive component is declared decorative-only"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "ux_screens_list_declared",
+            "status": "pass",
+            "evidence": "screens: the declared record names its screens \u2014 the list is present and names at least one screen; an absent list is missing evidence and an empty list declares no screens at all"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_screen_id_unique",
+            "status": "pass",
+            "evidence": "screens: no declared screen_id is owned by more than one row"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_empty_state_designed",
+            "status": "pass",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its empty state designed"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_loading_state_designed",
+            "status": "pass",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its loading state designed"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_error_state_designed",
+            "status": "pass",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its error state designed"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_accessibility_wcag_target_declared",
+            "status": "pass",
+            "evidence": "accessibility: the record declares its accessibility target in a non-empty declaration (the skill names WCAG AA) \u2014 declaration only; this atom certifies no conformance with any target"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_keyboard_reachable_declared",
+            "status": "pass",
+            "evidence": "accessibility: keyboard reachability is declared for the design"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_labels_on_all_fields_declared",
+            "status": "pass",
+            "evidence": "accessibility: labels on all fields are declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_visible_focus_declared",
+            "status": "pass",
+            "evidence": "accessibility: visible focus is declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_reduced_motion_respected_declared",
+            "status": "pass",
+            "evidence": "accessibility: reduced motion being respected is declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "every_ux_screen_contrast_check_noted",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: every declared screen declares its contrast check noted \u2014 noted as a declaration only; no contrast is measured and no conformance is certified"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "every_ux_screen_keyboard_check_noted",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: every declared screen declares its keyboard check noted \u2014 noted as a declaration only; no keyboard path is tested"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_buttons_say_what_they_do",
+            "status": "pass",
+            "evidence": "microcopy: buttons say what they do"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_errors_say_how_to_fix",
+            "status": "pass",
+            "evidence": "microcopy: errors say how to fix the problem"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_empty_states_say_what_to_do_next",
+            "status": "pass",
+            "evidence": "microcopy: empty states say what to do next"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_reviewed_for_clarity",
+            "status": "pass",
+            "evidence": "microcopy / quality gate: the microcopy was reviewed for clarity"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_compared_against_brief",
+            "status": "pass",
+            "evidence": "critique: the design was compared against the brief"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_compared_against_domain_conventions",
+            "status": "pass",
+            "evidence": "critique: the design was compared against the domain's conventions"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_non_orienting_decoration_cut",
+            "status": "pass",
+            "evidence": "critique: decoration that doesn't orient was cut"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_placeholder_lorem_shipped",
+            "status": "pass",
+            "evidence": "red line: no placeholder lorem shipped is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_dead_controls",
+            "status": "pass",
+            "evidence": "red line: no dead controls are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_accessibility_traded_for_aesthetics",
+            "status": "pass",
+            "evidence": "red line: no trade of accessibility for aesthetics is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_aesthetics_traded_for_accessibility",
+            "status": "pass",
+            "evidence": "red line: no trade of aesthetics for accessibility is present in the record \u2014 the skill forbids the trade in either direction"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "ux_flow_steps_count": 1,
+        "ux_components_count": 1,
+        "ux_screens_count": 1,
+        "ux_interactive_components_count": 1,
+        "ux_data_surfaces_count": 1,
+        "duplicate_ux_flow_step_ids": [],
+        "duplicate_ux_component_ids": [],
+        "duplicate_ux_screen_ids": [],
+        "ux_flow_steps_without_intent": [
+          "s1"
+        ],
+        "ux_flow_steps_without_entry_condition": [],
+        "ux_flow_steps_without_exit_condition": [],
+        "ux_flow_steps_with_unresolved_next_step_references": [
+          "s1"
+        ],
+        "ux_components_without_purpose": [],
+        "ux_components_without_variants": [],
+        "interactive_ux_components_with_incomplete_states": [
+          "c1"
+        ],
+        "interactive_ux_components_declared_decorative_only": [
+          "c1"
+        ],
+        "ux_data_surfaces_without_empty_state": [],
+        "ux_data_surfaces_without_loading_state": [],
+        "ux_data_surfaces_without_error_state": [],
+        "ux_screens_without_contrast_check": [],
+        "ux_screens_without_keyboard_check": [],
+        "flow_step_reference_resolution_ratio": "0.000000",
+        "interactive_component_complete_state_ratio": "0.000000",
+        "data_surface_complete_state_ratio": "1.000000",
+        "screen_accessibility_check_ratio": "1.000000",
+        "summary": "41 pass, 4 fail, 0 missing of 45 checks across seven sections.",
+        "stamp": "UX FLOW COMPONENT SPEC PACK\nspec_title: Dashboard Flow\nVERDICT: UX_SPEC_NOT_SOUND\n  ux_flows_and_hierarchy                       fail\n  ux_design_tokens                             pass\n  ux_component_inventory_and_states            fail\n  ux_data_surface_states                       pass\n  ux_accessibility_declarations                pass\n  ux_microcopy_and_critique                    pass\n  red_lines                                    pass\n41 pass, 4 fail, 0 missing of 45 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists (flow_steps, components, screens) results in insufficient evidence."
+      },
+      "input": {
+        "spec_title": "Minimal"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "ux-flow-component-spec-pack",
+        "atom_version": "0.1.0",
+        "spec_title": "Minimal",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "ux_flows_and_hierarchy": "insufficient_evidence",
+          "ux_design_tokens": "insufficient_evidence",
+          "ux_component_inventory_and_states": "insufficient_evidence",
+          "ux_data_surface_states": "insufficient_evidence",
+          "ux_accessibility_declarations": "insufficient_evidence",
+          "ux_microcopy_and_critique": "insufficient_evidence",
+          "red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_flow_designed_before_implementation",
+            "status": "missing",
+            "evidence": "flows first: the flows were designed before implementation"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_primary_journeys_documented_as_step_diagrams",
+            "status": "missing",
+            "evidence": "flows first: the primary journeys are documented as step diagrams"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_information_hierarchy_defined_per_screen",
+            "status": "missing",
+            "evidence": "hierarchy: primary, secondary and tertiary hierarchy is defined per screen"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_content_before_decoration_declared",
+            "status": "missing",
+            "evidence": "hierarchy: content is placed before decoration"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "ux_flow_steps_list_declared",
+            "status": "missing",
+            "evidence": "flow steps: the declared record names its flow steps \u2014 the list is present and names at least one step; an absent list is missing evidence and an empty list declares no flow at all"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_id_unique",
+            "status": "missing",
+            "evidence": "flow steps: no declared step_id is owned by more than one row"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_intent_declared",
+            "status": "missing",
+            "evidence": "flow steps: every declared step declares a non-empty intent \u2014 each step carries one intent"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_entry_condition_declared",
+            "status": "missing",
+            "evidence": "flow steps: every declared step declares a non-empty entry condition"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_exit_condition_declared",
+            "status": "missing",
+            "evidence": "flow steps: every declared step declares a non-empty exit condition"
+          },
+          {
+            "section": "ux_flows_and_hierarchy",
+            "check": "every_ux_flow_step_next_step_reference_resolves",
+            "status": "missing",
+            "evidence": "flow steps: every declared next_step_id on every row names a declared step_id \u2014 no dangling flow reference; an empty next list declares a terminal step"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_design_tokens_single_source_declared",
+            "status": "missing",
+            "evidence": "tokens: the design tokens are declared as a single source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_color_tokens_defined",
+            "status": "missing",
+            "evidence": "tokens: color tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_type_scale_tokens_defined",
+            "status": "missing",
+            "evidence": "tokens: type scale tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_spacing_tokens_defined",
+            "status": "missing",
+            "evidence": "tokens: spacing tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_radius_tokens_defined",
+            "status": "missing",
+            "evidence": "tokens: radius tokens are defined in the token source"
+          },
+          {
+            "section": "ux_design_tokens",
+            "check": "ux_elevation_tokens_defined",
+            "status": "missing",
+            "evidence": "tokens: elevation tokens are defined in the token source"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "ux_components_list_declared",
+            "status": "missing",
+            "evidence": "components: the declared record names its components \u2014 the list is present and names at least one component; an absent list is missing evidence and an empty list declares no inventory at all"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_id_unique",
+            "status": "missing",
+            "evidence": "components: no declared component_id is owned by more than one row"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_purpose_declared",
+            "status": "missing",
+            "evidence": "components: every declared component declares a non-empty purpose"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_ux_component_variants_declared",
+            "status": "missing",
+            "evidence": "components: every declared component declares its variants in a non-empty declaration"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "every_interactive_ux_component_state_inventory_complete",
+            "status": "missing",
+            "evidence": "components / quality gate: every interactive component's declared states contain all seven states the skill names \u2014 default, hover, active, disabled, focus, loading, error \u2014 none missing"
+          },
+          {
+            "section": "ux_component_inventory_and_states",
+            "check": "no_interactive_ux_component_decorative_only",
+            "status": "missing",
+            "evidence": "components / quality gate: no interactive component is declared decorative-only"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "ux_screens_list_declared",
+            "status": "missing",
+            "evidence": "screens: the declared record names its screens \u2014 the list is present and names at least one screen; an absent list is missing evidence and an empty list declares no screens at all"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_screen_id_unique",
+            "status": "missing",
+            "evidence": "screens: no declared screen_id is owned by more than one row"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_empty_state_designed",
+            "status": "missing",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its empty state designed"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_loading_state_designed",
+            "status": "missing",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its loading state designed"
+          },
+          {
+            "section": "ux_data_surface_states",
+            "check": "every_ux_data_surface_error_state_designed",
+            "status": "missing",
+            "evidence": "data surfaces / quality gate: every screen declared a data surface declares its error state designed"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_accessibility_wcag_target_declared",
+            "status": "missing",
+            "evidence": "accessibility: the record declares its accessibility target in a non-empty declaration (the skill names WCAG AA) \u2014 declaration only; this atom certifies no conformance with any target"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_keyboard_reachable_declared",
+            "status": "missing",
+            "evidence": "accessibility: keyboard reachability is declared for the design"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_labels_on_all_fields_declared",
+            "status": "missing",
+            "evidence": "accessibility: labels on all fields are declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_visible_focus_declared",
+            "status": "missing",
+            "evidence": "accessibility: visible focus is declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "ux_reduced_motion_respected_declared",
+            "status": "missing",
+            "evidence": "accessibility: reduced motion being respected is declared"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "every_ux_screen_contrast_check_noted",
+            "status": "missing",
+            "evidence": "accessibility / quality gate: every declared screen declares its contrast check noted \u2014 noted as a declaration only; no contrast is measured and no conformance is certified"
+          },
+          {
+            "section": "ux_accessibility_declarations",
+            "check": "every_ux_screen_keyboard_check_noted",
+            "status": "missing",
+            "evidence": "accessibility / quality gate: every declared screen declares its keyboard check noted \u2014 noted as a declaration only; no keyboard path is tested"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_buttons_say_what_they_do",
+            "status": "missing",
+            "evidence": "microcopy: buttons say what they do"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_errors_say_how_to_fix",
+            "status": "missing",
+            "evidence": "microcopy: errors say how to fix the problem"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_empty_states_say_what_to_do_next",
+            "status": "missing",
+            "evidence": "microcopy: empty states say what to do next"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_microcopy_reviewed_for_clarity",
+            "status": "missing",
+            "evidence": "microcopy / quality gate: the microcopy was reviewed for clarity"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_compared_against_brief",
+            "status": "missing",
+            "evidence": "critique: the design was compared against the brief"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_compared_against_domain_conventions",
+            "status": "missing",
+            "evidence": "critique: the design was compared against the domain's conventions"
+          },
+          {
+            "section": "ux_microcopy_and_critique",
+            "check": "ux_critique_non_orienting_decoration_cut",
+            "status": "missing",
+            "evidence": "critique: decoration that doesn't orient was cut"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_placeholder_lorem_shipped",
+            "status": "missing",
+            "evidence": "red line: no placeholder lorem shipped is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_dead_controls",
+            "status": "missing",
+            "evidence": "red line: no dead controls are present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_accessibility_traded_for_aesthetics",
+            "status": "missing",
+            "evidence": "red line: no trade of accessibility for aesthetics is present in the record"
+          },
+          {
+            "section": "red_lines",
+            "check": "ux_spec_free_of_aesthetics_traded_for_accessibility",
+            "status": "missing",
+            "evidence": "red line: no trade of aesthetics for accessibility is present in the record \u2014 the skill forbids the trade in either direction"
+          }
+        ],
+        "computed_status": null,
+        "ux_flow_steps_count": null,
+        "ux_components_count": null,
+        "ux_screens_count": null,
+        "ux_interactive_components_count": null,
+        "ux_data_surfaces_count": null,
+        "duplicate_ux_flow_step_ids": null,
+        "duplicate_ux_component_ids": null,
+        "duplicate_ux_screen_ids": null,
+        "ux_flow_steps_without_intent": null,
+        "ux_flow_steps_without_entry_condition": null,
+        "ux_flow_steps_without_exit_condition": null,
+        "ux_flow_steps_with_unresolved_next_step_references": null,
+        "ux_components_without_purpose": null,
+        "ux_components_without_variants": null,
+        "interactive_ux_components_with_incomplete_states": null,
+        "interactive_ux_components_declared_decorative_only": null,
+        "ux_data_surfaces_without_empty_state": null,
+        "ux_data_surfaces_without_loading_state": null,
+        "ux_data_surfaces_without_error_state": null,
+        "ux_screens_without_contrast_check": null,
+        "ux_screens_without_keyboard_check": null,
+        "flow_step_reference_resolution_ratio": null,
+        "interactive_component_complete_state_ratio": null,
+        "data_surface_complete_state_ratio": null,
+        "screen_accessibility_check_ratio": null,
+        "summary": "0 pass, 0 fail, 45 missing of 45 checks across seven sections.",
+        "stamp": "UX FLOW COMPONENT SPEC PACK\nspec_title: Minimal\nVERDICT: INSUFFICIENT_EVIDENCE\n  ux_flows_and_hierarchy                       insufficient_evidence\n  ux_design_tokens                             insufficient_evidence\n  ux_component_inventory_and_states            insufficient_evidence\n  ux_data_surface_states                       insufficient_evidence\n  ux_accessibility_declarations                insufficient_evidence\n  ux_microcopy_and_critique                    insufficient_evidence\n  red_lines                                    insufficient_evidence\n0 pass, 0 fail, 45 missing of 45 checks across seven sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: flow_steps expected list, got string."
+      },
+      "input": {
+        "spec_title": "Malformed",
+        "flow_steps": "not-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "flow_steps",
+        "detail": "flow_steps must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}
