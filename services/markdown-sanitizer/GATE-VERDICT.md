@@ -132,3 +132,16 @@ take (atom id, manifest hash, verdict, checks summary, pack hash) and
 issue a sealed ALLOW/BLOCK proof whose tamper verifies NOT VALID, with
 certificate issue/supersede/revoke tied to gate verdicts and the atom
 kill switch). No new filing is needed for this cohort.
+
+## Addendum — 2026-11-17 (post-RC security fix, same-day)
+CodeQL static analysis (added to the repo the same day) flagged the
+single-pass replace design (js/incomplete-multi-character-sanitization).
+The sanitizer now runs its pass to a fixpoint in both implementations
+(master 0782a63), with re-formation regression tests in both suites
+(Python 20/20; gateway 6,706/6,706). Deployed to the live gateway the
+same day (deployment 3e963b3236374b71857aa34fcda16362, declaration
+certified CLOSED) and proven live by keyed probe 13/13, including the
+re-formation case returning empty with 3 active blocks removed and no
+tag-spilled text. The RC soak clock is NOT restarted: benign outputs
+are byte-identical (idempotence), the change only removes a bypass
+class. Verdict unchanged: PASS WITH FINDINGS.
