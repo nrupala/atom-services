@@ -16,14 +16,244 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Product service launch observability design**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the observability and runbook design manifest
+
+The caller submits one JSON manifest: a declared observability
+and runbook design record for one service. Every field below
+is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present
+but false / invalid = the check fails
+(`OBSERVABILITY_DESIGN_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `service_name` (string; carried into the verdict output, not itself checked) | — |
+| `signals.structured_logs_with_correlation_ids` (boolean) | signals_and_dashboards |
+| `signals.metrics_cover_requests` (boolean) | signals_and_dashboards |
+| `signals.metrics_cover_errors` (boolean) | signals_and_dashboards |
+| `signals.metrics_cover_latency` (boolean) | signals_and_dashboards |
+| `signals.metrics_cover_saturation` (boolean) | signals_and_dashboards |
+| `signals.traces_or_timings_at_every_edge` (boolean) | signals_and_dashboards |
+| `signals.health_signal_emitted` (boolean) | signals_and_dashboards |
+| `signals.error_rate_signal_emitted` (boolean) | signals_and_dashboards |
+| `signals.latency_signal_emitted` (boolean) | signals_and_dashboards |
+| `signals.dashboards_present` (boolean) | signals_and_dashboards |
+| `alert_design.alert_set_symptom_based` (boolean) | alert_design_and_runbook_linkage |
+| `alert_design.alert_thresholds_tuned_to_reality` (boolean) | alert_design_and_runbook_linkage |
+| `alert_design.alert_noise_controls_present` (boolean) | alert_design_and_runbook_linkage |
+| `alerts` (list of alert-row objects, each with the entry fields below; computed, see below) | alert_design_and_runbook_linkage |
+| `alerts[].name` (string; names the row in the computed outputs) | alert_design_and_runbook_linkage |
+| `alerts[].owner` (string; the alert's owner; must be present and non-empty per row) | alert_design_and_runbook_linkage |
+| `alerts[].runbook_linked` (boolean) | alert_design_and_runbook_linkage |
+| `alerts[].actionable` (boolean) | alert_design_and_runbook_linkage |
+| `alerts[].symptom_based` (boolean) | alert_design_and_runbook_linkage |
+| `failure_modes` (list of failure-mode-row objects, each with the entry fields below; computed, see below) | runbook_content_and_failure_modes |
+| `failure_modes[].name` (string; names the row in the computed outputs) | runbook_content_and_failure_modes |
+| `failure_modes[].runbook_present` (boolean) | runbook_content_and_failure_modes |
+| `failure_modes[].symptoms_described` (boolean) | runbook_content_and_failure_modes |
+| `failure_modes[].check_steps_present` (boolean) | runbook_content_and_failure_modes |
+| `failure_modes[].mitigation_present` (boolean) | runbook_content_and_failure_modes |
+| `failure_modes[].escalation_present` (boolean) | runbook_content_and_failure_modes |
+| `failure_modes[].recovery_verification_present` (boolean) | runbook_content_and_failure_modes |
+| `incident.acknowledge_step_defined` (boolean) | incident_flow_and_postmortem |
+| `incident.blast_radius_assessment_step_defined` (boolean) | incident_flow_and_postmortem |
+| `incident.stabilize_step_defined` (boolean) | incident_flow_and_postmortem |
+| `incident.rollback_as_first_stabilize_option` (boolean) | incident_flow_and_postmortem |
+| `incident.status_communication_step_defined` (boolean) | incident_flow_and_postmortem |
+| `incident.fix_step_defined` (boolean) | incident_flow_and_postmortem |
+| `incident.blameless_postmortem_required` (boolean) | incident_flow_and_postmortem |
+| `incident.postmortem_actions_tracked_to_closure` (boolean) | incident_flow_and_postmortem |
+| `resilience.backup_schedule_declared` (boolean) | backups_silent_failure_and_red_lines |
+| `resilience.backup_restores_tested` (boolean) | backups_silent_failure_and_red_lines |
+| `resilience.restore_tested_at_least_once_per_season` (boolean) | backups_silent_failure_and_red_lines |
+| `resilience.unattended_jobs_have_health_signals` (boolean) | backups_silent_failure_and_red_lines |
+| `resilience.jobs_emit_success_heartbeats` (boolean) | backups_silent_failure_and_red_lines |
+| `red_lines.paging_on_unactionable_causes_present` (boolean; must be `false` to pass) | backups_silent_failure_and_red_lines |
+| `red_lines.unowned_alerts_present` (boolean; must be `false` to pass) | backups_silent_failure_and_red_lines |
+| `red_lines.monitoring_disabled_to_hide_problem_present` (boolean; must be `false` to pass) | backups_silent_failure_and_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Alerts declared:** the declared `alerts` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Owner per alert:** every declared alert row must name a
+  non-empty `owner` string (the skill: "Every alert has a
+  runbook and an owner"). A row with the field absent is
+  missing evidence; a row naming an empty owner fails.
+- **Runbook link per alert:** every declared alert row must
+  declare `runbook_linked: true` (the skill: "every alert links
+  its runbook"). A row with the field absent is missing
+  evidence.
+- **Actionable per alert:** every declared alert row must
+  declare `actionable: true` (the skill: alerts are "few and
+  actionable"). A row with the field absent is missing
+  evidence.
+- **Symptom-based per alert:** every declared alert row must
+  declare `symptom_based: true` (the skill: alerts are
+  "symptom-based (user-visible pain)"). A row with the field
+  absent is missing evidence.
+- **No alert name duplicated:** no declared alert `name` may
+  appear on more than one alert row. A row with `name` absent
+  is missing evidence for this check.
+- **Failure modes declared:** the declared `failure_modes`
+  list passes only when it is present and non-empty; an absent
+  list is missing evidence, an empty list fails.
+- **Runbook content per failure mode:** every declared
+  failure-mode row must declare `runbook_present`,
+  `symptoms_described`, `check_steps_present`,
+  `mitigation_present`, `escalation_present` and
+  `recovery_verification_present` all `true` (the skill:
+  "Runbooks: one per failure mode — symptoms, check steps,
+  mitigation, escalation, recovery verification"). A row with
+  a field absent is missing evidence for that check.
+- **No failure-mode name duplicated:** no declared
+  failure-mode `name` may appear on more than one
+  failure-mode row. A row with `name` absent is missing
+  evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the fourteen primary computed checks above cannot be
+completed), `alerts_count` and `failure_modes_count` (the
+declared list lengths, or null when a list is not declared —
+counts are reported as integers, exactly), the row-name lists
+`alerts_without_owner` (alerts whose owner is present but
+empty; an alert with the field absent is missing evidence and
+does not appear), `alerts_without_runbook_link`,
+`alerts_without_actionable` and `alerts_without_symptom_basis`
+(alerts whose field is present but not true),
+`failure_modes_without_runbook`,
+`failure_modes_without_symptoms`,
+`failure_modes_without_check_steps`,
+`failure_modes_without_mitigation`,
+`failure_modes_without_escalation` and
+`failure_modes_without_recovery_verification` (failure modes
+whose field is present but not true), `duplicate_alert_names`
+and `duplicate_failure_mode_names` (names declared on more
+than one row of their own list, in the order their second
+occurrence appears), and the coverage ratios `owner_coverage`,
+`runbook_link_coverage`, `actionable_coverage`,
+`symptom_based_coverage`, `runbook_coverage`,
+`symptoms_coverage`, `check_steps_coverage`,
+`mitigation_coverage`, `escalation_coverage` and
+`recovery_verification_coverage` (rows satisfying the field ÷
+declared rows of the same list). **Fixed serialization rule:**
+computed ratios are reported as strings with exactly six
+decimal places, produced in both implementations by the same
+rule — round half up to 6dp, `floor(v * 1000000 + 0.5) /
+1000000`, then format with exactly six decimals; comparisons
+use the unrounded values. A ratio is null when its denominator
+list is absent or empty. That fixed serialization is what
+makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric pass/fail threshold — its demands
+are qualitative declarations the record makes, not bars the
+atom can set. Quantities are computed and reported; the only
+bar on the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a maximum number of alerts behind the skill's "few"
+(the skill gives no count); an error-rate, latency or
+saturation threshold value an alert must fire at (the skill
+says tune thresholds to reality — the values are the
+caller's); a trace sampling rate or a log volume / retention
+bar; a dashboard count or refresh interval; a restore-test
+interval in days beyond the skill's own stated cadence of at
+least once per season (checked as declared, never converted
+to days), and any backup retention, RPO or RTO number; an
+incident acknowledgement or response time in minutes; a
+postmortem completion or action-closure deadline in days
+(the skill says actions are tracked to closure — no deadline
+is stated); a heartbeat interval for unattended jobs; a
+coverage percentage below completeness.
+
+The verdict is one of `OBSERVABILITY_DESIGN_SOUND` (all 43
+checks pass), `OBSERVABILITY_DESIGN_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across five sections: signals_and_dashboards,
+alert_design_and_runbook_linkage,
+runbook_content_and_failure_modes, incident_flow_and_postmortem,
+backups_silent_failure_and_red_lines.
+
+## Distinct ground
+
+The nearest deployed siblings are `backend-engineering-advice`
+(a broad backend design review — contracts, data safety,
+idempotency, jobs — whose observability corner asks whether a
+backend's code emits structured logs and edge metrics at all),
+`cicd-pipeline-design` (pipeline stages, gates, secrets and a
+rollback path for a build pipeline), `release-readiness-verdict`
+(release artifacts, changelog, a rollback plan and a
+post-release health window for one release),
+`database-design-review` (a database design review that
+includes scheduled backups for a database), and
+`condition-monitoring-triage` (industrial asset condition
+readings classified against alarm bands). This atom shares
+**zero checks** with any of them — verified by comparing every
+check name here against the check names in their
+`rails/gateway/src/atoms/*.ts` implementations: every check
+here is an observability-design question for a running service
+— the three signals and the health / error-rate / latency
+quality gates, per-alert owner / runbook-link / actionable /
+symptom-based completeness over the declared alert rows,
+per-failure-mode runbook content completeness over the
+declared failure-mode rows, the incident flow steps,
+restore-tested (not merely scheduled) backups, success
+heartbeats for unattended jobs, and the observability red
+lines. The boundary is: a service's declared observability and
+runbook design here; backend code design, pipeline design,
+release readiness, database design and physical-asset
+monitoring there.
+
+## Honest scoping
+
+This atom reviews a **declared** observability and runbook
+design record — it designs no monitoring stack itself, reads
+no live logs, metrics or traces, pages no one, runs no restore
+test, and does not verify that a declared signal, alert,
+runbook or restore test ever existed in a real system. A
+design is sound *on the caller's declared evidence*: a record
+that declares correlation-id logs, an owned runbook-linked
+alert set, and restore-tested backups passes those checks even
+if the real service has none of it. It is a completeness and
+consistency audit of the design record the skill requires,
+**not an SRE service, a monitoring product, or a judgment that
+the service will stay up**: it never judges whether the named
+signals are the right signals, whether an alert threshold is
+well chosen, whether a runbook's steps would actually work, or
+whether the incident flow would hold under a real outage —
+only that the record contains what the skill's method,
+quality gates and red lines demand, and that its declared
+alert and failure-mode rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no judgment of design
+*quality* — whether the observability design is good is the
+caller's declaration, checked only for declared presence and
+consistency; the content of any dashboard, alert definition,
+runbook or postmortem is never read — only its declared
+presence and completeness fields are checked.
+
+**U-13 screen:** this atom's output could not read as
+regulated professional advice (engineering / financial /
+medical / legal) — it audits the completeness of a declared
+software-operations design record against a general SRE
+checklist and offers no licensed-practice determination about
+any real system.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
-
-## Named doubt (from the register)
-
-Generic engineering pack item
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

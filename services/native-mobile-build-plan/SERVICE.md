@@ -16,14 +16,229 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **MyMilo vault app mobile builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the native mobile build plan manifest
+
+The caller submits one JSON manifest: a declared build-plan
+record for one native mobile app, made at the planning stage —
+before the release build. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`NATIVE_MOBILE_BUILD_PLAN_NOT_READY`). All
+fields are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `app` (string; carried into the verdict output, not itself checked) | — |
+| `constraints.screen_sizes_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.safe_areas_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.touch_targets_minimum_44px_declared` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.battery_and_thermal_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.background_limits_considered` (boolean) | device_constraints_and_platform_citizenship |
+| `constraints.worst_device_in_scope_named` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.back_button_and_gestures_handled` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.notification_permission_timing_planned` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.deep_links_planned` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.lifecycle_pause_resume_testing_planned` (boolean) | device_constraints_and_platform_citizenship |
+| `platform_citizenship.gestures_have_non_gesture_alternative` (boolean) | device_constraints_and_platform_citizenship |
+| `permissions` (list of permission-row objects, each with the entry fields below; computed, see below) | device_constraints_and_platform_citizenship |
+| `permissions[].name` (string; names the row in the computed outputs) | device_constraints_and_platform_citizenship |
+| `permissions[].feature_needing_it` (string; the feature that needs the permission; must be present and non-empty per row) | device_constraints_and_platform_citizenship |
+| `offline.local_store_is_truth_for_user_data` (boolean) | offline_first_and_sync |
+| `offline.sync_retry_and_queue_planned` (boolean) | offline_first_and_sync |
+| `offline.sync_states_pending_and_failed_visible` (boolean) | offline_first_and_sync |
+| `offline.indefinite_spinner_avoided` (boolean) | offline_first_and_sync |
+| `offline.conflict_rules_documented` (boolean) | offline_first_and_sync |
+| `builds.toolchain_versions_pinned` (boolean) | builds_and_signing |
+| `builds.sdk_versions_pinned` (boolean) | builds_and_signing |
+| `builds.deterministic_builds_planned` (boolean) | builds_and_signing |
+| `builds.signing_keys_held_in_keystore_outside_repos` (boolean) | builds_and_signing |
+| `builds.version_code_and_name_discipline_planned` (boolean) | builds_and_signing |
+| `builds.ci_builds_the_artifact` (boolean) | builds_and_signing |
+| `builds.human_sign_off_on_release_build` (boolean) | builds_and_signing |
+| `testing.device_matrix_includes_low_end_device` (boolean) | testing_and_accessibility |
+| `testing.device_matrix_includes_current_device` (boolean) | testing_and_accessibility |
+| `testing.largest_font_size_test_planned` (boolean) | testing_and_accessibility |
+| `testing.offline_tests_planned` (boolean) | testing_and_accessibility |
+| `testing.slow_network_tests_planned` (boolean) | testing_and_accessibility |
+| `testing.upgrade_tests_from_old_app_planned` (boolean) | testing_and_accessibility |
+| `testing.accessibility_pass_on_primary_flows_planned` (boolean) | testing_and_accessibility |
+| `testing.talkback_and_voiceover_in_accessibility_pass` (boolean) | testing_and_accessibility |
+| `release.staged_rollout_internal_beta_prod_planned` (boolean) | release_store_and_privacy |
+| `release.store_metadata_prepared` (boolean) | release_store_and_privacy |
+| `release.privacy_labels_prepared` (boolean) | release_store_and_privacy |
+| `release.data_safety_forms_prepared` (boolean) | release_store_and_privacy |
+| `release.crash_reporting_live_before_full_rollout` (boolean) | release_store_and_privacy |
+| `release.halt_rollout_rollback_plan_prepared` (boolean) | release_store_and_privacy |
+| `privacy.minimum_collection_declared` (boolean) | release_store_and_privacy |
+| `privacy.collection_disclosed_in_store_and_in_app` (boolean) | release_store_and_privacy |
+| `privacy.analytics_without_pii_declared` (boolean) | release_store_and_privacy |
+| `red_lines.secrets_in_app_bundle_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.permissions_without_feature_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.untested_upgrade_path_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Permissions declared:** the declared `permissions` list
+  passes when it is present. An absent list is missing
+  evidence. An empty list passes: it declares that the plan
+  requests no permissions, and the skill requires no
+  permission.
+- **Feature needing it per permission:** every declared
+  permission row must name a non-empty `feature_needing_it`
+  string (the skill's red line: "no permissions without a
+  feature needing them"). A row with the field absent is
+  missing evidence; a row naming an empty feature fails. On an
+  empty list the check passes vacuously — there is no
+  permission without a feature.
+- **No permission name duplicated:** no declared permission
+  `name` may appear on more than one permission row. A row
+  with `name` absent is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the three primary computed checks above cannot be completed),
+`permissions_count` (the declared list length, or null when
+the list is not declared — counts are reported as integers,
+exactly), the row-name list `permissions_without_feature`
+(permissions whose feature field is present but empty; a
+permission with the field absent is missing evidence and does
+not appear), `duplicate_permission_names` (permission names
+declared on more than one row, in the order their second
+occurrence appears), and the coverage ratio `feature_coverage`
+(permissions naming a feature ÷ declared permissions).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states exactly one numeric floor — touch targets
+≥44px — and it is checked only as the caller's declaration
+that the floor is adopted, never as a measured pixel value.
+No other numeric threshold is stated — its demands are
+qualitative declarations the record makes, not bars the atom
+can set. Quantities are computed and reported; the only bar on
+the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a touch-target minimum above the skill's stated 44px,
+or any measured pixel value for a target, screen size, or safe
+area; a battery, thermal, or background-execution limit; a
+sync retry count, backoff interval, or queue depth; a choice
+among conflict-resolution strategies (only that rules are
+documented is checked); specific toolchain or SDK version
+numbers (only that versions are pinned is checked); a number
+of devices in the test matrix, or specific devices beyond a
+low-end and a current device being included; a font scale
+beyond the largest font size being tested; a slow-network
+speed or latency figure; an accessibility conformance level
+or score; rollout percentages or stage durations for the
+internal → beta → prod stages; a crash-free rate or crash-
+reporting threshold; a number of permissions an app may
+request; a data-retention period or an analytics standard
+beyond analytics running without PII as declared.
+
+The verdict is one of `NATIVE_MOBILE_BUILD_PLAN_READY` (all
+46 checks pass), `NATIVE_MOBILE_BUILD_PLAN_NOT_READY` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across six sections:
+device_constraints_and_platform_citizenship,
+offline_first_and_sync, builds_and_signing,
+testing_and_accessibility, release_store_and_privacy,
+red_lines.
+
+## Distinct ground
+
+The nearest siblings are the deployed `local-first-sync-design`
+(a sync-PROTOCOL design record for any app — entities and
+per-field merge semantics, tombstones, vector clocks, the
+CRDT/OT choice, multi-device round-trip proof),
+`multiplatform-core-design` (a shared-core record across many
+surfaces — what the portable core holds, per-surface adapters,
+PWA-first sufficiency, per-platform forks),
+`cicd-pipeline-design` (a generic CI pipeline record — stage
+minutes, cache keying, monthly minute budgets) and
+`release-readiness` (a generic software release gate —
+version, tag, changelog and artifact sealing for any product).
+This atom shares **zero checks** with any of them (verified by
+comparing every check name here against every other atom's
+source): every check here is a native-mobile build-plan
+question — the worst device in scope named, safe areas and the
+44px touch-target floor declared, back-button/gesture and
+notification-permission-timing citizenship, the local store as
+truth for user data with visible pending/failed sync states
+and no spinners-forever, signing keys held in a keystore
+outside repos, versionCode/versionName discipline, CI building
+the artifact with a human sign-off, a low-end + current +
+largest-font device matrix, upgrade tests from the old app to
+new data, TalkBack/VoiceOver in the accessibility pass, staged
+internal → beta → prod rollout with store metadata, privacy
+labels and data-safety forms prepared, crash reporting live
+before full rollout, a halt-rollout rollback plan, minimum
+collection with in-store and in-app disclosure, analytics
+without PII, and the mobile red lines. The boundary is: a
+native phone/tablet app's build-and-release plan here;
+sync-protocol design, shared-core architecture, generic CI
+and generic release gating there.
+
+## Honest scoping
+
+This atom reviews a **declared** native-mobile build plan — it
+builds no app itself, runs no toolchain, inspects no bundle,
+repository, keystore, or store listing, runs no device test,
+and does not verify that a declared plan was ever carried out.
+A plan is ready *on the caller's declared evidence*: a record
+that declares pinned versions, keys in a keystore, and no
+secrets in the bundle passes those checks even if the real
+build did none of it. It is a completeness and consistency
+audit of the build-plan record the skill requires, **not a
+build service, a store-submission service, a security audit of
+an actual bundle, or a prediction that a store will approve
+the app**: it never judges whether the named worst device is
+really the worst, whether the declared conflict rules are
+good, whether a permission is genuinely needed by the feature
+named for it, or whether the plan will work — only that the
+record contains what the skill's method, quality gates and
+red lines demand, and that its declared permission rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated 44px floor, itself checked only as a
+declaration (see the declined list above); no live
+verification of any declared fact; no judgment of plan
+*quality* — whether the constraints, sync design, or test
+matrix are adequate for the real app is the caller's
+declaration, checked only for declared presence and
+consistency; the skill's named store and platform specifics
+are checked only as the generic preparations the skill states
+(metadata, privacy labels, data-safety forms) — this atom
+files nothing with any store and takes no position on any
+store's current review rules; privacy substance (whether the
+minimum is truly collected, whether a disclosure is legally
+sufficient) is a caller declaration — only its declared
+presence is checked, and the output is not legal advice.
+
+## U-13 regulatory screen
+
+No: this atom's output could not read as regulated
+professional advice — it audits a declared software build plan
+for completeness and consistency; it offers no engineering,
+financial, medical, or legal advice, and its privacy/store
+checks judge declared presence only, never legal sufficiency.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
-
-## Named doubt (from the register)
-
-Generic engineering skill
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

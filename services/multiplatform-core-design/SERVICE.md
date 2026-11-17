@@ -4,6 +4,8 @@
 
 ## What it delivers
 
+Bound capability (from the skill): Designs one portable core with many thin surfaces — shared logic and data model, native-feeling apps on each platform.
+
 A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
 
 ## Buyer
@@ -14,13 +16,204 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Vault product cross-platform design**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the multiplatform core design manifest
+
+The caller submits one JSON manifest: a declared multiplatform
+design record for one project. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`MULTIPLATFORM_CORE_NOT_SOUND`). All fields are
+booleans unless noted. A documented field present with the wrong
+JSON type is a caller error (the gateway renders 422) — it is
+never evaluated into a verdict.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `core.core_holds_logic` (boolean) | core_architecture |
+| `core.core_holds_crypto` (boolean) | core_architecture |
+| `core.core_holds_data_model` (boolean) | core_architecture |
+| `core.core_in_portable_language` (boolean) | core_architecture |
+| `core.single_internal_api_defined` (boolean) | core_architecture |
+| `web.web_installable` (boolean) | surfaces_and_thin_adapters |
+| `web.web_offline_capable_service_worker` (boolean) | surfaces_and_thin_adapters |
+| `web.web_responsive` (boolean) | surfaces_and_thin_adapters |
+| `mobile.mobile_pwa_first_where_sufficient` (boolean) | surfaces_and_thin_adapters |
+| `mobile.mobile_native_only_when_truly_needed` (boolean) | surfaces_and_thin_adapters |
+| `desktop_cli.desktop_single_static_binary_where_possible` (boolean) | surfaces_and_thin_adapters |
+| `desktop_cli.cli_good_help` (boolean) | surfaces_and_thin_adapters |
+| `desktop_cli.cli_correct_exit_codes` (boolean) | surfaces_and_thin_adapters |
+| `desktop_cli.cli_pipe_friendly_output` (boolean) | surfaces_and_thin_adapters |
+| `api.api_one_typed_contract` (boolean) | surfaces_and_thin_adapters |
+| `surfaces` (list of surface-row objects, each with the entry fields below; computed, see below) | surfaces_and_thin_adapters |
+| `surfaces[].name` (string; names the row in the computed outputs) | surfaces_and_thin_adapters |
+| `surfaces[].kind` (string; must be one of `web_pwa`, `mobile`, `desktop_cli`, `api` — the skill's own surface set) | surfaces_and_thin_adapters |
+| `surfaces[].consumes_core_contract` (boolean) | surfaces_and_thin_adapters |
+| `surfaces[].platform_code_isolated` (boolean) | surfaces_and_thin_adapters |
+| `surfaces[].core_logic_reimplemented` (boolean; must be `false` to pass) | surfaces_and_thin_adapters |
+| `local_first.source_of_truth_on_device` (boolean) | local_first_and_portability |
+| `local_first.sync_is_enhancement_not_requirement` (boolean) | local_first_and_portability |
+| `local_first.user_data_and_keys_stay_on_device_hardware` (boolean) | local_first_and_portability |
+| `portability.platform_specific_code_behind_interfaces` (boolean) | local_first_and_portability |
+| `portability.per_platform_forks_minimized` (boolean) | local_first_and_portability |
+| `portability.one_design_system_across_surfaces` (boolean) | local_first_and_portability |
+| `portability.each_platform_conventions_respected` (boolean) | local_first_and_portability |
+| `packaging.reproducible_builds` (boolean) | packaging_and_testing |
+| `packaging.signed_builds` (boolean) | packaging_and_testing |
+| `packaging.docker_used` (boolean; must be `false` to pass) | packaging_and_testing |
+| `packaging.distribution_route_decided_per_surface` (boolean) | packaging_and_testing |
+| `testing.shared_core_tested_thoroughly_once` (boolean) | packaging_and_testing |
+| `testing.each_surface_smoke_tested` (boolean) | packaging_and_testing |
+| `red_lines.core_logic_rewritten_per_platform_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.lowest_common_denominator_ux_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.platform_conventions_ignored_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.online_only_where_offline_matters_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Surfaces declared:** the declared `surfaces` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Surface kind per row:** every declared surface row must
+  declare `kind` from the skill's own surface set — `web_pwa`,
+  `mobile`, `desktop_cli`, `api` (the skill's Surfaces headings:
+  Web / PWA, Mobile, Desktop / CLI, API). A row with the field
+  absent is missing evidence; a row declaring any other value
+  fails and is named.
+- **Consumes the core contract per row:** every declared
+  surface row must declare `consumes_core_contract: true` (the
+  skill: "every surface consumes the same contract"). A row
+  with the field absent is missing evidence.
+- **Platform code isolated per row:** every declared surface
+  row must declare `platform_code_isolated: true` (the skill:
+  "isolate platform-specific code behind interfaces"). A row
+  with the field absent is missing evidence.
+- **No surface reimplements core logic:** every declared
+  surface row must declare `core_logic_reimplemented: false`
+  (the skill's anti-pattern: "rewriting core logic per
+  platform"). A row with the field absent is missing evidence
+  for this check; a row declaring `true` fails and is named.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`surfaces_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers,
+exactly), the row-name lists `surfaces_with_invalid_kind`
+(surfaces whose `kind` is present but not in the skill's set),
+`surfaces_not_consuming_core_contract` (surfaces whose field is
+present but not true), `surfaces_without_isolated_platform_code`
+(surfaces whose field is present but not true) and
+`surfaces_reimplementing_core_logic` (surfaces whose field is
+present but not false), and the four coverage ratios
+`valid_kind_coverage` (surfaces with a valid kind ÷ declared
+surfaces), `core_contract_coverage` (surfaces consuming the
+core contract ÷ declared surfaces),
+`isolated_platform_code_coverage` (surfaces with isolated
+platform code ÷ declared surfaces) and
+`no_core_reimplementation_coverage` (surfaces not
+reimplementing core logic ÷ declared surfaces).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no sharing,
+coverage or size bar: its targets are qualitative design
+commitments the record declares made, not bars the atom can
+set. Quantities are computed and reported; the only bar on the
+computed rows is completeness over the caller's own declared
+rows, exactly as stated above. Declined thresholds, named: a
+code-sharing percentage or shared-vs-platform code ratio (the
+skill says share the logic, crypto and data model — not the UI
+— but states no percentage); a number of surfaces or platforms
+a design must have (the skill's reference example has three
+faces, stated as an example, not a minimum); a core-language
+whitelist (the skill names Rust/Python for the core and
+Rust/Go for a static binary as patterns, not an exclusive set —
+portability of the declared language is a caller attestation);
+a core test-coverage percentage or number of tests (the skill
+says "thoroughly", no number); a number of smoke tests per
+surface beyond the skill's one smoke pass for integration and
+platform quirks; a binary size, startup time or sync latency
+bar; an offline-duration requirement; a fork count behind
+"minimized" (no number is stated); a signing algorithm, key
+length or build-reproducibility hash count; a design-system
+component count; a coverage percentage below completeness.
+
+The verdict is one of `MULTIPLATFORM_CORE_SOUND` (all 37 checks
+pass), `MULTIPLATFORM_CORE_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: core_architecture,
+surfaces_and_thin_adapters, local_first_and_portability,
+packaging_and_testing, anti_pattern_red_lines.
+
+## Distinct ground
+
+No live or staged sibling atom audits a declared one-core /
+many-thin-surfaces design record. The nearest built siblings:
+`local-first-sync-design`, which audits a local-first **sync**
+design — sync protocol, conflict handling, encryption and keys
+for multi-device data (its local-first ground is how data
+moves and resolves, not whether one core serves many surfaces);
+and `full-stack-app-build-pack`, which audits a single web
+app's build record — approach, contracts and slices for one
+stack, with no portable core and no per-platform surfaces.
+Zero checks are shared with either sibling (verified by
+check-name set intersection against both oracles); the boundary
+is: sync mechanics and conflict resolution there, single-stack
+web build there, the shared core / thin-adapter architecture,
+per-surface contract consumption and platform discipline here.
+
+## Honest scoping
+
+This atom audits a **declared** multiplatform design record —
+it inspects no codebase, builds no surface, runs no test,
+measures no sharing, and does not verify that a declared core
+actually is portable or that a declared adapter is actually
+thin. A record is sound *on the caller's declared evidence*: a
+manifest that declares one core holding the logic, crypto and
+data model, signed reproducible builds and no per-platform core
+rewrite passes those checks even if the real project does none
+of it. It is a completeness and consistency audit of the record
+the skill requires, **not an architecture service, a
+portability guarantee, or a build certification**: it never
+judges whether the core boundary is drawn in the right place,
+whether a native build was genuinely needed, whether a
+platform's conventions are respected in substance, or whether
+the shared contract is well designed — only that the record
+contains what the skill's sections and anti-patterns demand,
+and that its declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no code inspection —
+core-logic reimplementation per surface is a caller-declared
+flag plus the declared row field, the atom reads no source;
+whether offline "genuinely matters" for a given product, and
+whether PWA "suffices" for a given mobile surface, are caller
+judgments — only their declared outcomes are checked;
+cryptographic soundness of the core's crypto is out of scope —
+only its declared placement in the core is checked.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
 
 ## Named doubt (from the register)
 

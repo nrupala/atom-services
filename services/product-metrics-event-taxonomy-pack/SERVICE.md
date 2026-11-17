@@ -16,10 +16,304 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Feature success measurement for products**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the product metrics event taxonomy manifest
+
+The caller submits one JSON manifest: a declared product-metrics
+and event-taxonomy record for one product, made at the design
+stage — before the feature ships. Every field below is read by
+the named section's checks. A field **absent** = evidence
+missing (`INSUFFICIENT_EVIDENCE`); a field present but false /
+invalid = the check fails
+(`PRODUCT_METRICS_EVENT_TAXONOMY_PACK_NOT_READY`). All fields
+are booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `product` (string; carried into the verdict output, not itself checked) | — |
+| `decision.measurement_decision_named` (boolean) | decision_and_kpi_tree |
+| `decision.tracking_only_for_a_named_decision` (boolean) | decision_and_kpi_tree |
+| `decision.kpi_tree_from_north_star_to_inputs_declared` (boolean) | decision_and_kpi_tree |
+| `metrics` (list of metric-row objects, each with the entry fields below; computed, see below) | decision_and_kpi_tree |
+| `metrics[].name` (string; names the row in the computed outputs) | decision_and_kpi_tree |
+| `metrics[].definition` (string; the metric's one definition; must be present and non-empty per row) | decision_and_kpi_tree |
+| `metrics[].kpi_tree_role` (string; must be present per row and be `north_star` or `input`) | decision_and_kpi_tree |
+| `taxonomy.naming_convention_adopted_for_event_names` (boolean) | event_taxonomy_and_spec |
+| `taxonomy.event_spec_written_before_feature_code` (boolean) | event_taxonomy_and_spec |
+| `taxonomy.event_spec_reviewed_before_code` (boolean) | event_taxonomy_and_spec |
+| `taxonomy.analytics_reviewed_in_pull_request` (boolean) | event_taxonomy_and_spec |
+| `taxonomy.event_spec_validated_in_staging` (boolean) | event_taxonomy_and_spec |
+| `events` (list of event-row objects, each with the entry fields below; computed, see below) | event_taxonomy_and_spec |
+| `events[].name` (string; must follow the `object_action` snake_case convention per row) | event_taxonomy_and_spec |
+| `events[].feature` (string; the feature the event's spec belongs to; must be present and non-empty per row) | event_taxonomy_and_spec |
+| `events[].spec_version` (string; the event spec's version; must be present and non-empty per row) | event_taxonomy_and_spec |
+| `properties` (list of property-row objects, each with the entry fields below; computed, see below) | event_taxonomy_and_spec, privacy_by_construction |
+| `properties[].event_name` (string; the declared event the property belongs to; must be present and non-empty per row, and must name a declared event) | event_taxonomy_and_spec |
+| `properties[].name` (string; names the row in the computed outputs; the (event, property) pair must not be duplicated) | event_taxonomy_and_spec |
+| `properties[].data_type` (string; the property's declared type; must be present and non-empty per row) | event_taxonomy_and_spec |
+| `properties[].requirement` (string; must be present per row and be `required` or `optional`) | event_taxonomy_and_spec |
+| `properties[].contains_pii` (boolean; must be present per row and `false` to pass) | privacy_by_construction |
+| `data_quality.capture_time_validation_planned` (boolean) | data_quality |
+| `data_quality.dashboard_dupe_and_drop_audit_planned` (boolean) | data_quality |
+| `data_quality.taxonomy_definitions_documented` (boolean) | data_quality |
+| `data_quality.two_definitions_of_one_metric_treated_as_bugs` (boolean) | data_quality |
+| `privacy.pseudonymous_ids_only_in_events` (boolean) | privacy_by_construction |
+| `privacy.consent_gating_applied_where_required` (boolean) | privacy_by_construction |
+| `privacy.aggregation_before_export_applied_where_possible` (boolean) | privacy_by_construction |
+| `dashboards.every_chart_carries_question_definition_owner_target` (boolean) | dashboards_experiments_and_feedback |
+| `dashboards.trends_shown_over_snapshots` (boolean) | dashboards_experiments_and_feedback |
+| `dashboards.dashboard_segmentation_done_thoughtfully` (boolean) | dashboards_experiments_and_feedback |
+| `dashboards.dead_metrics_and_dashboards_retired` (boolean) | dashboards_experiments_and_feedback |
+| `experiments.hypothesis_and_primary_metric_recorded_before_launch` (boolean) | dashboards_experiments_and_feedback |
+| `experiments.guardrails_and_sample_size_rationale_recorded_before_launch` (boolean) | dashboards_experiments_and_feedback |
+| `experiments.single_change_per_experiment` (boolean) | dashboards_experiments_and_feedback |
+| `experiments.assignment_and_blinding_checks_planned` (boolean) | dashboards_experiments_and_feedback |
+| `experiments.experiment_results_written_down_including_no_effect` (boolean) | dashboards_experiments_and_feedback |
+| `feedback.qualitative_support_themes_placed_beside_quantitative_results` (boolean) | dashboards_experiments_and_feedback |
+| `feedback.qualitative_and_quantitative_feedback_both_feed_backlog` (boolean) | dashboards_experiments_and_feedback |
+| `red_lines.pii_in_analytics_events_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.unregistered_experiments_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.metrics_without_definitions_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+| `red_lines.dark_pattern_measurement_present` (boolean; must be `false` to pass — skill red line) | red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Metrics declared:** the declared `metrics` list passes
+  when it is present. An absent list is missing evidence. An
+  empty list passes: it declares that the pack declares no
+  metrics, and the skill requires no particular metric.
+- **Definition per metric:** every declared metric row must
+  carry a non-empty `definition` string (the skill's red
+  line: "no metrics without definitions"). A row with the
+  field absent is missing evidence; a row naming an empty
+  definition fails. On an empty list the check passes
+  vacuously — there is no metric without a definition.
+- **No metric name duplicated:** no declared metric `name`
+  may appear on more than one metric row — one metric, one
+  record (the skill: a metric with two definitions is two
+  bugs). A row with `name` absent is missing evidence for
+  this check.
+- **KPI-tree role per metric:** every declared metric row
+  must name a `kpi_tree_role`, and the role must be one of
+  the two roles the skill's KPI tree (north star → inputs)
+  states — `north_star` or `input`. A row with the field
+  absent is missing evidence for both role checks; a row
+  naming an empty role fails the naming check; a row naming
+  any other role fails the recognized-role check.
+- **Events declared:** the declared `events` list passes
+  when it is present; an empty list declares that the pack
+  declares no events.
+- **Event names follow `object_action` snake_case:** every
+  declared event `name` must match the skill's stated naming
+  convention — lowercase snake_case with at least one
+  underscore joining object and action
+  (`^[a-z][a-z0-9]*(_[a-z0-9]+)+$`). A row with `name` absent
+  is missing evidence; a name in any other shape fails.
+- **No event name duplicated:** no declared event `name`
+  may appear on more than one event row. A row with `name`
+  absent is missing evidence for this check.
+- **Feature and spec version per event:** every declared
+  event row must name a non-empty `feature` (the skill's
+  versioned event spec *per feature*) and a non-empty
+  `spec_version`. A row with either field absent is missing
+  evidence for that check; an empty string fails.
+- **Properties declared:** the declared `properties` list
+  passes when it is present; an empty list declares that the
+  pack declares no properties.
+- **Event per property:** every declared property row must
+  name a non-empty `event_name`. A row with the field absent
+  is missing evidence; an empty name fails.
+- **No property duplicated for the same event:** no declared
+  (`event_name`, `name`) pair may appear on more than one
+  property row. The same property name on *different* events
+  is not a duplication. A row with either field absent is
+  missing evidence for this check.
+- **Type and requirement per property:** every declared
+  property row must declare a non-empty `data_type` (the
+  skill's spec states properties and types — no type
+  vocabulary is imposed beyond a declared type) and a
+  `requirement` that is one of the two marks the skill
+  states — `required` or `optional`. A row with either field
+  absent is missing evidence for that check; an empty type
+  or any other requirement mark fails.
+- **No orphan property rows:** every declared property
+  row's `event_name` must name an event that is itself
+  declared in the `events` list. The check is missing
+  evidence when either list is absent, or when any property
+  row lacks `event_name` or any event row lacks `name`.
+- **Every event has declared properties:** every declared
+  event `name` must appear as the `event_name` of at least
+  one declared property row — the properties are part of
+  each event's spec. The check is missing evidence when
+  either list is absent, or when any event row lacks `name`
+  or any property row lacks `event_name`. On two empty lists
+  it passes vacuously.
+- **No property row declares PII:** every declared property
+  row must carry `contains_pii` present and `false` (the
+  skill's red line: "No PII in analytics"). A row with the
+  field absent is missing evidence; a row declaring `true`
+  fails. On an empty list the check passes vacuously.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any
+of the eighteen primary computed checks above cannot be
+completed), `metrics_count`, `events_count` and
+`properties_count` (the declared list lengths, or null when a
+list is not declared — counts are reported as integers,
+exactly), the row-name lists `metrics_without_definition`
+(metrics whose definition field is present but empty; a
+metric with the field absent is missing evidence and does
+not appear), `duplicate_metric_names`,
+`duplicate_event_names` and `duplicate_property_keys`
+(duplicated names / `event_name.name` pairs, in the order
+their second occurrence appears), `orphan_property_rows`
+(property names whose declared event is not itself declared)
+and `events_without_properties` (declared events with no
+declared property row), and the coverage ratios
+`definition_coverage` (metrics naming a definition ÷
+declared metrics) and `event_property_coverage` (events with
+at least one declared property ÷ declared events).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly
+six decimals; comparisons use the unrounded values. A ratio
+is null when its denominator list is absent or empty (and,
+for `event_property_coverage`, when the properties list is
+absent). That fixed serialization is what makes the Python
+and TypeScript outputs byte-identical.
+
+The skill states no numeric threshold at all — its demands
+are qualitative declarations the record makes, the two stated
+role words (`north_star`, `input`), the two stated
+requirement marks (`required`, `optional`) and the stated
+`object_action` snake_case naming shape, not bars the atom
+can set. Quantities are computed and reported; the only bar
+on the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a minimum number of metrics, events or properties in
+the pack; a minimum definition, property or event coverage
+percentage; a north-star count beyond the declared KPI-tree
+roles themselves; a property-type vocabulary beyond a type
+being declared (no list of permitted types is imposed); a
+sample size, power, significance level or minimum detectable
+effect for experiments (only that the sample-size rationale
+is recorded before launch is checked); a metric target value
+or dashboard refresh cadence; a data-retention period, an
+export-aggregation granularity, or a consent standard beyond
+consent gating being applied where required as declared; a
+staging-validation pass rate or an event drop/dupe rate; a
+number of segments, charts or dashboards; a deadline by which
+dead metrics must be retired.
+
+The verdict is one of
+`PRODUCT_METRICS_EVENT_TAXONOMY_PACK_READY` (all 48 checks
+pass), `PRODUCT_METRICS_EVENT_TAXONOMY_PACK_NOT_READY` (any
+check fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but
+evidence is missing), across six sections:
+decision_and_kpi_tree, event_taxonomy_and_spec, data_quality,
+privacy_by_construction,
+dashboards_experiments_and_feedback, red_lines.
+
+## Distinct ground
+
+The nearest siblings are `agent-evaluation-scorecard` (a
+declared agent-evaluation record — golden task suites, pinned
+model/sampling/tool state, judging and calibration,
+regression gates, per-run scorecards),
+`data-analysis-deliverable` (a declared one-page analysis
+deliverable — question framing, stated totals/means/percent
+changes checked against declared values, inference and
+causal-claim discipline) and
+`forecast-confidence-scoreboard` (a declared forecast ledger
+and scoreboard — forecasters, stated probabilities, binary
+outcomes, Brier-score calibration and ranking). This atom
+shares **zero checks** with any of them (verified by comparing
+every check name here against every other atom's source):
+every check here is a product-metrics / event-taxonomy
+question — the decision the data will change named before
+tracking, tracking limited to a named decision, the KPI tree
+from north star to inputs, every metric carrying one
+definition and a north-star-or-input tree role with no metric
+name duplicated, event names in `object_action` snake_case, a
+versioned event spec per feature written and reviewed before
+code and validated in staging, analytics reviewed in the PR,
+declared event properties typed, marked required or optional,
+never duplicated for the same event, never orphaned, and
+covering every declared event, capture-time validation and
+dupe/drop dashboard audits, two definitions of one metric
+treated as bugs, pseudonymous IDs only with consent gating
+and aggregation before export, no property row declaring PII,
+every chart carrying question + definition + owner + target
+with trends over snapshots and dead metrics retired,
+experiments carrying hypothesis, primary metric, guardrails
+and sample-size rationale before launch with one change per
+test and results written down including "no effect", support
+themes beside the numbers with both feeding the backlog, and
+the analytics red lines. The boundary is: a product's
+metrics-and-events taxonomy record here; an agent's
+evaluation scorecard, a one-off analysis deliverable, and a
+forecast calibration scoreboard there.
+
+## Honest scoping
+
+This atom reviews a **declared** product-metrics and
+event-taxonomy record — it collects no analytics itself,
+inspects no event stream, codebase, pull request, staging
+environment or dashboard, runs no experiment, and does not
+verify that a declared taxonomy was ever implemented. A pack
+is ready *on the caller's declared evidence*: a record that
+declares a reviewed, staging-validated spec, consent gating,
+and no PII in its property rows passes those checks even if
+the real product did none of it. It is a completeness and
+consistency audit of the taxonomy record the skill requires,
+**not an analytics implementation, a data-quality audit of a
+live pipeline, a privacy or consent legal review, or a
+prediction that the metrics will move**: it never judges
+whether the named decision is the right decision, whether a
+metric's definition is correct or useful, whether the north
+star is well chosen, whether a property's declared type
+matches the values actually sent, or whether an experiment
+was well designed — only that the record contains what the
+skill's method, quality gates and red lines demand, and that
+its declared metric, event and property rows are internally
+consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds at
+all (see the declined list above); no live verification of
+any declared fact; no judgment of taxonomy *quality* —
+whether the KPI tree, event set or dashboard set are the
+right ones for the real product is the caller's declaration,
+checked only for declared presence and consistency; the
+skill's qualitative judgments (segmentation done
+"thoughtfully", a sample-size rationale being *adequate*, a
+definition being *the* right one) are checked only as the
+declarations the skill states; privacy and consent substance
+(whether pseudonymous IDs are truly non-identifying, whether
+consent gating is legally sufficient in a jurisdiction) is a
+caller declaration — only its declared presence and the
+declared per-row PII flags are checked, and the output is
+not legal advice.
+
+## U-13 regulatory screen
+
+No: this atom's output could not read as regulated
+professional advice — it audits a declared product-analytics
+taxonomy record for completeness and consistency; it offers
+no engineering, financial, medical, psychological or legal
+advice, and its privacy/consent checks judge declared
+presence only, never legal sufficiency.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally — NOT deployed** —
+deterministic core, Python oracle and TypeScript port built
+and parity-proven locally; no endpoint is live. Release
+happens one by one, by the owner's GO, per the approved queue.

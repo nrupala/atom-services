@@ -4,6 +4,8 @@
 
 ## What it delivers
 
+Bound capability (from the skill): Frames AI and data projects rigorously — a baseline first, an honest metric, evaluation before modeling — so the work survives contact with reality.
+
 A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
 
 ## Buyer
@@ -14,10 +16,219 @@ First buyer hypothesis (from register data; not yet market-tested): teams and ag
 
 Our own workflow that calls it: **Research Analyst model framing**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
 
+## Inputs — the ML project framing manifest
+
+The caller submits one JSON manifest: a declared project-framing
+record for one ML project, made at the framing stage — before
+modeling. Every field below is read by the named section's
+checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`ML_FRAMING_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `framing.problem_statement_defined` (boolean) | ml_necessity_and_decision_framing |
+| `framing.ml_necessity_assessed` (boolean) | ml_necessity_and_decision_framing |
+| `framing.non_ml_rule_or_heuristic_considered` (boolean) | ml_necessity_and_decision_framing |
+| `framing.decision_and_action_named` (boolean) | ml_necessity_and_decision_framing |
+| `framing.framing_completed_before_modeling` (boolean) | ml_necessity_and_decision_framing |
+| `metric.primary_metric_named` (boolean) | metric_and_baseline_framing |
+| `metric.metric_tied_to_decision` (boolean) | metric_and_baseline_framing |
+| `metric.accuracy_for_its_own_sake_present` (boolean; must be `false` to pass) | metric_and_baseline_framing |
+| `baseline.baseline_value_written_down` (boolean) | metric_and_baseline_framing |
+| `baseline.baseline_is_rule_or_heuristic_benchmark` (boolean) | metric_and_baseline_framing |
+| `baseline.baseline_recorded_before_complex_build` (boolean) | metric_and_baseline_framing |
+| `metrics` (list of metric-row objects, each with the entry fields below; computed, see below) | metric_and_baseline_framing |
+| `metrics[].name` (string; names the row in the computed outputs) | metric_and_baseline_framing |
+| `metrics[].decision_action` (string; the action that changes based on the metric; must be present and non-empty per row) | metric_and_baseline_framing |
+| `metrics[].tied_to_decision` (boolean) | metric_and_baseline_framing |
+| `metrics[].baseline_recorded_before_modeling` (boolean) | metric_and_baseline_framing |
+| `data_plan.provenance_plan_stated` (boolean) | data_and_evaluation_plan |
+| `data_plan.leakage_risks_identified` (boolean) | data_and_evaluation_plan |
+| `data_plan.split_honesty_strategy_planned` (boolean) | data_and_evaluation_plan |
+| `data_plan.never_tune_on_test_committed` (boolean) | data_and_evaluation_plan |
+| `data_plan.distribution_shift_risk_noted` (boolean) | data_and_evaluation_plan |
+| `evaluation_plan.evaluation_designed_before_modeling` (boolean) | data_and_evaluation_plan |
+| `evaluation_plan.offline_online_gap_acknowledged` (boolean) | data_and_evaluation_plan |
+| `evaluation_plan.online_check_planned` (boolean) | data_and_evaluation_plan |
+| `evaluation_plan.ablation_planned` (boolean) | data_and_evaluation_plan |
+| `approach.start_simple_first_step_named` (boolean) | approach_reproducibility_and_llm_framing |
+| `approach.complexity_must_earn_keep_accepted` (boolean) | approach_reproducibility_and_llm_framing |
+| `approach.reproducibility_plan_stated` (boolean) | approach_reproducibility_and_llm_framing |
+| `approach.uncertainty_reporting_planned` (boolean) | approach_reproducibility_and_llm_framing |
+| `approach.worst_case_failure_analysis_planned` (boolean) | approach_reproducibility_and_llm_framing |
+| `llm.uses_llm_or_rag` (boolean; the applicability gate for the four LLM/RAG checks below) | approach_reproducibility_and_llm_framing |
+| `llm.retrieval_quality_prioritized_over_model_size` (boolean; gated — applies only when `uses_llm_or_rag` is `true`) | approach_reproducibility_and_llm_framing |
+| `llm.golden_set_evaluation_planned` (boolean; gated, as above) | approach_reproducibility_and_llm_framing |
+| `llm.grounding_citation_and_idk_required` (boolean; gated, as above) | approach_reproducibility_and_llm_framing |
+| `llm.prompts_versioned_with_changelog` (boolean; gated, as above) | approach_reproducibility_and_llm_framing |
+| `serving.local_first_serving_options_considered` (boolean) | approach_reproducibility_and_llm_framing |
+| `serving.latency_and_cost_budget_considered` (boolean) | approach_reproducibility_and_llm_framing |
+| `red_lines.chasing_sota_without_baseline_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.evaluating_on_training_data_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.demo_driven_development_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.tuning_on_test_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.latency_cost_ignored_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+| `red_lines.llm_output_treated_as_correct_present` (boolean; must be `false` to pass — skill anti-pattern) | anti_pattern_red_lines |
+
+The LLM/RAG checks are gated on the declared applicability
+flag, exactly as declared: `llm_applicability_declared` passes
+whenever `llm.uses_llm_or_rag` is present (either value). Each
+of the four gated checks is **missing** when the gate or the
+field itself is absent, **passes as not applicable** when the
+gate is declared `false` (whatever the field declares), and
+when the gate is declared `true` passes only when the field is
+declared `true`.
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the
+declared record itself — no outside threshold is imported:
+
+- **Metrics declared:** the declared `metrics` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Tied to a decision per metric:** every declared metric row
+  must declare `tied_to_decision: true` (the skill: "Tie the
+  metric to a decision"). A row with the field absent is
+  missing evidence.
+- **Decision action per metric:** every declared metric row
+  must name a non-empty `decision_action` string (the skill:
+  "what action changes based on the output?"). A row with the
+  field absent is missing evidence; a row naming an empty
+  action fails.
+- **Baseline recorded before modeling per metric:** every
+  declared metric row must declare
+  `baseline_recorded_before_modeling: true` (the skill: "Write
+  down the baseline number before building anything complex").
+  A row with the field absent is missing evidence.
+- **No metric name duplicated:** no declared metric `name` may
+  appear on more than one metric row. A row with `name` absent
+  is missing evidence for this check.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`metrics_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers,
+exactly), the row-name lists `metrics_without_tied_decision`
+(metrics whose field is present but not true; a metric with
+the field absent is missing evidence and does not appear),
+`metrics_without_baseline_recorded` (metrics whose field is
+present but not true) and `duplicate_metric_names` (metric
+names declared on more than one row, in the order their second
+occurrence appears), and the two coverage ratios
+`tied_to_decision_coverage` (metrics tied to a decision ÷
+declared metrics) and `baseline_recorded_coverage` (metrics
+with a baseline recorded before modeling ÷ declared metrics).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — its framing
+demands are qualitative declarations the record makes, not bars
+the atom can set. Quantities are computed and reported; the
+only bar on the computed rows is completeness over the caller's
+own declared rows, exactly as stated above. Declined
+thresholds, named: a baseline margin or improvement the model
+must beat (the skill says write the baseline number down and
+beat the benchmark — it states no margin, and whether a built
+model beat it is `applied-ml-validation`'s ground, not this
+atom's); a metric target, accuracy bar, or error-cost figure;
+a dataset size, row count, or class-balance bar; a latency
+millisecond or serving-cost budget number (the skill says do
+not ignore latency/cost — the budget itself is the caller's);
+a golden-set size or retrieval-quality score for LLM/RAG
+projects; a number of metrics, approaches, or candidate
+solutions a framing must contain beyond the one declared
+metrics list being non-empty; a coverage percentage below
+completeness.
+
+The verdict is one of `ML_FRAMING_SOUND` (all 43 checks pass),
+`ML_FRAMING_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across five sections:
+ml_necessity_and_decision_framing, metric_and_baseline_framing,
+data_and_evaluation_plan,
+approach_reproducibility_and_llm_framing, anti_pattern_red_lines.
+
+## Distinct ground
+
+The nearest sibling is the deployed `applied-ml-validation`
+(bound skill `applied-machine-learning`), which validates a
+declared validation record for an **existing** model/project:
+its checks ask whether the baseline was actually *beaten* (or
+the project rightly stopped), whether the splits actually used
+match the data, whether the model ladder was actually climbed
+in order, whether calibration, slice performance and
+uncertainty were actually *reported*, and whether a built
+model carries monitoring, rollback and a model card. This atom
+sits one stage earlier and shares **zero checks** with it:
+every check here is a framing-stage question — ML necessity
+*assessed*, a non-ML alternative *considered*, the decision and
+action *named*, the baseline *written down before* any complex
+build, data and evaluation questions faced as a *plan*,
+evaluation *designed before modeling*, an online check and
+ablation *planned*, the starting approach and reproducibility
+*plan* stated, LLM/RAG framing *planned*, and the skill's
+anti-patterns *refused in the framing*. The boundary is:
+framing intent and plans declared before modeling here;
+executed validation evidence for a built model there. No other
+live or staged sibling reviews an ML project's framing record;
+`prediction-model-leakage-calibration-audit` audits leakage
+timing and calibration arithmetic on a built predictor, and
+`rag-retrieval-evaluation-tuning` evaluates a running RAG
+system — both execution-stage, neither shares a check with
+this atom.
+
+## Honest scoping
+
+This atom reviews a **declared** project-framing record — it
+frames no project itself, trains or runs no model, reads no
+training data, recomputes no metric or baseline, and does not
+verify that a declared plan was ever carried out. A framing is
+sound *on the caller's declared evidence*: a record that
+declares ML necessity assessed, a baseline written down, and
+no SOTA-chasing passes those checks even if the real project
+did none of it. It is a completeness and consistency audit of
+the framing record the skill requires, **not ML engineering,
+a modeling service, or a prediction that the project will
+succeed**: it never judges whether ML is genuinely the right
+choice, whether the named metric is the right metric, whether
+the baseline number is honest, or whether the plan is good —
+only that the record contains what the skill's framing
+sections and anti-patterns demand, and that its declared
+metric rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no judgment of framing
+*quality* — whether the problem framing, metric choice, or
+approach will work is the caller's declaration, checked only
+for declared presence and consistency; the skill's
+sovereign/local-first serving lean is checked only as
+*considered at framing* — this atom provisions no serving,
+selects no backend, and takes no position on any specific
+host, instance, or vendor named in the skill's own notes;
+LLM/RAG substance (whether retrieval is actually good, whether
+a golden set is representative) is a caller declaration — only
+its declared planned presence is checked.
+
 ## Pricing
 
 Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
 
 ## Status
 
-Tier B · status: **scaffolded** — service unit generated from the register; no endpoint is live. Release happens one by one, by the owner's GO, per the approved queue.
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
