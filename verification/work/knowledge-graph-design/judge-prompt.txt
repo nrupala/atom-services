@@ -1,0 +1,1150 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: knowledge-graph-design
+
+=== contract.yaml ===
+service_name: knowledge-graph-design
+display_name: Knowledge graph design
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:knowledge-graph-engineering
+binding:
+  skill: knowledge-graph-engineering
+  skill_path: workspace/mymilo-build/skills/knowledge-graph-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: knowledge_graph_design
+  prefix: atm_1_knowledge_graph_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Knowledge mining graph build work
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Knowledge graph design — `knowledge-graph-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build knowledge graphs that serve users — schema, provenance, immutable history, query patterns, portable exports.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Knowledge mining graph build work**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the knowledge-graph-design manifest
+
+The caller submits one JSON manifest: a declared knowledge-graph
+design record for one graph. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`KNOWLEDGE_GRAPH_DESIGN_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `graph` (string; carried into the verdict output, not itself checked) | — |
+| `schema.entities_relations_attributes_modeled` (boolean) | schema_and_modeling |
+| `schema.schema_changes_go_through_migrations` (boolean) | schema_and_modeling |
+| `schema.migration_path_documented` (boolean) | schema_and_modeling |
+| `schema.stable_ids_everywhere` (boolean) | schema_and_modeling |
+| `schema.core_type_count` (number; computed, see below) | schema_and_modeling |
+| `provenance.provenance_on_every_assertion` (boolean) | provenance |
+| `provenance.user_asserted_inferred_imported_distinguished` (boolean) | provenance |
+| `assertions` (list of assertion-row objects, each with the entry fields below; computed, see below) | provenance |
+| `assertions[].name` (string; names the row in the computed outputs) | provenance |
+| `assertions[].source_declared` (boolean) | provenance |
+| `assertions[].date_declared` (boolean) | provenance |
+| `assertions[].confidence_declared` (boolean) | provenance |
+| `assertions[].origin_classified` (boolean) | provenance |
+| `history.append_only_event_log_is_source_of_truth` (boolean) | immutable_history |
+| `history.current_state_is_projection` (boolean) | immutable_history |
+| `history.corrections_are_new_events_referencing_old` (boolean) | immutable_history |
+| `history.silent_edits_present` (boolean; must be `false` to pass — skill red line) | immutable_history |
+| `storage.storage_fit_selected` (boolean) | storage_and_query_retrieval |
+| `storage.dedicated_graph_db_used` (boolean; gates the graph-DB justification check below) | storage_and_query_retrieval |
+| `storage.graph_db_justified_by_query_complexity_or_scale` (boolean; required when a dedicated graph DB is declared used; otherwise the check passes as not applicable) | storage_and_query_retrieval |
+| `query.canonical_query_patterns_defined` (boolean) | storage_and_query_retrieval |
+| `query.full_text_and_vector_indexes_paired` (boolean) | storage_and_query_retrieval |
+| `query.agent_queries_bounded` (boolean) | storage_and_query_retrieval |
+| `query.counts_first_expand_on_request` (boolean) | storage_and_query_retrieval |
+| `query.full_graph_dumps_present` (boolean; must be `false` to pass — skill: never dump the graph) | storage_and_query_retrieval |
+| `portability.export_import_formats_json_or_jsonld` (boolean) | portability_and_ownership |
+| `portability.export_import_round_trip_tested` (boolean) | portability_and_ownership |
+| `portability.versioned_snapshots` (boolean) | portability_and_ownership |
+| `portability.deletion_is_real` (boolean) | portability_and_ownership |
+| `portability.tombstones_where_required_addressed` (boolean) | portability_and_ownership |
+| `privacy.access_scoped` (boolean) | privacy_and_red_lines |
+| `privacy.encryption_at_rest` (boolean) | privacy_and_red_lines |
+| `privacy.sensitive_nodes_redactable` (boolean) | privacy_and_red_lines |
+| `privacy.third_party_personal_data_without_lawful_basis_present` (boolean; must be `false` to pass — skill privacy line) | privacy_and_red_lines |
+| `red_lines.unprovenanced_assertions_presented_as_fact_present` (boolean; must be `false` to pass — skill red line) | privacy_and_red_lines |
+
+Several checks are computed from the declared values, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Core type count:** the skill's method step 1 states "start
+  small (10–20 core types)". The declared
+  `schema.core_type_count` therefore passes only when it lies in
+  that stated range, 10–20 inclusive; an absent count is missing
+  evidence. The output reports it back as
+  `declared_core_type_count` (the declared number, or null when
+  not declared).
+- **Assertions declared:** the declared `assertions` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Full provenance per assertion:** every declared assertion
+  row must declare `source_declared`, `date_declared` and
+  `confidence_declared` all `true` (the skill: provenance on
+  every assertion — source, date, confidence). A row with any of
+  the fields absent is missing evidence.
+- **Origin classified per assertion:** every declared assertion
+  row must declare `origin_classified: true` (the skill:
+  distinguish user-asserted vs inferred vs imported facts). A
+  row with the field absent is missing evidence.
+
+One check is conditional, following the skill's own scoping —
+computed from the declared gate field:
+
+- **Graph-DB justification:** the skill's storage-fit step says
+  a dedicated graph DB is used "only when query complexity or
+  scale demands". `graph_db_justified_by_query_complexity_or_scale`
+  is therefore required only when `storage.dedicated_graph_db_used`
+  is declared `true`; when no dedicated graph DB is declared,
+  the check passes as not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the four primary computed checks above cannot be completed),
+`assertions_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers, exactly),
+the row-name lists `assertions_without_full_provenance`
+(assertions where a provenance field is present but not true; an
+assertion with the field absent is missing evidence and does not
+appear) and `assertions_without_origin_classification`
+(assertions declaring `origin_classified` present but not true),
+and the two coverage ratios `provenance_coverage` (assertions
+with source, date and confidence all declared ÷ declared
+assertions) and `origin_classification_coverage` (assertions
+with origin classified ÷ declared assertions).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no other numeric pass/fail threshold — its one
+stated range (10–20 core types) is used above, and everything
+else is design content the record attests to, not bars the atom
+can set. Quantities are computed and reported; the only other
+bar on the computed rows is completeness over the caller's own
+declared rows, exactly as stated above. Declined thresholds,
+named: a confidence minimum or confidence scale (the skill
+requires confidence to be carried as provenance, but states no
+level, value or scale — only its declared presence is checked);
+a graph size, node/edge count, or query-complexity number at
+which a dedicated graph DB becomes required (the skill states
+the condition in words only — caller attestation via the gated
+justification check); a query bound, result limit or token
+budget in numbers (the skill requires bounded, token-aware,
+counts-first answers but states no number); a number of
+canonical query patterns a design must define, beyond declaring
+the patterns defined (the skill names neighborhoods, paths and
+temporal windows as the pattern vocabulary, not a quota); a
+snapshot frequency or retention period; an encryption algorithm
+or key length; a schema-version number or migration count; a
+coverage percentage below completeness for assertions.
+
+The verdict is one of `KNOWLEDGE_GRAPH_DESIGN_SOUND` (all 31
+checks pass), `KNOWLEDGE_GRAPH_DESIGN_NOT_SOUND` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence
+is missing), across six sections: schema_and_modeling,
+provenance, immutable_history, storage_and_query_retrieval,
+portability_and_ownership, privacy_and_red_lines.
+
+## Distinct ground
+
+- **`codebase-structural-query` (live)** computes structural
+  answers (descendants, ancestors, blast radius, paths, stats,
+  snapshot) over a submitted *code-graph index* and one query.
+  This atom computes nothing over a graph and answers no query:
+  it audits a declared knowledge-graph *design record*. Zero
+  shared checks.
+- **`codebase-visualization` (live)** audits a declared
+  *visualization artifact* record — diagrams-as-code, dependency
+  and call views, architecture maps, hotspot views. This atom
+  audits schema, provenance, history, storage/query, portability
+  and privacy design declarations for a knowledge graph itself.
+  Zero shared checks.
+
+## Honest scoping
+
+This atom audits a **declared** knowledge-graph design record —
+it builds no graph, runs no graph database, ingests no data,
+answers no query, and does not verify that a declared control
+actually works. A design is sound *on the caller's declared
+evidence*: a manifest that declares provenance on every
+assertion, an append-only log, and a tested export round-trip
+passes those checks even if the real graph does none of it. It
+is a completeness and consistency audit of the record the skill
+requires, **not a knowledge-graph build service or a design
+certification**: it never judges whether the schema is the right
+model for the domain, whether a confidence value is honest,
+whether the chosen storage actually fits the real query load,
+or whether an export really round-trips — only that the record
+contains what the skill's method, quality gates and red lines
+demand, and that its declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated 10–20 core-type range (see the declined
+list above); no live verification of any declared fact; no
+inspection of real assertions, events, snapshots or exports —
+provenance, origin classification, deletion and round-trip
+testing are caller-declared flags and row declarations, the atom
+reads no graph data; modeling quality (whether the entities,
+relations and attributes chosen are the right ones) is a caller
+declaration — the atom checks only that modeling is declared
+deliberate and the stated start-small range is respected;
+lawful-basis sufficiency for any third-party personal data in
+any jurisdiction is not judged — only that the record declares
+no ingestion without a lawful basis.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Generic engineering advice
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "knowledge-graph-design",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "KNOWLEDGE_GRAPH_DESIGN_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All checks pass. Computed spot checks: declared_core_type_count=15, assertions_count=1, provenance_coverage=1.000000, origin_classification_coverage=1.000000.",
+        "computed_spot_checks": {
+          "declared_core_type_count": 15,
+          "assertions_count": 1,
+          "assertions_without_full_provenance": [],
+          "provenance_coverage": "1.000000",
+          "assertions_without_origin_classification": [],
+          "origin_classification_coverage": "1.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "graph": "customer-360-graph",
+        "schema": {
+          "entities_relations_attributes_modeled": true,
+          "schema_changes_go_through_migrations": true,
+          "migration_path_documented": true,
+          "stable_ids_everywhere": true,
+          "core_type_count": 15
+        },
+        "provenance": {
+          "provenance_on_every_assertion": true,
+          "user_asserted_inferred_imported_distinguished": true
+        },
+        "assertions": [
+          {
+            "name": "row_1",
+            "source_declared": true,
+            "date_declared": true,
+            "confidence_declared": true,
+            "origin_classified": true
+          }
+        ],
+        "history": {
+          "append_only_event_log_is_source_of_truth": true,
+          "current_state_is_projection": true,
+          "corrections_are_new_events_referencing_old": true,
+          "silent_edits_present": false
+        },
+        "storage": {
+          "storage_fit_selected": true,
+          "dedicated_graph_db_used": true,
+          "graph_db_justified_by_query_complexity_or_scale": true
+        },
+        "query": {
+          "canonical_query_patterns_defined": true,
+          "full_text_and_vector_indexes_paired": true,
+          "agent_queries_bounded": true,
+          "counts_first_expand_on_request": true,
+          "full_graph_dumps_present": false
+        },
+        "portability": {
+          "export_import_formats_json_or_jsonld": true,
+          "export_import_round_trip_tested": true,
+          "versioned_snapshots": true,
+          "deletion_is_real": true,
+          "tombstones_where_required_addressed": true
+        },
+        "privacy": {
+          "access_scoped": true,
+          "encryption_at_rest": true,
+          "sensitive_nodes_redactable": true,
+          "third_party_personal_data_without_lawful_basis_present": false
+        },
+        "red_lines": {
+          "unprovenanced_assertions_presented_as_fact_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "knowledge-graph-design",
+        "atom_version": "0.1.0",
+        "graph": "customer-360-graph",
+        "verdict": "KNOWLEDGE_GRAPH_DESIGN_SOUND",
+        "sections": {
+          "schema_and_modeling": "pass",
+          "provenance": "pass",
+          "immutable_history": "pass",
+          "storage_and_query_retrieval": "pass",
+          "portability_and_ownership": "pass",
+          "privacy_and_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "schema_and_modeling",
+            "check": "entities_relations_attributes_modeled",
+            "status": "pass",
+            "evidence": "model deliberately: entities, relations and attributes are modeled deliberately"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "schema_changes_go_through_migrations",
+            "status": "pass",
+            "evidence": "model deliberately: schema changes go through migrations like a database"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "migration_path_documented",
+            "status": "pass",
+            "evidence": "quality gate: schema and migration path are documented"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "stable_ids_everywhere",
+            "status": "pass",
+            "evidence": "model deliberately: stable IDs everywhere"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "core_type_count_within_stated_start_range",
+            "status": "pass",
+            "evidence": "model deliberately: the declared core type count starts small \u2014 the skill states 10-20 core types"
+          },
+          {
+            "section": "provenance",
+            "check": "provenance_on_every_assertion",
+            "status": "pass",
+            "evidence": "provenance: every assertion carries provenance \u2014 source, date and confidence"
+          },
+          {
+            "section": "provenance",
+            "check": "user_asserted_inferred_imported_distinguished",
+            "status": "pass",
+            "evidence": "provenance: user-asserted, inferred and imported facts are distinguished"
+          },
+          {
+            "section": "provenance",
+            "check": "assertions_declared",
+            "status": "pass",
+            "evidence": "the declared record names its assertions \u2014 the assertions list is present and non-empty"
+          },
+          {
+            "section": "provenance",
+            "check": "every_assertion_carries_full_provenance",
+            "status": "pass",
+            "evidence": "provenance: every declared assertion row declares source, date and confidence"
+          },
+          {
+            "section": "provenance",
+            "check": "every_assertion_origin_classified",
+            "status": "pass",
+            "evidence": "provenance: every declared assertion row declares its origin classified"
+          },
+          {
+            "section": "immutable_history",
+            "check": "append_only_event_log_is_source_of_truth",
+            "status": "pass",
+            "evidence": "immutable history: an append-only event log is the source of truth"
+          },
+          {
+            "section": "immutable_history",
+            "check": "current_state_is_projection",
+            "status": "pass",
+            "evidence": "immutable history: current state is a projection of the event log"
+          },
+          {
+            "section": "immutable_history",
+            "check": "corrections_are_new_events_referencing_old",
+            "status": "pass",
+            "evidence": "immutable history: corrections are new events referencing the old"
+          },
+          {
+            "section": "immutable_history",
+            "check": "no_silent_edits",
+            "status": "pass",
+            "evidence": "red line: no silent edits \u2014 append or version"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "storage_fit_selected",
+            "status": "pass",
+            "evidence": "storage fit: storage is selected to fit \u2014 SQLite/Postgres with an edges table for most needs, a dedicated graph DB only when query complexity or scale demands"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "graph_db_justified_when_dedicated_graph_db_used",
+            "status": "pass",
+            "evidence": "storage fit: a dedicated graph DB is justified by query complexity or scale when one is used"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "canonical_query_patterns_defined",
+            "status": "pass",
+            "evidence": "query and retrieval: canonical query patterns \u2014 neighborhoods, paths and temporal windows \u2014 are defined"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "retrieval_indexes_paired",
+            "status": "pass",
+            "evidence": "storage fit: full-text and vector indexes are paired for retrieval"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "agent_queries_bounded",
+            "status": "pass",
+            "evidence": "quality gate: agent queries are bounded"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "counts_first_expand_on_request",
+            "status": "pass",
+            "evidence": "query and retrieval: bounded answers for agents \u2014 counts first, expand on request (token-aware serialization)"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "no_full_graph_dumps",
+            "status": "pass",
+            "evidence": "query and retrieval: the graph is never dumped \u2014 bounded answers only"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "export_import_formats_json_or_jsonld",
+            "status": "pass",
+            "evidence": "portability and ownership: export and import formats are simple JSON or JSON-LD"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "export_import_round_trip_tested",
+            "status": "pass",
+            "evidence": "quality gate: export and import are tested round-trip"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "versioned_snapshots",
+            "status": "pass",
+            "evidence": "portability and ownership: versioned snapshots are kept"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "deletion_is_real",
+            "status": "pass",
+            "evidence": "red line: deletion is real \u2014 deletion must actually delete"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "tombstones_where_required_addressed",
+            "status": "pass",
+            "evidence": "portability and ownership: tombstones where required are addressed alongside real deletion"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "access_scoped",
+            "status": "pass",
+            "evidence": "quality gate: access is scoped \u2014 graphs reveal relationships"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "encryption_at_rest",
+            "status": "pass",
+            "evidence": "privacy and encryption: the graph is encrypted at rest"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "sensitive_nodes_redactable",
+            "status": "pass",
+            "evidence": "privacy and encryption: sensitive nodes are redactable"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "no_third_party_personal_data_without_lawful_basis",
+            "status": "pass",
+            "evidence": "privacy and encryption: no third-party personal data is ingested without a lawful basis"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "no_unprovenanced_assertions_presented_as_fact",
+            "status": "pass",
+            "evidence": "red line: no unprovenanced assertions are presented as fact"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "assertions_count": 1,
+        "assertions_without_full_provenance": [],
+        "provenance_coverage": "1.000000",
+        "assertions_without_origin_classification": [],
+        "origin_classification_coverage": "1.000000",
+        "declared_core_type_count": 15,
+        "summary": "31 pass, 0 fail, 0 missing of 31 checks across six sections.",
+        "stamp": "KNOWLEDGE GRAPH DESIGN\ngraph: customer-360-graph\nVERDICT: KNOWLEDGE_GRAPH_DESIGN_SOUND\n  schema_and_modeling                  pass\n  provenance                           pass\n  immutable_history                    pass\n  storage_and_query_retrieval          pass\n  portability_and_ownership            pass\n  privacy_and_red_lines                pass\n31 pass, 0 fail, 0 missing of 31 checks across six sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "KNOWLEDGE_GRAPH_DESIGN_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "core_type_count_within_stated_start_range",
+          "every_assertion_carries_full_provenance",
+          "no_silent_edits",
+          "no_full_graph_dumps"
+        ],
+        "notes": "Violates core type count (5 < 10), assertion provenance (source_declared=false), silent_edits_present=true, and full_graph_dumps_present=true.",
+        "computed_spot_checks": {
+          "declared_core_type_count": 5,
+          "assertions_count": 1,
+          "assertions_without_full_provenance": [
+            "row_1"
+          ],
+          "provenance_coverage": "0.000000",
+          "assertions_without_origin_classification": [],
+          "origin_classification_coverage": "1.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "graph": "customer-360-graph",
+        "schema": {
+          "entities_relations_attributes_modeled": true,
+          "schema_changes_go_through_migrations": true,
+          "migration_path_documented": true,
+          "stable_ids_everywhere": true,
+          "core_type_count": 5
+        },
+        "provenance": {
+          "provenance_on_every_assertion": true,
+          "user_asserted_inferred_imported_distinguished": true
+        },
+        "assertions": [
+          {
+            "name": "row_1",
+            "source_declared": false,
+            "date_declared": true,
+            "confidence_declared": true,
+            "origin_classified": true
+          }
+        ],
+        "history": {
+          "append_only_event_log_is_source_of_truth": true,
+          "current_state_is_projection": true,
+          "corrections_are_new_events_referencing_old": true,
+          "silent_edits_present": true
+        },
+        "storage": {
+          "storage_fit_selected": true,
+          "dedicated_graph_db_used": true,
+          "graph_db_justified_by_query_complexity_or_scale": true
+        },
+        "query": {
+          "canonical_query_patterns_defined": true,
+          "full_text_and_vector_indexes_paired": true,
+          "agent_queries_bounded": true,
+          "counts_first_expand_on_request": true,
+          "full_graph_dumps_present": true
+        },
+        "portability": {
+          "export_import_formats_json_or_jsonld": true,
+          "export_import_round_trip_tested": true,
+          "versioned_snapshots": true,
+          "deletion_is_real": true,
+          "tombstones_where_required_addressed": true
+        },
+        "privacy": {
+          "access_scoped": true,
+          "encryption_at_rest": true,
+          "sensitive_nodes_redactable": true,
+          "third_party_personal_data_without_lawful_basis_present": false
+        },
+        "red_lines": {
+          "unprovenanced_assertions_presented_as_fact_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "knowledge-graph-design",
+        "atom_version": "0.1.0",
+        "graph": "customer-360-graph",
+        "verdict": "KNOWLEDGE_GRAPH_DESIGN_NOT_SOUND",
+        "sections": {
+          "schema_and_modeling": "fail",
+          "provenance": "fail",
+          "immutable_history": "fail",
+          "storage_and_query_retrieval": "fail",
+          "portability_and_ownership": "pass",
+          "privacy_and_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "schema_and_modeling",
+            "check": "entities_relations_attributes_modeled",
+            "status": "pass",
+            "evidence": "model deliberately: entities, relations and attributes are modeled deliberately"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "schema_changes_go_through_migrations",
+            "status": "pass",
+            "evidence": "model deliberately: schema changes go through migrations like a database"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "migration_path_documented",
+            "status": "pass",
+            "evidence": "quality gate: schema and migration path are documented"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "stable_ids_everywhere",
+            "status": "pass",
+            "evidence": "model deliberately: stable IDs everywhere"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "core_type_count_within_stated_start_range",
+            "status": "fail",
+            "evidence": "model deliberately: the declared core type count starts small \u2014 the skill states 10-20 core types"
+          },
+          {
+            "section": "provenance",
+            "check": "provenance_on_every_assertion",
+            "status": "pass",
+            "evidence": "provenance: every assertion carries provenance \u2014 source, date and confidence"
+          },
+          {
+            "section": "provenance",
+            "check": "user_asserted_inferred_imported_distinguished",
+            "status": "pass",
+            "evidence": "provenance: user-asserted, inferred and imported facts are distinguished"
+          },
+          {
+            "section": "provenance",
+            "check": "assertions_declared",
+            "status": "pass",
+            "evidence": "the declared record names its assertions \u2014 the assertions list is present and non-empty"
+          },
+          {
+            "section": "provenance",
+            "check": "every_assertion_carries_full_provenance",
+            "status": "fail",
+            "evidence": "provenance: every declared assertion row declares source, date and confidence"
+          },
+          {
+            "section": "provenance",
+            "check": "every_assertion_origin_classified",
+            "status": "pass",
+            "evidence": "provenance: every declared assertion row declares its origin classified"
+          },
+          {
+            "section": "immutable_history",
+            "check": "append_only_event_log_is_source_of_truth",
+            "status": "pass",
+            "evidence": "immutable history: an append-only event log is the source of truth"
+          },
+          {
+            "section": "immutable_history",
+            "check": "current_state_is_projection",
+            "status": "pass",
+            "evidence": "immutable history: current state is a projection of the event log"
+          },
+          {
+            "section": "immutable_history",
+            "check": "corrections_are_new_events_referencing_old",
+            "status": "pass",
+            "evidence": "immutable history: corrections are new events referencing the old"
+          },
+          {
+            "section": "immutable_history",
+            "check": "no_silent_edits",
+            "status": "fail",
+            "evidence": "red line: no silent edits \u2014 append or version"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "storage_fit_selected",
+            "status": "pass",
+            "evidence": "storage fit: storage is selected to fit \u2014 SQLite/Postgres with an edges table for most needs, a dedicated graph DB only when query complexity or scale demands"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "graph_db_justified_when_dedicated_graph_db_used",
+            "status": "pass",
+            "evidence": "storage fit: a dedicated graph DB is justified by query complexity or scale when one is used"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "canonical_query_patterns_defined",
+            "status": "pass",
+            "evidence": "query and retrieval: canonical query patterns \u2014 neighborhoods, paths and temporal windows \u2014 are defined"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "retrieval_indexes_paired",
+            "status": "pass",
+            "evidence": "storage fit: full-text and vector indexes are paired for retrieval"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "agent_queries_bounded",
+            "status": "pass",
+            "evidence": "quality gate: agent queries are bounded"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "counts_first_expand_on_request",
+            "status": "pass",
+            "evidence": "query and retrieval: bounded answers for agents \u2014 counts first, expand on request (token-aware serialization)"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "no_full_graph_dumps",
+            "status": "fail",
+            "evidence": "query and retrieval: the graph is never dumped \u2014 bounded answers only"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "export_import_formats_json_or_jsonld",
+            "status": "pass",
+            "evidence": "portability and ownership: export and import formats are simple JSON or JSON-LD"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "export_import_round_trip_tested",
+            "status": "pass",
+            "evidence": "quality gate: export and import are tested round-trip"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "versioned_snapshots",
+            "status": "pass",
+            "evidence": "portability and ownership: versioned snapshots are kept"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "deletion_is_real",
+            "status": "pass",
+            "evidence": "red line: deletion is real \u2014 deletion must actually delete"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "tombstones_where_required_addressed",
+            "status": "pass",
+            "evidence": "portability and ownership: tombstones where required are addressed alongside real deletion"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "access_scoped",
+            "status": "pass",
+            "evidence": "quality gate: access is scoped \u2014 graphs reveal relationships"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "encryption_at_rest",
+            "status": "pass",
+            "evidence": "privacy and encryption: the graph is encrypted at rest"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "sensitive_nodes_redactable",
+            "status": "pass",
+            "evidence": "privacy and encryption: sensitive nodes are redactable"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "no_third_party_personal_data_without_lawful_basis",
+            "status": "pass",
+            "evidence": "privacy and encryption: no third-party personal data is ingested without a lawful basis"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "no_unprovenanced_assertions_presented_as_fact",
+            "status": "pass",
+            "evidence": "red line: no unprovenanced assertions are presented as fact"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "assertions_count": 1,
+        "assertions_without_full_provenance": [
+          "row_1"
+        ],
+        "provenance_coverage": "0.000000",
+        "assertions_without_origin_classification": [],
+        "origin_classification_coverage": "1.000000",
+        "declared_core_type_count": 5,
+        "summary": "27 pass, 4 fail, 0 missing of 31 checks across six sections.",
+        "stamp": "KNOWLEDGE GRAPH DESIGN\ngraph: customer-360-graph\nVERDICT: KNOWLEDGE_GRAPH_DESIGN_NOT_SOUND\n  schema_and_modeling                  fail\n  provenance                           fail\n  immutable_history                    fail\n  storage_and_query_retrieval          fail\n  portability_and_ownership            pass\n  privacy_and_red_lines                pass\n27 pass, 4 fail, 0 missing of 31 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing almost all required fields, resulting in INSUFFICIENT_EVIDENCE."
+      },
+      "input": {
+        "graph": "incomplete-graph"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "knowledge-graph-design",
+        "atom_version": "0.1.0",
+        "graph": "incomplete-graph",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "schema_and_modeling": "insufficient_evidence",
+          "provenance": "insufficient_evidence",
+          "immutable_history": "insufficient_evidence",
+          "storage_and_query_retrieval": "insufficient_evidence",
+          "portability_and_ownership": "insufficient_evidence",
+          "privacy_and_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "schema_and_modeling",
+            "check": "entities_relations_attributes_modeled",
+            "status": "missing",
+            "evidence": "model deliberately: entities, relations and attributes are modeled deliberately"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "schema_changes_go_through_migrations",
+            "status": "missing",
+            "evidence": "model deliberately: schema changes go through migrations like a database"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "migration_path_documented",
+            "status": "missing",
+            "evidence": "quality gate: schema and migration path are documented"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "stable_ids_everywhere",
+            "status": "missing",
+            "evidence": "model deliberately: stable IDs everywhere"
+          },
+          {
+            "section": "schema_and_modeling",
+            "check": "core_type_count_within_stated_start_range",
+            "status": "missing",
+            "evidence": "model deliberately: the declared core type count starts small \u2014 the skill states 10-20 core types"
+          },
+          {
+            "section": "provenance",
+            "check": "provenance_on_every_assertion",
+            "status": "missing",
+            "evidence": "provenance: every assertion carries provenance \u2014 source, date and confidence"
+          },
+          {
+            "section": "provenance",
+            "check": "user_asserted_inferred_imported_distinguished",
+            "status": "missing",
+            "evidence": "provenance: user-asserted, inferred and imported facts are distinguished"
+          },
+          {
+            "section": "provenance",
+            "check": "assertions_declared",
+            "status": "missing",
+            "evidence": "the declared record names its assertions \u2014 the assertions list is present and non-empty"
+          },
+          {
+            "section": "provenance",
+            "check": "every_assertion_carries_full_provenance",
+            "status": "missing",
+            "evidence": "provenance: every declared assertion row declares source, date and confidence"
+          },
+          {
+            "section": "provenance",
+            "check": "every_assertion_origin_classified",
+            "status": "missing",
+            "evidence": "provenance: every declared assertion row declares its origin classified"
+          },
+          {
+            "section": "immutable_history",
+            "check": "append_only_event_log_is_source_of_truth",
+            "status": "missing",
+            "evidence": "immutable history: an append-only event log is the source of truth"
+          },
+          {
+            "section": "immutable_history",
+            "check": "current_state_is_projection",
+            "status": "missing",
+            "evidence": "immutable history: current state is a projection of the event log"
+          },
+          {
+            "section": "immutable_history",
+            "check": "corrections_are_new_events_referencing_old",
+            "status": "missing",
+            "evidence": "immutable history: corrections are new events referencing the old"
+          },
+          {
+            "section": "immutable_history",
+            "check": "no_silent_edits",
+            "status": "missing",
+            "evidence": "red line: no silent edits \u2014 append or version"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "storage_fit_selected",
+            "status": "missing",
+            "evidence": "storage fit: storage is selected to fit \u2014 SQLite/Postgres with an edges table for most needs, a dedicated graph DB only when query complexity or scale demands"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "graph_db_justified_when_dedicated_graph_db_used",
+            "status": "missing",
+            "evidence": "no dedicated graph DB declared"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "canonical_query_patterns_defined",
+            "status": "missing",
+            "evidence": "query and retrieval: canonical query patterns \u2014 neighborhoods, paths and temporal windows \u2014 are defined"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "retrieval_indexes_paired",
+            "status": "missing",
+            "evidence": "storage fit: full-text and vector indexes are paired for retrieval"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "agent_queries_bounded",
+            "status": "missing",
+            "evidence": "quality gate: agent queries are bounded"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "counts_first_expand_on_request",
+            "status": "missing",
+            "evidence": "query and retrieval: bounded answers for agents \u2014 counts first, expand on request (token-aware serialization)"
+          },
+          {
+            "section": "storage_and_query_retrieval",
+            "check": "no_full_graph_dumps",
+            "status": "missing",
+            "evidence": "query and retrieval: the graph is never dumped \u2014 bounded answers only"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "export_import_formats_json_or_jsonld",
+            "status": "missing",
+            "evidence": "portability and ownership: export and import formats are simple JSON or JSON-LD"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "export_import_round_trip_tested",
+            "status": "missing",
+            "evidence": "quality gate: export and import are tested round-trip"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "versioned_snapshots",
+            "status": "missing",
+            "evidence": "portability and ownership: versioned snapshots are kept"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "deletion_is_real",
+            "status": "missing",
+            "evidence": "red line: deletion is real \u2014 deletion must actually delete"
+          },
+          {
+            "section": "portability_and_ownership",
+            "check": "tombstones_where_required_addressed",
+            "status": "missing",
+            "evidence": "portability and ownership: tombstones where required are addressed alongside real deletion"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "access_scoped",
+            "status": "missing",
+            "evidence": "quality gate: access is scoped \u2014 graphs reveal relationships"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "encryption_at_rest",
+            "status": "missing",
+            "evidence": "privacy and encryption: the graph is encrypted at rest"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "sensitive_nodes_redactable",
+            "status": "missing",
+            "evidence": "privacy and encryption: sensitive nodes are redactable"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "no_third_party_personal_data_without_lawful_basis",
+            "status": "missing",
+            "evidence": "privacy and encryption: no third-party personal data is ingested without a lawful basis"
+          },
+          {
+            "section": "privacy_and_red_lines",
+            "check": "no_unprovenanced_assertions_presented_as_fact",
+            "status": "missing",
+            "evidence": "red line: no unprovenanced assertions are presented as fact"
+          }
+        ],
+        "computed_status": null,
+        "assertions_count": null,
+        "assertions_without_full_provenance": null,
+        "provenance_coverage": null,
+        "assertions_without_origin_classification": null,
+        "origin_classification_coverage": null,
+        "declared_core_type_count": null,
+        "summary": "0 pass, 0 fail, 31 missing of 31 checks across six sections.",
+        "stamp": "KNOWLEDGE GRAPH DESIGN\ngraph: incomplete-graph\nVERDICT: INSUFFICIENT_EVIDENCE\n  schema_and_modeling                  insufficient_evidence\n  provenance                           insufficient_evidence\n  immutable_history                    insufficient_evidence\n  storage_and_query_retrieval          insufficient_evidence\n  portability_and_ownership            insufficient_evidence\n  privacy_and_red_lines                insufficient_evidence\n0 pass, 0 fail, 31 missing of 31 checks across six sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch for core_type_count (string instead of number)."
+      },
+      "input": {
+        "graph": "malformed-graph",
+        "schema": {
+          "core_type_count": "not-a-number"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "schema.core_type_count",
+        "detail": "schema.core_type_count must be a number"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

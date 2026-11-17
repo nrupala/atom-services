@@ -1,0 +1,1075 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: javascript-review-and-build
+
+=== contract.yaml ===
+service_name: javascript-review-and-build
+display_name: Javascript review and build
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:javascript-engineering
+binding:
+  skill: javascript-engineering
+  skill_path: workspace/mymilo-build/skills/javascript-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: REVIEW
+endpoints:
+- agent
+keys:
+  namespace: javascript_review_and_build
+  prefix: atm_1_javascript_review_and_build_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: No-build site script engineering
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Javascript review and build — `javascript-review-and-build`
+
+**Deliverable type:** REVIEW. This atom sells the review it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Modern JavaScript done right — ESM, no implicit globals, async discipline, XSS-safe DOM, bundle awareness.
+
+A caller submits the inputs the bound skill works on and receives one review back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this review on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **No-build site script engineering**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the javascript-review-and-build manifest
+
+The caller submits one JSON manifest: a declared JavaScript
+review/build record for one subject — the caller's declared
+module, async, DOM, environment, bundle, file, test and
+red-line record for one piece of JavaScript or one build,
+worked through the bound skill's method. Every field below is
+read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present
+but false / invalid = the check fails
+(`JAVASCRIPT_REVIEW_NOT_SOUND`). All fields are booleans
+unless noted.
+
+| Field | Read by |
+|---|---|
+| `subject` (string; carried into the verdict output, not itself checked) | — |
+| `modules.esm_used_everywhere` (boolean) | modules_and_strictness |
+| `modules.implicit_globals_present` (boolean; must be `false` to pass — skill quality gate) | modules_and_strictness |
+| `modules.var_used_present` (boolean; must be `false` to pass — skill method: never `var`) | modules_and_strictness |
+| `modules.const_by_default_let_when_reassigned` (boolean) | modules_and_strictness |
+| `modules.strict_mode_in_effect` (boolean) | modules_and_strictness |
+| `modules.jsdoc_types_for_reused_code` (boolean) | modules_and_strictness |
+| `async.async_await_with_real_error_handling` (boolean) | async_discipline |
+| `async.every_promise_handled_or_explicitly_caught` (boolean) | async_discipline |
+| `async.network_calls_present` (boolean; gates the timeout check below) | async_discipline |
+| `async.network_timeouts_via_abort_controller` (boolean; required when network calls are declared present; otherwise the check passes as not applicable) | async_discipline |
+| `dom.nodes_built_with_text_content_and_create_element` (boolean) | dom_safety |
+| `dom.user_input_via_inner_html_present` (boolean; must be `false` to pass — skill DOM safety) | dom_safety |
+| `dom.html_truly_needed_present` (boolean; gates the sanitization check below) | dom_safety |
+| `dom.sanitization_applied_when_html_truly_needed` (boolean; required when HTML is declared truly needed; otherwise the check passes as not applicable) | dom_safety |
+| `environment.no_dom_apis_in_node_code` (boolean) | environment_and_bundle |
+| `environment.shared_code_present` (boolean; gates the feature-detection check below) | environment_and_bundle |
+| `environment.feature_detection_when_shared_code` (boolean; required when shared code is declared present; otherwise the check passes as not applicable) | environment_and_bundle |
+| `bundle.bundle_contents_known` (boolean) | environment_and_bundle |
+| `bundle.huge_dependencies_for_small_jobs_present` (boolean; must be `false` to pass — skill bundle awareness) | environment_and_bundle |
+| `bundle.optional_code_split` (boolean) | environment_and_bundle |
+| `files` (list of file-row objects, each with the entry fields below; computed, see below) | modules_and_strictness, async_discipline, dom_safety |
+| `files[].name` (string; names the row in the computed outputs) | modules_and_strictness, async_discipline, dom_safety |
+| `files[].esm_module` (boolean) | modules_and_strictness |
+| `files[].var_present` (boolean; must be `false` per row to pass the computed var check) | modules_and_strictness |
+| `files[].unhandled_promise_present` (boolean; must be `false` per row to pass the computed promise check) | async_discipline |
+| `files[].inner_html_with_user_input_present` (boolean; must be `false` per row to pass the computed injection check) | dom_safety |
+| `tests.pure_logic_unit_tested` (boolean) | tests_and_red_lines |
+| `tests.ui_present` (boolean; gates the manual-smoke check below) | tests_and_red_lines |
+| `tests.manual_smoke_for_ui` (boolean; required when a UI is declared present; otherwise the check passes as not applicable) | tests_and_red_lines |
+| `tests.logic_extracted_from_event_handlers_and_tested` (boolean) | tests_and_red_lines |
+| `red_lines.eval_or_function_on_untrusted_input_present` (boolean; must be `false` to pass — skill red line) | tests_and_red_lines |
+| `red_lines.secrets_in_client_side_code_present` (boolean; must be `false` to pass — skill red line) | tests_and_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Files declared:** the declared `files` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **ESM per file:** every declared file row must declare
+  `esm_module: true` (the skill: "ESM (`import`/`export`)
+  everywhere"). A row with the field absent is missing
+  evidence.
+- **No var per file:** no declared file row may declare
+  `var_present: true` (the skill: "never `var`"). A row with
+  the field absent is missing evidence.
+- **No unhandled promise per file:** no declared file row may
+  declare `unhandled_promise_present: true` (the skill:
+  "every promise handled or explicitly `.catch`ed").
+- **No innerHTML injection per file:** no declared file row
+  may declare `inner_html_with_user_input_present: true`
+  (the skill: "never inject user input via `innerHTML`").
+
+Four checks are conditional, following the skill's own
+scoping — computed from the declared gate fields:
+
+- **Network timeouts:** `network_timeouts_via_abort_controller`
+  is required only when `async.network_calls_present` is
+  declared `true`; when no network calls are declared, the
+  check passes as not applicable.
+- **Sanitization:** `sanitization_applied_when_html_truly_needed`
+  is required only when `dom.html_truly_needed_present` is
+  declared `true`; otherwise the check passes as not
+  applicable.
+- **Feature detection:** `feature_detection_when_shared_code`
+  is required only when `environment.shared_code_present` is
+  declared `true`; otherwise the check passes as not
+  applicable.
+- **Manual smoke for UI:** `manual_smoke_for_ui` is required
+  only when `tests.ui_present` is declared `true`; otherwise
+  the check passes as not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`files_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers,
+exactly), the row-name lists `files_without_esm` (files whose
+field is present but not true; a file with the field absent is
+missing evidence and does not appear), `files_using_var`
+(files declaring `var_present: true`),
+`files_with_unhandled_promises` (files declaring
+`unhandled_promise_present: true`) and
+`files_injecting_user_input_via_inner_html` (files declaring
+`inner_html_with_user_input_present: true`), and the coverage
+ratio `esm_coverage` (ES-module files ÷ declared files).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no bundle
+size, no dependency size, no coverage percentage: its bundle,
+async and test concepts are content the record attests to, not
+bars the atom can set. Quantities are computed and reported;
+the only bar on the computed rows is completeness over the
+caller's own declared rows, exactly as stated above. Declined
+thresholds, named: a bundle-size limit in kilobytes or any
+other unit (the skill says "know what ships" and "no huge
+deps for small jobs" but states no size); a dependency-size
+or dependency-count limit, or a definition of "huge" or
+"small" (caller attestation only); a network-timeout duration
+in milliseconds or seconds (the skill requires timeouts via
+`AbortController` but states no duration); a test-coverage
+percentage (the skill requires unit tests for pure logic but
+states no coverage bar); a number of files, modules or
+promises a review must cover; a code-size, complexity or
+growth threshold at which plain JavaScript should become
+TypeScript (the skill says "Prefer TypeScript for anything
+that grows" but states no size or complexity number — which
+side of that line a subject sits on is a caller declaration,
+never judged here); a coverage percentage below completeness.
+
+The verdict is one of `JAVASCRIPT_REVIEW_SOUND` (all 27 checks
+pass), `JAVASCRIPT_REVIEW_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: modules_and_strictness, async_discipline,
+dom_safety, environment_and_bundle, tests_and_red_lines.
+
+## Distinct ground
+
+Sibling atoms `c-engineering-review`, `cpp-engineering-review`
+and `code-review-service` are live, but this atom shares **zero
+checks** with any of them. The boundary: those atoms audit,
+respectively, C memory/undefined-behaviour evidence, C++
+RAII/value-semantics evidence, and the pull-request review
+process (PR size, checklist, feedback and approval gates).
+This atom audits only JavaScript-specific evidence from the
+`javascript-engineering` skill — ESM/`var`/strictness/JSDoc,
+promise and `AbortController` discipline, `textContent` /
+`createElement` / `innerHTML` DOM safety, Node-vs-DOM
+environment split, and bundle/code-split awareness. No check
+name, manifest field or verdict overlaps a sibling's.
+
+## Honest scoping
+
+This atom audits a **declared** JavaScript review/build record
+— it runs no code, parses no source, lints nothing, probes no
+live page or bundle, and does not verify that a declared
+control actually works. A review is sound *on the caller's
+declared evidence*: a manifest that declares ESM everywhere,
+every promise handled, and no `innerHTML` injection passes
+those checks even if the real code does none of it. It is a
+completeness and consistency audit of the record the skill
+requires, **not a code review, a linter, a security audit, or
+a certification**: it never judges whether code actually
+contains an implicit global, an unhandled promise or an XSS
+trap the manifest did not declare, whether error handling is
+genuinely adequate, whether sanitization is effective,
+whether a dependency is genuinely too large for its job, or
+whether TypeScript would have been the better call — only
+that the record contains what the skill's method, quality
+gates and red lines demand, and that its declared rows are
+internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no source inspection —
+`eval`/`Function` use, secret presence, `var` use and
+`innerHTML` injection are caller-declared present/absent
+flags, the atom reads no code; correctness of the underlying
+JavaScript (logic, algorithm, API use) is a caller
+declaration — the atom checks only that the skill's disciplines
+are declared applied; whether plain JS versus TypeScript is
+the right call for a subject is a caller declaration, not
+re-audited here.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Generic engineering skill
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "javascript-review-and-build",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "JAVASCRIPT_REVIEW_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields satisfy skill quality gates and red lines; one ESM file, no var, no unhandled promises, no innerHTML injection.",
+        "computed_spot_checks": {
+          "files_count": 1,
+          "files_without_esm": [],
+          "esm_coverage": "1.000000",
+          "files_using_var": [],
+          "files_with_unhandled_promises": [],
+          "files_injecting_user_input_via_inner_html": [],
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "subject": "auth-module",
+        "modules": {
+          "esm_used_everywhere": true,
+          "implicit_globals_present": false,
+          "var_used_present": false,
+          "const_by_default_let_when_reassigned": true,
+          "strict_mode_in_effect": true,
+          "jsdoc_types_for_reused_code": true
+        },
+        "async": {
+          "async_await_with_real_error_handling": true,
+          "every_promise_handled_or_explicitly_caught": true,
+          "network_calls_present": false
+        },
+        "dom": {
+          "nodes_built_with_text_content_and_create_element": true,
+          "user_input_via_inner_html_present": false,
+          "html_truly_needed_present": false
+        },
+        "environment": {
+          "no_dom_apis_in_node_code": true,
+          "shared_code_present": false
+        },
+        "bundle": {
+          "bundle_contents_known": true,
+          "huge_dependencies_for_small_jobs_present": false,
+          "optional_code_split": true
+        },
+        "files": [
+          {
+            "name": "index.js",
+            "esm_module": true,
+            "var_present": false,
+            "unhandled_promise_present": false,
+            "inner_html_with_user_input_present": false
+          }
+        ],
+        "tests": {
+          "pure_logic_unit_tested": true,
+          "ui_present": false,
+          "logic_extracted_from_event_handlers_and_tested": true
+        },
+        "red_lines": {
+          "eval_or_function_on_untrusted_input_present": false,
+          "secrets_in_client_side_code_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "javascript-review-and-build",
+        "atom_version": "0.1.0",
+        "subject": "auth-module",
+        "verdict": "JAVASCRIPT_REVIEW_SOUND",
+        "sections": {
+          "modules_and_strictness": "pass",
+          "async_discipline": "pass",
+          "dom_safety": "pass",
+          "environment_and_bundle": "pass",
+          "tests_and_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "modules_and_strictness",
+            "check": "esm_used_everywhere",
+            "status": "pass",
+            "evidence": "modules: ESM (import/export) is used everywhere"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_implicit_globals",
+            "status": "pass",
+            "evidence": "quality gate: no implicit globals are present"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_var_used",
+            "status": "pass",
+            "evidence": "modules: never var \u2014 const by default, let when reassigned"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "const_by_default_let_when_reassigned",
+            "status": "pass",
+            "evidence": "modules: const by default, let when reassigned"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "strict_mode_in_effect",
+            "status": "pass",
+            "evidence": "strictness: use strict is in effect \u2014 implicit in modules"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "jsdoc_types_for_reused_code",
+            "status": "pass",
+            "evidence": "strictness: JSDoc types are carried for anything reused without TypeScript"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "files_declared",
+            "status": "pass",
+            "evidence": "the declared record names its files \u2014 the files list is present and non-empty"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "every_file_is_esm",
+            "status": "pass",
+            "evidence": "modules: every declared file row is an ES module"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_file_uses_var",
+            "status": "pass",
+            "evidence": "quality gate: no declared file row uses var"
+          },
+          {
+            "section": "async_discipline",
+            "check": "async_await_with_real_error_handling",
+            "status": "pass",
+            "evidence": "async discipline: async/await is used with real error handling"
+          },
+          {
+            "section": "async_discipline",
+            "check": "every_promise_handled_or_explicitly_caught",
+            "status": "pass",
+            "evidence": "async discipline: every promise is handled or explicitly .catch'ed"
+          },
+          {
+            "section": "async_discipline",
+            "check": "network_timeouts_via_abort_controller_when_network_calls",
+            "status": "pass",
+            "evidence": "no network calls declared"
+          },
+          {
+            "section": "async_discipline",
+            "check": "no_file_has_unhandled_promise",
+            "status": "pass",
+            "evidence": "quality gate: no declared file row carries an unhandled promise"
+          },
+          {
+            "section": "dom_safety",
+            "check": "nodes_built_with_text_content_and_create_element",
+            "status": "pass",
+            "evidence": "DOM safety: nodes are built with textContent / createElement"
+          },
+          {
+            "section": "dom_safety",
+            "check": "no_user_input_via_inner_html",
+            "status": "pass",
+            "evidence": "DOM safety: user input is never injected via innerHTML"
+          },
+          {
+            "section": "dom_safety",
+            "check": "sanitization_when_html_truly_needed",
+            "status": "pass",
+            "evidence": "no HTML rendering truly needed declared"
+          },
+          {
+            "section": "dom_safety",
+            "check": "no_file_injects_user_input_via_inner_html",
+            "status": "pass",
+            "evidence": "quality gate: no declared file row injects user input via innerHTML"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "no_dom_apis_in_node_code",
+            "status": "pass",
+            "evidence": "environment split: no DOM APIs are used in Node code"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "feature_detection_when_shared_code",
+            "status": "pass",
+            "evidence": "no shared code declared"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "bundle_contents_known",
+            "status": "pass",
+            "evidence": "bundle awareness: what ships is known"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "no_huge_dependencies_for_small_jobs",
+            "status": "pass",
+            "evidence": "bundle awareness: no huge dependencies are carried for small jobs"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "optional_code_split",
+            "status": "pass",
+            "evidence": "bundle awareness: anything optional is code-split"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "pure_logic_unit_tested",
+            "status": "pass",
+            "evidence": "tests: pure logic is unit-tested (vitest / node:test)"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "manual_smoke_for_ui_when_ui_present",
+            "status": "pass",
+            "evidence": "no UI declared"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "logic_extracted_from_event_handlers_and_tested",
+            "status": "pass",
+            "evidence": "quality gate: logic is extracted from event handlers so it is testable, and tested"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "no_eval_or_function_on_untrusted_input",
+            "status": "pass",
+            "evidence": "red line: never eval / Function on untrusted input"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "no_secrets_in_client_side_code",
+            "status": "pass",
+            "evidence": "red line: no secrets in client-side code \u2014 assume it is public"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "files_count": 1,
+        "files_without_esm": [],
+        "esm_coverage": "1.000000",
+        "files_using_var": [],
+        "files_with_unhandled_promises": [],
+        "files_injecting_user_input_via_inner_html": [],
+        "summary": "27 pass, 0 fail, 0 missing of 27 checks across five sections.",
+        "stamp": "JAVASCRIPT REVIEW AND BUILD\nsubject: auth-module\nVERDICT: JAVASCRIPT_REVIEW_SOUND\n  modules_and_strictness               pass\n  async_discipline                     pass\n  dom_safety                           pass\n  environment_and_bundle               pass\n  tests_and_red_lines                  pass\n27 pass, 0 fail, 0 missing of 27 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "JAVASCRIPT_REVIEW_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_implicit_globals",
+          "no_var_used",
+          "no_file_uses_var",
+          "no_file_has_unhandled_promise",
+          "no_user_input_via_inner_html",
+          "no_file_injects_user_input_via_inner_html",
+          "no_huge_dependencies_for_small_jobs",
+          "no_eval_or_function_on_untrusted_input",
+          "no_secrets_in_client_side_code"
+        ],
+        "notes": "Full manifest identical to full-pass except 9 planted values: modules.implicit_globals_present true, modules.var_used_present true, dom.user_input_via_inner_html_present true, bundle.huge_dependencies_for_small_jobs_present true, files[0] var_present/unhandled_promise_present/inner_html_with_user_input_present true, red_lines eval and secrets flags true.",
+        "computed_spot_checks": {
+          "files_count": 1,
+          "files_without_esm": [],
+          "esm_coverage": "1.000000",
+          "files_using_var": [
+            "index.js"
+          ],
+          "files_with_unhandled_promises": [
+            "index.js"
+          ],
+          "files_injecting_user_input_via_inner_html": [
+            "index.js"
+          ],
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "subject": "auth-module",
+        "modules": {
+          "esm_used_everywhere": true,
+          "implicit_globals_present": true,
+          "var_used_present": true,
+          "const_by_default_let_when_reassigned": true,
+          "strict_mode_in_effect": true,
+          "jsdoc_types_for_reused_code": true
+        },
+        "async": {
+          "async_await_with_real_error_handling": true,
+          "every_promise_handled_or_explicitly_caught": true,
+          "network_calls_present": false
+        },
+        "dom": {
+          "nodes_built_with_text_content_and_create_element": true,
+          "user_input_via_inner_html_present": true,
+          "html_truly_needed_present": false
+        },
+        "environment": {
+          "no_dom_apis_in_node_code": true,
+          "shared_code_present": false
+        },
+        "bundle": {
+          "bundle_contents_known": true,
+          "huge_dependencies_for_small_jobs_present": true,
+          "optional_code_split": true
+        },
+        "files": [
+          {
+            "name": "index.js",
+            "esm_module": true,
+            "var_present": true,
+            "unhandled_promise_present": true,
+            "inner_html_with_user_input_present": true
+          }
+        ],
+        "tests": {
+          "pure_logic_unit_tested": true,
+          "ui_present": false,
+          "logic_extracted_from_event_handlers_and_tested": true
+        },
+        "red_lines": {
+          "eval_or_function_on_untrusted_input_present": true,
+          "secrets_in_client_side_code_present": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "javascript-review-and-build",
+        "atom_version": "0.1.0",
+        "subject": "auth-module",
+        "verdict": "JAVASCRIPT_REVIEW_NOT_SOUND",
+        "sections": {
+          "modules_and_strictness": "fail",
+          "async_discipline": "fail",
+          "dom_safety": "fail",
+          "environment_and_bundle": "fail",
+          "tests_and_red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "modules_and_strictness",
+            "check": "esm_used_everywhere",
+            "status": "pass",
+            "evidence": "modules: ESM (import/export) is used everywhere"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_implicit_globals",
+            "status": "fail",
+            "evidence": "quality gate: no implicit globals are present"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_var_used",
+            "status": "fail",
+            "evidence": "modules: never var \u2014 const by default, let when reassigned"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "const_by_default_let_when_reassigned",
+            "status": "pass",
+            "evidence": "modules: const by default, let when reassigned"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "strict_mode_in_effect",
+            "status": "pass",
+            "evidence": "strictness: use strict is in effect \u2014 implicit in modules"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "jsdoc_types_for_reused_code",
+            "status": "pass",
+            "evidence": "strictness: JSDoc types are carried for anything reused without TypeScript"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "files_declared",
+            "status": "pass",
+            "evidence": "the declared record names its files \u2014 the files list is present and non-empty"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "every_file_is_esm",
+            "status": "pass",
+            "evidence": "modules: every declared file row is an ES module"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_file_uses_var",
+            "status": "fail",
+            "evidence": "quality gate: no declared file row uses var"
+          },
+          {
+            "section": "async_discipline",
+            "check": "async_await_with_real_error_handling",
+            "status": "pass",
+            "evidence": "async discipline: async/await is used with real error handling"
+          },
+          {
+            "section": "async_discipline",
+            "check": "every_promise_handled_or_explicitly_caught",
+            "status": "pass",
+            "evidence": "async discipline: every promise is handled or explicitly .catch'ed"
+          },
+          {
+            "section": "async_discipline",
+            "check": "network_timeouts_via_abort_controller_when_network_calls",
+            "status": "pass",
+            "evidence": "no network calls declared"
+          },
+          {
+            "section": "async_discipline",
+            "check": "no_file_has_unhandled_promise",
+            "status": "fail",
+            "evidence": "quality gate: no declared file row carries an unhandled promise"
+          },
+          {
+            "section": "dom_safety",
+            "check": "nodes_built_with_text_content_and_create_element",
+            "status": "pass",
+            "evidence": "DOM safety: nodes are built with textContent / createElement"
+          },
+          {
+            "section": "dom_safety",
+            "check": "no_user_input_via_inner_html",
+            "status": "fail",
+            "evidence": "DOM safety: user input is never injected via innerHTML"
+          },
+          {
+            "section": "dom_safety",
+            "check": "sanitization_when_html_truly_needed",
+            "status": "pass",
+            "evidence": "no HTML rendering truly needed declared"
+          },
+          {
+            "section": "dom_safety",
+            "check": "no_file_injects_user_input_via_inner_html",
+            "status": "fail",
+            "evidence": "quality gate: no declared file row injects user input via innerHTML"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "no_dom_apis_in_node_code",
+            "status": "pass",
+            "evidence": "environment split: no DOM APIs are used in Node code"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "feature_detection_when_shared_code",
+            "status": "pass",
+            "evidence": "no shared code declared"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "bundle_contents_known",
+            "status": "pass",
+            "evidence": "bundle awareness: what ships is known"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "no_huge_dependencies_for_small_jobs",
+            "status": "fail",
+            "evidence": "bundle awareness: no huge dependencies are carried for small jobs"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "optional_code_split",
+            "status": "pass",
+            "evidence": "bundle awareness: anything optional is code-split"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "pure_logic_unit_tested",
+            "status": "pass",
+            "evidence": "tests: pure logic is unit-tested (vitest / node:test)"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "manual_smoke_for_ui_when_ui_present",
+            "status": "pass",
+            "evidence": "no UI declared"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "logic_extracted_from_event_handlers_and_tested",
+            "status": "pass",
+            "evidence": "quality gate: logic is extracted from event handlers so it is testable, and tested"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "no_eval_or_function_on_untrusted_input",
+            "status": "fail",
+            "evidence": "red line: never eval / Function on untrusted input"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "no_secrets_in_client_side_code",
+            "status": "fail",
+            "evidence": "red line: no secrets in client-side code \u2014 assume it is public"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "files_count": 1,
+        "files_without_esm": [],
+        "esm_coverage": "1.000000",
+        "files_using_var": [
+          "index.js"
+        ],
+        "files_with_unhandled_promises": [
+          "index.js"
+        ],
+        "files_injecting_user_input_via_inner_html": [
+          "index.js"
+        ],
+        "summary": "18 pass, 9 fail, 0 missing of 27 checks across five sections.",
+        "stamp": "JAVASCRIPT REVIEW AND BUILD\nsubject: auth-module\nVERDICT: JAVASCRIPT_REVIEW_NOT_SOUND\n  modules_and_strictness               fail\n  async_discipline                     fail\n  dom_safety                           fail\n  environment_and_bundle               fail\n  tests_and_red_lines                  fail\n18 pass, 9 fail, 0 missing of 27 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required fields for modules, async, dom, etc."
+      },
+      "input": {
+        "subject": "incomplete-record"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "javascript-review-and-build",
+        "atom_version": "0.1.0",
+        "subject": "incomplete-record",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "modules_and_strictness": "insufficient_evidence",
+          "async_discipline": "insufficient_evidence",
+          "dom_safety": "insufficient_evidence",
+          "environment_and_bundle": "insufficient_evidence",
+          "tests_and_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "modules_and_strictness",
+            "check": "esm_used_everywhere",
+            "status": "missing",
+            "evidence": "modules: ESM (import/export) is used everywhere"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_implicit_globals",
+            "status": "missing",
+            "evidence": "quality gate: no implicit globals are present"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_var_used",
+            "status": "missing",
+            "evidence": "modules: never var \u2014 const by default, let when reassigned"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "const_by_default_let_when_reassigned",
+            "status": "missing",
+            "evidence": "modules: const by default, let when reassigned"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "strict_mode_in_effect",
+            "status": "missing",
+            "evidence": "strictness: use strict is in effect \u2014 implicit in modules"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "jsdoc_types_for_reused_code",
+            "status": "missing",
+            "evidence": "strictness: JSDoc types are carried for anything reused without TypeScript"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "files_declared",
+            "status": "missing",
+            "evidence": "the declared record names its files \u2014 the files list is present and non-empty"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "every_file_is_esm",
+            "status": "missing",
+            "evidence": "modules: every declared file row is an ES module"
+          },
+          {
+            "section": "modules_and_strictness",
+            "check": "no_file_uses_var",
+            "status": "missing",
+            "evidence": "quality gate: no declared file row uses var"
+          },
+          {
+            "section": "async_discipline",
+            "check": "async_await_with_real_error_handling",
+            "status": "missing",
+            "evidence": "async discipline: async/await is used with real error handling"
+          },
+          {
+            "section": "async_discipline",
+            "check": "every_promise_handled_or_explicitly_caught",
+            "status": "missing",
+            "evidence": "async discipline: every promise is handled or explicitly .catch'ed"
+          },
+          {
+            "section": "async_discipline",
+            "check": "network_timeouts_via_abort_controller_when_network_calls",
+            "status": "missing",
+            "evidence": "no network calls declared"
+          },
+          {
+            "section": "async_discipline",
+            "check": "no_file_has_unhandled_promise",
+            "status": "missing",
+            "evidence": "quality gate: no declared file row carries an unhandled promise"
+          },
+          {
+            "section": "dom_safety",
+            "check": "nodes_built_with_text_content_and_create_element",
+            "status": "missing",
+            "evidence": "DOM safety: nodes are built with textContent / createElement"
+          },
+          {
+            "section": "dom_safety",
+            "check": "no_user_input_via_inner_html",
+            "status": "missing",
+            "evidence": "DOM safety: user input is never injected via innerHTML"
+          },
+          {
+            "section": "dom_safety",
+            "check": "sanitization_when_html_truly_needed",
+            "status": "missing",
+            "evidence": "no HTML rendering truly needed declared"
+          },
+          {
+            "section": "dom_safety",
+            "check": "no_file_injects_user_input_via_inner_html",
+            "status": "missing",
+            "evidence": "quality gate: no declared file row injects user input via innerHTML"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "no_dom_apis_in_node_code",
+            "status": "missing",
+            "evidence": "environment split: no DOM APIs are used in Node code"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "feature_detection_when_shared_code",
+            "status": "missing",
+            "evidence": "no shared code declared"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "bundle_contents_known",
+            "status": "missing",
+            "evidence": "bundle awareness: what ships is known"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "no_huge_dependencies_for_small_jobs",
+            "status": "missing",
+            "evidence": "bundle awareness: no huge dependencies are carried for small jobs"
+          },
+          {
+            "section": "environment_and_bundle",
+            "check": "optional_code_split",
+            "status": "missing",
+            "evidence": "bundle awareness: anything optional is code-split"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "pure_logic_unit_tested",
+            "status": "missing",
+            "evidence": "tests: pure logic is unit-tested (vitest / node:test)"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "manual_smoke_for_ui_when_ui_present",
+            "status": "missing",
+            "evidence": "no UI declared"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "logic_extracted_from_event_handlers_and_tested",
+            "status": "missing",
+            "evidence": "quality gate: logic is extracted from event handlers so it is testable, and tested"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "no_eval_or_function_on_untrusted_input",
+            "status": "missing",
+            "evidence": "red line: never eval / Function on untrusted input"
+          },
+          {
+            "section": "tests_and_red_lines",
+            "check": "no_secrets_in_client_side_code",
+            "status": "missing",
+            "evidence": "red line: no secrets in client-side code \u2014 assume it is public"
+          }
+        ],
+        "computed_status": null,
+        "files_count": null,
+        "files_without_esm": null,
+        "esm_coverage": null,
+        "files_using_var": null,
+        "files_with_unhandled_promises": null,
+        "files_injecting_user_input_via_inner_html": null,
+        "summary": "0 pass, 0 fail, 27 missing of 27 checks across five sections.",
+        "stamp": "JAVASCRIPT REVIEW AND BUILD\nsubject: incomplete-record\nVERDICT: INSUFFICIENT_EVIDENCE\n  modules_and_strictness               insufficient_evidence\n  async_discipline                     insufficient_evidence\n  dom_safety                           insufficient_evidence\n  environment_and_bundle               insufficient_evidence\n  tests_and_red_lines                  insufficient_evidence\n0 pass, 0 fail, 27 missing of 27 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Input schema violation: modules field expects object, received string."
+      },
+      "input": {
+        "subject": "type-error",
+        "modules": "not-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "modules",
+        "detail": "modules must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

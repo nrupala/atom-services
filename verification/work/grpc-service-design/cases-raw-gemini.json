@@ -1,0 +1,148 @@
+{
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "input": {
+        "project": "test-service",
+        "contract": {
+          "proto3_used": true,
+          "removed_fields_reserved": true,
+          "backward_forward_compatibility_rules_documented": true,
+          "buf_lint_in_ci": true,
+          "breaking_change_check_in_ci": true,
+          "codegen_pinned": true,
+          "codegen_generated_in_ci": true,
+          "hand_generated_stubs_present": false,
+          "field_number_reuse_present": false
+        },
+        "proto_fields": [
+          {
+            "message": "User",
+            "name": "id",
+            "number": 1
+          },
+          {
+            "message": "User",
+            "name": "name",
+            "number": 2
+          }
+        ],
+        "api_shape": {
+          "streaming_choices_documented_by_flow": true,
+          "cancellation_propagation_configured": true,
+          "rich_error_model_used": true,
+          "metadata_limited_to_transport_concerns": true
+        },
+        "methods": [
+          {
+            "name": "GetUser",
+            "streaming_mode": "unary",
+            "deadline_set": true
+          }
+        ],
+        "server": {
+          "health_service_exposed": true,
+          "reflection_enabled": false,
+          "interceptors_for_auth_logging_metrics_tracing": true,
+          "keepalive_and_pool_tuning_configured": true,
+          "explicit_max_message_sizes_set": true
+        },
+        "security": {
+          "cross_host_traffic_present": false,
+          "authorization_via_interceptor_or_external_policy": true,
+          "public_surfaces_present": false
+        },
+        "observability": {
+          "trace_and_request_id_propagation_configured": true,
+          "per_method_metrics_collected": true,
+          "structured_errors_logged_once": true
+        },
+        "testing": {
+          "in_process_integration_tests_present": true,
+          "contract_tests_pass_against_clients": true,
+          "load_smoke_on_hot_paths_run": true
+        },
+        "interop": {
+          "rest_consumers_present": false,
+          "browser_clients_present": false,
+          "packages_versioned_v1": true,
+          "deprecated_fields_announced_then_removed_on_schedule": true
+        }
+      },
+      "expect": {
+        "outcome": "GRPC_SERVICE_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "computed_spot_checks: methods_count=1, proto_fields_count=2, deadline_coverage=1.000000"
+      }
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "input": {
+        "project": "bad-service",
+        "contract": {
+          "hand_generated_stubs_present": true,
+          "field_number_reuse_present": true
+        },
+        "proto_fields": [
+          {
+            "message": "Msg",
+            "name": "a",
+            "number": 1
+          },
+          {
+            "message": "Msg",
+            "name": "b",
+            "number": 1
+          }
+        ],
+        "methods": [
+          {
+            "name": "Stream",
+            "streaming_mode": "server",
+            "deadline_set": false,
+            "stream_bounded": false
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "GRPC_SERVICE_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "contract_and_compatibility",
+          "api_shape_and_deadlines"
+        ],
+        "notes": "Triggers red lines for hand-generated stubs, field number reuse, missing deadlines, and unbounded streaming."
+      }
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "input": {
+        "project": "incomplete-service"
+      },
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists and boolean fields results in insufficient evidence."
+      }
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "input": {
+        "project": "malformed-service",
+        "contract": "not-an-object"
+      },
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Contract field expects an object, provided a string."
+      }
+    }
+  ]
+}

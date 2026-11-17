@@ -1,0 +1,105 @@
+# Independent recompute — local-first-sync-design
+
+## Method
+
+I recompute every computed quantity from the case input using only the rules stated in SERVICE.md. The 47 checks are: 8 local_truth/data_model scalar checks + 3 entity-computed checks (entities_declared, every_entity_per_field_merge_semantics_declared, every_entity_stable_id_declared) = 11 in section 1; 6 in sync_protocol; 8 in encryption_and_keys (7 scalar + 1 conditional); 14 in conflicts_and_state_ui (2 scalar conflicts + 2 red-line + 8 state_ui + 1 conditional badge + 1 prose-entity computed); 8 in testing_and_quality_gates. Total 11+6+8+14+8 = 47. ✓
+
+---
+
+## CASE 1: `full-pass`
+
+### Entity-derived quantities
+
+Declared `entities` list = `[notes]`, length **1**.
+
+- `entities_count` = 1. Artifact: `1`. **MATCH**
+- `entities_declared`: list present and non-empty → **pass**. Artifact: pass. **MATCH**
+- `entities_without_merge_semantics`: rows with field present but not true. `notes.per_field_merge_semantics_declared = true` → none. `[]`. Artifact: `[]`. **MATCH**
+- `entities_without_stable_id`: `notes.stable_id_declared = true` → none. `[]`. Artifact: `[]`. **MATCH**
+- `prose_entities_with_silent_last_write_wins`: prose rows with `silent_last_write_wins_present: true`. `notes` is prose, value `false` → none. `[]`. Artifact: `[]`. **MATCH**
+
+### Coverage ratios (rule: round half up to 6dp, `floor(v*1000000+0.5)/1000000`, format 6 decimals)
+
+- `merge_semantics_coverage` = entities declaring per-field merge semantics ÷ declared entities = 1 ÷ 1 = 1.0.
+  - `floor(1.0 * 1000000 + 0.5) = floor(1000000.5) = 1000000`; `/1000000 = 1.0` → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+- `stable_id_coverage` = 1 ÷ 1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+### Conditional checks
+
+- **Personal data encryption:** `personal_data_synced = false` → check passes as not applicable. Artifact: pass ("no personal data declared synced"). **MATCH**
+- **Sync badge:** `sync_badge_claimed = false` → passes as not applicable. Artifact: pass ("no sync badge claimed"). **MATCH**
+
+### Scalar checks (spot-verify the ones that could fail)
+
+All declared booleans are `true` except the red-line fields, which are `false`:
+- `conflicts.silent_data_loss_present = false` → `no_silent_data_loss` pass. ✓
+- `conflicts.silent_last_write_wins_on_user_prose_present = false` → `no_silent_last_write_wins_on_user_prose` pass. ✓
+- `notes.silent_last_write_wins_present = false` → `no_prose_entity_uses_silent_last_write_wins` pass. ✓
+- `testing.multi_device_round_trip_tests_passed = true` → pass. ✓
+
+No check fails; no field absent → no missing evidence.
+
+### Verdict & status
+
+- 47 pass, 0 fail, 0 missing. Artifact summary: "47 pass, 0 fail, 0 missing of 47 checks". **MATCH**
+- `computed_status`: all four primary computed checks completed and within limits → `within_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+- `verdict`: all 47 pass → `LOCAL_FIRST_SYNC_SOUND`. Artifact: same. **MATCH**
+- All five sections `pass`. Artifact: all pass. **MATCH**
+
+---
+
+## CASE 2: `violations`
+
+Input differs from full-pass in exactly two planted values:
+1. `entities[0].silent_last_write_wins_present`: `false` → **`true`**
+2. `conflicts.silent_last_write_wins_on_user_prose_present`: `false` → **`true`**
+
+### Entity-derived quantities
+
+- `entities_count` = 1. Artifact: `1`. **MATCH**
+- `entities_declared`: present, non-empty → pass. Artifact: pass. **MATCH**
+- `entities_without_merge_semantics`: `notes` merge semantics = true → `[]`. Artifact: `[]`. **MATCH**
+- `entities_without_stable_id`: `notes` stable id = true → `[]`. Artifact: `[]`. **MATCH**
+- `prose_entities_with_silent_last_write_wins`: `notes` is prose AND `silent_last_write_wins_present = true` → `["notes"]`. Artifact: `["notes"]`. **MATCH**
+
+### Coverage ratios
+
+- `merge_semantics_coverage` = 1 ÷ 1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+- `stable_id_coverage` = 1 ÷ 1 = 1.0 → `"1.000000"`. Artifact: `"1.000000"`. **MATCH**
+
+### Which checks should fail (planted wrong values)
+
+The two planted values map to exactly two red-line checks:
+
+1. `conflicts.silent_last_write_wins_on_user_prose_present = true` → **`no_silent_last_write_wins_on_user_prose` FAILS**. Artifact: fail. **MATCH**
+2. `notes.silent_last_write_wins_present = true` (prose row) → **`no_prose_entity_uses_silent_last_write_wins` FAILS**. Artifact: fail. **MATCH**
+
+All other checks: every other declared boolean is `true` (or the red-line `silent_data_loss_present = false`), so they pass. Conditional checks: personal data not synced → pass; badge not claimed → pass. So exactly **2 fail, 45 pass, 0 missing**. Artifact summary: "45 pass, 2 fail, 0 missing of 47 checks". **MATCH**
+
+The failing checks are exactly the two the planted values should fail — no more, no fewer. **CONFIRMED**
+
+### Verdict & status
+
+- Any check fails → `verdict = LOCAL_FIRST_SYNC_NOT_SOUND`. Artifact: same. **MATCH**
+- `computed_status`: a primary computed check is outside limits → `outside_stated_limits_on_declared_evidence`. Artifact: same. **MATCH**
+- Sections: only `conflicts_and_state_ui` = fail; other four = pass. Artifact: same. **MATCH**
+
+---
+
+## Summary of all recomputed quantities
+
+| Quantity | Case 1 artifact | Case 1 recompute | Case 2 artifact | Case 2 recompute |
+|---|---|---|---|---|
+| entities_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| entities_without_merge_semantics | [] | [] ✓ | [] | [] ✓ |
+| entities_without_stable_id | [] | [] ✓ | [] | [] ✓ |
+| prose_entities_with_silent_last_write_wins | [] | [] ✓ | ["notes"] | ["notes"] ✓ |
+| merge_semantics_coverage | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| stable_id_coverage | 1.000000 | 1.000000 ✓ | 1.000000 | 1.000000 ✓ |
+| computed_status | within… | within… ✓ | outside… | outside… ✓ |
+| verdict | SOUND | SOUND ✓ | NOT_SOUND | NOT_SOUND ✓ |
+| pass/fail/missing | 47/0/0 | 47/0/0 ✓ | 45/2/0 | 45/2/0 ✓ |
+
+Every computed quantity and headline value matches. The violations case fails exactly the two checks the planted values target.
+
+AGREEMENT: full

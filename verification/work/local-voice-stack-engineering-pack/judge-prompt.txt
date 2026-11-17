@@ -1,0 +1,1130 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: local-voice-stack-engineering-pack
+
+=== contract.yaml ===
+service_name: local-voice-stack-engineering-pack
+display_name: Local voice stack engineering pack
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:voice-and-speech-engineering
+binding:
+  skill: voice-and-speech-engineering
+  skill_path: workspace/mymilo-build/skills/voice-and-speech-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: local_voice_stack_engineering_pack
+  prefix: atm_1_local_voice_stack_engineering_pack_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Reader and assistant voice features
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Local voice stack engineering pack — `local-voice-stack-engineering-pack`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build local voice & speech stacks — TTS/STT selection, cloning consent, latency, audio quality, accessibility.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Reader and assistant voice features**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the local-voice-stack manifest
+
+The caller submits one JSON manifest: a declared local
+voice-stack engineering record for one stack. Every field below
+is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but
+false / invalid = the check fails
+(`LOCAL_VOICE_STACK_NOT_SOUND`). All fields are booleans unless
+noted.
+
+| Field | Read by |
+|---|---|
+| `stack` (string; carried into the verdict output, not itself checked) | — |
+| `pipeline.tts_stt_or_both_scope_declared` (boolean) | pipeline_and_engine_selection |
+| `pipeline.streaming_vs_file_output_declared` (boolean) | pipeline_and_engine_selection |
+| `pipeline.local_first_by_default` (boolean) | pipeline_and_engine_selection |
+| `engine_selection.quality_latency_footprint_evaluated` (boolean) | pipeline_and_engine_selection |
+| `engine_selection.language_coverage_addressed` (boolean) | pipeline_and_engine_selection |
+| `engines` (list of engine-row objects, each with the entry fields below; computed, see below) | pipeline_and_engine_selection, cloning_consent_and_ethics |
+| `engines[].name` (string; names the row in the computed outputs) | pipeline_and_engine_selection, cloning_consent_and_ethics |
+| `engines[].license_cleared_for_commercial_use` (boolean) | pipeline_and_engine_selection |
+| `engines[].evaluated_on_own_golden_sentences` (boolean) | pipeline_and_engine_selection |
+| `engines[].is_voice_cloning` (boolean; gates the consent check below) | cloning_consent_and_ethics |
+| `engines[].cloning_consent_recorded` (boolean; required when the row is a voice-cloning engine; otherwise the check passes as not applicable to that row) | cloning_consent_and_ethics |
+| `cloning.impersonation_present` (boolean; must be `false` to pass — skill red line) | cloning_consent_and_ethics |
+| `cloning.covert_recording_present` (boolean; must be `false` to pass — skill red line) | cloning_consent_and_ethics |
+| `cloning.synthetic_audio_disclosure_where_required` (boolean) | cloning_consent_and_ethics |
+| `cloning.voice_profiles_encrypted_at_rest` (boolean) | cloning_consent_and_ethics |
+| `cloning.deletion_honored` (boolean) | cloning_consent_and_ethics |
+| `audio_engineering.sample_rate_and_format_choices_declared` (boolean) | audio_engineering_and_latency |
+| `audio_engineering.loudness_normalization_applied` (boolean) | audio_engineering_and_latency |
+| `audio_engineering.chunking_for_long_text_with_pauses` (boolean) | audio_engineering_and_latency |
+| `audio_engineering.caching_synthesized_segments_for_repeat_text` (boolean) | audio_engineering_and_latency |
+| `latency.time_to_first_audio_budget_stated` (boolean) | audio_engineering_and_latency |
+| `latency.latency_measured_against_stated_budget` (boolean) | audio_engineering_and_latency |
+| `latency.chunked_synthesis` (boolean) | audio_engineering_and_latency |
+| `latency.assistant_interactive_use_present` (boolean; gates the barge-in check below) | audio_engineering_and_latency |
+| `latency.interruption_barge_in_handling` (boolean; required when assistant interactive use is declared present; otherwise the check passes as not applicable) | audio_engineering_and_latency |
+| `accessibility.speed_controls_present` (boolean) | accessibility |
+| `accessibility.pitch_controls_present` (boolean) | accessibility |
+| `accessibility.captions_or_transcripts_wired` (boolean) | accessibility |
+| `accessibility.keyboard_operable_players` (boolean) | accessibility |
+| `testing.golden_audio_regressions_in_test_loop` (boolean) | testing_and_quality_gates |
+| `testing.golden_hash_and_human_spot_checks` (boolean) | testing_and_quality_gates |
+| `testing.noisy_input_stt_tests` (boolean) | testing_and_quality_gates |
+| `testing.pronunciation_dictionaries_for_names_numbers_code` (boolean) | testing_and_quality_gates |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Engines declared:** the declared `engines` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **License per engine:** every declared engine row must declare
+  `license_cleared_for_commercial_use: true` (the skill: "license
+  cleared for the intended use (commercial!)"; quality gate:
+  "licenses cleared"). A row with the field absent is missing
+  evidence.
+- **Golden-sentence evaluation per engine:** every declared
+  engine row must declare
+  `evaluated_on_own_golden_sentences: true` (the skill:
+  "evaluate on YOUR golden sentences — not vendor demos").
+- **Consent per cloning engine:** every row with
+  `is_voice_cloning: true` must declare
+  `cloning_consent_recorded: true` (the skill's method and red
+  line: "explicit, recorded consent for any real-person voice";
+  "Never clone without consent"). A row with `is_voice_cloning`
+  absent, or a cloning row with the consent field absent, is
+  missing evidence; stacks with no cloning rows pass as not
+  applicable.
+
+One check is conditional, following the skill's own scoping —
+computed from the declared gate field:
+
+- **Interruption / barge-in:** the skill requires
+  interruption/barge-in handling "for assistants".
+  `interruption_barge_in_handling` is therefore required only
+  when `latency.assistant_interactive_use_present` is declared
+  `true`; when no assistant interactive use is declared, the
+  check passes as not applicable.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the four primary computed checks above cannot be completed),
+`engines_count` (the declared list length, or null when the list
+is not declared — counts are reported as integers, exactly), the
+row-name lists `engines_without_license_clearance` (engines whose
+field is present but not true; an engine with the field absent
+is missing evidence and does not appear),
+`engines_without_golden_sentence_evaluation` (engines whose field
+is present but not true) and
+`cloning_engines_without_consent_recorded` (cloning engines whose
+field is present but not true), and the two coverage ratios
+`license_coverage` (engines with license cleared ÷ declared
+engines) and `golden_evaluation_coverage` (engines evaluated on
+own golden sentences ÷ declared engines).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — its latency,
+quality and footprint quantities are engineering content the
+record attests to addressing, not bars the atom can set.
+Quantities are computed and reported; the only bar on the
+computed rows is completeness over the caller's own declared
+rows, exactly as stated above. Declined thresholds, named: a
+time-to-first-audio or overall latency budget in milliseconds
+(the skill requires a stated budget and measurement against it
+but states no number — caller attestation only); a word-error
+rate (WER) or character-error rate for STT, including a
+noisy-input WER or signal-to-noise degradation bar (the skill
+requires noisy-input STT tests but states no rate); an audio
+quality score (MOS or similar) or a golden-sample hash-match
+percentage (the skill requires hash + human spot-checks but
+states no score); a sample rate in kHz, a bit depth, or an
+opus/wav bitrate (the skill names wav/opus as format choices but
+states no rate); a loudness target in LUFS or dB (the skill
+requires loudness normalization but states no target); a CPU/GPU
+footprint, memory, model-size or real-time-factor limit (the
+skill requires quality vs latency vs footprint evaluation but
+states no limit); a number of languages or a language-coverage
+percentage (the skill requires language coverage to be addressed
+but states no count); a pronunciation accuracy rate (the skill
+requires pronunciation dictionaries but states no rate); a
+speed or pitch control range (the skill requires the controls
+present but states no range); a coverage percentage below
+completeness.
+
+The verdict is one of `LOCAL_VOICE_STACK_SOUND` (all 30 checks
+pass), `LOCAL_VOICE_STACK_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: pipeline_and_engine_selection,
+cloning_consent_and_ethics, audio_engineering_and_latency,
+accessibility, testing_and_quality_gates.
+
+## Distinct ground
+
+`voice-note-narration-audio` (scaffolded, no built core) produces
+spoken audio as its deliverable; this atom audits a declared
+voice-stack *engineering* record (engine selection, consent,
+latency, accessibility, testing) and produces no audio — zero
+shared checks. `local-llm-serving-setup` covers LLM serving, not
+speech engines; the bound skill names it as related, but no
+check here reads an LLM-serving field. This atom's ground is
+only the `voice-and-speech-engineering` method, quality gates
+and red lines.
+
+## Honest scoping
+
+This atom audits a **declared** local voice-stack engineering
+record — it builds no stack, synthesizes or transcribes no
+audio, runs or benchmarks no engine, plays no audio, and does
+not verify that a declared control actually works. A stack is
+sound *on the caller's declared evidence*: a manifest that
+declares licenses cleared, consent recorded, and latency
+measured passes those checks even if the real stack does none
+of it. It is a completeness and consistency audit of the record
+the skill requires, **not a voice engineering service or a
+legal/ethics certification**: it never judges whether an engine
+is actually good, whether a license really permits the use,
+whether consent was genuinely obtained, whether latency is
+actually within budget, or whether the accessibility controls
+actually work — only that the record contains what the skill's
+method, quality gates and red lines demand, and that its
+declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no listening — audio
+quality, pronunciation and transcription accuracy are
+caller-declared flags and test attestations, the atom hears no
+audio and reads no transcripts; engine quality (whether the
+selected engine is the right choice for the use) is a caller
+declaration — the atom checks only that the selection criteria
+are declared evaluated; legal sufficiency of consent, disclosure
+or licensing for any jurisdiction is not judged — only that the
+record declares them addressed; accessibility effectiveness
+(whether the controls actually serve audio users) is a caller
+declaration — only their declared presence is checked.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "local-voice-stack-engineering-pack",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "LOCAL_VOICE_STACK_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. computed_spot_checks: engines_count=1, license_coverage=1.000000, golden_evaluation_coverage=1.000000",
+        "computed_spot_checks": {
+          "engines_count": 1,
+          "engines_without_license_clearance": [],
+          "license_coverage": "1.000000",
+          "engines_without_golden_sentence_evaluation": [],
+          "golden_evaluation_coverage": "1.000000",
+          "cloning_engines_without_consent_recorded": [],
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "stack": "production-voice-stack-v1",
+        "pipeline": {
+          "tts_stt_or_both_scope_declared": true,
+          "streaming_vs_file_output_declared": true,
+          "local_first_by_default": true
+        },
+        "engine_selection": {
+          "quality_latency_footprint_evaluated": true,
+          "language_coverage_addressed": true
+        },
+        "engines": [
+          {
+            "name": "engine_a",
+            "license_cleared_for_commercial_use": true,
+            "evaluated_on_own_golden_sentences": true,
+            "is_voice_cloning": true,
+            "cloning_consent_recorded": true
+          }
+        ],
+        "cloning": {
+          "impersonation_present": false,
+          "covert_recording_present": false,
+          "synthetic_audio_disclosure_where_required": true,
+          "voice_profiles_encrypted_at_rest": true,
+          "deletion_honored": true
+        },
+        "audio_engineering": {
+          "sample_rate_and_format_choices_declared": true,
+          "loudness_normalization_applied": true,
+          "chunking_for_long_text_with_pauses": true,
+          "caching_synthesized_segments_for_repeat_text": true
+        },
+        "latency": {
+          "time_to_first_audio_budget_stated": true,
+          "latency_measured_against_stated_budget": true,
+          "chunked_synthesis": true,
+          "assistant_interactive_use_present": true,
+          "interruption_barge_in_handling": true
+        },
+        "accessibility": {
+          "speed_controls_present": true,
+          "pitch_controls_present": true,
+          "captions_or_transcripts_wired": true,
+          "keyboard_operable_players": true
+        },
+        "testing": {
+          "golden_audio_regressions_in_test_loop": true,
+          "golden_hash_and_human_spot_checks": true,
+          "noisy_input_stt_tests": true,
+          "pronunciation_dictionaries_for_names_numbers_code": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "local-voice-stack-engineering-pack",
+        "atom_version": "0.1.0",
+        "stack": "production-voice-stack-v1",
+        "verdict": "LOCAL_VOICE_STACK_SOUND",
+        "sections": {
+          "pipeline_and_engine_selection": "pass",
+          "cloning_consent_and_ethics": "pass",
+          "audio_engineering_and_latency": "pass",
+          "accessibility": "pass",
+          "testing_and_quality_gates": "pass"
+        },
+        "checks": [
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "pipeline_scope_declared",
+            "status": "pass",
+            "evidence": "pipeline first: the pipeline scope \u2014 TTS (synthesis), STT (transcription), or both \u2014 is declared"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "output_mode_declared",
+            "status": "pass",
+            "evidence": "pipeline first: streaming vs file output is declared"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "local_first_by_default",
+            "status": "pass",
+            "evidence": "pipeline first: device-side vs server is decided local-first by default \u2014 run it local where it matters"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "quality_latency_footprint_evaluated",
+            "status": "pass",
+            "evidence": "engine selection: quality vs latency vs footprint (CPU/GPU) is evaluated"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "language_coverage_addressed",
+            "status": "pass",
+            "evidence": "engine selection: language coverage is addressed"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "engines_declared",
+            "status": "pass",
+            "evidence": "the declared record names its engines \u2014 the engines list is present and non-empty"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "every_engine_license_cleared_for_commercial_use",
+            "status": "pass",
+            "evidence": "engine selection / quality gate: every declared engine row declares its license cleared for the intended use (commercial)"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "every_engine_evaluated_on_own_golden_sentences",
+            "status": "pass",
+            "evidence": "engine selection: every declared engine row declares evaluation on the caller's own golden sentences \u2014 not vendor demos"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "no_impersonation",
+            "status": "pass",
+            "evidence": "cloning ethics & law / red line: no impersonation is present in the declared design"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "no_covert_recording",
+            "status": "pass",
+            "evidence": "red line: no covert recording is present in the declared design"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "synthetic_audio_disclosure_where_required",
+            "status": "pass",
+            "evidence": "cloning ethics & law / red line: synthetic audio is disclosed where required \u2014 where context demands it"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "voice_profiles_encrypted_at_rest",
+            "status": "pass",
+            "evidence": "cloning ethics & law: voice profiles are encrypted at rest \u2014 cloned voices are treated as the sensitive thing they are"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "deletion_honored",
+            "status": "pass",
+            "evidence": "cloning ethics & law: deletion of voice profiles is honored"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "every_cloning_engine_has_consent_recorded",
+            "status": "pass",
+            "evidence": "cloning ethics & law / quality gate / red line: every engine row declared as a voice-cloning engine declares explicit, recorded consent for the real-person voice \u2014 never clone without consent"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "sample_rate_and_format_choices_declared",
+            "status": "pass",
+            "evidence": "audio engineering: sample-rate/format choices (wav/opus) are declared"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "loudness_normalization_applied",
+            "status": "pass",
+            "evidence": "audio engineering: loudness normalization is applied"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "chunking_for_long_text_with_pauses",
+            "status": "pass",
+            "evidence": "audio engineering: chunking for long text (keep-alive + pauses) is in place"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "caching_synthesized_segments_for_repeat_text",
+            "status": "pass",
+            "evidence": "audio engineering: synthesized segments are cached for repeat text"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "time_to_first_audio_budget_stated",
+            "status": "pass",
+            "evidence": "latency budgets: a time-to-first-audio target for interactive use is stated"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "latency_measured_against_stated_budget",
+            "status": "pass",
+            "evidence": "latency budgets / quality gate: latency is measured against a stated budget \u2014 measure latency honestly"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "chunked_synthesis",
+            "status": "pass",
+            "evidence": "latency budgets: chunked synthesis is used"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "interruption_barge_in_when_assistant_use",
+            "status": "pass",
+            "evidence": "latency budgets: interruption/barge-in handling is in place when assistant interactive use is declared present"
+          },
+          {
+            "section": "accessibility",
+            "check": "speed_controls_present",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: speed controls are present"
+          },
+          {
+            "section": "accessibility",
+            "check": "pitch_controls_present",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: pitch controls are present"
+          },
+          {
+            "section": "accessibility",
+            "check": "captions_or_transcripts_wired",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: captions/transcripts from STT are wired"
+          },
+          {
+            "section": "accessibility",
+            "check": "keyboard_operable_players",
+            "status": "pass",
+            "evidence": "accessibility: players are keyboard-operable \u2014 audio users are users"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "golden_audio_regressions_in_test_loop",
+            "status": "pass",
+            "evidence": "testing / quality gate: golden-sample regressions are in the test loop"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "golden_hash_and_human_spot_checks",
+            "status": "pass",
+            "evidence": "testing: golden-audio regressions use hash + human spot-checks"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "noisy_input_stt_tests",
+            "status": "pass",
+            "evidence": "testing: noisy-input STT tests are run"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "pronunciation_dictionaries_for_names_numbers_code",
+            "status": "pass",
+            "evidence": "testing: pronunciation dictionaries for names/numbers/code are in place"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "engines_count": 1,
+        "engines_without_license_clearance": [],
+        "license_coverage": "1.000000",
+        "engines_without_golden_sentence_evaluation": [],
+        "golden_evaluation_coverage": "1.000000",
+        "cloning_engines_without_consent_recorded": [],
+        "summary": "30 pass, 0 fail, 0 missing of 30 checks across five sections.",
+        "stamp": "LOCAL VOICE STACK ENGINEERING PACK\nstack: production-voice-stack-v1\nVERDICT: LOCAL_VOICE_STACK_SOUND\n  pipeline_and_engine_selection        pass\n  cloning_consent_and_ethics           pass\n  audio_engineering_and_latency        pass\n  accessibility                        pass\n  testing_and_quality_gates            pass\n30 pass, 0 fail, 0 missing of 30 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "LOCAL_VOICE_STACK_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_engine_license_cleared_for_commercial_use",
+          "every_engine_evaluated_on_own_golden_sentences",
+          "no_impersonation",
+          "no_covert_recording",
+          "every_cloning_engine_has_consent_recorded",
+          "interruption_barge_in_when_assistant_use"
+        ],
+        "notes": "Multiple fields set to false or violating red lines.",
+        "computed_spot_checks": {
+          "engines_count": 1,
+          "engines_without_license_clearance": [
+            "bad_engine"
+          ],
+          "license_coverage": "0.000000",
+          "engines_without_golden_sentence_evaluation": [
+            "bad_engine"
+          ],
+          "golden_evaluation_coverage": "0.000000",
+          "cloning_engines_without_consent_recorded": [
+            "bad_engine"
+          ],
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "stack": "bad-stack",
+        "pipeline": {
+          "tts_stt_or_both_scope_declared": true,
+          "streaming_vs_file_output_declared": true,
+          "local_first_by_default": true
+        },
+        "engine_selection": {
+          "quality_latency_footprint_evaluated": true,
+          "language_coverage_addressed": true
+        },
+        "engines": [
+          {
+            "name": "bad_engine",
+            "license_cleared_for_commercial_use": false,
+            "evaluated_on_own_golden_sentences": false,
+            "is_voice_cloning": true,
+            "cloning_consent_recorded": false
+          }
+        ],
+        "cloning": {
+          "impersonation_present": true,
+          "covert_recording_present": true,
+          "synthetic_audio_disclosure_where_required": true,
+          "voice_profiles_encrypted_at_rest": true,
+          "deletion_honored": true
+        },
+        "audio_engineering": {
+          "sample_rate_and_format_choices_declared": true,
+          "loudness_normalization_applied": true,
+          "chunking_for_long_text_with_pauses": true,
+          "caching_synthesized_segments_for_repeat_text": true
+        },
+        "latency": {
+          "time_to_first_audio_budget_stated": true,
+          "latency_measured_against_stated_budget": true,
+          "chunked_synthesis": true,
+          "assistant_interactive_use_present": true,
+          "interruption_barge_in_handling": false
+        },
+        "accessibility": {
+          "speed_controls_present": true,
+          "pitch_controls_present": true,
+          "captions_or_transcripts_wired": true,
+          "keyboard_operable_players": true
+        },
+        "testing": {
+          "golden_audio_regressions_in_test_loop": true,
+          "golden_hash_and_human_spot_checks": true,
+          "noisy_input_stt_tests": true,
+          "pronunciation_dictionaries_for_names_numbers_code": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "local-voice-stack-engineering-pack",
+        "atom_version": "0.1.0",
+        "stack": "bad-stack",
+        "verdict": "LOCAL_VOICE_STACK_NOT_SOUND",
+        "sections": {
+          "pipeline_and_engine_selection": "fail",
+          "cloning_consent_and_ethics": "fail",
+          "audio_engineering_and_latency": "fail",
+          "accessibility": "pass",
+          "testing_and_quality_gates": "pass"
+        },
+        "checks": [
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "pipeline_scope_declared",
+            "status": "pass",
+            "evidence": "pipeline first: the pipeline scope \u2014 TTS (synthesis), STT (transcription), or both \u2014 is declared"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "output_mode_declared",
+            "status": "pass",
+            "evidence": "pipeline first: streaming vs file output is declared"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "local_first_by_default",
+            "status": "pass",
+            "evidence": "pipeline first: device-side vs server is decided local-first by default \u2014 run it local where it matters"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "quality_latency_footprint_evaluated",
+            "status": "pass",
+            "evidence": "engine selection: quality vs latency vs footprint (CPU/GPU) is evaluated"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "language_coverage_addressed",
+            "status": "pass",
+            "evidence": "engine selection: language coverage is addressed"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "engines_declared",
+            "status": "pass",
+            "evidence": "the declared record names its engines \u2014 the engines list is present and non-empty"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "every_engine_license_cleared_for_commercial_use",
+            "status": "fail",
+            "evidence": "engine selection / quality gate: every declared engine row declares its license cleared for the intended use (commercial)"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "every_engine_evaluated_on_own_golden_sentences",
+            "status": "fail",
+            "evidence": "engine selection: every declared engine row declares evaluation on the caller's own golden sentences \u2014 not vendor demos"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "no_impersonation",
+            "status": "fail",
+            "evidence": "cloning ethics & law / red line: no impersonation is present in the declared design"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "no_covert_recording",
+            "status": "fail",
+            "evidence": "red line: no covert recording is present in the declared design"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "synthetic_audio_disclosure_where_required",
+            "status": "pass",
+            "evidence": "cloning ethics & law / red line: synthetic audio is disclosed where required \u2014 where context demands it"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "voice_profiles_encrypted_at_rest",
+            "status": "pass",
+            "evidence": "cloning ethics & law: voice profiles are encrypted at rest \u2014 cloned voices are treated as the sensitive thing they are"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "deletion_honored",
+            "status": "pass",
+            "evidence": "cloning ethics & law: deletion of voice profiles is honored"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "every_cloning_engine_has_consent_recorded",
+            "status": "fail",
+            "evidence": "cloning ethics & law / quality gate / red line: every engine row declared as a voice-cloning engine declares explicit, recorded consent for the real-person voice \u2014 never clone without consent"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "sample_rate_and_format_choices_declared",
+            "status": "pass",
+            "evidence": "audio engineering: sample-rate/format choices (wav/opus) are declared"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "loudness_normalization_applied",
+            "status": "pass",
+            "evidence": "audio engineering: loudness normalization is applied"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "chunking_for_long_text_with_pauses",
+            "status": "pass",
+            "evidence": "audio engineering: chunking for long text (keep-alive + pauses) is in place"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "caching_synthesized_segments_for_repeat_text",
+            "status": "pass",
+            "evidence": "audio engineering: synthesized segments are cached for repeat text"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "time_to_first_audio_budget_stated",
+            "status": "pass",
+            "evidence": "latency budgets: a time-to-first-audio target for interactive use is stated"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "latency_measured_against_stated_budget",
+            "status": "pass",
+            "evidence": "latency budgets / quality gate: latency is measured against a stated budget \u2014 measure latency honestly"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "chunked_synthesis",
+            "status": "pass",
+            "evidence": "latency budgets: chunked synthesis is used"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "interruption_barge_in_when_assistant_use",
+            "status": "fail",
+            "evidence": "latency budgets: interruption/barge-in handling is in place when assistant interactive use is declared present"
+          },
+          {
+            "section": "accessibility",
+            "check": "speed_controls_present",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: speed controls are present"
+          },
+          {
+            "section": "accessibility",
+            "check": "pitch_controls_present",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: pitch controls are present"
+          },
+          {
+            "section": "accessibility",
+            "check": "captions_or_transcripts_wired",
+            "status": "pass",
+            "evidence": "accessibility / quality gate: captions/transcripts from STT are wired"
+          },
+          {
+            "section": "accessibility",
+            "check": "keyboard_operable_players",
+            "status": "pass",
+            "evidence": "accessibility: players are keyboard-operable \u2014 audio users are users"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "golden_audio_regressions_in_test_loop",
+            "status": "pass",
+            "evidence": "testing / quality gate: golden-sample regressions are in the test loop"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "golden_hash_and_human_spot_checks",
+            "status": "pass",
+            "evidence": "testing: golden-audio regressions use hash + human spot-checks"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "noisy_input_stt_tests",
+            "status": "pass",
+            "evidence": "testing: noisy-input STT tests are run"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "pronunciation_dictionaries_for_names_numbers_code",
+            "status": "pass",
+            "evidence": "testing: pronunciation dictionaries for names/numbers/code are in place"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "engines_count": 1,
+        "engines_without_license_clearance": [
+          "bad_engine"
+        ],
+        "license_coverage": "0.000000",
+        "engines_without_golden_sentence_evaluation": [
+          "bad_engine"
+        ],
+        "golden_evaluation_coverage": "0.000000",
+        "cloning_engines_without_consent_recorded": [
+          "bad_engine"
+        ],
+        "summary": "24 pass, 6 fail, 0 missing of 30 checks across five sections.",
+        "stamp": "LOCAL VOICE STACK ENGINEERING PACK\nstack: bad-stack\nVERDICT: LOCAL_VOICE_STACK_NOT_SOUND\n  pipeline_and_engine_selection        fail\n  cloning_consent_and_ethics           fail\n  audio_engineering_and_latency        fail\n  accessibility                        pass\n  testing_and_quality_gates            pass\n24 pass, 6 fail, 0 missing of 30 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required fields for pipeline, engines, and other sections."
+      },
+      "input": {
+        "stack": "incomplete-stack"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "local-voice-stack-engineering-pack",
+        "atom_version": "0.1.0",
+        "stack": "incomplete-stack",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "pipeline_and_engine_selection": "insufficient_evidence",
+          "cloning_consent_and_ethics": "insufficient_evidence",
+          "audio_engineering_and_latency": "insufficient_evidence",
+          "accessibility": "insufficient_evidence",
+          "testing_and_quality_gates": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "pipeline_scope_declared",
+            "status": "missing",
+            "evidence": "pipeline first: the pipeline scope \u2014 TTS (synthesis), STT (transcription), or both \u2014 is declared"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "output_mode_declared",
+            "status": "missing",
+            "evidence": "pipeline first: streaming vs file output is declared"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "local_first_by_default",
+            "status": "missing",
+            "evidence": "pipeline first: device-side vs server is decided local-first by default \u2014 run it local where it matters"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "quality_latency_footprint_evaluated",
+            "status": "missing",
+            "evidence": "engine selection: quality vs latency vs footprint (CPU/GPU) is evaluated"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "language_coverage_addressed",
+            "status": "missing",
+            "evidence": "engine selection: language coverage is addressed"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "engines_declared",
+            "status": "missing",
+            "evidence": "the declared record names its engines \u2014 the engines list is present and non-empty"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "every_engine_license_cleared_for_commercial_use",
+            "status": "missing",
+            "evidence": "engine selection / quality gate: every declared engine row declares its license cleared for the intended use (commercial)"
+          },
+          {
+            "section": "pipeline_and_engine_selection",
+            "check": "every_engine_evaluated_on_own_golden_sentences",
+            "status": "missing",
+            "evidence": "engine selection: every declared engine row declares evaluation on the caller's own golden sentences \u2014 not vendor demos"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "no_impersonation",
+            "status": "missing",
+            "evidence": "cloning ethics & law / red line: no impersonation is present in the declared design"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "no_covert_recording",
+            "status": "missing",
+            "evidence": "red line: no covert recording is present in the declared design"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "synthetic_audio_disclosure_where_required",
+            "status": "missing",
+            "evidence": "cloning ethics & law / red line: synthetic audio is disclosed where required \u2014 where context demands it"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "voice_profiles_encrypted_at_rest",
+            "status": "missing",
+            "evidence": "cloning ethics & law: voice profiles are encrypted at rest \u2014 cloned voices are treated as the sensitive thing they are"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "deletion_honored",
+            "status": "missing",
+            "evidence": "cloning ethics & law: deletion of voice profiles is honored"
+          },
+          {
+            "section": "cloning_consent_and_ethics",
+            "check": "every_cloning_engine_has_consent_recorded",
+            "status": "missing",
+            "evidence": "cloning ethics & law / quality gate / red line: every engine row declared as a voice-cloning engine declares explicit, recorded consent for the real-person voice \u2014 never clone without consent"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "sample_rate_and_format_choices_declared",
+            "status": "missing",
+            "evidence": "audio engineering: sample-rate/format choices (wav/opus) are declared"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "loudness_normalization_applied",
+            "status": "missing",
+            "evidence": "audio engineering: loudness normalization is applied"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "chunking_for_long_text_with_pauses",
+            "status": "missing",
+            "evidence": "audio engineering: chunking for long text (keep-alive + pauses) is in place"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "caching_synthesized_segments_for_repeat_text",
+            "status": "missing",
+            "evidence": "audio engineering: synthesized segments are cached for repeat text"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "time_to_first_audio_budget_stated",
+            "status": "missing",
+            "evidence": "latency budgets: a time-to-first-audio target for interactive use is stated"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "latency_measured_against_stated_budget",
+            "status": "missing",
+            "evidence": "latency budgets / quality gate: latency is measured against a stated budget \u2014 measure latency honestly"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "chunked_synthesis",
+            "status": "missing",
+            "evidence": "latency budgets: chunked synthesis is used"
+          },
+          {
+            "section": "audio_engineering_and_latency",
+            "check": "interruption_barge_in_when_assistant_use",
+            "status": "missing",
+            "evidence": "no assistant interactive use declared"
+          },
+          {
+            "section": "accessibility",
+            "check": "speed_controls_present",
+            "status": "missing",
+            "evidence": "accessibility / quality gate: speed controls are present"
+          },
+          {
+            "section": "accessibility",
+            "check": "pitch_controls_present",
+            "status": "missing",
+            "evidence": "accessibility / quality gate: pitch controls are present"
+          },
+          {
+            "section": "accessibility",
+            "check": "captions_or_transcripts_wired",
+            "status": "missing",
+            "evidence": "accessibility / quality gate: captions/transcripts from STT are wired"
+          },
+          {
+            "section": "accessibility",
+            "check": "keyboard_operable_players",
+            "status": "missing",
+            "evidence": "accessibility: players are keyboard-operable \u2014 audio users are users"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "golden_audio_regressions_in_test_loop",
+            "status": "missing",
+            "evidence": "testing / quality gate: golden-sample regressions are in the test loop"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "golden_hash_and_human_spot_checks",
+            "status": "missing",
+            "evidence": "testing: golden-audio regressions use hash + human spot-checks"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "noisy_input_stt_tests",
+            "status": "missing",
+            "evidence": "testing: noisy-input STT tests are run"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "pronunciation_dictionaries_for_names_numbers_code",
+            "status": "missing",
+            "evidence": "testing: pronunciation dictionaries for names/numbers/code are in place"
+          }
+        ],
+        "computed_status": null,
+        "engines_count": null,
+        "engines_without_license_clearance": null,
+        "license_coverage": null,
+        "engines_without_golden_sentence_evaluation": null,
+        "golden_evaluation_coverage": null,
+        "cloning_engines_without_consent_recorded": null,
+        "summary": "0 pass, 0 fail, 30 missing of 30 checks across five sections.",
+        "stamp": "LOCAL VOICE STACK ENGINEERING PACK\nstack: incomplete-stack\nVERDICT: INSUFFICIENT_EVIDENCE\n  pipeline_and_engine_selection        insufficient_evidence\n  cloning_consent_and_ethics           insufficient_evidence\n  audio_engineering_and_latency        insufficient_evidence\n  accessibility                        insufficient_evidence\n  testing_and_quality_gates            insufficient_evidence\n0 pass, 0 fail, 30 missing of 30 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch: pipeline expected object, given string. Exactly one type violation."
+      },
+      "input": {
+        "stack": "malformed-stack",
+        "pipeline": "not-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "pipeline",
+        "detail": "pipeline must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

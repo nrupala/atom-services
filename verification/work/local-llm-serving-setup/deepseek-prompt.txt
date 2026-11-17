@@ -1,0 +1,842 @@
+Independently recompute the computed quantities of a deterministic API atom from its recorded inputs, and compare with the recorded output artifacts.
+
+ATOM: local-llm-serving-setup
+
+=== contract.yaml ===
+service_name: local-llm-serving-setup
+display_name: Local llm serving setup
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:local-llm-serving
+binding:
+  skill: local-llm-serving
+  skill_path: workspace/mymilo-build/skills/local-llm-serving/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: local_llm_serving_setup
+  prefix: atm_1_local_llm_serving_setup_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Fleet local model serving operations
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Local llm serving setup — `local-llm-serving-setup`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Run local LLMs in production — model/quant choice, serving stacks, VRAM budgets, fallback chains, evaluation.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in How Milo works who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Fleet local model serving operations**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the local-LLM-serving-setup manifest
+
+The caller submits one JSON manifest: a declared local-LLM
+serving setup record for one setup. Every field below is read by
+the named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`LOCAL_LLM_SERVING_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `setup` (string; carried into the verdict output, not itself checked) | — |
+| `workload.tasks_defined` (boolean) | workload_and_memory_budget |
+| `workload.context_lengths_defined` (boolean) | workload_and_memory_budget |
+| `workload.concurrency_defined` (boolean) | workload_and_memory_budget |
+| `workload.compute_and_vram_ram_budget_computed` (boolean) | workload_and_memory_budget |
+| `workload.kv_cache_growth_accounted_and_headroom_left` (boolean) | workload_and_memory_budget |
+| `workload.quantization_chosen_deliberately_with_tradeoffs` (boolean) | workload_and_memory_budget |
+| `model_selection.model_size_matched_to_task` (boolean) | model_selection_and_provenance |
+| `models` (list of model-row objects, each with the entry fields below; computed, see below) | workload_and_memory_budget, model_selection_and_provenance, performance_and_operations, fallback_chains_and_evaluation |
+| `models[].name` (string; names the row in the computed outputs) | workload_and_memory_budget, model_selection_and_provenance, performance_and_operations, fallback_chains_and_evaluation |
+| `models[].vram_ram_and_context_budget_documented` (boolean) | workload_and_memory_budget |
+| `models[].version_pinned_and_checksum_recorded` (boolean) | model_selection_and_provenance |
+| `models[].license_vetted_for_commercial_use` (boolean; must be `true` per row — skill red line: no unvetted model licenses) | model_selection_and_provenance |
+| `models[].performance_measured_at_realistic_context` (boolean) | performance_and_operations |
+| `models[].golden_task_eval_recorded` (boolean) | fallback_chains_and_evaluation |
+| `serving.stack_fits_host_and_workload` (boolean) | serving_stack_and_exposure |
+| `serving.runs_daemonless_under_supervisor_with_auto_restart` (boolean) | serving_stack_and_exposure |
+| `serving.bound_to_loopback_only_verified` (boolean) | serving_stack_and_exposure |
+| `serving.remote_access_only_via_authenticated_tunnel` (boolean) | serving_stack_and_exposure |
+| `serving.unauthenticated_inference_port_exposure_present` (boolean; must be `false` to pass — skill red line) | serving_stack_and_exposure |
+| `performance.tokens_per_second_and_ttft_measured_at_realistic_context` (boolean) | performance_and_operations |
+| `performance.offload_layers_and_parallelism_tuned` (boolean) | performance_and_operations |
+| `performance.vram_overcommit_present` (boolean; must be `false` to pass — the skill: don't overcommit VRAM) | performance_and_operations |
+| `operations.health_endpoint_present` (boolean) | performance_and_operations |
+| `operations.structured_logs_present` (boolean) | performance_and_operations |
+| `operations.model_catalog_pinned` (boolean) | performance_and_operations |
+| `operations.disk_space_for_weights_monitored` (boolean) | performance_and_operations |
+| `operations.upgrade_path_backup_swap_verify_rollback_present` (boolean) | performance_and_operations |
+| `fallback.fallback_chain_declared_local_primary_secondary_provider` (boolean) | fallback_chains_and_evaluation |
+| `fallback.model_swaps_behind_stable_openai_compatible_api` (boolean) | fallback_chains_and_evaluation |
+| `fallback.each_failover_tested_deliberately_including_primary_failure` (boolean) | fallback_chains_and_evaluation |
+| `evaluation.golden_task_suite_run_per_model_change` (boolean) | fallback_chains_and_evaluation |
+| `evaluation.quality_and_speed_recorded_before_promotion` (boolean) | fallback_chains_and_evaluation |
+| `evaluation.silent_model_swaps_present` (boolean; must be `false` to pass — skill red line: no silent model swaps) | fallback_chains_and_evaluation |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Models declared:** the declared `models` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Budget per model:** every declared model row must declare
+  `vram_ram_and_context_budget_documented: true` (the skill's
+  quality gate: "VRAM/RAM + context budget documented for each
+  served model"). A row with the field absent is missing
+  evidence.
+- **Provenance per model:** every declared model row must
+  declare `version_pinned_and_checksum_recorded: true` (the
+  skill: "pin exact versions + checksums (provenance)").
+- **License per model:** every declared model row must declare
+  `license_vetted_for_commercial_use: true` (the skill: "check
+  licenses for commercial use before adopting"; red line: "no
+  unvetted model licenses").
+- **Performance per model:** every declared model row must
+  declare `performance_measured_at_realistic_context: true`
+  (the skill: "measure tokens/s + time-to-first-token at
+  realistic context").
+- **Golden-task eval per model:** every declared model row must
+  declare `golden_task_eval_recorded: true` (the skill's quality
+  gate: "Golden-task evals recorded per model change").
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the six primary computed checks above cannot be completed),
+`models_count` (the declared list length, or null when the list
+is not declared — counts are reported as integers, exactly), the
+row-name lists `models_without_budget_documentation`,
+`models_without_pinned_version_and_checksum`,
+`models_without_vetted_license`,
+`models_without_performance_measurement` and
+`models_without_golden_task_eval` (models whose field is present
+but not true; a model with the field absent is missing evidence
+and does not appear), and the three coverage ratios
+`budget_coverage` (models with documented VRAM/RAM + context
+budget ÷ declared models), `performance_coverage` (models with
+performance measured at realistic context ÷ declared models) and
+`golden_eval_coverage` (models with a golden-task eval recorded
+÷ declared models).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — its budgets,
+measurements and evals are record content the setup attests to,
+not bars the atom can set. Quantities are computed and reported;
+the only bar on the computed rows is completeness over the
+caller's own declared rows, exactly as stated above. Declined
+thresholds, named: a minimum tokens-per-second rate or a maximum
+time-to-first-token in milliseconds (the skill requires both be
+measured at realistic context but states no number); a VRAM or
+RAM budget cap or floor in gigabytes (the skill's mention of
+16GB-class cards names a hardware class it works on, not a cap,
+and is not treated as one); a minimum or maximum context length
+in tokens; a concurrency count; a mandated quantization level
+(the skill names Q4/Q5/Q8 as trade-offs to weigh deliberately,
+never one level to use); a KV-cache headroom percentage or
+gigabyte figure (the skill says "leave headroom", no amount); a
+number of offload layers or a parallelism degree; a free
+disk-space floor for weights; a health-endpoint uptime
+percentage; a golden-task evaluation score, pass rate or number
+of tasks; a number of fallback tiers beyond the declared chain
+shape (local primary → local secondary → declared provider); a
+coverage percentage below completeness.
+
+The verdict is one of `LOCAL_LLM_SERVING_SOUND` (all 32 checks
+pass), `LOCAL_LLM_SERVING_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: workload_and_memory_budget,
+model_selection_and_provenance, serving_stack_and_exposure,
+performance_and_operations, fallback_chains_and_evaluation.
+
+## Distinct ground
+
+Staged and live sibling atoms touch neighbouring ground; this
+atom's boundary with each is named, and no check is shared:
+
+- **`agent-evaluation-scorecard`** audits agent task suites,
+  judging and regression gates themselves — it scores
+  evaluations. This atom never scores a task or a judge; its
+  only evaluation checks are that a golden-task suite is run per
+  model change and that an eval is recorded for every served
+  model in this serving record.
+- **`network-exposure-audit`** audits a whole network surface —
+  segmentation, TLS, DNS/email authentication, edge access and
+  egress. This atom makes no network-wide claim; its only
+  exposure checks are the three declared serving-stack facts:
+  loopback-only binding verified, remote access only via an
+  authenticated tunnel, and no unauthenticated exposure of the
+  inference ports of this setup.
+- **`rag-retrieval-evaluation-tuning`** tunes retrieval quality
+  for a RAG pipeline. This atom has no retrieval surface at all:
+  it audits the serving record of the models themselves.
+
+## Honest scoping
+
+This atom audits a **declared** local-LLM serving setup record —
+it provisions no stack, loads no model, runs no benchmark, probes
+no port, and does not verify that a declared control actually
+works. A setup is sound *on the caller's declared evidence*: a
+manifest that declares loopback-only binding verified, licenses
+vetted, and fallback tested passes those checks even if the real
+setup does none of it. It is a completeness and consistency audit
+of the record the skill requires, **not a serving service, a
+benchmark, or a security certification**: it never judges whether
+a chosen model or quantization is actually right for a task,
+whether a measured tokens/s figure is good, whether a license is
+actually sufficient for a caller's use, or whether a fallback
+chain would really hold — only that the record contains what the
+skill's method, quality gates and red lines demand, and that its
+declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no inspection of actual
+model files, checksums, licenses, configurations or logs — every
+such fact is a caller-declared flag; model, stack and
+quantization suitability for a workload is a caller declaration —
+the atom checks only that the choice is declared deliberate and
+matched, never that it is optimal; evaluation quality (whether a
+golden task suite is well designed or its scores are good) is a
+caller declaration — only its recorded presence per model change
+is checked.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Fleet-tied; method is general
+
+
+=== RECORDED CASES (input + live artifact) ===
+[
+  {
+    "id": "full-pass",
+    "kind": "full-pass",
+    "input": {
+      "setup": "production-cluster-alpha",
+      "workload": {
+        "tasks_defined": true,
+        "context_lengths_defined": true,
+        "concurrency_defined": true,
+        "compute_and_vram_ram_budget_computed": true,
+        "kv_cache_growth_accounted_and_headroom_left": true,
+        "quantization_chosen_deliberately_with_tradeoffs": true
+      },
+      "model_selection": {
+        "model_size_matched_to_task": true
+      },
+      "models": [
+        {
+          "name": "llama-3-8b",
+          "vram_ram_and_context_budget_documented": true,
+          "version_pinned_and_checksum_recorded": true,
+          "license_vetted_for_commercial_use": true,
+          "performance_measured_at_realistic_context": true,
+          "golden_task_eval_recorded": true
+        }
+      ],
+      "serving": {
+        "stack_fits_host_and_workload": true,
+        "runs_daemonless_under_supervisor_with_auto_restart": true,
+        "bound_to_loopback_only_verified": true,
+        "remote_access_only_via_authenticated_tunnel": true,
+        "unauthenticated_inference_port_exposure_present": false
+      },
+      "performance": {
+        "tokens_per_second_and_ttft_measured_at_realistic_context": true,
+        "offload_layers_and_parallelism_tuned": true,
+        "vram_overcommit_present": false
+      },
+      "operations": {
+        "health_endpoint_present": true,
+        "structured_logs_present": true,
+        "model_catalog_pinned": true,
+        "disk_space_for_weights_monitored": true,
+        "upgrade_path_backup_swap_verify_rollback_present": true
+      },
+      "fallback": {
+        "fallback_chain_declared_local_primary_secondary_provider": true,
+        "model_swaps_behind_stable_openai_compatible_api": true,
+        "each_failover_tested_deliberately_including_primary_failure": true
+      },
+      "evaluation": {
+        "golden_task_suite_run_per_model_change": true,
+        "quality_and_speed_recorded_before_promotion": true,
+        "silent_model_swaps_present": false
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "local-llm-serving-setup",
+      "atom_version": "0.1.0",
+      "setup": "production-cluster-alpha",
+      "verdict": "LOCAL_LLM_SERVING_SOUND",
+      "sections": {
+        "workload_and_memory_budget": "pass",
+        "model_selection_and_provenance": "pass",
+        "serving_stack_and_exposure": "pass",
+        "performance_and_operations": "pass",
+        "fallback_chains_and_evaluation": "pass"
+      },
+      "checks": [
+        {
+          "section": "workload_and_memory_budget",
+          "check": "tasks_defined",
+          "status": "pass",
+          "evidence": "workload first: the tasks the setup serves are defined before any budget is set"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "context_lengths_defined",
+          "status": "pass",
+          "evidence": "workload first: the context lengths served are defined"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "concurrency_defined",
+          "status": "pass",
+          "evidence": "workload first: the concurrency served is defined"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "compute_and_vram_ram_budget_computed",
+          "status": "pass",
+          "evidence": "workload first: compute and VRAM/RAM budget are computed from the declared tasks, context lengths and concurrency"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "kv_cache_growth_accounted_and_headroom_left",
+          "status": "pass",
+          "evidence": "workload first: KV-cache growth with context is accounted for and headroom is left"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "quantization_chosen_deliberately_with_tradeoffs",
+          "status": "pass",
+          "evidence": "workload first: quantization is chosen deliberately \u2014 Q4/Q5/Q8 trade-offs weighed \u2014 not by default"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "models_declared",
+          "status": "pass",
+          "evidence": "the declared record names its served models \u2014 the models list is present and non-empty"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "every_model_vram_ram_and_context_budget_documented",
+          "status": "pass",
+          "evidence": "quality gate: VRAM/RAM + context budget are documented for each served model"
+        },
+        {
+          "section": "model_selection_and_provenance",
+          "check": "model_size_matched_to_task",
+          "status": "pass",
+          "evidence": "model selection: model size is matched to task \u2014 small for routing/summaries, larger for reasoning"
+        },
+        {
+          "section": "model_selection_and_provenance",
+          "check": "every_model_version_pinned_and_checksum_recorded",
+          "status": "pass",
+          "evidence": "model selection: every served model row pins its exact version and records its checksum (provenance)"
+        },
+        {
+          "section": "model_selection_and_provenance",
+          "check": "every_model_license_vetted_for_commercial_use",
+          "status": "pass",
+          "evidence": "red line: every served model row declares its license checked for commercial use before adoption \u2014 no unvetted model licenses"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "serving_stack_selected_to_fit_host_and_workload",
+          "status": "pass",
+          "evidence": "serving stack: the stack \u2014 llama.cpp server / Ollama / vLLM-class \u2014 is selected as it fits the host and workload"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "runs_daemonless_under_supervisor_with_auto_restart",
+          "status": "pass",
+          "evidence": "serving stack: the server runs daemonless under systemd (or a Windows service) with auto-restart"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "loopback_only_binding_verified",
+          "status": "pass",
+          "evidence": "quality gate: loopback-only binding is verified"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "remote_access_only_via_authenticated_tunnel",
+          "status": "pass",
+          "evidence": "serving stack: remote access is only via an authenticated tunnel"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "no_unauthenticated_inference_port_exposure",
+          "status": "pass",
+          "evidence": "red line: no unauthenticated exposure of inference ports is present"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "tokens_per_second_and_ttft_measured_at_realistic_context",
+          "status": "pass",
+          "evidence": "performance: tokens/s and time-to-first-token are measured at realistic context"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "offload_layers_and_parallelism_tuned",
+          "status": "pass",
+          "evidence": "performance: offload layers and parallelism are tuned"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "no_vram_overcommit",
+          "status": "pass",
+          "evidence": "performance: VRAM is not overcommitted \u2014 \"it loads\" is not \"it serves\""
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "every_model_performance_measured_at_realistic_context",
+          "status": "pass",
+          "evidence": "performance: every served model row declares its performance measured at realistic context"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "health_endpoint_present",
+          "status": "pass",
+          "evidence": "operations: a health endpoint is present"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "structured_logs_present",
+          "status": "pass",
+          "evidence": "operations: structured logs are kept"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "model_catalog_pinned",
+          "status": "pass",
+          "evidence": "operations: the model catalog is pinned"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "disk_space_for_weights_monitored",
+          "status": "pass",
+          "evidence": "operations: disk space for weights is monitored"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "upgrade_path_backup_swap_verify_rollback_present",
+          "status": "pass",
+          "evidence": "operations: upgrades follow backup -> swap -> verify, with a rollback path"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "fallback_chain_declared_local_primary_secondary_provider",
+          "status": "pass",
+          "evidence": "fallback chains: the chain is declared \u2014 local primary -> local secondary -> declared provider"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "model_swaps_behind_stable_openai_compatible_api",
+          "status": "pass",
+          "evidence": "fallback chains: models swap behind a stable API (OpenAI-compatible surface) so apps never change"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "fallback_chain_tested_by_failing_primary_deliberately",
+          "status": "pass",
+          "evidence": "quality gate: the fallback chain is tested \u2014 each failover is tested deliberately, the primary failed on purpose"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "golden_task_suite_run_per_model_change",
+          "status": "pass",
+          "evidence": "evaluation: a golden task suite is run per model change"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "quality_and_speed_recorded_before_promotion",
+          "status": "pass",
+          "evidence": "evaluation: quality and speed are recorded before promotion"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "no_silent_model_swaps",
+          "status": "pass",
+          "evidence": "red line: no silent model swaps in production are present"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "every_model_golden_task_eval_recorded",
+          "status": "pass",
+          "evidence": "quality gate: a golden-task eval is recorded for every served model"
+        }
+      ],
+      "computed_status": "within_stated_limits_on_declared_evidence",
+      "models_count": 1,
+      "models_without_budget_documentation": [],
+      "budget_coverage": "1.000000",
+      "models_without_pinned_version_and_checksum": [],
+      "models_without_vetted_license": [],
+      "models_without_performance_measurement": [],
+      "performance_coverage": "1.000000",
+      "models_without_golden_task_eval": [],
+      "golden_eval_coverage": "1.000000",
+      "summary": "32 pass, 0 fail, 0 missing of 32 checks across five sections.",
+      "stamp": "LOCAL LLM SERVING SETUP\nsetup: production-cluster-alpha\nVERDICT: LOCAL_LLM_SERVING_SOUND\n  workload_and_memory_budget           pass\n  model_selection_and_provenance       pass\n  serving_stack_and_exposure           pass\n  performance_and_operations           pass\n  fallback_chains_and_evaluation       pass\n32 pass, 0 fail, 0 missing of 32 checks across five sections."
+    }
+  },
+  {
+    "id": "violations",
+    "kind": "violations",
+    "input": {
+      "setup": "production-cluster-alpha",
+      "workload": {
+        "tasks_defined": true,
+        "context_lengths_defined": true,
+        "concurrency_defined": true,
+        "compute_and_vram_ram_budget_computed": true,
+        "kv_cache_growth_accounted_and_headroom_left": true,
+        "quantization_chosen_deliberately_with_tradeoffs": true
+      },
+      "model_selection": {
+        "model_size_matched_to_task": true
+      },
+      "models": [
+        {
+          "name": "llama-3-8b",
+          "vram_ram_and_context_budget_documented": true,
+          "version_pinned_and_checksum_recorded": true,
+          "license_vetted_for_commercial_use": false,
+          "performance_measured_at_realistic_context": true,
+          "golden_task_eval_recorded": true
+        }
+      ],
+      "serving": {
+        "stack_fits_host_and_workload": true,
+        "runs_daemonless_under_supervisor_with_auto_restart": true,
+        "bound_to_loopback_only_verified": true,
+        "remote_access_only_via_authenticated_tunnel": true,
+        "unauthenticated_inference_port_exposure_present": true
+      },
+      "performance": {
+        "tokens_per_second_and_ttft_measured_at_realistic_context": true,
+        "offload_layers_and_parallelism_tuned": true,
+        "vram_overcommit_present": true
+      },
+      "operations": {
+        "health_endpoint_present": true,
+        "structured_logs_present": true,
+        "model_catalog_pinned": true,
+        "disk_space_for_weights_monitored": true,
+        "upgrade_path_backup_swap_verify_rollback_present": true
+      },
+      "fallback": {
+        "fallback_chain_declared_local_primary_secondary_provider": true,
+        "model_swaps_behind_stable_openai_compatible_api": true,
+        "each_failover_tested_deliberately_including_primary_failure": true
+      },
+      "evaluation": {
+        "golden_task_suite_run_per_model_change": true,
+        "quality_and_speed_recorded_before_promotion": true,
+        "silent_model_swaps_present": true
+      }
+    },
+    "http_status": 200,
+    "artifact": {
+      "service": "local-llm-serving-setup",
+      "atom_version": "0.1.0",
+      "setup": "production-cluster-alpha",
+      "verdict": "LOCAL_LLM_SERVING_NOT_SOUND",
+      "sections": {
+        "workload_and_memory_budget": "pass",
+        "model_selection_and_provenance": "fail",
+        "serving_stack_and_exposure": "fail",
+        "performance_and_operations": "fail",
+        "fallback_chains_and_evaluation": "fail"
+      },
+      "checks": [
+        {
+          "section": "workload_and_memory_budget",
+          "check": "tasks_defined",
+          "status": "pass",
+          "evidence": "workload first: the tasks the setup serves are defined before any budget is set"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "context_lengths_defined",
+          "status": "pass",
+          "evidence": "workload first: the context lengths served are defined"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "concurrency_defined",
+          "status": "pass",
+          "evidence": "workload first: the concurrency served is defined"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "compute_and_vram_ram_budget_computed",
+          "status": "pass",
+          "evidence": "workload first: compute and VRAM/RAM budget are computed from the declared tasks, context lengths and concurrency"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "kv_cache_growth_accounted_and_headroom_left",
+          "status": "pass",
+          "evidence": "workload first: KV-cache growth with context is accounted for and headroom is left"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "quantization_chosen_deliberately_with_tradeoffs",
+          "status": "pass",
+          "evidence": "workload first: quantization is chosen deliberately \u2014 Q4/Q5/Q8 trade-offs weighed \u2014 not by default"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "models_declared",
+          "status": "pass",
+          "evidence": "the declared record names its served models \u2014 the models list is present and non-empty"
+        },
+        {
+          "section": "workload_and_memory_budget",
+          "check": "every_model_vram_ram_and_context_budget_documented",
+          "status": "pass",
+          "evidence": "quality gate: VRAM/RAM + context budget are documented for each served model"
+        },
+        {
+          "section": "model_selection_and_provenance",
+          "check": "model_size_matched_to_task",
+          "status": "pass",
+          "evidence": "model selection: model size is matched to task \u2014 small for routing/summaries, larger for reasoning"
+        },
+        {
+          "section": "model_selection_and_provenance",
+          "check": "every_model_version_pinned_and_checksum_recorded",
+          "status": "pass",
+          "evidence": "model selection: every served model row pins its exact version and records its checksum (provenance)"
+        },
+        {
+          "section": "model_selection_and_provenance",
+          "check": "every_model_license_vetted_for_commercial_use",
+          "status": "fail",
+          "evidence": "red line: every served model row declares its license checked for commercial use before adoption \u2014 no unvetted model licenses"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "serving_stack_selected_to_fit_host_and_workload",
+          "status": "pass",
+          "evidence": "serving stack: the stack \u2014 llama.cpp server / Ollama / vLLM-class \u2014 is selected as it fits the host and workload"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "runs_daemonless_under_supervisor_with_auto_restart",
+          "status": "pass",
+          "evidence": "serving stack: the server runs daemonless under systemd (or a Windows service) with auto-restart"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "loopback_only_binding_verified",
+          "status": "pass",
+          "evidence": "quality gate: loopback-only binding is verified"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "remote_access_only_via_authenticated_tunnel",
+          "status": "pass",
+          "evidence": "serving stack: remote access is only via an authenticated tunnel"
+        },
+        {
+          "section": "serving_stack_and_exposure",
+          "check": "no_unauthenticated_inference_port_exposure",
+          "status": "fail",
+          "evidence": "red line: no unauthenticated exposure of inference ports is present"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "tokens_per_second_and_ttft_measured_at_realistic_context",
+          "status": "pass",
+          "evidence": "performance: tokens/s and time-to-first-token are measured at realistic context"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "offload_layers_and_parallelism_tuned",
+          "status": "pass",
+          "evidence": "performance: offload layers and parallelism are tuned"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "no_vram_overcommit",
+          "status": "fail",
+          "evidence": "performance: VRAM is not overcommitted \u2014 \"it loads\" is not \"it serves\""
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "every_model_performance_measured_at_realistic_context",
+          "status": "pass",
+          "evidence": "performance: every served model row declares its performance measured at realistic context"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "health_endpoint_present",
+          "status": "pass",
+          "evidence": "operations: a health endpoint is present"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "structured_logs_present",
+          "status": "pass",
+          "evidence": "operations: structured logs are kept"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "model_catalog_pinned",
+          "status": "pass",
+          "evidence": "operations: the model catalog is pinned"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "disk_space_for_weights_monitored",
+          "status": "pass",
+          "evidence": "operations: disk space for weights is monitored"
+        },
+        {
+          "section": "performance_and_operations",
+          "check": "upgrade_path_backup_swap_verify_rollback_present",
+          "status": "pass",
+          "evidence": "operations: upgrades follow backup -> swap -> verify, with a rollback path"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "fallback_chain_declared_local_primary_secondary_provider",
+          "status": "pass",
+          "evidence": "fallback chains: the chain is declared \u2014 local primary -> local secondary -> declared provider"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "model_swaps_behind_stable_openai_compatible_api",
+          "status": "pass",
+          "evidence": "fallback chains: models swap behind a stable API (OpenAI-compatible surface) so apps never change"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "fallback_chain_tested_by_failing_primary_deliberately",
+          "status": "pass",
+          "evidence": "quality gate: the fallback chain is tested \u2014 each failover is tested deliberately, the primary failed on purpose"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "golden_task_suite_run_per_model_change",
+          "status": "pass",
+          "evidence": "evaluation: a golden task suite is run per model change"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "quality_and_speed_recorded_before_promotion",
+          "status": "pass",
+          "evidence": "evaluation: quality and speed are recorded before promotion"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "no_silent_model_swaps",
+          "status": "fail",
+          "evidence": "red line: no silent model swaps in production are present"
+        },
+        {
+          "section": "fallback_chains_and_evaluation",
+          "check": "every_model_golden_task_eval_recorded",
+          "status": "pass",
+          "evidence": "quality gate: a golden-task eval is recorded for every served model"
+        }
+      ],
+      "computed_status": "outside_stated_limits_on_declared_evidence",
+      "models_count": 1,
+      "models_without_budget_documentation": [],
+      "budget_coverage": "1.000000",
+      "models_without_pinned_version_and_checksum": [],
+      "models_without_vetted_license": [
+        "llama-3-8b"
+      ],
+      "models_without_performance_measurement": [],
+      "performance_coverage": "1.000000",
+      "models_without_golden_task_eval": [],
+      "golden_eval_coverage": "1.000000",
+      "summary": "28 pass, 4 fail, 0 missing of 32 checks across five sections.",
+      "stamp": "LOCAL LLM SERVING SETUP\nsetup: production-cluster-alpha\nVERDICT: LOCAL_LLM_SERVING_NOT_SOUND\n  workload_and_memory_budget           pass\n  model_selection_and_provenance       fail\n  serving_stack_and_exposure           fail\n  performance_and_operations           fail\n  fallback_chains_and_evaluation       fail\n28 pass, 4 fail, 0 missing of 32 checks across five sections."
+    }
+  }
+]
+
+For every quantity or check that SERVICE.md marks as computed (and any
+headline computed value in the artifacts):
+- recompute it from the case input by hand, showing the arithmetic and
+  the exact rounding/serialization rule you applied;
+- state the artifact's value and mark MATCH or MISMATCH;
+- for the violations case, confirm the checks that fail are exactly
+  the ones the planted wrong values should fail.
+End your answer with exactly one line:
+AGREEMENT: full
+or
+AGREEMENT: partial — <what disagrees and the values on both sides>

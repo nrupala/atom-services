@@ -1,0 +1,1354 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: grpc-service-design
+
+=== contract.yaml ===
+service_name: grpc-service-design
+display_name: Grpc service design
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:grpc-service-engineering
+binding:
+  skill: grpc-service-engineering
+  skill_path: workspace/mymilo-build/skills/grpc-service-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: grpc_service_design
+  prefix: atm_1_grpc_service_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Conduit agent infrastructure service builds
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Grpc service design — `grpc-service-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build gRPC services well — protobuf contracts, streaming, deadlines, health, mTLS, breaking-change checks.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Conduit agent infrastructure service builds**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the gRPC service design manifest
+
+The caller submits one JSON manifest: a declared gRPC service
+design record for one project. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`GRPC_SERVICE_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `project` (string; carried into the verdict output, not itself checked) | — |
+| `contract.proto3_used` (boolean) | contract_and_compatibility |
+| `contract.removed_fields_reserved` (boolean) | contract_and_compatibility |
+| `contract.backward_forward_compatibility_rules_documented` (boolean) | contract_and_compatibility |
+| `contract.buf_lint_in_ci` (boolean) | contract_and_compatibility |
+| `contract.breaking_change_check_in_ci` (boolean) | contract_and_compatibility |
+| `contract.codegen_pinned` (boolean) | contract_and_compatibility |
+| `contract.codegen_generated_in_ci` (boolean) | contract_and_compatibility |
+| `contract.hand_generated_stubs_present` (boolean; must be `false` to pass — skill red line) | contract_and_compatibility |
+| `contract.field_number_reuse_present` (boolean; must be `false` to pass — skill red line) | contract_and_compatibility |
+| `proto_fields` (list of field-row objects, each with the entry fields below; computed, see below) | contract_and_compatibility |
+| `proto_fields[].message` (string; groups the row for the duplicate-number check below) | contract_and_compatibility |
+| `proto_fields[].name` (string; names the row in the computed outputs) | contract_and_compatibility |
+| `proto_fields[].number` (number; compared for equality within the same declared message for the duplicate-number check below) | contract_and_compatibility |
+| `api_shape.streaming_choices_documented_by_flow` (boolean) | api_shape_and_deadlines |
+| `methods` (list of method-row objects, each with the entry fields below; computed, see below) | api_shape_and_deadlines |
+| `methods[].name` (string; names the row in the computed outputs) | api_shape_and_deadlines |
+| `methods[].streaming_mode` (string; must be a non-empty string for the row to pass the computed mode check; the exact value `unary` gates the bounded-stream check below, no other value is imposed, see the declined vocabulary note below) | api_shape_and_deadlines |
+| `methods[].deadline_set` (boolean) | api_shape_and_deadlines |
+| `methods[].stream_bounded` (boolean; required when the row's streaming mode is not `unary`; otherwise the check passes as not applicable to that row) | api_shape_and_deadlines |
+| `api_shape.cancellation_propagation_configured` (boolean) | api_shape_and_deadlines |
+| `api_shape.rich_error_model_used` (boolean) | api_shape_and_deadlines |
+| `api_shape.metadata_limited_to_transport_concerns` (boolean) | api_shape_and_deadlines |
+| `server.health_service_exposed` (boolean) | server_hygiene |
+| `server.reflection_enabled` (boolean; gates the reflection-restriction check below) | server_hygiene |
+| `server.reflection_restricted_to_dev_or_authenticated` (boolean; required when reflection is declared enabled; otherwise the check passes as not applicable) | server_hygiene |
+| `server.interceptors_for_auth_logging_metrics_tracing` (boolean) | server_hygiene |
+| `server.keepalive_and_pool_tuning_configured` (boolean) | server_hygiene |
+| `server.explicit_max_message_sizes_set` (boolean) | server_hygiene |
+| `security.cross_host_traffic_present` (boolean; gates the three cross-host checks below) | security_and_transport |
+| `security.mtls_enabled` (boolean; required when cross-host traffic is declared present; otherwise the check passes as not applicable) | security_and_transport |
+| `security.per_service_identities_used` (boolean; required when cross-host traffic is declared present; otherwise not applicable) | security_and_transport |
+| `security.plaintext_across_hosts_present` (boolean; must be `false` when cross-host traffic is declared present — skill red line; otherwise the check passes as not applicable) | security_and_transport |
+| `security.authorization_via_interceptor_or_external_policy` (boolean) | security_and_transport |
+| `security.public_surfaces_present` (boolean; gates the rate-limit check below) | security_and_transport |
+| `security.rate_limits_on_public_surfaces` (boolean; required when public surfaces are declared present; otherwise the check passes as not applicable) | security_and_transport |
+| `observability.trace_and_request_id_propagation_configured` (boolean) | observability_testing_and_interop |
+| `observability.per_method_metrics_collected` (boolean) | observability_testing_and_interop |
+| `observability.structured_errors_logged_once` (boolean) | observability_testing_and_interop |
+| `testing.in_process_integration_tests_present` (boolean) | observability_testing_and_interop |
+| `testing.contract_tests_pass_against_clients` (boolean) | observability_testing_and_interop |
+| `testing.load_smoke_on_hot_paths_run` (boolean) | observability_testing_and_interop |
+| `interop.rest_consumers_present` (boolean; gates the gateway/JSON adapter check below) | observability_testing_and_interop |
+| `interop.gateway_json_adapters_provided` (boolean; required when REST consumers are declared present; otherwise the check passes as not applicable) | observability_testing_and_interop |
+| `interop.browser_clients_present` (boolean; gates the gRPC-Web check below) | observability_testing_and_interop |
+| `interop.grpc_web_enabled` (boolean; required when browser clients are declared present; otherwise the check passes as not applicable) | observability_testing_and_interop |
+| `interop.packages_versioned_v1` (boolean) | observability_testing_and_interop |
+| `interop.deprecated_fields_announced_then_removed_on_schedule` (boolean) | observability_testing_and_interop |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Methods declared:** the declared `methods` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Streaming mode per method:** every declared method row must
+  name a non-empty `streaming_mode` string. A row with the field
+  absent is missing evidence; a row naming an empty string fails.
+- **Deadline per method:** every declared method row must declare
+  `deadline_set: true` (the skill's quality gate: "Deadlines/
+  cancellation on all calls").
+- **Bounded streams:** every row whose declared streaming mode
+  is not exactly `unary` must declare `stream_bounded: true`
+  (the skill's red line: "no unbounded streams"). A streaming
+  row with the field absent is missing evidence; unary rows pass
+  as not applicable.
+- **Proto fields declared:** the declared `proto_fields` list
+  passes only when it is present and non-empty; an absent list
+  is missing evidence, an empty list fails.
+- **No duplicate field number within a message:** no two rows
+  in the same declared `message` may share a `number` (the
+  skill's red line: "Never reuse proto field numbers" — a number
+  appearing twice in one message is a reuse on the declared
+  evidence itself). The same number in different messages is not
+  a reuse. A row with `message` or `number` absent is missing
+  evidence.
+
+Five check groups are conditional, following the skill's own
+scoping — computed from the declared gate field:
+
+- **Reflection restriction:** required only when
+  `server.reflection_enabled` is declared `true` (the skill:
+  "reflection only in dev (or authenticated)"); when reflection
+  is not enabled, the check passes as not applicable.
+- **Cross-host security:** `mtls_enabled`,
+  `per_service_identities_used` and the no-plaintext rule are
+  required only when `security.cross_host_traffic_present` is
+  declared `true` (the skill binds mTLS and the plaintext ban to
+  cross-host paths); otherwise all three pass as not applicable.
+- **Public-surface rate limits:** required only when
+  `security.public_surfaces_present` is declared `true` (the
+  skill: "rate limits on public-ish surfaces").
+- **Gateway/JSON adapters:** required only when
+  `interop.rest_consumers_present` is declared `true`.
+- **gRPC-Web:** required only when
+  `interop.browser_clients_present` is declared `true` (the
+  skill: "gRPC-Web where browsers must connect").
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the six primary computed checks above cannot be completed),
+`methods_count` and `proto_fields_count` (the declared list
+lengths, or null when a list is not declared — counts are
+reported as integers, exactly), the row-name lists
+`methods_without_streaming_mode`, `methods_without_deadline`
+(methods whose `deadline_set` field is present but not true; a
+method with the field absent is missing evidence and does not
+appear), `unbounded_streaming_methods` (streaming methods whose
+`stream_bounded` field is present but not true) and
+`fields_sharing_a_duplicate_number` (fields whose declared
+message + number pair is shared by another declared field; all
+four lists are null when their list is not declared), and the
+two coverage ratios `deadline_coverage` (methods declaring a
+deadline set ÷ declared methods) and
+`streaming_boundedness_coverage` (streaming methods declaring
+their stream bounded ÷ streaming methods).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty (and, for streaming
+boundedness coverage, when no method is declared with a
+non-`unary` streaming mode). That fixed serialization is what
+makes the Python and TypeScript outputs byte-identical.
+
+The skill states no numeric pass/fail threshold — no deadline
+duration, no max message size, no keepalive interval, no
+rate-limit number, no coverage percentage: its deadline, message
+size and tuning requirements are facts the record attests to
+setting, not bars the atom can set. Quantities are computed and
+reported; the only bar on the computed rows is completeness over
+the caller's own declared rows, exactly as stated above. Declined
+thresholds, named: a deadline duration in milliseconds or seconds
+(the skill says "deadlines on every call" but states no duration
+— caller attestation only); a max message size in bytes (the
+skill says sizes are "explicit" but states no number); a
+keepalive interval or connection-pool size; a stream bound or
+flow-control window size (boundedness is attested per method, no
+bound value is stated); a rate-limit threshold for public
+surfaces; a load-smoke throughput or latency bar; a coverage
+percentage below completeness; a field-number range or reserved
+range (the skill states the no-reuse rule but no numeric range —
+proto's own reserved ranges are outside the skill and are not
+imported); a minimum TLS version or cipher rule for mTLS (the
+skill requires mTLS with per-service identities, and states no
+version); a streaming-mode vocabulary (the skill names unary vs
+server/client/bidi streaming, but only the exact value `unary`
+gates the bounded-stream check — any other declared non-empty
+mode string is treated as a streaming mode rather than failed
+against a vocabulary the atom would have to enforce beyond the
+skill's gating use).
+
+The verdict is one of `GRPC_SERVICE_SOUND` (all 39 checks pass),
+`GRPC_SERVICE_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: contract_and_compatibility,
+api_shape_and_deadlines, server_hygiene, security_and_transport,
+observability_testing_and_interop.
+
+## Honest scoping
+
+This atom audits a **declared** gRPC service design record — it
+performs no service design, reads no .proto file, runs no buf
+lint or breaking-change check, generates no stubs, probes no
+live server, and does not verify that a declared control
+actually works. A design is sound *on the caller's declared
+evidence*: a manifest that declares deadlines on every method,
+mTLS on cross-host paths, and contract tests passing passes
+those checks even if the real service does none of it. It is a
+completeness and consistency audit of the record the skill
+requires, **not a gRPC engineering service or a live posture
+certification**: it never judges whether a streaming mode is the
+right choice for a flow, whether a declared deadline is long
+enough, whether mTLS identities are correctly scoped, or whether
+a declared error model is well designed — only that the record
+contains what the skill's sections and red lines demand, and
+that its declared rows are internally consistent.
+
+Named exclusions: no numeric thresholds beyond the skill's own
+stated rules (see the declined list above); no live verification
+of any declared fact; no .proto, code or repository inspection
+(hand-generated stubs and field-number reuse of retired numbers
+are caller declarations, the atom reads no proto file and no
+repo — the duplicate-number check catches only reuse visible
+inside the declared field list itself); no CI inspection (buf
+lint, breaking-change and codegen-in-CI are declared, their real
+pipeline state is not read); API-shape judgment (which streaming
+mode a method *should* use, whether an error detail type is the
+right one) is a caller declaration — the atom checks only that
+the choice is declared per method and that no streaming method
+is declared unbounded, never which mode a method ought to use;
+the skill's cross-reference to a sibling discipline
+(`policy-as-code` for the external authorization policy) is
+carried as the caller's own attestation in this record, not
+re-audited here.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "grpc-service-design",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "GRPC_SERVICE_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All 39 checks pass. Computed: methods_count=1, proto_fields_count=2, deadline_coverage=1.000000, streaming_boundedness_coverage=null (no streaming methods), computed_status=within_stated_limits_on_declared_evidence.",
+        "computed_spot_checks": {
+          "methods_count": 1,
+          "proto_fields_count": 2,
+          "methods_without_streaming_mode": [],
+          "methods_without_deadline": [],
+          "unbounded_streaming_methods": [],
+          "fields_sharing_a_duplicate_number": [],
+          "deadline_coverage": "1.000000",
+          "streaming_boundedness_coverage": null,
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "project": "test-service",
+        "contract": {
+          "proto3_used": true,
+          "removed_fields_reserved": true,
+          "backward_forward_compatibility_rules_documented": true,
+          "buf_lint_in_ci": true,
+          "breaking_change_check_in_ci": true,
+          "codegen_pinned": true,
+          "codegen_generated_in_ci": true,
+          "hand_generated_stubs_present": false,
+          "field_number_reuse_present": false
+        },
+        "proto_fields": [
+          {
+            "message": "User",
+            "name": "id",
+            "number": 1
+          },
+          {
+            "message": "User",
+            "name": "name",
+            "number": 2
+          }
+        ],
+        "api_shape": {
+          "streaming_choices_documented_by_flow": true,
+          "cancellation_propagation_configured": true,
+          "rich_error_model_used": true,
+          "metadata_limited_to_transport_concerns": true
+        },
+        "methods": [
+          {
+            "name": "GetUser",
+            "streaming_mode": "unary",
+            "deadline_set": true
+          }
+        ],
+        "server": {
+          "health_service_exposed": true,
+          "reflection_enabled": false,
+          "interceptors_for_auth_logging_metrics_tracing": true,
+          "keepalive_and_pool_tuning_configured": true,
+          "explicit_max_message_sizes_set": true
+        },
+        "security": {
+          "cross_host_traffic_present": false,
+          "authorization_via_interceptor_or_external_policy": true,
+          "public_surfaces_present": false
+        },
+        "observability": {
+          "trace_and_request_id_propagation_configured": true,
+          "per_method_metrics_collected": true,
+          "structured_errors_logged_once": true
+        },
+        "testing": {
+          "in_process_integration_tests_present": true,
+          "contract_tests_pass_against_clients": true,
+          "load_smoke_on_hot_paths_run": true
+        },
+        "interop": {
+          "rest_consumers_present": false,
+          "browser_clients_present": false,
+          "packages_versioned_v1": true,
+          "deprecated_fields_announced_then_removed_on_schedule": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "grpc-service-design",
+        "atom_version": "0.1.0",
+        "project": "test-service",
+        "verdict": "GRPC_SERVICE_SOUND",
+        "sections": {
+          "contract_and_compatibility": "pass",
+          "api_shape_and_deadlines": "pass",
+          "server_hygiene": "pass",
+          "security_and_transport": "pass",
+          "observability_testing_and_interop": "pass"
+        },
+        "checks": [
+          {
+            "section": "contract_and_compatibility",
+            "check": "proto3_used",
+            "status": "pass",
+            "evidence": "contract first: the contract is proto3"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "removed_fields_reserved",
+            "status": "pass",
+            "evidence": "quality gate: removed fields are reserved \u2014 their numbers and names are never recycled"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "backward_forward_compatibility_rules_documented",
+            "status": "pass",
+            "evidence": "contract first: backward/forward compatibility rules are documented"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "buf_lint_in_ci",
+            "status": "pass",
+            "evidence": "contract first: buf lint runs in CI"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "breaking_change_check_in_ci",
+            "status": "pass",
+            "evidence": "quality gate: the breaking-change check is green in CI"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "codegen_pinned",
+            "status": "pass",
+            "evidence": "contract first: codegen is pinned"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "codegen_generated_in_ci",
+            "status": "pass",
+            "evidence": "contract first: stubs are generated in CI, not by hand"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_hand_generated_stubs",
+            "status": "pass",
+            "evidence": "red line: no hand-generated stubs"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_field_number_reuse",
+            "status": "pass",
+            "evidence": "red line: proto field numbers are never reused, including numbers of removed fields"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "proto_fields_declared",
+            "status": "pass",
+            "evidence": "contract first: the declared record names its proto fields \u2014 the proto_fields list is present and non-empty"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_duplicate_field_number_within_message",
+            "status": "pass",
+            "evidence": "red line: no two declared fields in the same message share a field number \u2014 a shared number is a reuse on the declared evidence"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "streaming_choices_documented_by_flow",
+            "status": "pass",
+            "evidence": "API shape: unary vs server/client/bidi streaming is chosen by flow for each method"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "methods_declared",
+            "status": "pass",
+            "evidence": "API shape: the declared record names its methods \u2014 the methods list is present and non-empty"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_method_names_streaming_mode",
+            "status": "pass",
+            "evidence": "API shape: every declared method row names its streaming mode \u2014 a non-empty streaming_mode string"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_method_has_deadline",
+            "status": "pass",
+            "evidence": "quality gate: every declared method row declares a deadline set \u2014 deadlines on every call"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_streaming_method_bounded",
+            "status": "pass",
+            "evidence": "red line: no unbounded streams \u2014 every streaming method row declares its stream bounded"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "cancellation_propagation_configured",
+            "status": "pass",
+            "evidence": "quality gate: cancellation propagation is configured alongside deadlines"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "rich_error_model_used",
+            "status": "pass",
+            "evidence": "API shape: a rich error model is used \u2014 status codes plus typed details"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "metadata_limited_to_transport_concerns",
+            "status": "pass",
+            "evidence": "API shape: metadata is kept for transport concerns"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "health_service_exposed",
+            "status": "pass",
+            "evidence": "quality gate: the grpc.health.v1 health service is exposed"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "reflection_restricted_to_dev_or_authenticated",
+            "status": "pass",
+            "evidence": "reflection not enabled"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "interceptors_for_auth_logging_metrics_tracing",
+            "status": "pass",
+            "evidence": "server hygiene: interceptors cover auth, logging, metrics and tracing"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "keepalive_and_pool_tuning_configured",
+            "status": "pass",
+            "evidence": "server hygiene: keepalive and pool tuning are configured"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "explicit_max_message_sizes_set",
+            "status": "pass",
+            "evidence": "server hygiene: max message sizes are explicit"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "mtls_on_cross_host_paths",
+            "status": "pass",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "per_service_identities_used",
+            "status": "pass",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "no_plaintext_across_hosts",
+            "status": "pass",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "authorization_via_interceptor_or_external_policy",
+            "status": "pass",
+            "evidence": "quality gate: authorization runs via an interceptor or an external policy (policy-as-code)"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "rate_limits_on_public_surfaces",
+            "status": "pass",
+            "evidence": "no public surfaces declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "trace_and_request_id_propagation_configured",
+            "status": "pass",
+            "evidence": "observability: trace and request-id propagation are configured"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "per_method_metrics_collected",
+            "status": "pass",
+            "evidence": "observability: per-method metrics are collected"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "structured_errors_logged_once",
+            "status": "pass",
+            "evidence": "observability: structured errors are logged once"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "in_process_integration_tests_present",
+            "status": "pass",
+            "evidence": "testing: in-process integration tests (bufconn-style) are present"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "contract_tests_pass_against_clients",
+            "status": "pass",
+            "evidence": "quality gate: contract tests pass against real clients"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "load_smoke_on_hot_paths_run",
+            "status": "pass",
+            "evidence": "testing: load smoke runs on hot paths"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "gateway_json_adapters_for_rest_consumers",
+            "status": "pass",
+            "evidence": "no REST consumers declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "grpc_web_where_browsers_connect",
+            "status": "pass",
+            "evidence": "no browser clients declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "packages_versioned_v1",
+            "status": "pass",
+            "evidence": "interop & versioning: packages carry v1 versions"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "deprecated_fields_announced_then_removed_on_schedule",
+            "status": "pass",
+            "evidence": "interop & versioning: deprecated fields are announced, then removed on schedule"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "methods_count": 1,
+        "proto_fields_count": 2,
+        "methods_without_streaming_mode": [],
+        "methods_without_deadline": [],
+        "unbounded_streaming_methods": [],
+        "fields_sharing_a_duplicate_number": [],
+        "deadline_coverage": "1.000000",
+        "streaming_boundedness_coverage": null,
+        "summary": "39 pass, 0 fail, 0 missing of 39 checks across five sections.",
+        "stamp": "GRPC SERVICE DESIGN\nproject: test-service\nVERDICT: GRPC_SERVICE_SOUND\n  contract_and_compatibility           pass\n  api_shape_and_deadlines              pass\n  server_hygiene                       pass\n  security_and_transport               pass\n  observability_testing_and_interop    pass\n39 pass, 0 fail, 0 missing of 39 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "GRPC_SERVICE_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_hand_generated_stubs",
+          "no_field_number_reuse",
+          "no_duplicate_field_number_within_message",
+          "every_method_has_deadline",
+          "every_streaming_method_bounded"
+        ],
+        "computed_spot_checks": {
+          "methods_count": 1,
+          "proto_fields_count": 2,
+          "methods_without_streaming_mode": [],
+          "methods_without_deadline": [
+            "GetUser"
+          ],
+          "unbounded_streaming_methods": [
+            "GetUser"
+          ],
+          "fields_sharing_a_duplicate_number": [
+            "id",
+            "name"
+          ],
+          "deadline_coverage": "0.000000",
+          "streaming_boundedness_coverage": "0.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        },
+        "notes": "Full manifest identical to full-pass except 5 planted violations: hand_generated_stubs_present true, field_number_reuse_present true, duplicate proto field number 1 in message User (id/name), method GetUser streaming_mode server with deadline_set false and stream_bounded false."
+      },
+      "input": {
+        "project": "test-service",
+        "contract": {
+          "proto3_used": true,
+          "removed_fields_reserved": true,
+          "backward_forward_compatibility_rules_documented": true,
+          "buf_lint_in_ci": true,
+          "breaking_change_check_in_ci": true,
+          "codegen_pinned": true,
+          "codegen_generated_in_ci": true,
+          "hand_generated_stubs_present": true,
+          "field_number_reuse_present": true
+        },
+        "proto_fields": [
+          {
+            "message": "User",
+            "name": "id",
+            "number": 1
+          },
+          {
+            "message": "User",
+            "name": "name",
+            "number": 1
+          }
+        ],
+        "api_shape": {
+          "streaming_choices_documented_by_flow": true,
+          "cancellation_propagation_configured": true,
+          "rich_error_model_used": true,
+          "metadata_limited_to_transport_concerns": true
+        },
+        "methods": [
+          {
+            "name": "GetUser",
+            "streaming_mode": "server",
+            "deadline_set": false,
+            "stream_bounded": false
+          }
+        ],
+        "server": {
+          "health_service_exposed": true,
+          "reflection_enabled": false,
+          "interceptors_for_auth_logging_metrics_tracing": true,
+          "keepalive_and_pool_tuning_configured": true,
+          "explicit_max_message_sizes_set": true
+        },
+        "security": {
+          "cross_host_traffic_present": false,
+          "authorization_via_interceptor_or_external_policy": true,
+          "public_surfaces_present": false
+        },
+        "observability": {
+          "trace_and_request_id_propagation_configured": true,
+          "per_method_metrics_collected": true,
+          "structured_errors_logged_once": true
+        },
+        "testing": {
+          "in_process_integration_tests_present": true,
+          "contract_tests_pass_against_clients": true,
+          "load_smoke_on_hot_paths_run": true
+        },
+        "interop": {
+          "rest_consumers_present": false,
+          "browser_clients_present": false,
+          "packages_versioned_v1": true,
+          "deprecated_fields_announced_then_removed_on_schedule": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "grpc-service-design",
+        "atom_version": "0.1.0",
+        "project": "test-service",
+        "verdict": "GRPC_SERVICE_NOT_SOUND",
+        "sections": {
+          "contract_and_compatibility": "fail",
+          "api_shape_and_deadlines": "fail",
+          "server_hygiene": "pass",
+          "security_and_transport": "pass",
+          "observability_testing_and_interop": "pass"
+        },
+        "checks": [
+          {
+            "section": "contract_and_compatibility",
+            "check": "proto3_used",
+            "status": "pass",
+            "evidence": "contract first: the contract is proto3"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "removed_fields_reserved",
+            "status": "pass",
+            "evidence": "quality gate: removed fields are reserved \u2014 their numbers and names are never recycled"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "backward_forward_compatibility_rules_documented",
+            "status": "pass",
+            "evidence": "contract first: backward/forward compatibility rules are documented"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "buf_lint_in_ci",
+            "status": "pass",
+            "evidence": "contract first: buf lint runs in CI"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "breaking_change_check_in_ci",
+            "status": "pass",
+            "evidence": "quality gate: the breaking-change check is green in CI"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "codegen_pinned",
+            "status": "pass",
+            "evidence": "contract first: codegen is pinned"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "codegen_generated_in_ci",
+            "status": "pass",
+            "evidence": "contract first: stubs are generated in CI, not by hand"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_hand_generated_stubs",
+            "status": "fail",
+            "evidence": "red line: no hand-generated stubs"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_field_number_reuse",
+            "status": "fail",
+            "evidence": "red line: proto field numbers are never reused, including numbers of removed fields"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "proto_fields_declared",
+            "status": "pass",
+            "evidence": "contract first: the declared record names its proto fields \u2014 the proto_fields list is present and non-empty"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_duplicate_field_number_within_message",
+            "status": "fail",
+            "evidence": "red line: no two declared fields in the same message share a field number \u2014 a shared number is a reuse on the declared evidence"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "streaming_choices_documented_by_flow",
+            "status": "pass",
+            "evidence": "API shape: unary vs server/client/bidi streaming is chosen by flow for each method"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "methods_declared",
+            "status": "pass",
+            "evidence": "API shape: the declared record names its methods \u2014 the methods list is present and non-empty"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_method_names_streaming_mode",
+            "status": "pass",
+            "evidence": "API shape: every declared method row names its streaming mode \u2014 a non-empty streaming_mode string"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_method_has_deadline",
+            "status": "fail",
+            "evidence": "quality gate: every declared method row declares a deadline set \u2014 deadlines on every call"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_streaming_method_bounded",
+            "status": "fail",
+            "evidence": "red line: no unbounded streams \u2014 every streaming method row declares its stream bounded"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "cancellation_propagation_configured",
+            "status": "pass",
+            "evidence": "quality gate: cancellation propagation is configured alongside deadlines"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "rich_error_model_used",
+            "status": "pass",
+            "evidence": "API shape: a rich error model is used \u2014 status codes plus typed details"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "metadata_limited_to_transport_concerns",
+            "status": "pass",
+            "evidence": "API shape: metadata is kept for transport concerns"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "health_service_exposed",
+            "status": "pass",
+            "evidence": "quality gate: the grpc.health.v1 health service is exposed"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "reflection_restricted_to_dev_or_authenticated",
+            "status": "pass",
+            "evidence": "reflection not enabled"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "interceptors_for_auth_logging_metrics_tracing",
+            "status": "pass",
+            "evidence": "server hygiene: interceptors cover auth, logging, metrics and tracing"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "keepalive_and_pool_tuning_configured",
+            "status": "pass",
+            "evidence": "server hygiene: keepalive and pool tuning are configured"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "explicit_max_message_sizes_set",
+            "status": "pass",
+            "evidence": "server hygiene: max message sizes are explicit"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "mtls_on_cross_host_paths",
+            "status": "pass",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "per_service_identities_used",
+            "status": "pass",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "no_plaintext_across_hosts",
+            "status": "pass",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "authorization_via_interceptor_or_external_policy",
+            "status": "pass",
+            "evidence": "quality gate: authorization runs via an interceptor or an external policy (policy-as-code)"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "rate_limits_on_public_surfaces",
+            "status": "pass",
+            "evidence": "no public surfaces declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "trace_and_request_id_propagation_configured",
+            "status": "pass",
+            "evidence": "observability: trace and request-id propagation are configured"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "per_method_metrics_collected",
+            "status": "pass",
+            "evidence": "observability: per-method metrics are collected"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "structured_errors_logged_once",
+            "status": "pass",
+            "evidence": "observability: structured errors are logged once"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "in_process_integration_tests_present",
+            "status": "pass",
+            "evidence": "testing: in-process integration tests (bufconn-style) are present"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "contract_tests_pass_against_clients",
+            "status": "pass",
+            "evidence": "quality gate: contract tests pass against real clients"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "load_smoke_on_hot_paths_run",
+            "status": "pass",
+            "evidence": "testing: load smoke runs on hot paths"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "gateway_json_adapters_for_rest_consumers",
+            "status": "pass",
+            "evidence": "no REST consumers declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "grpc_web_where_browsers_connect",
+            "status": "pass",
+            "evidence": "no browser clients declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "packages_versioned_v1",
+            "status": "pass",
+            "evidence": "interop & versioning: packages carry v1 versions"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "deprecated_fields_announced_then_removed_on_schedule",
+            "status": "pass",
+            "evidence": "interop & versioning: deprecated fields are announced, then removed on schedule"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "methods_count": 1,
+        "proto_fields_count": 2,
+        "methods_without_streaming_mode": [],
+        "methods_without_deadline": [
+          "GetUser"
+        ],
+        "unbounded_streaming_methods": [
+          "GetUser"
+        ],
+        "fields_sharing_a_duplicate_number": [
+          "id",
+          "name"
+        ],
+        "deadline_coverage": "0.000000",
+        "streaming_boundedness_coverage": "0.000000",
+        "summary": "34 pass, 5 fail, 0 missing of 39 checks across five sections.",
+        "stamp": "GRPC SERVICE DESIGN\nproject: test-service\nVERDICT: GRPC_SERVICE_NOT_SOUND\n  contract_and_compatibility           fail\n  api_shape_and_deadlines              fail\n  server_hygiene                       pass\n  security_and_transport               pass\n  observability_testing_and_interop    pass\n34 pass, 5 fail, 0 missing of 39 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required lists and boolean fields results in insufficient evidence."
+      },
+      "input": {
+        "project": "incomplete-service"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "grpc-service-design",
+        "atom_version": "0.1.0",
+        "project": "incomplete-service",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "contract_and_compatibility": "insufficient_evidence",
+          "api_shape_and_deadlines": "insufficient_evidence",
+          "server_hygiene": "insufficient_evidence",
+          "security_and_transport": "insufficient_evidence",
+          "observability_testing_and_interop": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "contract_and_compatibility",
+            "check": "proto3_used",
+            "status": "missing",
+            "evidence": "contract first: the contract is proto3"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "removed_fields_reserved",
+            "status": "missing",
+            "evidence": "quality gate: removed fields are reserved \u2014 their numbers and names are never recycled"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "backward_forward_compatibility_rules_documented",
+            "status": "missing",
+            "evidence": "contract first: backward/forward compatibility rules are documented"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "buf_lint_in_ci",
+            "status": "missing",
+            "evidence": "contract first: buf lint runs in CI"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "breaking_change_check_in_ci",
+            "status": "missing",
+            "evidence": "quality gate: the breaking-change check is green in CI"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "codegen_pinned",
+            "status": "missing",
+            "evidence": "contract first: codegen is pinned"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "codegen_generated_in_ci",
+            "status": "missing",
+            "evidence": "contract first: stubs are generated in CI, not by hand"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_hand_generated_stubs",
+            "status": "missing",
+            "evidence": "red line: no hand-generated stubs"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_field_number_reuse",
+            "status": "missing",
+            "evidence": "red line: proto field numbers are never reused, including numbers of removed fields"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "proto_fields_declared",
+            "status": "missing",
+            "evidence": "contract first: the declared record names its proto fields \u2014 the proto_fields list is present and non-empty"
+          },
+          {
+            "section": "contract_and_compatibility",
+            "check": "no_duplicate_field_number_within_message",
+            "status": "missing",
+            "evidence": "red line: no two declared fields in the same message share a field number \u2014 a shared number is a reuse on the declared evidence"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "streaming_choices_documented_by_flow",
+            "status": "missing",
+            "evidence": "API shape: unary vs server/client/bidi streaming is chosen by flow for each method"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "methods_declared",
+            "status": "missing",
+            "evidence": "API shape: the declared record names its methods \u2014 the methods list is present and non-empty"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_method_names_streaming_mode",
+            "status": "missing",
+            "evidence": "API shape: every declared method row names its streaming mode \u2014 a non-empty streaming_mode string"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_method_has_deadline",
+            "status": "missing",
+            "evidence": "quality gate: every declared method row declares a deadline set \u2014 deadlines on every call"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "every_streaming_method_bounded",
+            "status": "missing",
+            "evidence": "red line: no unbounded streams \u2014 every streaming method row declares its stream bounded"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "cancellation_propagation_configured",
+            "status": "missing",
+            "evidence": "quality gate: cancellation propagation is configured alongside deadlines"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "rich_error_model_used",
+            "status": "missing",
+            "evidence": "API shape: a rich error model is used \u2014 status codes plus typed details"
+          },
+          {
+            "section": "api_shape_and_deadlines",
+            "check": "metadata_limited_to_transport_concerns",
+            "status": "missing",
+            "evidence": "API shape: metadata is kept for transport concerns"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "health_service_exposed",
+            "status": "missing",
+            "evidence": "quality gate: the grpc.health.v1 health service is exposed"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "reflection_restricted_to_dev_or_authenticated",
+            "status": "missing",
+            "evidence": "reflection not enabled"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "interceptors_for_auth_logging_metrics_tracing",
+            "status": "missing",
+            "evidence": "server hygiene: interceptors cover auth, logging, metrics and tracing"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "keepalive_and_pool_tuning_configured",
+            "status": "missing",
+            "evidence": "server hygiene: keepalive and pool tuning are configured"
+          },
+          {
+            "section": "server_hygiene",
+            "check": "explicit_max_message_sizes_set",
+            "status": "missing",
+            "evidence": "server hygiene: max message sizes are explicit"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "mtls_on_cross_host_paths",
+            "status": "missing",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "per_service_identities_used",
+            "status": "missing",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "no_plaintext_across_hosts",
+            "status": "missing",
+            "evidence": "no cross-host traffic declared"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "authorization_via_interceptor_or_external_policy",
+            "status": "missing",
+            "evidence": "quality gate: authorization runs via an interceptor or an external policy (policy-as-code)"
+          },
+          {
+            "section": "security_and_transport",
+            "check": "rate_limits_on_public_surfaces",
+            "status": "missing",
+            "evidence": "no public surfaces declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "trace_and_request_id_propagation_configured",
+            "status": "missing",
+            "evidence": "observability: trace and request-id propagation are configured"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "per_method_metrics_collected",
+            "status": "missing",
+            "evidence": "observability: per-method metrics are collected"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "structured_errors_logged_once",
+            "status": "missing",
+            "evidence": "observability: structured errors are logged once"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "in_process_integration_tests_present",
+            "status": "missing",
+            "evidence": "testing: in-process integration tests (bufconn-style) are present"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "contract_tests_pass_against_clients",
+            "status": "missing",
+            "evidence": "quality gate: contract tests pass against real clients"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "load_smoke_on_hot_paths_run",
+            "status": "missing",
+            "evidence": "testing: load smoke runs on hot paths"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "gateway_json_adapters_for_rest_consumers",
+            "status": "missing",
+            "evidence": "no REST consumers declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "grpc_web_where_browsers_connect",
+            "status": "missing",
+            "evidence": "no browser clients declared"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "packages_versioned_v1",
+            "status": "missing",
+            "evidence": "interop & versioning: packages carry v1 versions"
+          },
+          {
+            "section": "observability_testing_and_interop",
+            "check": "deprecated_fields_announced_then_removed_on_schedule",
+            "status": "missing",
+            "evidence": "interop & versioning: deprecated fields are announced, then removed on schedule"
+          }
+        ],
+        "computed_status": null,
+        "methods_count": null,
+        "proto_fields_count": null,
+        "methods_without_streaming_mode": null,
+        "methods_without_deadline": null,
+        "unbounded_streaming_methods": null,
+        "fields_sharing_a_duplicate_number": null,
+        "deadline_coverage": null,
+        "streaming_boundedness_coverage": null,
+        "summary": "0 pass, 0 fail, 39 missing of 39 checks across five sections.",
+        "stamp": "GRPC SERVICE DESIGN\nproject: incomplete-service\nVERDICT: INSUFFICIENT_EVIDENCE\n  contract_and_compatibility           insufficient_evidence\n  api_shape_and_deadlines              insufficient_evidence\n  server_hygiene                       insufficient_evidence\n  security_and_transport               insufficient_evidence\n  observability_testing_and_interop    insufficient_evidence\n0 pass, 0 fail, 39 missing of 39 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Contract field expects an object, provided a string."
+      },
+      "input": {
+        "project": "malformed-service",
+        "contract": "not-an-object"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "contract",
+        "detail": "contract must be an object"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

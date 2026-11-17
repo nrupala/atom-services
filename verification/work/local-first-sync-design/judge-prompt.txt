@@ -1,0 +1,1501 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: local-first-sync-design
+
+=== contract.yaml ===
+service_name: local-first-sync-design
+display_name: Local first sync design
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:local-first-engineering
+binding:
+  skill: local-first-engineering
+  skill_path: workspace/mymilo-build/skills/local-first-engineering/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: local_first_sync_design
+  prefix: atm_1_local_first_sync_design_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Vault app offline sync design
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Local first sync design — `local-first-sync-design`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Build local-first apps - offline data, CRDT sync, conflict handling, E2EE multi-device, honest state UI.
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Engineering & code who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Vault app offline sync design**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the local-first-sync manifest
+
+The caller submits one JSON manifest: a declared local-first
+sync design record for one app. Every field below is read by the
+named section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`LOCAL_FIRST_SYNC_NOT_SOUND`). All fields are
+booleans unless noted. A documented field present with the wrong
+JSON type is a caller error (the gateway renders 422) — it is
+never evaluated into a verdict.
+
+| Field | Read by |
+|---|---|
+| `app` (string; carried into the verdict output, not itself checked) | — |
+| `local_truth.device_store_authoritative` (boolean) | local_truth_and_data_model |
+| `local_truth.server_is_relay_and_backup_not_gate` (boolean) | local_truth_and_data_model |
+| `local_truth.core_flows_designed_airplane_mode_first` (boolean) | local_truth_and_data_model |
+| `local_truth.core_flows_work_fully_offline` (boolean) | local_truth_and_data_model |
+| `local_truth.sync_resumes_cleanly_after_long_offline` (boolean) | local_truth_and_data_model |
+| `data_model.mergeable_state_uses_crdt_or_ot` (boolean) | local_truth_and_data_model |
+| `data_model.tombstones_declared` (boolean) | local_truth_and_data_model |
+| `data_model.compaction_policy_declared` (boolean) | local_truth_and_data_model |
+| `entities` (list of entity-row objects, each with the entry fields below; computed, see below) | local_truth_and_data_model, conflicts_and_state_ui |
+| `entities[].name` (string; names the row in the computed outputs) | local_truth_and_data_model, conflicts_and_state_ui |
+| `entities[].per_field_merge_semantics_declared` (boolean) | local_truth_and_data_model |
+| `entities[].stable_id_declared` (boolean) | local_truth_and_data_model |
+| `entities[].is_user_prose` (boolean; gates the per-entity last-write-wins check below) | conflicts_and_state_ui |
+| `entities[].silent_last_write_wins_present` (boolean; must be `false` per user-prose row to pass the computed red-line check) | conflicts_and_state_ui |
+| `sync_protocol.delta_sync_declared` (boolean) | sync_protocol |
+| `sync_protocol.causal_ordering_declared` (boolean) | sync_protocol |
+| `sync_protocol.resumability_declared` (boolean) | sync_protocol |
+| `sync_protocol.bandwidth_budgets_declared` (boolean) | sync_protocol |
+| `sync_protocol.store_and_forward_for_intermittent_peers` (boolean) | sync_protocol |
+| `sync_protocol.vector_clocks_or_version_vectors_declared` (boolean) | sync_protocol |
+| `encryption.e2ee_before_upload` (boolean) | encryption_and_keys |
+| `encryption.keys_never_leave_devices` (boolean) | encryption_and_keys |
+| `encryption.per_device_keys_declared` (boolean) | encryption_and_keys |
+| `encryption.key_hierarchy_declared` (boolean) | encryption_and_keys |
+| `encryption.key_recovery_ux_tested_like_a_feature` (boolean) | encryption_and_keys |
+| `encryption.key_recovery_exercised_end_to_end` (boolean) | encryption_and_keys |
+| `encryption.e2ee_verified` (boolean) | encryption_and_keys |
+| `personal_data_sync.personal_data_synced` (boolean; gates the encryption red-line check below) | encryption_and_keys |
+| `personal_data_sync.personal_data_encrypted_before_sync` (boolean; required when personal data is declared synced; otherwise the check passes as not applicable) | encryption_and_keys |
+| `conflicts.automatic_merge_for_text_and_counters` (boolean) | conflicts_and_state_ui |
+| `conflicts.explicit_ui_only_for_semantic_conflicts` (boolean) | conflicts_and_state_ui |
+| `conflicts.silent_data_loss_present` (boolean; must be `false` to pass — skill red line) | conflicts_and_state_ui |
+| `conflicts.silent_last_write_wins_on_user_prose_present` (boolean; must be `false` to pass — skill red line) | conflicts_and_state_ui |
+| `state_ui.offline_state_shown` (boolean) | conflicts_and_state_ui |
+| `state_ui.queued_state_shown` (boolean) | conflicts_and_state_ui |
+| `state_ui.syncing_state_shown` (boolean) | conflicts_and_state_ui |
+| `state_ui.synced_state_shown` (boolean) | conflicts_and_state_ui |
+| `state_ui.conflict_state_shown` (boolean) | conflicts_and_state_ui |
+| `state_ui.export_escape_hatch_present` (boolean) | conflicts_and_state_ui |
+| `state_ui.import_escape_hatch_present` (boolean) | conflicts_and_state_ui |
+| `state_ui.sync_diagnostics_present` (boolean) | conflicts_and_state_ui |
+| `state_ui.sync_badge_claimed` (boolean; gates the round-trip red-line check below) | conflicts_and_state_ui |
+| `testing.chaos_offline_scenario_tested` (boolean) | testing_and_quality_gates |
+| `testing.chaos_clock_skew_scenario_tested` (boolean) | testing_and_quality_gates |
+| `testing.chaos_concurrent_edits_scenario_tested` (boolean) | testing_and_quality_gates |
+| `testing.chaos_device_loss_scenario_tested` (boolean) | testing_and_quality_gates |
+| `testing.merge_invariants_property_tested` (boolean) | testing_and_quality_gates |
+| `testing.export_import_tested_on_real_data_volumes` (boolean) | testing_and_quality_gates |
+| `testing.real_device_matrix_tested` (boolean) | testing_and_quality_gates |
+| `testing.multi_device_round_trip_tests_passed` (boolean; required when a sync badge is claimed; also checked on its own) | testing_and_quality_gates, conflicts_and_state_ui |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Entities declared:** the declared `entities` list passes
+  only when it is present and non-empty; an absent list is
+  missing evidence, an empty list fails.
+- **Merge semantics per entity:** every declared entity row must
+  declare `per_field_merge_semantics_declared: true` (the skill's
+  data model: "per-field merge semantics"). A row with the field
+  absent is missing evidence.
+- **Stable ID per entity:** every declared entity row must
+  declare `stable_id_declared: true` (the skill's data model:
+  "stable document/entity IDs").
+- **No silent last-write-wins on prose entities:** no entity row
+  with `is_user_prose: true` may declare
+  `silent_last_write_wins_present: true` (the skill's red line:
+  "never silent last-write-wins on user prose"). A row with
+  `is_user_prose` absent, or a prose row with the target field
+  absent, is missing evidence; designs with no prose rows pass
+  as not applicable. Last-write-wins on a non-prose row is not
+  judged by this check — the skill's red line is scoped to user
+  prose.
+
+Two checks are conditional, following the skill's own scoping —
+computed from the declared gate fields:
+
+- **Personal data encryption:** the skill's red line is "No sync
+  of personal data without encryption (per product class)".
+  `personal_data_encrypted_before_sync` is therefore required
+  only when `personal_data_sync.personal_data_synced` is declared
+  `true`; when no personal data is declared synced, the check
+  passes as not applicable.
+- **Sync badge:** the skill's red line is 'No "sync" badge
+  without real multi-device round-trip tests'.
+  `testing.multi_device_round_trip_tests_passed` is therefore
+  required only when `state_ui.sync_badge_claimed` is declared
+  `true`; when no badge is claimed, the check passes as not
+  applicable. (The round-trip fact is also checked on its own in
+  testing_and_quality_gates.)
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the four primary computed checks above cannot be completed),
+`entities_count` (the declared list length, or null when the
+list is not declared — counts are reported as integers, exactly),
+the row-name lists `entities_without_merge_semantics` (entities
+whose field is present but not true; an entity with the field
+absent is missing evidence and does not appear),
+`entities_without_stable_id` (entities whose field is present
+but not true) and `prose_entities_with_silent_last_write_wins`
+(user-prose entities declaring `silent_last_write_wins_present:
+true`), and the two coverage ratios `merge_semantics_coverage`
+(entities declaring per-field merge semantics ÷ declared
+entities) and `stable_id_coverage` (entities declaring a stable
+ID ÷ declared entities).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — its protocol
+and testing vocabulary is design content the record attests to,
+not bars the atom can set. Quantities are computed and reported;
+the only bar on the computed rows is completeness over the
+caller's own declared rows, exactly as stated above. Declined
+thresholds, named: a bandwidth budget in bytes, bits per second
+or percent (the skill requires bandwidth budgets but states no
+figure — caller attestation only); a maximum offline duration
+or a resume-time limit for the "long offline periods" quality
+gate (no duration is stated); a compaction interval, a tombstone
+retention period, or a tombstone count/size cap (the skill
+requires a compaction policy but states no number); a key length,
+key-derivation parameter, or named cipher requirement (the skill
+requires E2EE and a key hierarchy but names no algorithm or
+parameter); a chaos-scenario count, property-test case count, or
+test-coverage percentage (the skill names the scenarios and the
+invariants — commutative, associative, idempotent — but no
+counts); a real-device matrix size or a named device/OS set (the
+skill requires real device matrices but states no size); a data
+volume for the export/import quality gate (the skill says "real
+data volumes" but states no figure); a sync-state latency or
+indicator-accuracy bar for honest state UI (the skill requires
+the indicators to tell the truth but states no timing); a
+coverage percentage below completeness for the entity rows.
+
+The verdict is one of `LOCAL_FIRST_SYNC_SOUND` (all 47 checks
+pass), `LOCAL_FIRST_SYNC_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: local_truth_and_data_model, sync_protocol,
+encryption_and_keys, conflicts_and_state_ui,
+testing_and_quality_gates.
+
+## Distinct ground
+
+Two staged sibling atoms sit near this ground, and the boundary
+is explicit. `offline-first-pwa-engineering-pack` (bound skill
+`pwa-offline-engineering`) covers the web/PWA surface — service
+workers, installability, sync queues for web apps; this atom
+does not check any service-worker or installability fact.
+`zero-knowledge-system-design-pack` (bound skill
+`zero-knowledge-systems`) covers zero-knowledge system design in
+general; this atom checks encryption only as the local-first
+skill scopes it — E2EE before upload, keys never leaving
+devices, per-device keys, recovery exercised — as one section of
+a sync design, not as a zero-knowledge audit. Both siblings are
+scaffolded only (no checks implemented), so this atom shares
+**zero checks** with any live or staged sibling; every check
+here is drawn from `local-first-engineering` alone — device-held
+truth, the CRDT/OT data model, the sync protocol, conflict
+handling, honest sync-state UI, and local-first testing.
+
+## Honest scoping
+
+This atom audits a **declared** local-first sync design record —
+it designs no sync engine, runs no sync, merges no data, encrypts
+nothing, probes no live app, and does not verify that a declared
+control actually works. A design is sound *on the caller's
+declared evidence*: a manifest that declares device-held truth,
+CRDT merge semantics, and E2EE before upload passes those checks
+even if the real app does none of it. It is a completeness and
+consistency audit of the record the skill requires, **not a sync
+implementation, a data-loss guarantee, or a security
+certification**: it never judges whether a CRDT choice actually
+preserves edits, whether the encryption actually achieves
+end-to-end properties, whether a conflict UI is usable, or
+whether the declared tests were really run — only that the
+record contains what the skill's method, quality gates and red
+lines demand, and that its declared rows are internally
+consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; merge correctness
+(whether the chosen CRDT/OT and per-field semantics are the
+right ones for an entity, and whether merges are in fact
+lossless) is a caller declaration — the atom checks only that
+semantics are declared per entity; encryption soundness
+(algorithm choice, key derivation, protocol correctness) is a
+caller declaration — only its declared presence and scoping are
+checked; conflict-UX quality (whether a semantic-conflict UI is
+comprehensible, whether state indicators are noticed) is a
+caller declaration; whether "user prose" is the right
+classification for an entity row is the caller's declaration —
+the atom applies the red line to rows as classified; transport
+choice (WebSocket vs WebRTC vs another channel) is not judged —
+the skill names the channels as the delta-sync medium, and only
+the declared presence of delta sync, causality, resumability and
+budgets is checked.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Generic engineering advice
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "local-first-sync-design",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "LOCAL_FIRST_SYNC_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. Computed ratios: merge_semantics_coverage=1.000000, stable_id_coverage=1.000000. entities_count=1.",
+        "computed_spot_checks": {
+          "entities_count": 1,
+          "entities_without_merge_semantics": [],
+          "merge_semantics_coverage": "1.000000",
+          "entities_without_stable_id": [],
+          "stable_id_coverage": "1.000000",
+          "prose_entities_with_silent_last_write_wins": [],
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "app": "Vault",
+        "local_truth": {
+          "device_store_authoritative": true,
+          "server_is_relay_and_backup_not_gate": true,
+          "core_flows_designed_airplane_mode_first": true,
+          "core_flows_work_fully_offline": true,
+          "sync_resumes_cleanly_after_long_offline": true
+        },
+        "data_model": {
+          "mergeable_state_uses_crdt_or_ot": true,
+          "tombstones_declared": true,
+          "compaction_policy_declared": true
+        },
+        "entities": [
+          {
+            "name": "notes",
+            "per_field_merge_semantics_declared": true,
+            "stable_id_declared": true,
+            "is_user_prose": true,
+            "silent_last_write_wins_present": false
+          }
+        ],
+        "sync_protocol": {
+          "delta_sync_declared": true,
+          "causal_ordering_declared": true,
+          "resumability_declared": true,
+          "bandwidth_budgets_declared": true,
+          "store_and_forward_for_intermittent_peers": true,
+          "vector_clocks_or_version_vectors_declared": true
+        },
+        "encryption": {
+          "e2ee_before_upload": true,
+          "keys_never_leave_devices": true,
+          "per_device_keys_declared": true,
+          "key_hierarchy_declared": true,
+          "key_recovery_ux_tested_like_a_feature": true,
+          "key_recovery_exercised_end_to_end": true,
+          "e2ee_verified": true
+        },
+        "personal_data_sync": {
+          "personal_data_synced": false,
+          "personal_data_encrypted_before_sync": true
+        },
+        "conflicts": {
+          "automatic_merge_for_text_and_counters": true,
+          "explicit_ui_only_for_semantic_conflicts": true,
+          "silent_data_loss_present": false,
+          "silent_last_write_wins_on_user_prose_present": false
+        },
+        "state_ui": {
+          "offline_state_shown": true,
+          "queued_state_shown": true,
+          "syncing_state_shown": true,
+          "synced_state_shown": true,
+          "conflict_state_shown": true,
+          "export_escape_hatch_present": true,
+          "import_escape_hatch_present": true,
+          "sync_diagnostics_present": true,
+          "sync_badge_claimed": false
+        },
+        "testing": {
+          "chaos_offline_scenario_tested": true,
+          "chaos_clock_skew_scenario_tested": true,
+          "chaos_concurrent_edits_scenario_tested": true,
+          "chaos_device_loss_scenario_tested": true,
+          "merge_invariants_property_tested": true,
+          "export_import_tested_on_real_data_volumes": true,
+          "real_device_matrix_tested": true,
+          "multi_device_round_trip_tests_passed": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "local-first-sync-design",
+        "atom_version": "0.1.0",
+        "app": "Vault",
+        "verdict": "LOCAL_FIRST_SYNC_SOUND",
+        "sections": {
+          "local_truth_and_data_model": "pass",
+          "sync_protocol": "pass",
+          "encryption_and_keys": "pass",
+          "conflicts_and_state_ui": "pass",
+          "testing_and_quality_gates": "pass"
+        },
+        "checks": [
+          {
+            "section": "local_truth_and_data_model",
+            "check": "device_store_authoritative",
+            "status": "pass",
+            "evidence": "local truth: the device store (IndexedDB/SQLite) is authoritative"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "server_is_relay_and_backup_not_gate",
+            "status": "pass",
+            "evidence": "local truth: the server is a relay + backup, not a gate"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "core_flows_designed_airplane_mode_first",
+            "status": "pass",
+            "evidence": "local truth: flows are designed airplane-mode-first"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "core_flows_work_fully_offline",
+            "status": "pass",
+            "evidence": "quality gate: core flows work fully offline"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "sync_resumes_cleanly_after_long_offline",
+            "status": "pass",
+            "evidence": "quality gate: sync resumes cleanly after long offline periods"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "mergeable_state_uses_crdt_or_ot",
+            "status": "pass",
+            "evidence": "data model: CRDTs (or OT) are used for mergeable state"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "tombstones_declared",
+            "status": "pass",
+            "evidence": "data model: tombstones are declared"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "compaction_policy_declared",
+            "status": "pass",
+            "evidence": "data model: a compaction policy is declared"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "entities_declared",
+            "status": "pass",
+            "evidence": "the declared record names its entities \u2014 the entities list is present and non-empty"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "every_entity_per_field_merge_semantics_declared",
+            "status": "pass",
+            "evidence": "data model: every declared entity row declares per-field merge semantics"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "every_entity_stable_id_declared",
+            "status": "pass",
+            "evidence": "data model: every declared entity row declares a stable document/entity ID"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "delta_sync_declared",
+            "status": "pass",
+            "evidence": "sync protocol: delta sync (over WebSocket/WebRTC) is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "causal_ordering_declared",
+            "status": "pass",
+            "evidence": "sync protocol: causal ordering is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "resumability_declared",
+            "status": "pass",
+            "evidence": "sync protocol: resumability is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "bandwidth_budgets_declared",
+            "status": "pass",
+            "evidence": "sync protocol: bandwidth budgets are declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "store_and_forward_for_intermittent_peers",
+            "status": "pass",
+            "evidence": "sync protocol: store-and-forward for intermittent peers is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "vector_clocks_or_version_vectors_declared",
+            "status": "pass",
+            "evidence": "sync protocol: vector clocks / version vectors for causality are declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "e2ee_before_upload",
+            "status": "pass",
+            "evidence": "encryption: end-to-end encryption happens before upload"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "keys_never_leave_devices",
+            "status": "pass",
+            "evidence": "encryption: keys never leave devices"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "per_device_keys_declared",
+            "status": "pass",
+            "evidence": "encryption: per-device keys are declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_hierarchy_declared",
+            "status": "pass",
+            "evidence": "encryption: a key hierarchy is declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_recovery_ux_tested_like_a_feature",
+            "status": "pass",
+            "evidence": "encryption: recovery UX is tested like a feature"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_recovery_exercised_end_to_end",
+            "status": "pass",
+            "evidence": "quality gate: key recovery is exercised end-to-end"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "e2ee_verified",
+            "status": "pass",
+            "evidence": "quality gate: E2EE is verified"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "personal_data_encrypted_when_personal_data_synced",
+            "status": "pass",
+            "evidence": "no personal data declared synced"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "automatic_merge_for_text_and_counters",
+            "status": "pass",
+            "evidence": "conflicts: automatic merges (CRDT) cover text & counters"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "explicit_ui_only_for_semantic_conflicts",
+            "status": "pass",
+            "evidence": "conflicts: explicit UI is used only for semantic conflicts"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_silent_data_loss",
+            "status": "pass",
+            "evidence": "red line: no silent data loss, ever"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_silent_last_write_wins_on_user_prose",
+            "status": "pass",
+            "evidence": "red line: no silent last-write-wins on user prose is present in the declared design"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_prose_entity_uses_silent_last_write_wins",
+            "status": "pass",
+            "evidence": "red line: no declared entity row that is user prose declares silent last-write-wins"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "offline_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the offline state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "queued_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the queued state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "syncing_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the syncing state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "synced_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the synced state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "conflict_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the conflict state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "export_escape_hatch_present",
+            "status": "pass",
+            "evidence": "state UI: an export escape hatch is present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "import_escape_hatch_present",
+            "status": "pass",
+            "evidence": "state UI: an import escape hatch is present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "sync_diagnostics_present",
+            "status": "pass",
+            "evidence": "state UI: sync diagnostics are present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "sync_badge_only_with_multi_device_round_trip_tests",
+            "status": "pass",
+            "evidence": "no sync badge claimed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_offline_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the offline chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_clock_skew_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the clock-skew chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_concurrent_edits_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the concurrent-edits chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_device_loss_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the device-loss chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "merge_invariants_property_tested",
+            "status": "pass",
+            "evidence": "quality gate: merge invariants are property-tested \u2014 commutative, associative, idempotent \u2014 and no user edit can be lost"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "export_import_tested_on_real_data_volumes",
+            "status": "pass",
+            "evidence": "quality gate: export/import is tested on real data volumes"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "real_device_matrix_tested",
+            "status": "pass",
+            "evidence": "testing: a real device matrix is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "multi_device_round_trip_tests_passed",
+            "status": "pass",
+            "evidence": "red line: real multi-device round-trip tests are passed \u2014 the evidence a \"sync\" claim stands on"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "entities_count": 1,
+        "entities_without_merge_semantics": [],
+        "merge_semantics_coverage": "1.000000",
+        "entities_without_stable_id": [],
+        "stable_id_coverage": "1.000000",
+        "prose_entities_with_silent_last_write_wins": [],
+        "summary": "47 pass, 0 fail, 0 missing of 47 checks across five sections.",
+        "stamp": "LOCAL FIRST SYNC DESIGN\napp: Vault\nVERDICT: LOCAL_FIRST_SYNC_SOUND\n  local_truth_and_data_model           pass\n  sync_protocol                        pass\n  encryption_and_keys                  pass\n  conflicts_and_state_ui               pass\n  testing_and_quality_gates            pass\n47 pass, 0 fail, 0 missing of 47 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "LOCAL_FIRST_SYNC_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "no_silent_last_write_wins_on_user_prose",
+          "no_prose_entity_uses_silent_last_write_wins"
+        ],
+        "computed_spot_checks": {
+          "entities_count": 1,
+          "entities_without_merge_semantics": [],
+          "merge_semantics_coverage": "1.000000",
+          "entities_without_stable_id": [],
+          "stable_id_coverage": "1.000000",
+          "prose_entities_with_silent_last_write_wins": [
+            "notes"
+          ],
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        },
+        "notes": "Violates the red line: 'never silent last-write-wins on user prose' \u2014 via conflicts.silent_last_write_wins_on_user_prose_present true and prose entity notes silent_last_write_wins_present true."
+      },
+      "input": {
+        "app": "Vault",
+        "local_truth": {
+          "device_store_authoritative": true,
+          "server_is_relay_and_backup_not_gate": true,
+          "core_flows_designed_airplane_mode_first": true,
+          "core_flows_work_fully_offline": true,
+          "sync_resumes_cleanly_after_long_offline": true
+        },
+        "data_model": {
+          "mergeable_state_uses_crdt_or_ot": true,
+          "tombstones_declared": true,
+          "compaction_policy_declared": true
+        },
+        "entities": [
+          {
+            "name": "notes",
+            "per_field_merge_semantics_declared": true,
+            "stable_id_declared": true,
+            "is_user_prose": true,
+            "silent_last_write_wins_present": true
+          }
+        ],
+        "sync_protocol": {
+          "delta_sync_declared": true,
+          "causal_ordering_declared": true,
+          "resumability_declared": true,
+          "bandwidth_budgets_declared": true,
+          "store_and_forward_for_intermittent_peers": true,
+          "vector_clocks_or_version_vectors_declared": true
+        },
+        "encryption": {
+          "e2ee_before_upload": true,
+          "keys_never_leave_devices": true,
+          "per_device_keys_declared": true,
+          "key_hierarchy_declared": true,
+          "key_recovery_ux_tested_like_a_feature": true,
+          "key_recovery_exercised_end_to_end": true,
+          "e2ee_verified": true
+        },
+        "personal_data_sync": {
+          "personal_data_synced": false,
+          "personal_data_encrypted_before_sync": true
+        },
+        "conflicts": {
+          "automatic_merge_for_text_and_counters": true,
+          "explicit_ui_only_for_semantic_conflicts": true,
+          "silent_data_loss_present": false,
+          "silent_last_write_wins_on_user_prose_present": true
+        },
+        "state_ui": {
+          "offline_state_shown": true,
+          "queued_state_shown": true,
+          "syncing_state_shown": true,
+          "synced_state_shown": true,
+          "conflict_state_shown": true,
+          "export_escape_hatch_present": true,
+          "import_escape_hatch_present": true,
+          "sync_diagnostics_present": true,
+          "sync_badge_claimed": false
+        },
+        "testing": {
+          "chaos_offline_scenario_tested": true,
+          "chaos_clock_skew_scenario_tested": true,
+          "chaos_concurrent_edits_scenario_tested": true,
+          "chaos_device_loss_scenario_tested": true,
+          "merge_invariants_property_tested": true,
+          "export_import_tested_on_real_data_volumes": true,
+          "real_device_matrix_tested": true,
+          "multi_device_round_trip_tests_passed": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "local-first-sync-design",
+        "atom_version": "0.1.0",
+        "app": "Vault",
+        "verdict": "LOCAL_FIRST_SYNC_NOT_SOUND",
+        "sections": {
+          "local_truth_and_data_model": "pass",
+          "sync_protocol": "pass",
+          "encryption_and_keys": "pass",
+          "conflicts_and_state_ui": "fail",
+          "testing_and_quality_gates": "pass"
+        },
+        "checks": [
+          {
+            "section": "local_truth_and_data_model",
+            "check": "device_store_authoritative",
+            "status": "pass",
+            "evidence": "local truth: the device store (IndexedDB/SQLite) is authoritative"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "server_is_relay_and_backup_not_gate",
+            "status": "pass",
+            "evidence": "local truth: the server is a relay + backup, not a gate"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "core_flows_designed_airplane_mode_first",
+            "status": "pass",
+            "evidence": "local truth: flows are designed airplane-mode-first"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "core_flows_work_fully_offline",
+            "status": "pass",
+            "evidence": "quality gate: core flows work fully offline"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "sync_resumes_cleanly_after_long_offline",
+            "status": "pass",
+            "evidence": "quality gate: sync resumes cleanly after long offline periods"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "mergeable_state_uses_crdt_or_ot",
+            "status": "pass",
+            "evidence": "data model: CRDTs (or OT) are used for mergeable state"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "tombstones_declared",
+            "status": "pass",
+            "evidence": "data model: tombstones are declared"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "compaction_policy_declared",
+            "status": "pass",
+            "evidence": "data model: a compaction policy is declared"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "entities_declared",
+            "status": "pass",
+            "evidence": "the declared record names its entities \u2014 the entities list is present and non-empty"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "every_entity_per_field_merge_semantics_declared",
+            "status": "pass",
+            "evidence": "data model: every declared entity row declares per-field merge semantics"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "every_entity_stable_id_declared",
+            "status": "pass",
+            "evidence": "data model: every declared entity row declares a stable document/entity ID"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "delta_sync_declared",
+            "status": "pass",
+            "evidence": "sync protocol: delta sync (over WebSocket/WebRTC) is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "causal_ordering_declared",
+            "status": "pass",
+            "evidence": "sync protocol: causal ordering is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "resumability_declared",
+            "status": "pass",
+            "evidence": "sync protocol: resumability is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "bandwidth_budgets_declared",
+            "status": "pass",
+            "evidence": "sync protocol: bandwidth budgets are declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "store_and_forward_for_intermittent_peers",
+            "status": "pass",
+            "evidence": "sync protocol: store-and-forward for intermittent peers is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "vector_clocks_or_version_vectors_declared",
+            "status": "pass",
+            "evidence": "sync protocol: vector clocks / version vectors for causality are declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "e2ee_before_upload",
+            "status": "pass",
+            "evidence": "encryption: end-to-end encryption happens before upload"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "keys_never_leave_devices",
+            "status": "pass",
+            "evidence": "encryption: keys never leave devices"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "per_device_keys_declared",
+            "status": "pass",
+            "evidence": "encryption: per-device keys are declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_hierarchy_declared",
+            "status": "pass",
+            "evidence": "encryption: a key hierarchy is declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_recovery_ux_tested_like_a_feature",
+            "status": "pass",
+            "evidence": "encryption: recovery UX is tested like a feature"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_recovery_exercised_end_to_end",
+            "status": "pass",
+            "evidence": "quality gate: key recovery is exercised end-to-end"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "e2ee_verified",
+            "status": "pass",
+            "evidence": "quality gate: E2EE is verified"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "personal_data_encrypted_when_personal_data_synced",
+            "status": "pass",
+            "evidence": "no personal data declared synced"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "automatic_merge_for_text_and_counters",
+            "status": "pass",
+            "evidence": "conflicts: automatic merges (CRDT) cover text & counters"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "explicit_ui_only_for_semantic_conflicts",
+            "status": "pass",
+            "evidence": "conflicts: explicit UI is used only for semantic conflicts"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_silent_data_loss",
+            "status": "pass",
+            "evidence": "red line: no silent data loss, ever"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_silent_last_write_wins_on_user_prose",
+            "status": "fail",
+            "evidence": "red line: no silent last-write-wins on user prose is present in the declared design"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_prose_entity_uses_silent_last_write_wins",
+            "status": "fail",
+            "evidence": "red line: no declared entity row that is user prose declares silent last-write-wins"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "offline_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the offline state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "queued_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the queued state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "syncing_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the syncing state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "synced_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the synced state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "conflict_state_shown",
+            "status": "pass",
+            "evidence": "state UI: the conflict state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "export_escape_hatch_present",
+            "status": "pass",
+            "evidence": "state UI: an export escape hatch is present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "import_escape_hatch_present",
+            "status": "pass",
+            "evidence": "state UI: an import escape hatch is present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "sync_diagnostics_present",
+            "status": "pass",
+            "evidence": "state UI: sync diagnostics are present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "sync_badge_only_with_multi_device_round_trip_tests",
+            "status": "pass",
+            "evidence": "no sync badge claimed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_offline_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the offline chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_clock_skew_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the clock-skew chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_concurrent_edits_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the concurrent-edits chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_device_loss_scenario_tested",
+            "status": "pass",
+            "evidence": "testing: the device-loss chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "merge_invariants_property_tested",
+            "status": "pass",
+            "evidence": "quality gate: merge invariants are property-tested \u2014 commutative, associative, idempotent \u2014 and no user edit can be lost"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "export_import_tested_on_real_data_volumes",
+            "status": "pass",
+            "evidence": "quality gate: export/import is tested on real data volumes"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "real_device_matrix_tested",
+            "status": "pass",
+            "evidence": "testing: a real device matrix is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "multi_device_round_trip_tests_passed",
+            "status": "pass",
+            "evidence": "red line: real multi-device round-trip tests are passed \u2014 the evidence a \"sync\" claim stands on"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "entities_count": 1,
+        "entities_without_merge_semantics": [],
+        "merge_semantics_coverage": "1.000000",
+        "entities_without_stable_id": [],
+        "stable_id_coverage": "1.000000",
+        "prose_entities_with_silent_last_write_wins": [
+          "notes"
+        ],
+        "summary": "45 pass, 2 fail, 0 missing of 47 checks across five sections.",
+        "stamp": "LOCAL FIRST SYNC DESIGN\napp: Vault\nVERDICT: LOCAL_FIRST_SYNC_NOT_SOUND\n  local_truth_and_data_model           pass\n  sync_protocol                        pass\n  encryption_and_keys                  pass\n  conflicts_and_state_ui               fail\n  testing_and_quality_gates            pass\n45 pass, 2 fail, 0 missing of 47 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing required fields for all sections."
+      },
+      "input": {
+        "app": "MinimalApp"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "local-first-sync-design",
+        "atom_version": "0.1.0",
+        "app": "MinimalApp",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "local_truth_and_data_model": "insufficient_evidence",
+          "sync_protocol": "insufficient_evidence",
+          "encryption_and_keys": "insufficient_evidence",
+          "conflicts_and_state_ui": "insufficient_evidence",
+          "testing_and_quality_gates": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "local_truth_and_data_model",
+            "check": "device_store_authoritative",
+            "status": "missing",
+            "evidence": "local truth: the device store (IndexedDB/SQLite) is authoritative"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "server_is_relay_and_backup_not_gate",
+            "status": "missing",
+            "evidence": "local truth: the server is a relay + backup, not a gate"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "core_flows_designed_airplane_mode_first",
+            "status": "missing",
+            "evidence": "local truth: flows are designed airplane-mode-first"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "core_flows_work_fully_offline",
+            "status": "missing",
+            "evidence": "quality gate: core flows work fully offline"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "sync_resumes_cleanly_after_long_offline",
+            "status": "missing",
+            "evidence": "quality gate: sync resumes cleanly after long offline periods"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "mergeable_state_uses_crdt_or_ot",
+            "status": "missing",
+            "evidence": "data model: CRDTs (or OT) are used for mergeable state"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "tombstones_declared",
+            "status": "missing",
+            "evidence": "data model: tombstones are declared"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "compaction_policy_declared",
+            "status": "missing",
+            "evidence": "data model: a compaction policy is declared"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "entities_declared",
+            "status": "missing",
+            "evidence": "the declared record names its entities \u2014 the entities list is present and non-empty"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "every_entity_per_field_merge_semantics_declared",
+            "status": "missing",
+            "evidence": "data model: every declared entity row declares per-field merge semantics"
+          },
+          {
+            "section": "local_truth_and_data_model",
+            "check": "every_entity_stable_id_declared",
+            "status": "missing",
+            "evidence": "data model: every declared entity row declares a stable document/entity ID"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "delta_sync_declared",
+            "status": "missing",
+            "evidence": "sync protocol: delta sync (over WebSocket/WebRTC) is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "causal_ordering_declared",
+            "status": "missing",
+            "evidence": "sync protocol: causal ordering is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "resumability_declared",
+            "status": "missing",
+            "evidence": "sync protocol: resumability is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "bandwidth_budgets_declared",
+            "status": "missing",
+            "evidence": "sync protocol: bandwidth budgets are declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "store_and_forward_for_intermittent_peers",
+            "status": "missing",
+            "evidence": "sync protocol: store-and-forward for intermittent peers is declared"
+          },
+          {
+            "section": "sync_protocol",
+            "check": "vector_clocks_or_version_vectors_declared",
+            "status": "missing",
+            "evidence": "sync protocol: vector clocks / version vectors for causality are declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "e2ee_before_upload",
+            "status": "missing",
+            "evidence": "encryption: end-to-end encryption happens before upload"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "keys_never_leave_devices",
+            "status": "missing",
+            "evidence": "encryption: keys never leave devices"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "per_device_keys_declared",
+            "status": "missing",
+            "evidence": "encryption: per-device keys are declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_hierarchy_declared",
+            "status": "missing",
+            "evidence": "encryption: a key hierarchy is declared"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_recovery_ux_tested_like_a_feature",
+            "status": "missing",
+            "evidence": "encryption: recovery UX is tested like a feature"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "key_recovery_exercised_end_to_end",
+            "status": "missing",
+            "evidence": "quality gate: key recovery is exercised end-to-end"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "e2ee_verified",
+            "status": "missing",
+            "evidence": "quality gate: E2EE is verified"
+          },
+          {
+            "section": "encryption_and_keys",
+            "check": "personal_data_encrypted_when_personal_data_synced",
+            "status": "missing",
+            "evidence": "no personal data declared synced"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "automatic_merge_for_text_and_counters",
+            "status": "missing",
+            "evidence": "conflicts: automatic merges (CRDT) cover text & counters"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "explicit_ui_only_for_semantic_conflicts",
+            "status": "missing",
+            "evidence": "conflicts: explicit UI is used only for semantic conflicts"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_silent_data_loss",
+            "status": "missing",
+            "evidence": "red line: no silent data loss, ever"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_silent_last_write_wins_on_user_prose",
+            "status": "missing",
+            "evidence": "red line: no silent last-write-wins on user prose is present in the declared design"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "no_prose_entity_uses_silent_last_write_wins",
+            "status": "missing",
+            "evidence": "red line: no declared entity row that is user prose declares silent last-write-wins"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "offline_state_shown",
+            "status": "missing",
+            "evidence": "state UI: the offline state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "queued_state_shown",
+            "status": "missing",
+            "evidence": "state UI: the queued state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "syncing_state_shown",
+            "status": "missing",
+            "evidence": "state UI: the syncing state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "synced_state_shown",
+            "status": "missing",
+            "evidence": "state UI: the synced state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "conflict_state_shown",
+            "status": "missing",
+            "evidence": "state UI: the conflict state is shown honestly"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "export_escape_hatch_present",
+            "status": "missing",
+            "evidence": "state UI: an export escape hatch is present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "import_escape_hatch_present",
+            "status": "missing",
+            "evidence": "state UI: an import escape hatch is present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "sync_diagnostics_present",
+            "status": "missing",
+            "evidence": "state UI: sync diagnostics are present"
+          },
+          {
+            "section": "conflicts_and_state_ui",
+            "check": "sync_badge_only_with_multi_device_round_trip_tests",
+            "status": "missing",
+            "evidence": "no sync badge claimed"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_offline_scenario_tested",
+            "status": "missing",
+            "evidence": "testing: the offline chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_clock_skew_scenario_tested",
+            "status": "missing",
+            "evidence": "testing: the clock-skew chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_concurrent_edits_scenario_tested",
+            "status": "missing",
+            "evidence": "testing: the concurrent-edits chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "chaos_device_loss_scenario_tested",
+            "status": "missing",
+            "evidence": "testing: the device-loss chaos scenario is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "merge_invariants_property_tested",
+            "status": "missing",
+            "evidence": "quality gate: merge invariants are property-tested \u2014 commutative, associative, idempotent \u2014 and no user edit can be lost"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "export_import_tested_on_real_data_volumes",
+            "status": "missing",
+            "evidence": "quality gate: export/import is tested on real data volumes"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "real_device_matrix_tested",
+            "status": "missing",
+            "evidence": "testing: a real device matrix is tested"
+          },
+          {
+            "section": "testing_and_quality_gates",
+            "check": "multi_device_round_trip_tests_passed",
+            "status": "missing",
+            "evidence": "red line: real multi-device round-trip tests are passed \u2014 the evidence a \"sync\" claim stands on"
+          }
+        ],
+        "computed_status": null,
+        "entities_count": null,
+        "entities_without_merge_semantics": null,
+        "merge_semantics_coverage": null,
+        "entities_without_stable_id": null,
+        "stable_id_coverage": null,
+        "prose_entities_with_silent_last_write_wins": null,
+        "summary": "0 pass, 0 fail, 47 missing of 47 checks across five sections.",
+        "stamp": "LOCAL FIRST SYNC DESIGN\napp: MinimalApp\nVERDICT: INSUFFICIENT_EVIDENCE\n  local_truth_and_data_model           insufficient_evidence\n  sync_protocol                        insufficient_evidence\n  encryption_and_keys                  insufficient_evidence\n  conflicts_and_state_ui               insufficient_evidence\n  testing_and_quality_gates            insufficient_evidence\n0 pass, 0 fail, 47 missing of 47 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on boolean field triggers 422."
+      },
+      "input": {
+        "app": "MalformedApp",
+        "local_truth": {
+          "device_store_authoritative": "NOT_A_BOOLEAN"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "local_truth.device_store_authoritative",
+        "detail": "local_truth.device_store_authoritative must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

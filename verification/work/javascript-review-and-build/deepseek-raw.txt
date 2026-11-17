@@ -1,0 +1,131 @@
+# Independent recompute — `javascript-review-and-build`
+
+I recomputed every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I did not trust any artifact value.
+
+## Rules I applied (from SERVICE.md)
+
+- **files_declared**: pass iff `files` present and non-empty.
+- **every_file_is_esm**: every row must have `esm_module: true`; absent field = missing evidence.
+- **no_file_uses_var**: no row may have `var_present: true`.
+- **no_file_has_unhandled_promise**: no row may have `unhandled_promise_present: true`.
+- **no_file_injects_user_input_via_inner_html**: no row may have `inner_html_with_user_input_present: true`.
+- **Conditional checks** (network timeout, sanitization, feature detection, manual smoke): required only when the gate field is `true`; otherwise pass as N/A.
+- **files_count** = length of `files` list (null if absent).
+- **files_without_esm** = names where `esm_module` present but not `true`.
+- **files_using_var** = names where `var_present: true`.
+- **files_with_unhandled_promises** = names where `unhandled_promise_present: true`.
+- **files_injecting_user_input_via_inner_html** = names where `inner_html_with_user_input_present: true`.
+- **esm_coverage** = (ESM files) ÷ (declared files), serialized as `floor(v*1000000 + 0.5)/1000000` formatted to exactly 6 dp; null if denominator absent/empty.
+- **computed_status**: `within_stated_limits_on_declared_evidence` if all five primary computed checks complete and pass; `outside_...` if any fails; null if any cannot be completed.
+- **verdict**: SOUND if all 27 pass; NOT_SOUND if any fail; INSUFFICIENT_EVIDENCE if none fail but evidence missing.
+
+---
+
+## Case 1: `full-pass`
+
+Input: `files` = one row `index.js` with `esm_module: true, var_present: false, unhandled_promise_present: false, inner_html_with_user_input_present: false`.
+
+**Computed checks:**
+- files_declared: list present, length 1 ≥ 1 → **pass**
+- every_file_is_esm: row `esm_module: true` → **pass**
+- no_file_uses_var: `var_present: false` → **pass**
+- no_file_has_unhandled_promise: `false` → **pass**
+- no_file_injects_user_input_via_inner_html: `false` → **pass**
+
+**Conditional checks:**
+- network_timeouts: `network_calls_present: false` → N/A → **pass**
+- sanitization: `html_truly_needed_present: false` → N/A → **pass**
+- feature_detection: `shared_code_present: false` → N/A → **pass**
+- manual_smoke: `ui_present: false` → N/A → **pass**
+
+**Computed quantities:**
+- files_count = 1
+- files_without_esm = [] (row is ESM)
+- files_using_var = []
+- files_with_unhandled_promises = []
+- files_injecting_user_input_via_inner_html = []
+- esm_coverage = 1 ÷ 1 = 1.0 → floor(1.0×1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0 → **"1.000000"**
+- computed_status: all five primary checks complete and pass → **within_stated_limits_on_declared_evidence**
+
+**Non-computed checks** (direct field reads, all consistent with input): esm_used_everywhere (true→pass), no_implicit_globals (false→pass), no_var_used (false→pass), const_by_default (true→pass), strict_mode (true→pass), jsdoc (true→pass), async_await (true→pass), every_promise (true→pass), nodes_built (true→pass), no_user_input_inner_html (false→pass), no_dom_apis_node (true→pass), bundle_contents_known (true→pass), no_huge_deps (false→pass), optional_code_split (true→pass), pure_logic_unit_tested (true→pass), logic_extracted (true→pass), no_eval (false→pass), no_secrets (false→pass). That's 18 direct + 5 computed + 4 conditional = 27 checks, all pass.
+
+**Verdict:** 27 pass, 0 fail, 0 missing → **JAVASCRIPT_REVIEW_SOUND**
+
+**Comparison with artifact:**
+
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| files_count | 1 | 1 | MATCH |
+| files_without_esm | [] | [] | MATCH |
+| files_using_var | [] | [] | MATCH |
+| files_with_unhandled_promises | [] | [] | MATCH |
+| files_injecting_user_input_via_inner_html | [] | [] | MATCH |
+| esm_coverage | "1.000000" | "1.000000" | MATCH |
+| computed_status | within_stated_limits_on_declared_evidence | within_stated_limits_on_declared_evidence | MATCH |
+| verdict | JAVASCRIPT_REVIEW_SOUND | JAVASCRIPT_REVIEW_SOUND | MATCH |
+| summary | 27 pass, 0 fail, 0 missing | 27 pass, 0 fail, 0 missing | MATCH |
+| all 5 section statuses | pass | pass | MATCH |
+
+---
+
+## Case 2: `violations`
+
+Input: `files` = one row `index.js` with `esm_module: true, var_present: true, unhandled_promise_present: true, inner_html_with_user_input_present: true`. Planted wrong values: `implicit_globals_present: true`, `var_used_present: true`, `user_input_via_inner_html_present: true`, `huge_dependencies_for_small_jobs_present: true`, `eval_or_function_on_untrusted_input_present: true`, `secrets_in_client_side_code_present: true`, plus the three per-file `true` flags.
+
+**Computed checks:**
+- files_declared: present, length 1 → **pass**
+- every_file_is_esm: `esm_module: true` → **pass**
+- no_file_uses_var: `var_present: true` → **fail**
+- no_file_has_unhandled_promise: `true` → **fail**
+- no_file_injects_user_input_via_inner_html: `true` → **fail**
+
+**Conditional checks:** all gates false (`network_calls_present`, `html_truly_needed_present`, `shared_code_present`, `ui_present`) → all N/A → **pass** (4 passes).
+
+**Computed quantities:**
+- files_count = 1
+- files_without_esm = [] (row is ESM)
+- files_using_var = ["index.js"]
+- files_with_unhandled_promises = ["index.js"]
+- files_injecting_user_input_via_inner_html = ["index.js"]
+- esm_coverage = 1 ÷ 1 = 1.0 → **"1.000000"**
+- computed_status: primary checks not all pass (3 fail) → **outside_stated_limits_on_declared_evidence**
+
+**Direct-field checks that should fail from planted values:**
+- no_implicit_globals: `implicit_globals_present: true` → **fail**
+- no_var_used: `var_used_present: true` → **fail**
+- no_user_input_via_inner_html: `user_input_via_inner_html_present: true` → **fail**
+- no_huge_dependencies_for_small_jobs: `huge_dependencies_for_small_jobs_present: true` → **fail**
+- no_eval_or_function_on_untrusted_input: `true` → **fail**
+- no_secrets_in_client_side_code: `true` → **fail**
+
+That's 6 direct fails + 3 computed fails = **9 fails**. All other direct fields are `true`/`false` in the passing direction → 18 passes. Total 27.
+
+**Verdict:** any fail → **JAVASCRIPT_REVIEW_NOT_SOUND**
+
+**Confirming the failing set is exactly the planted wrong values:** The 9 failing checks are: `no_implicit_globals`, `no_var_used`, `no_file_uses_var`, `no_file_has_unhandled_promise`, `no_user_input_via_inner_html`, `no_file_injects_user_input_via_inner_html`, `no_huge_dependencies_for_small_jobs`, `no_eval_or_function_on_untrusted_input`, `no_secrets_in_client_side_code`. Each maps 1:1 to a planted `true` on a must-be-false field (6 top-level + 3 per-file). No unplanted check fails; no planted value escapes detection. **Confirmed exact.**
+
+**Comparison with artifact:**
+
+| Quantity | Artifact | Recompute | Result |
+|---|---|---|---|
+| files_count | 1 | 1 | MATCH |
+| files_without_esm | [] | [] | MATCH |
+| files_using_var | ["index.js"] | ["index.js"] | MATCH |
+| files_with_unhandled_promises | ["index.js"] | ["index.js"] | MATCH |
+| files_injecting_user_input_via_inner_html | ["index.js"] | ["index.js"] | MATCH |
+| esm_coverage | "1.000000" | "1.000000" | MATCH |
+| computed_status | outside_stated_limits_on_declared_evidence | outside_stated_limits_on_declared_evidence | MATCH |
+| verdict | JAVASCRIPT_REVIEW_NOT_SOUND | JAVASCRIPT_REVIEW_NOT_SOUND | MATCH |
+| summary | 18 pass, 9 fail, 0 missing | 18 pass, 9 fail, 0 missing | MATCH |
+| failing check set | 9 named checks | same 9 | MATCH |
+| all 5 section statuses | fail | fail (each section has ≥1 fail) | MATCH |
+
+Section check: modules_and_strictness has 3 fails → fail; async_discipline has 1 fail → fail; dom_safety has 2 fails → fail; environment_and_bundle has 1 fail → fail; tests_and_red_lines has 2 fails → fail. All five sections fail, matching the artifact.
+
+---
+
+## Summary
+
+Every computed quantity in both cases recomputes to the artifact's value. The `esm_coverage` serialization rule (`floor(1.0×1000000 + 0.5)/1000000 = 1.0` → `"1.000000"`) is applied identically in both. The violations case's 9 failing checks are exactly the 9 planted wrong values, with no false positives or misses.
+
+AGREEMENT: full

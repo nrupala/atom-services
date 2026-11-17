@@ -1,0 +1,1386 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: honest-seo-audit-intent-map
+
+=== contract.yaml ===
+service_name: honest-seo-audit-intent-map
+display_name: Honest seo audit intent map
+tier: B
+status: scaffolded
+atom_version: 0.1.0
+sources:
+- skill:seo
+binding:
+  skill: seo
+  skill_path: workspace/mymilo-build/skills/seo/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: MAP
+endpoints:
+- agent
+keys:
+  namespace: honest_seo_audit_intent_map
+  prefix: atm_1_honest_seo_audit_intent_map_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: deliverable
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Growing content and product sites
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Honest seo audit intent map — `honest-seo-audit-intent-map`
+
+**Deliverable type:** MAP. This atom sells the map it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Earn search traffic honestly — technical SEO, content strategy, structured data, measurement, white-hat only.
+
+A caller submits the inputs the bound skill works on and receives one map back, in the contract's output shape (see `contract.yaml`). One unit of sale = one delivered result.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this map on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Growing content and product sites**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the SEO audit / intent-map manifest
+
+The caller submits one JSON manifest: a declared SEO record and
+intent map for one site. Every field below is read by the named
+section's checks. A field **absent** = evidence missing
+(`INSUFFICIENT_EVIDENCE`); a field present but false / invalid =
+the check fails (`HONEST_SEO_MAP_NOT_SOUND`). All fields are
+booleans unless noted.
+
+| Field | Read by |
+|---|---|
+| `site` (string; carried into the verdict output, not itself checked) | — |
+| `technical.crawlable_robots_and_sitemap` (boolean) | technical_foundation |
+| `technical.core_web_vitals_targets_addressed` (boolean) | technical_foundation |
+| `technical.mobile_first` (boolean) | technical_foundation |
+| `technical.https_enabled` (boolean) | technical_foundation |
+| `technical.canonical_tags_correct` (boolean) | technical_foundation |
+| `technical.accidental_noindex_or_blocked_paths_present` (boolean; must be `false` to pass) | technical_foundation |
+| `technical.clean_url_structure` (boolean) | technical_foundation |
+| `technical.not_found_404s_handled` (boolean) | technical_foundation |
+| `intent.audience_questions_mapped` (boolean) | intent_map_and_on_page_craft |
+| `intent.intent_type_assigned_per_question` (boolean) | intent_map_and_on_page_craft |
+| `intent.prioritization_by_relevance_and_feasibility` (boolean) | intent_map_and_on_page_craft |
+| `on_page.titles_and_descriptions_specific_and_honest` (boolean) | intent_map_and_on_page_craft |
+| `on_page.heading_hierarchy_present` (boolean) | intent_map_and_on_page_craft |
+| `on_page.internal_links_with_descriptive_anchors` (boolean) | intent_map_and_on_page_craft |
+| `on_page.clickbait_mismatch_present` (boolean; must be `false` to pass) | intent_map_and_on_page_craft |
+| `on_page.word_count_padding_present` (boolean; must be `false` to pass) | intent_map_and_on_page_craft |
+| `pages` (list of page-row objects, each with the entry fields below; computed, see below) | intent_map_and_on_page_craft |
+| `pages[].name` (string; names the row in the computed outputs) | intent_map_and_on_page_craft |
+| `pages[].intent` (string; the specific intent the page owns; duplicate ownership is computed, see below) | intent_map_and_on_page_craft |
+| `pages[].intent_type` (string; must be one of `informational`, `commercial`, `transactional` — the skill's own set) | intent_map_and_on_page_craft |
+| `pages[].has_single_intent` (boolean) | intent_map_and_on_page_craft |
+| `pages[].fully_answers_question` (boolean) | intent_map_and_on_page_craft |
+| `structured_data.schema_org_applied_as_applicable` (boolean) | structured_data_and_entity_clarity |
+| `structured_data.rich_results_validated` (boolean) | structured_data_and_entity_clarity |
+| `entity.brand_name_contact_consistent` (boolean) | structured_data_and_entity_clarity |
+| `entity.real_author_identity_for_professional_content` (boolean) | structured_data_and_entity_clarity |
+| `entity.credentials_carried_where_appropriate` (boolean) | structured_data_and_entity_clarity |
+| `entity.public_content_sanitization_applied` (boolean) | structured_data_and_entity_clarity |
+| `authority.useful_assets_created_to_attract_links` (boolean) | earned_authority_and_measurement |
+| `authority.relevant_human_outreach_only` (boolean) | earned_authority_and_measurement |
+| `measurement.search_console_and_analytics_wired` (boolean) | earned_authority_and_measurement |
+| `measurement.search_console_baseline_captured` (boolean) | earned_authority_and_measurement |
+| `measurement.impressions_clicks_conversions_tracked` (boolean) | earned_authority_and_measurement |
+| `measurement.queries_gained_lost_tracked` (boolean) | earned_authority_and_measurement |
+| `measurement.monthly_iteration_cadence` (boolean) | earned_authority_and_measurement |
+| `measurement.decaying_pages_refreshed_on_schedule` (boolean) | earned_authority_and_measurement |
+| `ai_era.structure_and_canonical_answers_designed_for_extraction` (boolean) | earned_authority_and_measurement |
+| `red_lines.cloaking_present` (boolean; must be `false` to pass — skill red line) | white_hat_red_lines |
+| `red_lines.pbn_present` (boolean; must be `false` to pass — skill red line) | white_hat_red_lines |
+| `red_lines.bought_links_present` (boolean; must be `false` to pass — skill red line) | white_hat_red_lines |
+| `red_lines.link_schemes_present` (boolean; must be `false` to pass — skill red line) | white_hat_red_lines |
+| `red_lines.keyword_spam_present` (boolean; must be `false` to pass — skill red line) | white_hat_red_lines |
+| `red_lines.misleading_metadata_present` (boolean; must be `false` to pass — skill red line) | white_hat_red_lines |
+| `red_lines.fake_urgency_present` (boolean; must be `false` to pass — skill red line) | white_hat_red_lines |
+
+Several checks are computed from the declared rows, using only
+the skill's own stated rules plus the consistency of the declared
+record itself — no outside threshold is imported:
+
+- **Pages declared:** the declared `pages` list passes only
+  when it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Single intent per page:** every declared page row must
+  declare `has_single_intent: true` (the skill: "one intent
+  per page"). A row with the field absent is missing evidence.
+- **Intent type per page:** every declared page row must
+  declare `intent_type` from the skill's own set —
+  `informational`, `commercial`, `transactional`. A row with
+  the field absent is missing evidence; a row declaring any
+  other value fails and is named.
+- **No intent owned by multiple pages:** no declared `intent`
+  string may appear on more than one page row (quality gate:
+  "each key page owns one intent"). A row with `intent` absent
+  is missing evidence for this check.
+- **Fully answers per page:** every declared page row must
+  declare `fully_answers_question: true` (the skill: content
+  that "fully answers the question").
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the five primary computed checks above cannot be completed),
+`pages_count` (the declared list length, or null when the list
+is not declared — counts are reported as integers, exactly),
+the row-name lists `pages_without_single_intent` (pages whose
+field is present but not true; a page with the field absent is
+missing evidence and does not appear),
+`pages_with_invalid_intent_type` (pages whose `intent_type` is
+present but not in the skill's set), `duplicate_intents` (intent
+strings declared on more than one page, in the order their
+second occurrence appears) and `pages_not_fully_answering`
+(pages whose field is present but not true), and the three
+coverage ratios `single_intent_coverage` (pages with a single
+intent ÷ declared pages), `valid_intent_type_coverage` (pages
+with a valid intent type ÷ declared pages) and
+`full_answer_coverage` (pages fully answering ÷ declared pages).
+**Fixed serialization rule:** computed ratios are reported as
+strings with exactly six decimal places, produced in both
+implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; comparisons use the unrounded values. A ratio is null
+when its denominator list is absent or empty. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold — no speed,
+ranking or traffic bar: its targets are qualitative attestations
+the record declares addressed, not bars the atom can set.
+Quantities are computed and reported; the only bar on the
+computed rows is completeness over the caller's own declared
+rows, exactly as stated above. Declined thresholds, named: a
+Core Web Vitals millisecond, LCP / INP / CLS or score cutoff
+(the skill says "fast (Core Web Vitals targets)" but states no
+number — caller attestation only); a traffic, impression,
+click, click-through-rate, ranking-position or conversion
+target; a word count or content-depth minimum (the skill
+explicitly rejects word-count padding); a number of internal
+or external links, a link-acquisition count, or an outreach
+volume; a number of pages, questions or intents a map must
+contain; a schema-type quota beyond "as applicable" (the skill
+lists Article, FAQ, Product, LocalBusiness as applicable, not
+mandatory); a refresh interval other than the skill's stated
+monthly iteration and scheduled refresh (no day count is
+stated); a coverage percentage below completeness.
+
+The verdict is one of `HONEST_SEO_MAP_SOUND` (all 43 checks
+pass), `HONEST_SEO_MAP_NOT_SOUND` (any check fails), or
+`INSUFFICIENT_EVIDENCE` (nothing fails but evidence is missing),
+across five sections: technical_foundation,
+intent_map_and_on_page_craft, structured_data_and_entity_clarity,
+earned_authority_and_measurement, white_hat_red_lines.
+
+## Distinct ground
+
+No live or staged sibling atom audits a declared SEO record or
+intent map. The nearest sibling, `efficient-web-build-standard`,
+audits a web build's publish-time precompute and on-site
+search/filter index (its "search" is a site's own search over
+its dataset, not search-engine visibility) — zero checks are
+shared with this atom; the boundary is: build mechanics and
+on-site search there, search-engine crawl / intent / authority /
+measurement and white-hat red lines here.
+
+## Honest scoping
+
+This atom audits a **declared** SEO record and intent map — it
+crawls no site, runs no speed test, reads no Search Console or
+analytics data, validates no live rich result, and does not
+verify that a declared control actually works. A record is sound
+*on the caller's declared evidence*: a manifest that declares
+HTTPS enabled, canonicals correct and no bought links passes
+those checks even if the real site does none of it. It is a
+completeness and consistency audit of the record the skill
+requires, **not an SEO service, a ranking guarantee, or a
+penalty certification**: it never judges whether a page really
+answers its question well, whether an intent assignment is the
+right strategy, whether schema markup is correct in detail, or
+whether outreach is genuinely relevant — only that the record
+contains what the skill's sections and red lines demand, and
+that its declared rows are internally consistent.
+
+Named exclusions and non-reducible parts (carried as caller
+declarations only, never judged): no numeric thresholds beyond
+the skill's own stated rules (see the declined list above); no
+live verification of any declared fact; no text inspection —
+clickbait, misleading metadata, keyword spam and fake urgency
+are caller-declared present/absent flags, the atom reads no
+copy; content quality and strategic fit of an intent map are
+caller declarations — the atom checks only that questions,
+types and single-intent ownership are declared and consistent;
+E-E-A-T quality in substance (whether credentials or author
+identity genuinely establish expertise) is a caller declaration
+— only its declared presence is checked.
+
+## Pricing
+
+Pricing unit: **deliverable**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Commodity despite audit shape
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "honest-seo-audit-intent-map",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "HONEST_SEO_MAP_SOUND",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All boolean flags set to pass, single page row is valid.",
+        "computed_spot_checks": {
+          "pages_count": 1,
+          "pages_without_single_intent": [],
+          "single_intent_coverage": "1.000000",
+          "pages_with_invalid_intent_type": [],
+          "valid_intent_type_coverage": "1.000000",
+          "duplicate_intents": [],
+          "pages_not_fully_answering": [],
+          "full_answer_coverage": "1.000000",
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "site": "example.com",
+        "technical": {
+          "crawlable_robots_and_sitemap": true,
+          "core_web_vitals_targets_addressed": true,
+          "mobile_first": true,
+          "https_enabled": true,
+          "canonical_tags_correct": true,
+          "accidental_noindex_or_blocked_paths_present": false,
+          "clean_url_structure": true,
+          "not_found_404s_handled": true
+        },
+        "intent": {
+          "audience_questions_mapped": true,
+          "intent_type_assigned_per_question": true,
+          "prioritization_by_relevance_and_feasibility": true
+        },
+        "on_page": {
+          "titles_and_descriptions_specific_and_honest": true,
+          "heading_hierarchy_present": true,
+          "internal_links_with_descriptive_anchors": true,
+          "clickbait_mismatch_present": false,
+          "word_count_padding_present": false
+        },
+        "pages": [
+          {
+            "name": "home",
+            "intent": "buy_service",
+            "intent_type": "transactional",
+            "has_single_intent": true,
+            "fully_answers_question": true
+          }
+        ],
+        "structured_data": {
+          "schema_org_applied_as_applicable": true,
+          "rich_results_validated": true
+        },
+        "entity": {
+          "brand_name_contact_consistent": true,
+          "real_author_identity_for_professional_content": true,
+          "credentials_carried_where_appropriate": true,
+          "public_content_sanitization_applied": true
+        },
+        "authority": {
+          "useful_assets_created_to_attract_links": true,
+          "relevant_human_outreach_only": true
+        },
+        "measurement": {
+          "search_console_and_analytics_wired": true,
+          "search_console_baseline_captured": true,
+          "impressions_clicks_conversions_tracked": true,
+          "queries_gained_lost_tracked": true,
+          "monthly_iteration_cadence": true,
+          "decaying_pages_refreshed_on_schedule": true
+        },
+        "ai_era": {
+          "structure_and_canonical_answers_designed_for_extraction": true
+        },
+        "red_lines": {
+          "cloaking_present": false,
+          "pbn_present": false,
+          "bought_links_present": false,
+          "link_schemes_present": false,
+          "keyword_spam_present": false,
+          "misleading_metadata_present": false,
+          "fake_urgency_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "honest-seo-audit-intent-map",
+        "atom_version": "0.1.0",
+        "site": "example.com",
+        "verdict": "HONEST_SEO_MAP_SOUND",
+        "sections": {
+          "technical_foundation": "pass",
+          "intent_map_and_on_page_craft": "pass",
+          "structured_data_and_entity_clarity": "pass",
+          "earned_authority_and_measurement": "pass",
+          "white_hat_red_lines": "pass"
+        },
+        "checks": [
+          {
+            "section": "technical_foundation",
+            "check": "crawlable_robots_and_sitemap",
+            "status": "pass",
+            "evidence": "technical foundation: crawlable \u2014 robots.txt and sitemap are in place"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "core_web_vitals_targets_addressed",
+            "status": "pass",
+            "evidence": "technical foundation: fast \u2014 Core Web Vitals targets are addressed"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "mobile_first",
+            "status": "pass",
+            "evidence": "technical foundation: mobile-first"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "https_enabled",
+            "status": "pass",
+            "evidence": "technical foundation: HTTPS is enabled"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "canonical_tags_correct",
+            "status": "pass",
+            "evidence": "technical foundation: canonical tags are correct"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "no_accidental_noindex_or_blocked_paths",
+            "status": "pass",
+            "evidence": "technical foundation: no accidental noindex or blocked paths are present"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "clean_url_structure",
+            "status": "pass",
+            "evidence": "technical foundation: URL structure is clean"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "not_found_404s_handled",
+            "status": "pass",
+            "evidence": "technical foundation: 404s are handled"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "audience_questions_mapped",
+            "status": "pass",
+            "evidence": "intent map: audience questions are mapped"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "intent_type_assigned_per_question",
+            "status": "pass",
+            "evidence": "intent map: an intent type \u2014 informational / commercial / transactional \u2014 is assigned per question"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "prioritization_by_relevance_and_feasibility",
+            "status": "pass",
+            "evidence": "intent map: prioritization is by relevance x feasibility over big-volume vanity terms"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "titles_and_descriptions_specific_and_honest",
+            "status": "pass",
+            "evidence": "on-page craft: titles and descriptions are specific and honest"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "heading_hierarchy_present",
+            "status": "pass",
+            "evidence": "on-page craft: a heading hierarchy is present"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "internal_links_with_descriptive_anchors",
+            "status": "pass",
+            "evidence": "on-page craft: internal links use descriptive anchors"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_clickbait_mismatch",
+            "status": "pass",
+            "evidence": "on-page craft: no clickbait mismatch is present"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_word_count_padding",
+            "status": "pass",
+            "evidence": "on-page craft: no word-count padding is present \u2014 depth where it matters"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "pages_declared",
+            "status": "pass",
+            "evidence": "the declared record names its pages \u2014 the pages list is present and non-empty"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_has_single_intent",
+            "status": "pass",
+            "evidence": "intent map: every declared page row owns a single intent"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_intent_type_valid",
+            "status": "pass",
+            "evidence": "intent map: every declared page row declares an intent type from the skill's set \u2014 informational / commercial / transactional"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_intent_owned_by_multiple_pages",
+            "status": "pass",
+            "evidence": "intent map: no declared intent is owned by more than one page \u2014 each key page owns one intent"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_fully_answers_question",
+            "status": "pass",
+            "evidence": "on-page craft: every declared page row fully answers its question"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "schema_org_applied_as_applicable",
+            "status": "pass",
+            "evidence": "structured data: schema.org \u2014 Article, FAQ, Product, LocalBusiness as applicable \u2014 is applied"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "rich_results_validated",
+            "status": "pass",
+            "evidence": "structured data: rich results are validated"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "brand_name_contact_consistent",
+            "status": "pass",
+            "evidence": "entity/author clarity: brand, name and contact info are consistent"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "real_author_identity_for_professional_content",
+            "status": "pass",
+            "evidence": "entity/author clarity: real author identity is carried for professional content \u2014 E-E-A-T spirit"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "credentials_carried_where_appropriate",
+            "status": "pass",
+            "evidence": "entity/author clarity: professional pages carry credentials where appropriate"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "public_content_sanitization_applied",
+            "status": "pass",
+            "evidence": "entity/author clarity: public content follows privacy / sanitization discipline"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "useful_assets_created_to_attract_links",
+            "status": "pass",
+            "evidence": "authority the earned way: genuinely useful assets \u2014 tools, data, guides \u2014 attract links"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "relevant_human_outreach_only",
+            "status": "pass",
+            "evidence": "authority the earned way: outreach is relevant and human"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "search_console_and_analytics_wired",
+            "status": "pass",
+            "evidence": "measurement: Search Console and analytics are wired"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "search_console_baseline_captured",
+            "status": "pass",
+            "evidence": "measurement: a Search Console baseline is captured"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "impressions_clicks_conversions_tracked",
+            "status": "pass",
+            "evidence": "measurement: impressions to clicks to conversions are tracked"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "queries_gained_lost_tracked",
+            "status": "pass",
+            "evidence": "measurement: queries gained and lost are tracked"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "monthly_iteration_cadence",
+            "status": "pass",
+            "evidence": "measurement: iteration is monthly"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "decaying_pages_refreshed_on_schedule",
+            "status": "pass",
+            "evidence": "measurement: decaying pages are refreshed on schedule"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "structure_and_canonical_answers_designed_for_extraction",
+            "status": "pass",
+            "evidence": "AI-era note: clean structure and canonical answers are designed for extraction \u2014 no tricks that decay"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_cloaking",
+            "status": "pass",
+            "evidence": "red line: no cloaking is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_pbn",
+            "status": "pass",
+            "evidence": "red line: no PBNs are present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_bought_links",
+            "status": "pass",
+            "evidence": "red line: no bought links are present \u2014 no link buying"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_link_schemes",
+            "status": "pass",
+            "evidence": "red line: no link schemes are present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_keyword_spam",
+            "status": "pass",
+            "evidence": "red line: no keyword spam is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_misleading_metadata",
+            "status": "pass",
+            "evidence": "red line: no misleading metadata is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_fake_urgency",
+            "status": "pass",
+            "evidence": "red line: no fake urgency is present"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "pages_count": 1,
+        "pages_without_single_intent": [],
+        "single_intent_coverage": "1.000000",
+        "pages_with_invalid_intent_type": [],
+        "valid_intent_type_coverage": "1.000000",
+        "duplicate_intents": [],
+        "pages_not_fully_answering": [],
+        "full_answer_coverage": "1.000000",
+        "summary": "43 pass, 0 fail, 0 missing of 43 checks across five sections.",
+        "stamp": "HONEST SEO AUDIT INTENT MAP\nsite: example.com\nVERDICT: HONEST_SEO_MAP_SOUND\n  technical_foundation                 pass\n  intent_map_and_on_page_craft         pass\n  structured_data_and_entity_clarity   pass\n  earned_authority_and_measurement     pass\n  white_hat_red_lines                  pass\n43 pass, 0 fail, 0 missing of 43 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "HONEST_SEO_MAP_NOT_SOUND",
+        "http": 200,
+        "failing_checks": [
+          "every_page_has_single_intent",
+          "no_cloaking"
+        ],
+        "notes": "Full manifest identical to full-pass except two planted values: pages[0] home has_single_intent false (fails every_page_has_single_intent) and red_lines.cloaking_present true (fails no_cloaking).",
+        "computed_spot_checks": {
+          "pages_count": 1,
+          "pages_without_single_intent": [
+            "home"
+          ],
+          "single_intent_coverage": "0.000000",
+          "pages_with_invalid_intent_type": [],
+          "valid_intent_type_coverage": "1.000000",
+          "duplicate_intents": [],
+          "pages_not_fully_answering": [],
+          "full_answer_coverage": "1.000000",
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "site": "example.com",
+        "technical": {
+          "crawlable_robots_and_sitemap": true,
+          "core_web_vitals_targets_addressed": true,
+          "mobile_first": true,
+          "https_enabled": true,
+          "canonical_tags_correct": true,
+          "accidental_noindex_or_blocked_paths_present": false,
+          "clean_url_structure": true,
+          "not_found_404s_handled": true
+        },
+        "intent": {
+          "audience_questions_mapped": true,
+          "intent_type_assigned_per_question": true,
+          "prioritization_by_relevance_and_feasibility": true
+        },
+        "on_page": {
+          "titles_and_descriptions_specific_and_honest": true,
+          "heading_hierarchy_present": true,
+          "internal_links_with_descriptive_anchors": true,
+          "clickbait_mismatch_present": false,
+          "word_count_padding_present": false
+        },
+        "pages": [
+          {
+            "name": "home",
+            "intent": "buy_service",
+            "intent_type": "transactional",
+            "has_single_intent": false,
+            "fully_answers_question": true
+          }
+        ],
+        "structured_data": {
+          "schema_org_applied_as_applicable": true,
+          "rich_results_validated": true
+        },
+        "entity": {
+          "brand_name_contact_consistent": true,
+          "real_author_identity_for_professional_content": true,
+          "credentials_carried_where_appropriate": true,
+          "public_content_sanitization_applied": true
+        },
+        "authority": {
+          "useful_assets_created_to_attract_links": true,
+          "relevant_human_outreach_only": true
+        },
+        "measurement": {
+          "search_console_and_analytics_wired": true,
+          "search_console_baseline_captured": true,
+          "impressions_clicks_conversions_tracked": true,
+          "queries_gained_lost_tracked": true,
+          "monthly_iteration_cadence": true,
+          "decaying_pages_refreshed_on_schedule": true
+        },
+        "ai_era": {
+          "structure_and_canonical_answers_designed_for_extraction": true
+        },
+        "red_lines": {
+          "cloaking_present": true,
+          "pbn_present": false,
+          "bought_links_present": false,
+          "link_schemes_present": false,
+          "keyword_spam_present": false,
+          "misleading_metadata_present": false,
+          "fake_urgency_present": false
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "honest-seo-audit-intent-map",
+        "atom_version": "0.1.0",
+        "site": "example.com",
+        "verdict": "HONEST_SEO_MAP_NOT_SOUND",
+        "sections": {
+          "technical_foundation": "pass",
+          "intent_map_and_on_page_craft": "fail",
+          "structured_data_and_entity_clarity": "pass",
+          "earned_authority_and_measurement": "pass",
+          "white_hat_red_lines": "fail"
+        },
+        "checks": [
+          {
+            "section": "technical_foundation",
+            "check": "crawlable_robots_and_sitemap",
+            "status": "pass",
+            "evidence": "technical foundation: crawlable \u2014 robots.txt and sitemap are in place"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "core_web_vitals_targets_addressed",
+            "status": "pass",
+            "evidence": "technical foundation: fast \u2014 Core Web Vitals targets are addressed"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "mobile_first",
+            "status": "pass",
+            "evidence": "technical foundation: mobile-first"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "https_enabled",
+            "status": "pass",
+            "evidence": "technical foundation: HTTPS is enabled"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "canonical_tags_correct",
+            "status": "pass",
+            "evidence": "technical foundation: canonical tags are correct"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "no_accidental_noindex_or_blocked_paths",
+            "status": "pass",
+            "evidence": "technical foundation: no accidental noindex or blocked paths are present"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "clean_url_structure",
+            "status": "pass",
+            "evidence": "technical foundation: URL structure is clean"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "not_found_404s_handled",
+            "status": "pass",
+            "evidence": "technical foundation: 404s are handled"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "audience_questions_mapped",
+            "status": "pass",
+            "evidence": "intent map: audience questions are mapped"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "intent_type_assigned_per_question",
+            "status": "pass",
+            "evidence": "intent map: an intent type \u2014 informational / commercial / transactional \u2014 is assigned per question"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "prioritization_by_relevance_and_feasibility",
+            "status": "pass",
+            "evidence": "intent map: prioritization is by relevance x feasibility over big-volume vanity terms"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "titles_and_descriptions_specific_and_honest",
+            "status": "pass",
+            "evidence": "on-page craft: titles and descriptions are specific and honest"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "heading_hierarchy_present",
+            "status": "pass",
+            "evidence": "on-page craft: a heading hierarchy is present"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "internal_links_with_descriptive_anchors",
+            "status": "pass",
+            "evidence": "on-page craft: internal links use descriptive anchors"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_clickbait_mismatch",
+            "status": "pass",
+            "evidence": "on-page craft: no clickbait mismatch is present"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_word_count_padding",
+            "status": "pass",
+            "evidence": "on-page craft: no word-count padding is present \u2014 depth where it matters"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "pages_declared",
+            "status": "pass",
+            "evidence": "the declared record names its pages \u2014 the pages list is present and non-empty"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_has_single_intent",
+            "status": "fail",
+            "evidence": "intent map: every declared page row owns a single intent"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_intent_type_valid",
+            "status": "pass",
+            "evidence": "intent map: every declared page row declares an intent type from the skill's set \u2014 informational / commercial / transactional"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_intent_owned_by_multiple_pages",
+            "status": "pass",
+            "evidence": "intent map: no declared intent is owned by more than one page \u2014 each key page owns one intent"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_fully_answers_question",
+            "status": "pass",
+            "evidence": "on-page craft: every declared page row fully answers its question"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "schema_org_applied_as_applicable",
+            "status": "pass",
+            "evidence": "structured data: schema.org \u2014 Article, FAQ, Product, LocalBusiness as applicable \u2014 is applied"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "rich_results_validated",
+            "status": "pass",
+            "evidence": "structured data: rich results are validated"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "brand_name_contact_consistent",
+            "status": "pass",
+            "evidence": "entity/author clarity: brand, name and contact info are consistent"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "real_author_identity_for_professional_content",
+            "status": "pass",
+            "evidence": "entity/author clarity: real author identity is carried for professional content \u2014 E-E-A-T spirit"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "credentials_carried_where_appropriate",
+            "status": "pass",
+            "evidence": "entity/author clarity: professional pages carry credentials where appropriate"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "public_content_sanitization_applied",
+            "status": "pass",
+            "evidence": "entity/author clarity: public content follows privacy / sanitization discipline"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "useful_assets_created_to_attract_links",
+            "status": "pass",
+            "evidence": "authority the earned way: genuinely useful assets \u2014 tools, data, guides \u2014 attract links"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "relevant_human_outreach_only",
+            "status": "pass",
+            "evidence": "authority the earned way: outreach is relevant and human"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "search_console_and_analytics_wired",
+            "status": "pass",
+            "evidence": "measurement: Search Console and analytics are wired"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "search_console_baseline_captured",
+            "status": "pass",
+            "evidence": "measurement: a Search Console baseline is captured"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "impressions_clicks_conversions_tracked",
+            "status": "pass",
+            "evidence": "measurement: impressions to clicks to conversions are tracked"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "queries_gained_lost_tracked",
+            "status": "pass",
+            "evidence": "measurement: queries gained and lost are tracked"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "monthly_iteration_cadence",
+            "status": "pass",
+            "evidence": "measurement: iteration is monthly"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "decaying_pages_refreshed_on_schedule",
+            "status": "pass",
+            "evidence": "measurement: decaying pages are refreshed on schedule"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "structure_and_canonical_answers_designed_for_extraction",
+            "status": "pass",
+            "evidence": "AI-era note: clean structure and canonical answers are designed for extraction \u2014 no tricks that decay"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_cloaking",
+            "status": "fail",
+            "evidence": "red line: no cloaking is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_pbn",
+            "status": "pass",
+            "evidence": "red line: no PBNs are present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_bought_links",
+            "status": "pass",
+            "evidence": "red line: no bought links are present \u2014 no link buying"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_link_schemes",
+            "status": "pass",
+            "evidence": "red line: no link schemes are present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_keyword_spam",
+            "status": "pass",
+            "evidence": "red line: no keyword spam is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_misleading_metadata",
+            "status": "pass",
+            "evidence": "red line: no misleading metadata is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_fake_urgency",
+            "status": "pass",
+            "evidence": "red line: no fake urgency is present"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "pages_count": 1,
+        "pages_without_single_intent": [
+          "home"
+        ],
+        "single_intent_coverage": "0.000000",
+        "pages_with_invalid_intent_type": [],
+        "valid_intent_type_coverage": "1.000000",
+        "duplicate_intents": [],
+        "pages_not_fully_answering": [],
+        "full_answer_coverage": "1.000000",
+        "summary": "41 pass, 2 fail, 0 missing of 43 checks across five sections.",
+        "stamp": "HONEST SEO AUDIT INTENT MAP\nsite: example.com\nVERDICT: HONEST_SEO_MAP_NOT_SOUND\n  technical_foundation                 pass\n  intent_map_and_on_page_craft         fail\n  structured_data_and_entity_clarity   pass\n  earned_authority_and_measurement     pass\n  white_hat_red_lines                  fail\n41 pass, 2 fail, 0 missing of 43 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Most fields are absent, resulting in INSUFFICIENT_EVIDENCE rather than a sound/not-sound verdict."
+      },
+      "input": {
+        "site": "incomplete.com"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "honest-seo-audit-intent-map",
+        "atom_version": "0.1.0",
+        "site": "incomplete.com",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "technical_foundation": "insufficient_evidence",
+          "intent_map_and_on_page_craft": "insufficient_evidence",
+          "structured_data_and_entity_clarity": "insufficient_evidence",
+          "earned_authority_and_measurement": "insufficient_evidence",
+          "white_hat_red_lines": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "technical_foundation",
+            "check": "crawlable_robots_and_sitemap",
+            "status": "missing",
+            "evidence": "technical foundation: crawlable \u2014 robots.txt and sitemap are in place"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "core_web_vitals_targets_addressed",
+            "status": "missing",
+            "evidence": "technical foundation: fast \u2014 Core Web Vitals targets are addressed"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "mobile_first",
+            "status": "missing",
+            "evidence": "technical foundation: mobile-first"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "https_enabled",
+            "status": "missing",
+            "evidence": "technical foundation: HTTPS is enabled"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "canonical_tags_correct",
+            "status": "missing",
+            "evidence": "technical foundation: canonical tags are correct"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "no_accidental_noindex_or_blocked_paths",
+            "status": "missing",
+            "evidence": "technical foundation: no accidental noindex or blocked paths are present"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "clean_url_structure",
+            "status": "missing",
+            "evidence": "technical foundation: URL structure is clean"
+          },
+          {
+            "section": "technical_foundation",
+            "check": "not_found_404s_handled",
+            "status": "missing",
+            "evidence": "technical foundation: 404s are handled"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "audience_questions_mapped",
+            "status": "missing",
+            "evidence": "intent map: audience questions are mapped"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "intent_type_assigned_per_question",
+            "status": "missing",
+            "evidence": "intent map: an intent type \u2014 informational / commercial / transactional \u2014 is assigned per question"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "prioritization_by_relevance_and_feasibility",
+            "status": "missing",
+            "evidence": "intent map: prioritization is by relevance x feasibility over big-volume vanity terms"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "titles_and_descriptions_specific_and_honest",
+            "status": "missing",
+            "evidence": "on-page craft: titles and descriptions are specific and honest"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "heading_hierarchy_present",
+            "status": "missing",
+            "evidence": "on-page craft: a heading hierarchy is present"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "internal_links_with_descriptive_anchors",
+            "status": "missing",
+            "evidence": "on-page craft: internal links use descriptive anchors"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_clickbait_mismatch",
+            "status": "missing",
+            "evidence": "on-page craft: no clickbait mismatch is present"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_word_count_padding",
+            "status": "missing",
+            "evidence": "on-page craft: no word-count padding is present \u2014 depth where it matters"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "pages_declared",
+            "status": "missing",
+            "evidence": "the declared record names its pages \u2014 the pages list is present and non-empty"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_has_single_intent",
+            "status": "missing",
+            "evidence": "intent map: every declared page row owns a single intent"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_intent_type_valid",
+            "status": "missing",
+            "evidence": "intent map: every declared page row declares an intent type from the skill's set \u2014 informational / commercial / transactional"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "no_intent_owned_by_multiple_pages",
+            "status": "missing",
+            "evidence": "intent map: no declared intent is owned by more than one page \u2014 each key page owns one intent"
+          },
+          {
+            "section": "intent_map_and_on_page_craft",
+            "check": "every_page_fully_answers_question",
+            "status": "missing",
+            "evidence": "on-page craft: every declared page row fully answers its question"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "schema_org_applied_as_applicable",
+            "status": "missing",
+            "evidence": "structured data: schema.org \u2014 Article, FAQ, Product, LocalBusiness as applicable \u2014 is applied"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "rich_results_validated",
+            "status": "missing",
+            "evidence": "structured data: rich results are validated"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "brand_name_contact_consistent",
+            "status": "missing",
+            "evidence": "entity/author clarity: brand, name and contact info are consistent"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "real_author_identity_for_professional_content",
+            "status": "missing",
+            "evidence": "entity/author clarity: real author identity is carried for professional content \u2014 E-E-A-T spirit"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "credentials_carried_where_appropriate",
+            "status": "missing",
+            "evidence": "entity/author clarity: professional pages carry credentials where appropriate"
+          },
+          {
+            "section": "structured_data_and_entity_clarity",
+            "check": "public_content_sanitization_applied",
+            "status": "missing",
+            "evidence": "entity/author clarity: public content follows privacy / sanitization discipline"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "useful_assets_created_to_attract_links",
+            "status": "missing",
+            "evidence": "authority the earned way: genuinely useful assets \u2014 tools, data, guides \u2014 attract links"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "relevant_human_outreach_only",
+            "status": "missing",
+            "evidence": "authority the earned way: outreach is relevant and human"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "search_console_and_analytics_wired",
+            "status": "missing",
+            "evidence": "measurement: Search Console and analytics are wired"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "search_console_baseline_captured",
+            "status": "missing",
+            "evidence": "measurement: a Search Console baseline is captured"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "impressions_clicks_conversions_tracked",
+            "status": "missing",
+            "evidence": "measurement: impressions to clicks to conversions are tracked"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "queries_gained_lost_tracked",
+            "status": "missing",
+            "evidence": "measurement: queries gained and lost are tracked"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "monthly_iteration_cadence",
+            "status": "missing",
+            "evidence": "measurement: iteration is monthly"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "decaying_pages_refreshed_on_schedule",
+            "status": "missing",
+            "evidence": "measurement: decaying pages are refreshed on schedule"
+          },
+          {
+            "section": "earned_authority_and_measurement",
+            "check": "structure_and_canonical_answers_designed_for_extraction",
+            "status": "missing",
+            "evidence": "AI-era note: clean structure and canonical answers are designed for extraction \u2014 no tricks that decay"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_cloaking",
+            "status": "missing",
+            "evidence": "red line: no cloaking is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_pbn",
+            "status": "missing",
+            "evidence": "red line: no PBNs are present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_bought_links",
+            "status": "missing",
+            "evidence": "red line: no bought links are present \u2014 no link buying"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_link_schemes",
+            "status": "missing",
+            "evidence": "red line: no link schemes are present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_keyword_spam",
+            "status": "missing",
+            "evidence": "red line: no keyword spam is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_misleading_metadata",
+            "status": "missing",
+            "evidence": "red line: no misleading metadata is present"
+          },
+          {
+            "section": "white_hat_red_lines",
+            "check": "no_fake_urgency",
+            "status": "missing",
+            "evidence": "red line: no fake urgency is present"
+          }
+        ],
+        "computed_status": null,
+        "pages_count": null,
+        "pages_without_single_intent": null,
+        "single_intent_coverage": null,
+        "pages_with_invalid_intent_type": null,
+        "valid_intent_type_coverage": null,
+        "duplicate_intents": null,
+        "pages_not_fully_answering": null,
+        "full_answer_coverage": null,
+        "summary": "0 pass, 0 fail, 43 missing of 43 checks across five sections.",
+        "stamp": "HONEST SEO AUDIT INTENT MAP\nsite: incomplete.com\nVERDICT: INSUFFICIENT_EVIDENCE\n  technical_foundation                 insufficient_evidence\n  intent_map_and_on_page_craft         insufficient_evidence\n  structured_data_and_entity_clarity   insufficient_evidence\n  earned_authority_and_measurement     insufficient_evidence\n  white_hat_red_lines                  insufficient_evidence\n0 pass, 0 fail, 43 missing of 43 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type mismatch on boolean field triggers 422 validation error."
+      },
+      "input": {
+        "site": "malformed.com",
+        "technical": {
+          "crawlable_robots_and_sitemap": "NOT_A_BOOLEAN"
+        }
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "technical.crawlable_robots_and_sitemap",
+        "detail": "technical.crawlable_robots_and_sitemap must be a boolean"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

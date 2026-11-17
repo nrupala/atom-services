@@ -1,0 +1,97 @@
+# Independent recompute — grpc-service-design
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md. I do not trust the artifact's numbers.
+
+## Case 1: `full-pass`
+
+### Inputs relevant to computed checks
+- `methods` = [ {name:"GetUser", streaming_mode:"unary", deadline_set:true} ] → length 1
+- `proto_fields` = [ {User,id,1}, {User,name,2} ] → length 2
+- `contract.hand_generated_stubs_present` = false
+- `contract.field_number_reuse_present` = false
+- `server.reflection_enabled` = false
+- `security.cross_host_traffic_present` = false
+- `security.public_surfaces_present` = false
+- `interop.rest_consumers_present` = false
+- `interop.browser_clients_present` = false
+
+### Computed quantities
+
+**methods_count** = length of declared `methods` list = 1. Artifact: 1 → **MATCH**
+
+**proto_fields_count** = length of declared `proto_fields` list = 2. Artifact: 2 → **MATCH**
+
+**methods_without_streaming_mode**: rows with `streaming_mode` present but empty. GetUser has "unary" (non-empty) → none. Artifact: `[]` → **MATCH**
+
+**methods_without_deadline**: rows with `deadline_set` present but not true. GetUser has `deadline_set:true` → none. Artifact: `[]` → **MATCH**
+
+**unbounded_streaming_methods**: streaming rows (mode ≠ "unary") with `stream_bounded` present but not true. GetUser mode = "unary" → not a streaming row → none. Artifact: `[]` → **MATCH**
+
+**fields_sharing_a_duplicate_number**: fields whose (message,number) pair is shared by another field. Pairs: (User,1), (User,2) — all distinct → none. Artifact: `[]` → **MATCH**
+
+**deadline_coverage** = methods declaring deadline set ÷ declared methods = 1 ÷ 1 = 1.0.
+Serialization: floor(1.0 × 1000000 + 0.5)/1000000 = floor(1000000.5)/1000000 = 1000000/1000000 = 1.0 → "1.000000". Artifact: "1.000000" → **MATCH**
+
+**streaming_boundedness_coverage** = streaming methods declaring bounded ÷ streaming methods. Streaming methods (mode ≠ "unary") = 0 → denominator empty → null. Artifact: null → **MATCH**
+
+**computed_status**: six primary computed checks (methods_declared, every_method_names_streaming_mode, every_method_has_deadline, every_streaming_method_bounded, proto_fields_declared, no_duplicate_field_number_within_message) all complete and pass → `within_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**
+
+**verdict**: all 39 checks pass → GRPC_SERVICE_SOUND. Artifact: GRPC_SERVICE_SOUND → **MATCH**
+
+**summary**: 39 pass, 0 fail, 0 missing of 39. Artifact: same → **MATCH**
+
+## Case 2: `violations`
+
+### Inputs relevant to computed checks
+- `methods` = [ {name:"GetUser", streaming_mode:"server", deadline_set:false, stream_bounded:false} ] → length 1
+- `proto_fields` = [ {User,id,1}, {User,name,1} ] → length 2
+- `contract.hand_generated_stubs_present` = true
+- `contract.field_number_reuse_present` = true
+- `server.reflection_enabled` = false
+- `security.cross_host_traffic_present` = false
+- `security.public_surfaces_present` = false
+- `interop.rest_consumers_present` = false
+- `interop.browser_clients_present` = false
+
+### Computed quantities
+
+**methods_count** = 1. Artifact: 1 → **MATCH**
+
+**proto_fields_count** = 2. Artifact: 2 → **MATCH**
+
+**methods_without_streaming_mode**: GetUser mode = "server" (non-empty) → none. Artifact: `[]` → **MATCH**
+
+**methods_without_deadline**: GetUser `deadline_set:false` (present, not true) → ["GetUser"]. Artifact: ["GetUser"] → **MATCH**
+
+**unbounded_streaming_methods**: GetUser mode = "server" ≠ "unary" → streaming row; `stream_bounded:false` (present, not true) → ["GetUser"]. Artifact: ["GetUser"] → **MATCH**
+
+**fields_sharing_a_duplicate_number**: pairs (User,1) and (User,1) — shared → both rows flagged → ["id","name"]. Artifact: ["id","name"] → **MATCH**
+
+**deadline_coverage** = 0 ÷ 1 = 0.0 → floor(0×1000000+0.5)/1000000 = floor(0.5)/1000000 = 0/1000000 = 0.0 → "0.000000". Artifact: "0.000000" → **MATCH**
+
+**streaming_boundedness_coverage** = streaming methods declaring bounded ÷ streaming methods = 0 ÷ 1 = 0.0 → "0.000000". Artifact: "0.000000" → **MATCH**
+
+**computed_status**: all six primary computed checks complete; some fail → `outside_stated_limits_on_declared_evidence`. Artifact: same → **MATCH**
+
+**verdict**: any check fails → GRPC_SERVICE_NOT_SOUND. Artifact: GRPC_SERVICE_NOT_SOUND → **MATCH**
+
+**summary**: 34 pass, 5 fail, 0 missing of 39. Artifact: same → **MATCH**
+
+### Confirm the failing checks are exactly the planted wrong values
+
+Planted wrong values in the violations input:
+1. `hand_generated_stubs_present: true` → check `no_hand_generated_stubs` must fail. Artifact: **fail** ✓
+2. `field_number_reuse_present: true` → check `no_field_number_reuse` must fail. Artifact: **fail** ✓
+3. `proto_fields` duplicate number (User,1 twice) → check `no_duplicate_field_number_within_message` must fail. Artifact: **fail** ✓
+4. `deadline_set: false` on GetUser → check `every_method_has_deadline` must fail. Artifact: **fail** ✓
+5. `stream_bounded: false` on streaming method "server" → check `every_streaming_method_bounded` must fail. Artifact: **fail** ✓
+
+All other inputs are true/valid or gated-off (reflection false, cross-host false, public surfaces false, REST false, browser false), so their checks pass as not-applicable or pass. The five failing checks are exactly the five planted wrong values. No spurious failures, no missed failures. → **MATCH**
+
+Section rollups: contract_and_compatibility has 3 fails → fail ✓; api_shape_and_deadlines has 2 fails → fail ✓; server_hygiene, security_and_transport, observability_testing_and_interop all pass ✓. Artifact sections match.
+
+## Conclusion
+
+Every computed quantity in both cases — counts, the four row-name lists, both coverage ratios (with the exact `floor(v*1000000+0.5)/1000000` six-decimal serialization), `computed_status`, verdict, and summary tallies — recomputes to the artifact's recorded values. The violations case's five failing checks are exactly the five planted wrong values.
+
+AGREEMENT: full

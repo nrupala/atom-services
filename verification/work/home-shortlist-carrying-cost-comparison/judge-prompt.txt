@@ -1,0 +1,1086 @@
+Judge recorded live test evidence for a deterministic API atom against its contract.
+
+ATOM: home-shortlist-carrying-cost-comparison
+
+=== contract.yaml ===
+service_name: home-shortlist-carrying-cost-comparison
+display_name: Home shortlist carrying cost comparison
+tier: B
+status: built-locally
+atom_version: 0.1.0
+sources:
+- skill:home-search
+binding:
+  skill: home-search
+  skill_path: workspace/mymilo-build/skills/home-search/SKILL.md
+  skill_version: '1'
+  rule: "R1 \u2014 fixes land in the skill first; the atom re-deploys from the refined\
+    \ skill and must pass regression before its version bumps. A skill refinement\
+    \ marks this atom stale until re-verified."
+deliverable_type: DELIVERABLE
+endpoints:
+- agent
+keys:
+  namespace: home_shortlist_carrying_cost_comparison
+  prefix: atm_1_home_shortlist_carrying_cost_comparison_
+  issuance: 'Per user, per atom. Self-serve: sign up, open this atom, issue key. Key
+    = HMAC-SHA256(master_secret, email | atom_service | issued_at), version-prefixed;
+    regenerated on demand after the user authenticates, never stored (record holds
+    email, atom, issued_at, fingerprint).'
+  scope: This atom only. A key for one atom never verifies for another.
+rate_limit:
+  per_key_per_minute: 60
+  per_key_per_day: 10000
+  status: "SPEC default \u2014 the per-key rate limit is the capacity guard for open\
+    \ public usage; tuned per atom at build-out from measured production cost."
+pricing:
+  unit: query
+  rate: null
+  rate_status: pending
+  protocol: "rails/billing.md \u2014 measured cost first, then three-model consensus,\
+    \ then prompt-rate fallback. Same rate on Conduit as everywhere; no channel markup."
+self_use:
+  verdict: pass
+  workflow: Calgary family home search
+qualification_tests:
+  T1_bounded: true
+  T2_servable: true
+  T3_no_private_substrate: true
+  T4_measurable_cost: true
+  T5_pays_per_use: false
+  T6_safe_to_expose: true
+internal_caller: "Wright \u2014 zero price, metered to the internal cost ledger (R2)."
+
+
+=== SERVICE.md ===
+# Home shortlist carrying cost comparison — `home-shortlist-carrying-cost-comparison`
+
+**Deliverable type:** DELIVERABLE. This atom sells the deliverable it produces — a bounded judgment artifact — never the underlying knowledge itself.
+
+## What it delivers
+
+Bound capability (from the skill): Support a home search with defined criteria, real comparable listings and full carrying-cost comparison — organized research, not real-estate advice
+
+A caller submits the inputs the bound skill works on and receives one deliverable back, in the contract's output shape (see `contract.yaml`). One unit of sale = one query.
+
+## Buyer
+
+First buyer hypothesis (from register data; not yet market-tested): teams and agents working in Money & markets who need this deliverable on demand and would rather buy it per use than build or staff the capability themselves.
+
+## Self-use (R3 — passed)
+
+Our own workflow that calls it: **Calgary family home search**. Wright is an internal caller on this atom (zero price, metered to the internal cost ledger — see `rails/billing.md`).
+
+## Inputs — the home-shortlist manifest
+
+The caller submits one JSON manifest: a declared home-search
+record for one search — the criteria written before searching,
+the tracked candidate homes with their declared figures, the
+tracking record, and the presentation record. Every field below
+is read by the named section's checks. A field **absent** =
+evidence missing (`INSUFFICIENT_EVIDENCE`); a field present but
+false / invalid = the check fails
+(`HOME_SHORTLIST_COMPARISON_NOT_READY`). All fields are booleans
+unless noted.
+
+| Field | Type | Read by |
+|---|---|---|
+| `search_name` | string (carried into the verdict output, not itself checked) | — |
+| `currency` | string (must be a non-empty string for the check to pass — an absent field is missing evidence, an empty string fails; no currency vocabulary is imposed) | criteria_first |
+| `criteria.written_before_search` | boolean | criteria_first |
+| `criteria.area` | string (must be non-empty for the check to pass; absent = missing, empty = fail) | criteria_first |
+| `criteria.property_type` | string (must be non-empty for the check to pass; absent = missing, empty = fail) | criteria_first |
+| `criteria.budget_ceiling` | number (the caller's declared asking-price ceiling in the declared currency; must be > 0 for the check to pass; absent = missing) | criteria_first, carrying_cost_computation (budget comparison outputs) |
+| `criteria.must_haves_defined` | boolean | criteria_first |
+| `criteria.deal_breakers_defined` | boolean | criteria_first |
+| `homes` | list of home-row objects, each with the entry fields below (computed, see below) | candidate_records, carrying_cost_computation |
+| `homes[].name` | string (names the row in the computed outputs; a row without a string name is reported as `unnamed`) | candidate_records, carrying_cost_computation |
+| `homes[].listing_source` | string (must be non-empty per row for the check to pass; field absent from a row = missing evidence, empty string = fail) | candidate_records |
+| `homes[].fetch_date` | string (the date the listing was fetched, as declared; must be non-empty per row; absent = missing, empty = fail; the format and age are not judged — see the declined thresholds) | candidate_records |
+| `homes[].status` | string (must be one of the four statuses the skill names — `live`, `ruled_out`, `viewed`, `awaiting_information`; field absent from a row = missing evidence, any other value = fail) | candidate_records |
+| `homes[].ruled_out_reason` | string (required non-empty when the row's status is `ruled_out`; absent from a ruled-out row = missing evidence, empty = fail; not read for other statuses) | candidate_records |
+| `homes[].asking_price` | number (must be > 0 per row for the check to pass; absent = missing) | carrying_cost_computation |
+| `homes[].monthly_housing_payment` | number (the caller-declared monthly mortgage or rent payment; must be >= 0; absent = missing. Never derived from the asking price — see the declined thresholds) | carrying_cost_computation |
+| `homes[].monthly_property_tax` | number (declared monthly property tax; must be >= 0; absent = missing) | carrying_cost_computation |
+| `homes[].monthly_utilities_estimate` | number (declared monthly utilities estimate; must be >= 0; absent = missing) | carrying_cost_computation |
+| `homes[].monthly_condo_or_hoa_fees` | number (declared monthly condo or HOA fees; must be >= 0 — zero declares none; absent = missing) | carrying_cost_computation |
+| `homes[].declared_monthly_carrying_cost` | number (the caller's own stated monthly total for the row, re-derived and compared — see below; absent = missing) | carrying_cost_computation |
+| `homes[].open_questions` | list of strings (the field must be declared per row — an empty list declares no open questions; field absent from a row = missing evidence) | candidate_records |
+| `homes[].meets_criteria` | boolean (the caller's fit declaration per row; field absent from a row = missing evidence) | candidate_records |
+| `tracking.tracked_in_one_list` | boolean | tracking_and_refresh |
+| `tracking.refreshed_before_comparison` | boolean | tracking_and_refresh |
+| `tracking.criteria_market_conflict_addressed` | boolean | tracking_and_refresh |
+| `presentation.ranked_on_carrying_cost_not_price_alone` | boolean | ranking_and_presentation |
+| `presentation.sources_and_fetch_dates_attached` | boolean | ranking_and_presentation |
+| `presentation.unknowns_presented_as_questions` | boolean | ranking_and_presentation |
+| `presentation.freshness_limits_stated` | boolean | ranking_and_presentation |
+| `presentation.presented_as_research_not_advice` | boolean | ranking_and_presentation |
+
+Several values are computed from the declared rows, using only
+the declared figures plus the skill's own stated rules — no
+outside threshold is imported:
+
+- **Homes declared:** the declared `homes` list passes only when
+  it is present and non-empty; an absent list is missing
+  evidence, an empty list fails.
+- **Listing source and fetch date per home:** every declared home
+  row must name a non-empty `listing_source` and `fetch_date`
+  (the skill's quality gate: "Every candidate names its listing
+  source and fetch date"). A row with the field absent is missing
+  evidence; a row naming an empty string fails and is named in
+  `homes_without_listing_source` / `homes_without_fetch_date`.
+- **Status per home:** every row must declare a `status` from the
+  four statuses the skill names (method step 6: live, ruled out,
+  viewed, awaiting information). A row with the field absent is
+  missing evidence; a row naming any other value fails and is
+  named in `homes_with_invalid_status`.
+- **Ruled-out reason:** every row with `status: ruled_out` must
+  name a non-empty `ruled_out_reason` (the quality gate:
+  "Ruled-out homes carry a reason, not just a deletion"). A
+  ruled-out row with the field absent is missing evidence; an
+  empty reason fails and the home is named in
+  `ruled_out_homes_without_reason` (a ruled-out row with the field
+  absent does not appear in that list). Searches with no
+  ruled-out rows pass as not applicable.
+- **Monthly carrying cost per home:** the sum of the row's four
+  declared monthly components — `monthly_housing_payment` +
+  `monthly_property_tax` + `monthly_utilities_estimate` +
+  `monthly_condo_or_hoa_fees` (method step 3 names the full
+  picture; step 4 requires one comparable monthly carrying cost
+  per candidate). A row missing any component has no computed
+  cost (its entry in `monthly_carrying_costs` is null) and is
+  excluded from the totals and the ranking.
+- **Declared-total consistency:** every row's
+  `declared_monthly_carrying_cost` must equal the re-derived sum
+  of its components; a mismatch fails and the home is named in
+  `homes_with_carrying_cost_mismatch`.
+- **Budget comparison (reported, never failed):** a home is over
+  budget exactly when its declared `asking_price` exceeds the
+  declared `criteria.budget_ceiling`. `homes_over_budget_ceiling`
+  names those homes, `homes_within_budget_count` counts the
+  priced homes at or under the ceiling, and
+  `any_home_within_budget` reports whether any priced home is
+  within it. All three are null when the homes list or the
+  ceiling is not declared. Being over budget is market reality to
+  show plainly (method step 7), not a defect in the record.
+
+The output also reports the computed `computed_status`
+(`within_stated_limits_on_declared_evidence` /
+`outside_stated_limits_on_declared_evidence` / null when any of
+the seven primary computed checks above cannot be completed),
+`homes_count` (the declared list length, or null when the list is
+not declared — counts are reported as integers, exactly),
+`monthly_carrying_costs` (one `{name, monthly_carrying_cost}`
+entry per declared home, in declared order; null when the list
+is not declared), `total_monthly_carrying_cost` (the sum over
+homes with complete cost figures; null when no home has complete
+figures), `lowest_monthly_carrying_cost`,
+`highest_monthly_carrying_cost` and `carrying_cost_spread`
+(highest − lowest; each null under the same condition),
+`ranked_home_names` (homes with complete cost figures ranked by
+re-derived monthly carrying cost, ascending, ties in declared
+order; null when the list is not declared),
+`cheapest_home_name` (the first ranked home, or null),
+`cost_figure_coverage` (homes with complete cost figures ÷
+declared homes), and `homes_not_meeting_criteria` (homes whose
+declared `meets_criteria` is present and false; null when the
+list is not declared).
+**Fixed serialization rule:** computed amounts and ratios are
+reported as strings with exactly six decimal places, produced in
+both implementations by the same rule — round half up to 6dp,
+`floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six
+decimals; the declared-total comparison uses the fixed-6dp
+difference against zero. An amount is null when its inputs are
+not declared, exactly as stated per field above. That fixed
+serialization is what makes the Python and TypeScript outputs
+byte-identical.
+
+The skill states no numeric pass/fail threshold beyond its own
+rules — no affordability ratio, no income figure, no interest
+rate: its budget ceiling is the caller's own declared number,
+and quantities are computed and reported against it without any
+bar of the atom's. Declined thresholds, named: an affordability
+ratio or income multiple (the skill sets no share-of-income bar
+— the caller's declared ceiling is the only budget figure); a
+mortgage interest rate, amortization term, or down-payment
+assumption for deriving a housing payment from an asking price
+(the skill states none — the housing payment is caller-declared,
+never derived); a fetch-date staleness age in days (the skill
+says refresh stale candidates but states no age — caller
+attestation only, and the fetch date's format is not judged); a
+property-tax annual-to-monthly conversion (callers declare
+monthly figures directly — no divisor is assumed); a
+carrying-cost gap or spread that would make one home "too
+expensive" relative to another (costs are ranked and reported,
+never barred); a minimum or maximum shortlist size beyond
+non-empty; a currency vocabulary or exchange conversion (one
+declared currency per record, figures summed as declared).
+
+The verdict is one of `HOME_SHORTLIST_COMPARISON_READY` (all 25
+checks pass), `HOME_SHORTLIST_COMPARISON_NOT_READY` (any check
+fails), or `INSUFFICIENT_EVIDENCE` (nothing fails but evidence is
+missing), across five sections: criteria_first,
+candidate_records, carrying_cost_computation, tracking_and_refresh,
+ranking_and_presentation.
+
+## Honest scoping
+
+This atom compares a **declared** home-shortlist record — it
+fetches no listings, searches no listing source, and values no
+homes. It does not verify that a declared listing exists, that a
+declared price or fee is what the source stated, that a fetch
+date is real, or that a home is still available: a comparison is
+ready *on the caller's declared evidence*. It is a completeness
+and arithmetic audit of the record the skill requires, **not a
+real-estate service or advice**: it never judges whether a home
+is worth its price, whether the declared budget is affordable for
+the caller, whether a declared tax or utilities figure is
+realistic for the area, or which home the caller should buy —
+only that the record contains what the skill's method, quality
+gates and red lines demand, that its declared totals re-derive
+from its declared components, and how its declared homes rank on
+the declared figures.
+
+Named exclusions: no numeric thresholds beyond the skill's own
+stated rules (see the declined list above); no listing search,
+fetch, or availability check; no home valuation or price
+verification; no mortgage calculation (payments are declared,
+never derived); no neighbourhood, commute, school, or services
+assessment (the skill lists those as search considerations — no
+field in this record carries them, and no check here audits
+them); no rental-versus-buy judgment beyond the same arithmetic
+applied to declared figures (a rental home declares its rent as
+its housing payment).
+
+## Pricing
+
+Pricing unit: **query**. No price is set. Prices are set only from measured production cost per unit (register test T4 is estimable, not yet measured in production).
+
+## Status
+
+Tier B · status: **built-locally** — deterministic core, Python
+oracle and TypeScript port built and parity-proven locally; no
+endpoint is live. Release happens one by one, by the owner's GO,
+per the approved queue.
+
+## Named doubt (from the register)
+
+Self-use marginal; no active search
+
+
+=== RECORDED EVIDENCE (real HTTP calls to the live gateway) ===
+{
+  "atom": "home-shortlist-carrying-cost-comparison",
+  "cases": [
+    {
+      "id": "full-pass",
+      "kind": "full-pass",
+      "expect": {
+        "outcome": "HOME_SHORTLIST_COMPARISON_READY",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "All fields present and valid. Hand-computed: Home A monthly carrying cost = 2500 + 300 + 200 + 0 = 3000, declared 3000 matches; total/lowest/highest = 3000.000000, spread 0.000000; asking 550000 <= ceiling 600000 so within budget (count 1, any true); coverage 1/1 = 1.000000.",
+        "computed_spot_checks": {
+          "homes_count": 1,
+          "monthly_carrying_costs": [
+            {
+              "name": "Home A",
+              "monthly_carrying_cost": "3000.000000"
+            }
+          ],
+          "total_monthly_carrying_cost": "3000.000000",
+          "lowest_monthly_carrying_cost": "3000.000000",
+          "highest_monthly_carrying_cost": "3000.000000",
+          "carrying_cost_spread": "0.000000",
+          "ranked_home_names": [
+            "Home A"
+          ],
+          "cheapest_home_name": "Home A",
+          "cost_figure_coverage": "1.000000",
+          "homes_without_listing_source": [],
+          "homes_without_fetch_date": [],
+          "homes_with_invalid_status": [],
+          "ruled_out_homes_without_reason": [],
+          "homes_not_meeting_criteria": [],
+          "homes_with_carrying_cost_mismatch": [],
+          "homes_over_budget_ceiling": [],
+          "homes_within_budget_count": 1,
+          "any_home_within_budget": true,
+          "computed_status": "within_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "search_name": "Calgary Family Home",
+        "currency": "CAD",
+        "criteria": {
+          "written_before_search": true,
+          "area": "NW Calgary",
+          "property_type": "Detached",
+          "budget_ceiling": 600000,
+          "must_haves_defined": true,
+          "deal_breakers_defined": true
+        },
+        "homes": [
+          {
+            "name": "Home A",
+            "listing_source": "MLS",
+            "fetch_date": "2023-10-01",
+            "status": "live",
+            "asking_price": 550000,
+            "monthly_housing_payment": 2500,
+            "monthly_property_tax": 300,
+            "monthly_utilities_estimate": 200,
+            "monthly_condo_or_hoa_fees": 0,
+            "declared_monthly_carrying_cost": 3000,
+            "open_questions": [],
+            "meets_criteria": true
+          }
+        ],
+        "tracking": {
+          "tracked_in_one_list": true,
+          "refreshed_before_comparison": true,
+          "criteria_market_conflict_addressed": true
+        },
+        "presentation": {
+          "ranked_on_carrying_cost_not_price_alone": true,
+          "sources_and_fetch_dates_attached": true,
+          "unknowns_presented_as_questions": true,
+          "freshness_limits_stated": true,
+          "presented_as_research_not_advice": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "home-shortlist-carrying-cost-comparison",
+        "atom_version": "0.1.0",
+        "search_name": "Calgary Family Home",
+        "verdict": "HOME_SHORTLIST_COMPARISON_READY",
+        "sections": {
+          "criteria_first": "pass",
+          "candidate_records": "pass",
+          "carrying_cost_computation": "pass",
+          "tracking_and_refresh": "pass",
+          "ranking_and_presentation": "pass"
+        },
+        "checks": [
+          {
+            "section": "criteria_first",
+            "check": "criteria_written_before_search",
+            "status": "pass",
+            "evidence": "method step 1 / quality gate: the criteria were written down before listings were gathered"
+          },
+          {
+            "section": "criteria_first",
+            "check": "currency_declared",
+            "status": "pass",
+            "evidence": "method step 3: every declared figure is in one declared currency \u2014 a non-empty currency string, so the comparison sums like with like"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_area_declared",
+            "status": "pass",
+            "evidence": "method step 1: the criteria name the search area \u2014 a non-empty area string"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_property_type_declared",
+            "status": "pass",
+            "evidence": "method step 1: the criteria name the property type \u2014 a non-empty property_type string"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_budget_ceiling_declared",
+            "status": "pass",
+            "evidence": "method step 1: the criteria declare a budget ceiling \u2014 a positive declared amount, the caller's own ceiling (no affordability bar is imposed here)"
+          },
+          {
+            "section": "criteria_first",
+            "check": "must_haves_defined",
+            "status": "pass",
+            "evidence": "method step 1: the must-haves are defined in writing"
+          },
+          {
+            "section": "criteria_first",
+            "check": "deal_breakers_defined",
+            "status": "pass",
+            "evidence": "method step 1: the deal-breakers are defined in writing"
+          },
+          {
+            "section": "candidate_records",
+            "check": "homes_declared",
+            "status": "pass",
+            "evidence": "method step 2: the declared record names its candidate homes \u2014 the homes list is present and non-empty"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_names_listing_source",
+            "status": "pass",
+            "evidence": "quality gate: every candidate names its listing source \u2014 a non-empty listing_source string per home"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_names_fetch_date",
+            "status": "pass",
+            "evidence": "quality gate: every candidate names the date its listing was fetched \u2014 a non-empty fetch_date string per home"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_declares_stated_status",
+            "status": "pass",
+            "evidence": "method step 6: every home declares a tracking status from the statuses the skill names \u2014 live, ruled_out, viewed, awaiting_information"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_declares_fit_to_criteria",
+            "status": "pass",
+            "evidence": "method step 9: every home declares whether it meets the written criteria, so the shortlist can be ranked on fit as well as carrying cost"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_ruled_out_home_has_reason",
+            "status": "pass",
+            "evidence": "quality gate: ruled-out homes carry a reason, not just a deletion \u2014 every home declared ruled_out names a non-empty ruled_out_reason"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_lists_open_questions",
+            "status": "pass",
+            "evidence": "method step 5: every home lists what the listing does not say as open questions \u2014 the open_questions list is declared per home (an empty list declares none)"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "every_home_declares_asking_price",
+            "status": "pass",
+            "evidence": "method step 3: every home declares its asking price \u2014 a positive declared amount per home"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "every_home_declares_all_monthly_cost_components",
+            "status": "pass",
+            "evidence": "method step 3: every home declares all four monthly carrying-cost components \u2014 housing payment, property tax, utilities estimate, condo or HOA fees \u2014 each a non-negative declared amount (zero declares none, e.g. no HOA fees; nothing is estimated here)"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "declared_carrying_costs_match_rederived",
+            "status": "pass",
+            "evidence": "method step 4: each home's declared monthly carrying cost equals the re-derived sum of its four declared monthly components"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "candidates_tracked_in_one_list",
+            "status": "pass",
+            "evidence": "method step 6: the candidates are tracked in one list with honest status notes"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "stale_candidates_refreshed_before_comparison",
+            "status": "pass",
+            "evidence": "method step 8: stale candidates were refreshed before the comparison is relied on \u2014 availability and price change without notice"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "criteria_market_conflict_addressed",
+            "status": "pass",
+            "evidence": "method step 7: where criteria and market reality conflict, that is stated plainly with the nearest trade-offs shown (or none was found)"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "shortlist_ranked_on_carrying_cost_not_price_alone",
+            "status": "pass",
+            "evidence": "method step 9 / red line: the shortlist is ranked on fit to criteria and full carrying cost \u2014 never on headline price while hiding fees"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "sources_and_fetch_dates_attached_to_shortlist",
+            "status": "pass",
+            "evidence": "method step 9: sources and fetch dates are attached to the presented shortlist"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "unknowns_presented_as_questions_not_assumptions",
+            "status": "pass",
+            "evidence": "quality gate: unknowns are listed as questions, never filled in by guesswork"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "freshness_limits_stated",
+            "status": "pass",
+            "evidence": "red line: no listing price or availability is presented as current beyond its fetch time \u2014 the freshness limits are stated"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "presented_as_research_not_advice",
+            "status": "pass",
+            "evidence": "red line: the comparison is presented as education and organization, not real-estate advice \u2014 the buy decision stays with the caller and their own professionals"
+          }
+        ],
+        "computed_status": "within_stated_limits_on_declared_evidence",
+        "homes_count": 1,
+        "monthly_carrying_costs": [
+          {
+            "name": "Home A",
+            "monthly_carrying_cost": "3000.000000"
+          }
+        ],
+        "total_monthly_carrying_cost": "3000.000000",
+        "lowest_monthly_carrying_cost": "3000.000000",
+        "highest_monthly_carrying_cost": "3000.000000",
+        "carrying_cost_spread": "0.000000",
+        "ranked_home_names": [
+          "Home A"
+        ],
+        "cheapest_home_name": "Home A",
+        "cost_figure_coverage": "1.000000",
+        "homes_without_listing_source": [],
+        "homes_without_fetch_date": [],
+        "homes_with_invalid_status": [],
+        "ruled_out_homes_without_reason": [],
+        "homes_not_meeting_criteria": [],
+        "homes_with_carrying_cost_mismatch": [],
+        "homes_over_budget_ceiling": [],
+        "homes_within_budget_count": 1,
+        "any_home_within_budget": true,
+        "summary": "25 pass, 0 fail, 0 missing of 25 checks across five sections.",
+        "stamp": "HOME SHORTLIST CARRYING COST COMPARISON\nsearch_name: Calgary Family Home\nVERDICT: HOME_SHORTLIST_COMPARISON_READY\n  criteria_first                       pass\n  candidate_records                    pass\n  carrying_cost_computation            pass\n  tracking_and_refresh                 pass\n  ranking_and_presentation             pass\n25 pass, 0 fail, 0 missing of 25 checks across five sections."
+      },
+      "determinism_byte_identical": true,
+      "parity_structured_equal": true
+    },
+    {
+      "id": "violations",
+      "kind": "violations",
+      "expect": {
+        "outcome": "HOME_SHORTLIST_COMPARISON_NOT_READY",
+        "http": 200,
+        "failing_checks": [
+          "declared_carrying_costs_match_rederived"
+        ],
+        "notes": "Full manifest with same key paths as full-pass; only planted defect is the declared total: hand-computed re-derived cost = 100 + 0 + 0 + 0 = 100, declared 999 mismatches, failing exactly declared_carrying_costs_match_rederived. Asking 100 <= ceiling 100 so within budget (over requires strictly greater).",
+        "computed_spot_checks": {
+          "homes_count": 1,
+          "monthly_carrying_costs": [
+            {
+              "name": "Bad Home",
+              "monthly_carrying_cost": "100.000000"
+            }
+          ],
+          "total_monthly_carrying_cost": "100.000000",
+          "lowest_monthly_carrying_cost": "100.000000",
+          "highest_monthly_carrying_cost": "100.000000",
+          "carrying_cost_spread": "0.000000",
+          "ranked_home_names": [
+            "Bad Home"
+          ],
+          "cheapest_home_name": "Bad Home",
+          "cost_figure_coverage": "1.000000",
+          "homes_without_listing_source": [],
+          "homes_without_fetch_date": [],
+          "homes_with_invalid_status": [],
+          "ruled_out_homes_without_reason": [],
+          "homes_not_meeting_criteria": [],
+          "homes_with_carrying_cost_mismatch": [
+            "Bad Home"
+          ],
+          "homes_over_budget_ceiling": [],
+          "homes_within_budget_count": 1,
+          "any_home_within_budget": true,
+          "computed_status": "outside_stated_limits_on_declared_evidence"
+        }
+      },
+      "input": {
+        "search_name": "Test",
+        "currency": "CAD",
+        "criteria": {
+          "written_before_search": true,
+          "area": "A",
+          "property_type": "B",
+          "budget_ceiling": 100,
+          "must_haves_defined": true,
+          "deal_breakers_defined": true
+        },
+        "homes": [
+          {
+            "name": "Bad Home",
+            "listing_source": "MLS",
+            "fetch_date": "2023-01-01",
+            "status": "live",
+            "asking_price": 100,
+            "monthly_housing_payment": 100,
+            "monthly_property_tax": 0,
+            "monthly_utilities_estimate": 0,
+            "monthly_condo_or_hoa_fees": 0,
+            "declared_monthly_carrying_cost": 999,
+            "open_questions": [],
+            "meets_criteria": true
+          }
+        ],
+        "tracking": {
+          "tracked_in_one_list": true,
+          "refreshed_before_comparison": true,
+          "criteria_market_conflict_addressed": true
+        },
+        "presentation": {
+          "ranked_on_carrying_cost_not_price_alone": true,
+          "sources_and_fetch_dates_attached": true,
+          "unknowns_presented_as_questions": true,
+          "freshness_limits_stated": true,
+          "presented_as_research_not_advice": true
+        }
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "home-shortlist-carrying-cost-comparison",
+        "atom_version": "0.1.0",
+        "search_name": "Test",
+        "verdict": "HOME_SHORTLIST_COMPARISON_NOT_READY",
+        "sections": {
+          "criteria_first": "pass",
+          "candidate_records": "pass",
+          "carrying_cost_computation": "fail",
+          "tracking_and_refresh": "pass",
+          "ranking_and_presentation": "pass"
+        },
+        "checks": [
+          {
+            "section": "criteria_first",
+            "check": "criteria_written_before_search",
+            "status": "pass",
+            "evidence": "method step 1 / quality gate: the criteria were written down before listings were gathered"
+          },
+          {
+            "section": "criteria_first",
+            "check": "currency_declared",
+            "status": "pass",
+            "evidence": "method step 3: every declared figure is in one declared currency \u2014 a non-empty currency string, so the comparison sums like with like"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_area_declared",
+            "status": "pass",
+            "evidence": "method step 1: the criteria name the search area \u2014 a non-empty area string"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_property_type_declared",
+            "status": "pass",
+            "evidence": "method step 1: the criteria name the property type \u2014 a non-empty property_type string"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_budget_ceiling_declared",
+            "status": "pass",
+            "evidence": "method step 1: the criteria declare a budget ceiling \u2014 a positive declared amount, the caller's own ceiling (no affordability bar is imposed here)"
+          },
+          {
+            "section": "criteria_first",
+            "check": "must_haves_defined",
+            "status": "pass",
+            "evidence": "method step 1: the must-haves are defined in writing"
+          },
+          {
+            "section": "criteria_first",
+            "check": "deal_breakers_defined",
+            "status": "pass",
+            "evidence": "method step 1: the deal-breakers are defined in writing"
+          },
+          {
+            "section": "candidate_records",
+            "check": "homes_declared",
+            "status": "pass",
+            "evidence": "method step 2: the declared record names its candidate homes \u2014 the homes list is present and non-empty"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_names_listing_source",
+            "status": "pass",
+            "evidence": "quality gate: every candidate names its listing source \u2014 a non-empty listing_source string per home"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_names_fetch_date",
+            "status": "pass",
+            "evidence": "quality gate: every candidate names the date its listing was fetched \u2014 a non-empty fetch_date string per home"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_declares_stated_status",
+            "status": "pass",
+            "evidence": "method step 6: every home declares a tracking status from the statuses the skill names \u2014 live, ruled_out, viewed, awaiting_information"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_declares_fit_to_criteria",
+            "status": "pass",
+            "evidence": "method step 9: every home declares whether it meets the written criteria, so the shortlist can be ranked on fit as well as carrying cost"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_ruled_out_home_has_reason",
+            "status": "pass",
+            "evidence": "quality gate: ruled-out homes carry a reason, not just a deletion \u2014 every home declared ruled_out names a non-empty ruled_out_reason"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_lists_open_questions",
+            "status": "pass",
+            "evidence": "method step 5: every home lists what the listing does not say as open questions \u2014 the open_questions list is declared per home (an empty list declares none)"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "every_home_declares_asking_price",
+            "status": "pass",
+            "evidence": "method step 3: every home declares its asking price \u2014 a positive declared amount per home"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "every_home_declares_all_monthly_cost_components",
+            "status": "pass",
+            "evidence": "method step 3: every home declares all four monthly carrying-cost components \u2014 housing payment, property tax, utilities estimate, condo or HOA fees \u2014 each a non-negative declared amount (zero declares none, e.g. no HOA fees; nothing is estimated here)"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "declared_carrying_costs_match_rederived",
+            "status": "fail",
+            "evidence": "method step 4: each home's declared monthly carrying cost equals the re-derived sum of its four declared monthly components"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "candidates_tracked_in_one_list",
+            "status": "pass",
+            "evidence": "method step 6: the candidates are tracked in one list with honest status notes"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "stale_candidates_refreshed_before_comparison",
+            "status": "pass",
+            "evidence": "method step 8: stale candidates were refreshed before the comparison is relied on \u2014 availability and price change without notice"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "criteria_market_conflict_addressed",
+            "status": "pass",
+            "evidence": "method step 7: where criteria and market reality conflict, that is stated plainly with the nearest trade-offs shown (or none was found)"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "shortlist_ranked_on_carrying_cost_not_price_alone",
+            "status": "pass",
+            "evidence": "method step 9 / red line: the shortlist is ranked on fit to criteria and full carrying cost \u2014 never on headline price while hiding fees"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "sources_and_fetch_dates_attached_to_shortlist",
+            "status": "pass",
+            "evidence": "method step 9: sources and fetch dates are attached to the presented shortlist"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "unknowns_presented_as_questions_not_assumptions",
+            "status": "pass",
+            "evidence": "quality gate: unknowns are listed as questions, never filled in by guesswork"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "freshness_limits_stated",
+            "status": "pass",
+            "evidence": "red line: no listing price or availability is presented as current beyond its fetch time \u2014 the freshness limits are stated"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "presented_as_research_not_advice",
+            "status": "pass",
+            "evidence": "red line: the comparison is presented as education and organization, not real-estate advice \u2014 the buy decision stays with the caller and their own professionals"
+          }
+        ],
+        "computed_status": "outside_stated_limits_on_declared_evidence",
+        "homes_count": 1,
+        "monthly_carrying_costs": [
+          {
+            "name": "Bad Home",
+            "monthly_carrying_cost": "100.000000"
+          }
+        ],
+        "total_monthly_carrying_cost": "100.000000",
+        "lowest_monthly_carrying_cost": "100.000000",
+        "highest_monthly_carrying_cost": "100.000000",
+        "carrying_cost_spread": "0.000000",
+        "ranked_home_names": [
+          "Bad Home"
+        ],
+        "cheapest_home_name": "Bad Home",
+        "cost_figure_coverage": "1.000000",
+        "homes_without_listing_source": [],
+        "homes_without_fetch_date": [],
+        "homes_with_invalid_status": [],
+        "ruled_out_homes_without_reason": [],
+        "homes_not_meeting_criteria": [],
+        "homes_with_carrying_cost_mismatch": [
+          "Bad Home"
+        ],
+        "homes_over_budget_ceiling": [],
+        "homes_within_budget_count": 1,
+        "any_home_within_budget": true,
+        "summary": "24 pass, 1 fail, 0 missing of 25 checks across five sections.",
+        "stamp": "HOME SHORTLIST CARRYING COST COMPARISON\nsearch_name: Test\nVERDICT: HOME_SHORTLIST_COMPARISON_NOT_READY\n  criteria_first                       pass\n  candidate_records                    pass\n  carrying_cost_computation            fail\n  tracking_and_refresh                 pass\n  ranking_and_presentation             pass\n24 pass, 1 fail, 0 missing of 25 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "sparse",
+      "kind": "sparse",
+      "expect": {
+        "outcome": "INSUFFICIENT_EVIDENCE",
+        "http": 200,
+        "failing_checks": [],
+        "notes": "Missing mandatory fields like currency, criteria, and homes list."
+      },
+      "input": {
+        "search_name": "Empty"
+      },
+      "http_status": 200,
+      "artifact": {
+        "service": "home-shortlist-carrying-cost-comparison",
+        "atom_version": "0.1.0",
+        "search_name": "Empty",
+        "verdict": "INSUFFICIENT_EVIDENCE",
+        "sections": {
+          "criteria_first": "insufficient_evidence",
+          "candidate_records": "insufficient_evidence",
+          "carrying_cost_computation": "insufficient_evidence",
+          "tracking_and_refresh": "insufficient_evidence",
+          "ranking_and_presentation": "insufficient_evidence"
+        },
+        "checks": [
+          {
+            "section": "criteria_first",
+            "check": "criteria_written_before_search",
+            "status": "missing",
+            "evidence": "method step 1 / quality gate: the criteria were written down before listings were gathered"
+          },
+          {
+            "section": "criteria_first",
+            "check": "currency_declared",
+            "status": "missing",
+            "evidence": "method step 3: every declared figure is in one declared currency \u2014 a non-empty currency string, so the comparison sums like with like"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_area_declared",
+            "status": "missing",
+            "evidence": "method step 1: the criteria name the search area \u2014 a non-empty area string"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_property_type_declared",
+            "status": "missing",
+            "evidence": "method step 1: the criteria name the property type \u2014 a non-empty property_type string"
+          },
+          {
+            "section": "criteria_first",
+            "check": "criteria_budget_ceiling_declared",
+            "status": "missing",
+            "evidence": "method step 1: the criteria declare a budget ceiling \u2014 a positive declared amount, the caller's own ceiling (no affordability bar is imposed here)"
+          },
+          {
+            "section": "criteria_first",
+            "check": "must_haves_defined",
+            "status": "missing",
+            "evidence": "method step 1: the must-haves are defined in writing"
+          },
+          {
+            "section": "criteria_first",
+            "check": "deal_breakers_defined",
+            "status": "missing",
+            "evidence": "method step 1: the deal-breakers are defined in writing"
+          },
+          {
+            "section": "candidate_records",
+            "check": "homes_declared",
+            "status": "missing",
+            "evidence": "method step 2: the declared record names its candidate homes \u2014 the homes list is present and non-empty"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_names_listing_source",
+            "status": "missing",
+            "evidence": "quality gate: every candidate names its listing source \u2014 a non-empty listing_source string per home"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_names_fetch_date",
+            "status": "missing",
+            "evidence": "quality gate: every candidate names the date its listing was fetched \u2014 a non-empty fetch_date string per home"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_declares_stated_status",
+            "status": "missing",
+            "evidence": "method step 6: every home declares a tracking status from the statuses the skill names \u2014 live, ruled_out, viewed, awaiting_information"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_declares_fit_to_criteria",
+            "status": "missing",
+            "evidence": "method step 9: every home declares whether it meets the written criteria, so the shortlist can be ranked on fit as well as carrying cost"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_ruled_out_home_has_reason",
+            "status": "missing",
+            "evidence": "quality gate: ruled-out homes carry a reason, not just a deletion \u2014 every home declared ruled_out names a non-empty ruled_out_reason"
+          },
+          {
+            "section": "candidate_records",
+            "check": "every_home_lists_open_questions",
+            "status": "missing",
+            "evidence": "method step 5: every home lists what the listing does not say as open questions \u2014 the open_questions list is declared per home (an empty list declares none)"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "every_home_declares_asking_price",
+            "status": "missing",
+            "evidence": "method step 3: every home declares its asking price \u2014 a positive declared amount per home"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "every_home_declares_all_monthly_cost_components",
+            "status": "missing",
+            "evidence": "method step 3: every home declares all four monthly carrying-cost components \u2014 housing payment, property tax, utilities estimate, condo or HOA fees \u2014 each a non-negative declared amount (zero declares none, e.g. no HOA fees; nothing is estimated here)"
+          },
+          {
+            "section": "carrying_cost_computation",
+            "check": "declared_carrying_costs_match_rederived",
+            "status": "missing",
+            "evidence": "method step 4: each home's declared monthly carrying cost equals the re-derived sum of its four declared monthly components"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "candidates_tracked_in_one_list",
+            "status": "missing",
+            "evidence": "method step 6: the candidates are tracked in one list with honest status notes"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "stale_candidates_refreshed_before_comparison",
+            "status": "missing",
+            "evidence": "method step 8: stale candidates were refreshed before the comparison is relied on \u2014 availability and price change without notice"
+          },
+          {
+            "section": "tracking_and_refresh",
+            "check": "criteria_market_conflict_addressed",
+            "status": "missing",
+            "evidence": "method step 7: where criteria and market reality conflict, that is stated plainly with the nearest trade-offs shown (or none was found)"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "shortlist_ranked_on_carrying_cost_not_price_alone",
+            "status": "missing",
+            "evidence": "method step 9 / red line: the shortlist is ranked on fit to criteria and full carrying cost \u2014 never on headline price while hiding fees"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "sources_and_fetch_dates_attached_to_shortlist",
+            "status": "missing",
+            "evidence": "method step 9: sources and fetch dates are attached to the presented shortlist"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "unknowns_presented_as_questions_not_assumptions",
+            "status": "missing",
+            "evidence": "quality gate: unknowns are listed as questions, never filled in by guesswork"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "freshness_limits_stated",
+            "status": "missing",
+            "evidence": "red line: no listing price or availability is presented as current beyond its fetch time \u2014 the freshness limits are stated"
+          },
+          {
+            "section": "ranking_and_presentation",
+            "check": "presented_as_research_not_advice",
+            "status": "missing",
+            "evidence": "red line: the comparison is presented as education and organization, not real-estate advice \u2014 the buy decision stays with the caller and their own professionals"
+          }
+        ],
+        "computed_status": null,
+        "homes_count": null,
+        "monthly_carrying_costs": null,
+        "total_monthly_carrying_cost": null,
+        "lowest_monthly_carrying_cost": null,
+        "highest_monthly_carrying_cost": null,
+        "carrying_cost_spread": null,
+        "ranked_home_names": null,
+        "cheapest_home_name": null,
+        "cost_figure_coverage": null,
+        "homes_without_listing_source": null,
+        "homes_without_fetch_date": null,
+        "homes_with_invalid_status": null,
+        "ruled_out_homes_without_reason": null,
+        "homes_not_meeting_criteria": null,
+        "homes_with_carrying_cost_mismatch": null,
+        "homes_over_budget_ceiling": null,
+        "homes_within_budget_count": null,
+        "any_home_within_budget": null,
+        "summary": "0 pass, 0 fail, 25 missing of 25 checks across five sections.",
+        "stamp": "HOME SHORTLIST CARRYING COST COMPARISON\nsearch_name: Empty\nVERDICT: INSUFFICIENT_EVIDENCE\n  criteria_first                       insufficient_evidence\n  candidate_records                    insufficient_evidence\n  carrying_cost_computation            insufficient_evidence\n  tracking_and_refresh                 insufficient_evidence\n  ranking_and_presentation             insufficient_evidence\n0 pass, 0 fail, 25 missing of 25 checks across five sections."
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "expect": {
+        "outcome": null,
+        "http": 422,
+        "failing_checks": [],
+        "notes": "Type violation: homes field expects a list, received a string. Exactly one documented type violation."
+      },
+      "input": {
+        "search_name": "Malformed",
+        "homes": "not-a-list"
+      },
+      "http_status": 422,
+      "artifact": {
+        "ok": false,
+        "error": "invalid_input",
+        "field": "homes",
+        "detail": "homes must be a list"
+      },
+      "determinism_byte_identical": null,
+      "parity_structured_equal": null
+    }
+  ]
+}
+
+Judge strictly against the documents:
+- Verdict/status vocabulary must match the documents exactly.
+- The stamp: if the documents or the output format show a stamp field,
+  check its presence and shape; report if absent or malformed.
+- full-pass case: outcome must be the PASS outcome; every check pass;
+  determinism_byte_identical must be true; parity_structured_equal must
+  be true (MCP and REST agree). Determinism and parity are recorded ONLY
+  for the full-pass case by design — their absence on other cases is not
+  a finding and must not be noted as a gap.
+- violations case: outcome must be the FAIL outcome; the checks named in
+  expect.failing_checks must be failing. Extra failing checks are a
+  finding ONLY if they cannot follow from the wrong values supplied.
+- sparse case: outcome must be the INSUFFICIENT_EVIDENCE outcome (or its
+  documented equivalent) — never a PASS.
+- malformed case: HTTP status must be 422 (a clean input error). A 500,
+  or a 200 verdict on type-violating input, is a FAIL finding.
+- Computed atoms: recompute the quantities in expect.computed_spot_checks
+  (or, if none were recorded, at least one headline computed value) from
+  the input by hand and compare with the artifact.
+- If a test case itself contradicts the contract (the case was wrong,
+  not the atom), list it under tester_errors instead of findings.
+
+Return JSON only, exactly this shape:
+{"verdict": "PASS" | "FAIL",
+  "findings": [{"case": "<id>", "expected": "...", "actual": "...",
+                 "contract_clause": "<where the contract/SERVICE.md states it>",
+                 "detail": "..."}],
+  "tester_errors": [{"case": "<id>", "problem": "..."}],
+  "computed_checks": [{"quantity": "...", "expected": "...", "actual": "...", "match": true}],
+  "notes": "..."}

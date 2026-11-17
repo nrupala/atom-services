@@ -1,0 +1,102 @@
+# Independent recompute — home-shortlist-carrying-cost-comparison
+
+## Serialization rule (applied throughout)
+Round half up to 6dp: `floor(v * 1000000 + 0.5) / 1000000`, then format with exactly six decimals. For integer-valued sums this yields `"N.000000"`.
+
+---
+
+## CASE 1: `full-pass`
+
+### Inputs
+- currency = "CAD" (non-empty ✓)
+- criteria: written_before_search=true, area="NW Calgary", property_type="Detached", budget_ceiling=600000, must_haves_defined=true, deal_breakers_defined=true
+- One home: Home A, source="MLS", fetch="2023-10-01", status="live", asking=550000, housing=2500, tax=300, utilities=200, hoa=0, declared=3000, open_questions=[], meets_criteria=true
+- tracking: all true; presentation: all true
+
+### Computed quantities
+
+**Monthly carrying cost (Home A):**
+2500 + 300 + 200 + 0 = **3000**
+Serialize: floor(3000·1000000 + 0.5)/1000000 = 3000.000000 → `"3000.000000"` — artifact `"3000.000000"` **MATCH**
+
+**Declared-total consistency:** declared 3000 vs re-derived 3000 → difference 0 → consistent. No mismatch. Artifact `homes_with_carrying_cost_mismatch: []` **MATCH**
+
+**homes_count:** list length = 1 — artifact `1` **MATCH**
+
+**total_monthly_carrying_cost:** only home complete → 3000 → `"3000.000000"` — artifact **MATCH**
+
+**lowest / highest:** min=max=3000 → both `"3000.000000"` — artifact **MATCH**
+
+**carrying_cost_spread:** 3000 − 3000 = 0 → `"0.000000"` — artifact **MATCH**
+
+**ranked_home_names:** one home → `["Home A"]` — artifact **MATCH**
+
+**cheapest_home_name:** first ranked = "Home A" — artifact **MATCH**
+
+**cost_figure_coverage:** complete homes (1) ÷ declared homes (1) = 1.0 → floor(1.0·1000000+0.5)/1000000 = 1.000000 → `"1.000000"` — artifact **MATCH**
+
+**Budget comparison:** ceiling=600000; asking 550000 ≤ 600000 → within budget.
+- homes_over_budget_ceiling: [] — artifact `[]` **MATCH**
+- homes_within_budget_count: 1 — artifact `1` **MATCH**
+- any_home_within_budget: true — artifact `true` **MATCH**
+
+**homes_not_meeting_criteria:** meets_criteria=true → none → `[]` — artifact **MATCH**
+
+**Empty lists:** homes_without_listing_source, homes_without_fetch_date, homes_with_invalid_status, ruled_out_homes_without_reason — all `[]` — artifact **MATCH**
+
+**computed_status:** all seven primary checks complete and passing → `within_stated_limits_on_declared_evidence` — artifact **MATCH**
+
+**Verdict / sections:** all 25 checks pass → `HOME_SHORTLIST_COMPARISON_READY`, all sections pass, summary "25 pass, 0 fail, 0 missing" — artifact **MATCH**
+
+---
+
+## CASE 2: `violations`
+
+### Inputs
+- currency="CAD", area="A", property_type="B", budget_ceiling=100, must_haves=true, deal_breakers=true
+- One home: Bad Home, source="MLS", fetch="2023-01-01", status="live", asking=100, housing=100, tax=0, utilities=0, hoa=0, **declared=999**, open_questions=[], meets_criteria=true
+- tracking/presentation all true
+
+### Computed quantities
+
+**Monthly carrying cost (Bad Home):**
+100 + 0 + 0 + 0 = **100** → `"100.000000"` — artifact `"100.000000"` **MATCH**
+
+**Declared-total consistency:** declared 999 vs re-derived 100 → difference 999 − 100 = 899 ≠ 0 → **mismatch**. Home named in `homes_with_carrying_cost_mismatch`. Artifact `["Bad Home"]` **MATCH**; check `declared_carrying_costs_match_rederived` = **fail** — artifact **fail** **MATCH**
+
+**homes_count:** 1 — artifact `1` **MATCH**
+
+**total:** 100 → `"100.000000"` — artifact **MATCH**
+
+**lowest/highest:** 100/100 → `"100.000000"` each — artifact **MATCH**
+
+**spread:** 100 − 100 = 0 → `"0.000000"` — artifact **MATCH**
+
+**ranked_home_names:** `["Bad Home"]` — artifact **MATCH**
+
+**cheapest_home_name:** "Bad Home" — artifact **MATCH**
+
+**cost_figure_coverage:** 1 ÷ 1 = 1.0 → `"1.000000"` — artifact **MATCH**
+
+**Budget comparison:** ceiling=100; asking 100 ≤ 100 → within budget (not over).
+- homes_over_budget_ceiling: [] — artifact `[]` **MATCH**
+- homes_within_budget_count: 1 — artifact `1` **MATCH**
+- any_home_within_budget: true — artifact `true` **MATCH**
+
+**homes_not_meeting_criteria:** meets_criteria=true → `[]` — artifact **MATCH**
+
+**Empty lists:** all four `[]` — artifact **MATCH**
+
+**computed_status:** one primary check fails → `outside_stated_limits_on_declared_evidence` — artifact **MATCH**
+
+**Verdict / sections:** exactly one fail (carrying_cost_computation) → `HOME_SHORTLIST_COMPARISON_NOT_READY`, carrying_cost_computation=fail, others pass, summary "24 pass, 1 fail, 0 missing" — artifact **MATCH**
+
+### Planted-wrong-value confirmation
+The only planted wrong value is `declared_monthly_carrying_cost = 999` (true sum = 100). This should fail **exactly one** check: `declared_carrying_costs_match_rederived`, and should surface "Bad Home" in `homes_with_carrying_cost_mismatch`. It should **not** affect the re-derived cost (100), totals, ranking, coverage, or budget comparison — all of which the artifact reports correctly. Confirmed: the single failing check is exactly the one the planted value should fail. **MATCH**
+
+---
+
+## Summary
+Every computed quantity in both cases recomputes to the artifact's value under the stated 6dp half-up serialization rule. All check statuses, section rollups, verdicts, and summaries agree. The violations case fails exactly the one check its planted wrong value targets.
+
+AGREEMENT: full

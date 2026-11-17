@@ -1,0 +1,100 @@
+# Independent recompute — local-voice-stack-engineering-pack
+
+I recompute every computed quantity from the case inputs, using only the rules stated in SERVICE.md.
+
+## Rule set I apply (from SERVICE.md)
+
+- **30 checks** across 5 sections; verdict = SOUND if all 30 pass, NOT_SOUND if any fail, INSUFFICIENT_EVIDENCE if none fail but some missing.
+- **engines_declared**: pass iff list present and non-empty; absent → missing; empty → fail.
+- **License per engine**: every row must have `license_cleared_for_commercial_use: true`. Field absent → missing evidence; present-but-not-true → fail.
+- **Golden-sentence per engine**: every row must have `evaluated_on_own_golden_sentences: true`. Same absent/false handling.
+- **Consent per cloning engine**: every row with `is_voice_cloning: true` must have `cloning_consent_recorded: true`. No cloning rows → pass (N/A).
+- **Barge-in**: required only when `latency.assistant_interactive_use_present: true`; else pass (N/A).
+- **computed_status**: `within_stated_limits_on_declared_evidence` if all four primary computed checks complete and pass; `outside_...` if any fails; null if any cannot be completed.
+- **engines_count**: list length, or null if list not declared.
+- **Row-name lists**: engines whose field is *present but not true* (absent fields excluded).
+- **Ratios**: `floor(v * 1000000 + 0.5) / 1000000`, formatted to exactly 6 decimals; null if denominator absent/empty.
+
+---
+
+## Case 1: `full-pass`
+
+Input: 1 engine (`engine_a`), all booleans true; cloning row with consent true; assistant use true with barge-in true.
+
+**Check tally (30 checks):**
+- pipeline_and_engine_selection (8): scope T, output T, local-first T, quality/latency/footprint T, language T, engines_declared T (list len 1), license T, golden T → **8 pass**
+- cloning_consent_and_ethics (6): impersonation false→pass, covert false→pass, disclosure T, encrypted T, deletion T, consent (cloning row consent T)→pass → **6 pass**
+- audio_engineering_and_latency (8): 4 audio T, TTFA budget T, measured T, chunked T, barge-in (assistant true, handling true)→pass → **8 pass**
+- accessibility (4): all T → **4 pass**
+- testing_and_quality_gates (4): all T → **4 pass**
+
+Total: 8+6+8+4+4 = **30 pass, 0 fail, 0 missing**.
+
+**Computed quantities:**
+- `engines_count` = length of `[engine_a]` = **1**. Artifact: 1 → **MATCH**
+- `engines_without_license_clearance`: field present and true → not listed → **[]**. Artifact: [] → **MATCH**
+- `engines_without_golden_sentence_evaluation`: true → **[]**. Artifact: [] → **MATCH**
+- `cloning_engines_without_consent_recorded`: cloning row, consent true → **[]**. Artifact: [] → **MATCH**
+- `license_coverage` = 1 cleared ÷ 1 declared = 1.0 → floor(1.0·1e6+0.5)/1e6 = 1000000/1e6 = **"1.000000"**. Artifact: "1.000000" → **MATCH**
+- `golden_evaluation_coverage` = 1 ÷ 1 = **"1.000000"**. Artifact: "1.000000" → **MATCH**
+- `computed_status`: all four primary checks complete and pass → **within_stated_limits_on_declared_evidence**. Artifact: same → **MATCH**
+- `verdict`: all 30 pass → **LOCAL_VOICE_STACK_SOUND**. Artifact: same → **MATCH**
+- `summary`: "30 pass, 0 fail, 0 missing of 30" → **MATCH**
+- Section statuses: all pass → **MATCH**
+
+---
+
+## Case 2: `violations`
+
+Input: 1 engine (`bad_engine`): license false, golden false, is_voice_cloning true, consent false. Cloning: impersonation true, covert true. Latency: assistant true, barge-in false.
+
+**Check tally (30 checks):**
+- pipeline_and_engine_selection (8): first 5 T; engines_declared T (len 1); license → row false → **fail**; golden → row false → **fail** → **6 pass, 2 fail**
+- cloning_consent_and_ethics (6): impersonation true → **fail**; covert true → **fail**; disclosure T; encrypted T; deletion T; consent → cloning row consent false → **fail** → **3 pass, 3 fail**
+- audio_engineering_and_latency (8): 4 audio T; TTFA T; measured T; chunked T; barge-in (assistant true, handling false) → **fail** → **7 pass, 1 fail**
+- accessibility (4): all T → **4 pass**
+- testing_and_quality_gates (4): all T → **4 pass**
+
+Total: pass = 6+3+7+4+4 = **24 pass**; fail = 2+3+1 = **6 fail**; missing = **0**. Of 30. → **MATCH** with artifact summary "24 pass, 6 fail, 0 missing of 30".
+
+**Planted-wrong-value → failing-check confirmation:**
+- `license_cleared_for_commercial_use: false` → `every_engine_license_cleared_for_commercial_use` fail ✓
+- `evaluated_on_own_golden_sentences: false` → `every_engine_evaluated_on_own_golden_sentences` fail ✓
+- `impersonation_present: true` → `no_impersonation` fail ✓
+- `covert_recording_present: true` → `no_covert_recording` fail ✓
+- `cloning_consent_recorded: false` (cloning row) → `every_cloning_engine_has_consent_recorded` fail ✓
+- `interruption_barge_in_handling: false` with assistant use true → `interruption_barge_in_when_assistant_use` fail ✓
+
+Exactly 6 planted wrong values → exactly 6 failing checks. **Confirmed.**
+
+**Computed quantities:**
+- `engines_count` = length of `[bad_engine]` = **1**. Artifact: 1 → **MATCH**
+- `engines_without_license_clearance`: field present, false → listed → **["bad_engine"]**. Artifact: ["bad_engine"] → **MATCH**
+- `engines_without_golden_sentence_evaluation`: present, false → **["bad_engine"]**. Artifact: same → **MATCH**
+- `cloning_engines_without_consent_recorded`: cloning row, consent present false → **["bad_engine"]**. Artifact: same → **MATCH**
+- `license_coverage` = 0 cleared ÷ 1 declared = 0.0 → floor(0·1e6+0.5)/1e6 = 0/1e6 = **"0.000000"**. Artifact: "0.000000" → **MATCH**
+- `golden_evaluation_coverage` = 0 ÷ 1 = **"0.000000"**. Artifact: "0.000000" → **MATCH**
+- `computed_status`: primary checks complete, at least one fails → **outside_stated_limits_on_declared_evidence**. Artifact: same → **MATCH**
+- `verdict`: any fail → **LOCAL_VOICE_STACK_NOT_SOUND**. Artifact: same → **MATCH**
+- Section statuses: pipeline fail, cloning fail, audio fail, accessibility pass, testing pass → **MATCH**
+
+---
+
+## Summary of comparisons
+
+| Quantity | Case 1 artifact | Recompute | Case 2 artifact | Recompute |
+|---|---|---|---|---|
+| verdict | SOUND | SOUND ✓ | NOT_SOUND | NOT_SOUND ✓ |
+| pass/fail/missing | 30/0/0 | 30/0/0 ✓ | 24/6/0 | 24/6/0 ✓ |
+| engines_count | 1 | 1 ✓ | 1 | 1 ✓ |
+| license list | [] | [] ✓ | ["bad_engine"] | ["bad_engine"] ✓ |
+| golden list | [] | [] ✓ | ["bad_engine"] | ["bad_engine"] ✓ |
+| consent list | [] | [] ✓ | ["bad_engine"] | ["bad_engine"] ✓ |
+| license_coverage | 1.000000 | 1.000000 ✓ | 0.000000 | 0.000000 ✓ |
+| golden_coverage | 1.000000 | 1.000000 ✓ | 0.000000 | 0.000000 ✓ |
+| computed_status | within | within ✓ | outside | outside ✓ |
+| section statuses | all pass | all pass ✓ | fail/fail/fail/pass/pass | same ✓ |
+
+Every computed quantity and every check status matches the recorded artifacts in both cases. The violations case's 6 failing checks are exactly the 6 checks the planted wrong values should fail.
+
+AGREEMENT: full
