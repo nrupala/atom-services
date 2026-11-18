@@ -56,7 +56,8 @@ export async function sendMagicLinkEmail(
     "Sign in to Conduit Atoms\n\n" +
     `Open this link within 15 minutes to sign in:\n${redeemUrl}\n\n` +
     "The link works once. If you did not ask for it, ignore this email — " +
-    "nothing changes unless the link is opened.\n";
+    "nothing changes unless the link is opened.\n\n" +
+    "2351485 ALBERTA INC. (AIMLDS) · 139 Valley Ridge Green NW, Calgary, AB T3B 5L5, Canada\n";
   try {
     const res = await fetchFn("https://api.resend.com/emails", {
       method: "POST",
