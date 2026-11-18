@@ -134,6 +134,12 @@ test("magic link round trip: signup emails a link, redeem mints a session, repla
     assert.equal(res.status, 200);
     assert.equal(sent.length, 1);
     assert.equal(sent[0].to, "person@example.com");
+    assert.ok(
+      sent[0].text.endsWith(
+        "2351485 ALBERTA INC. (AIMLDS) · 139 Valley Ridge Green NW, Calgary, AB T3B 5L5, Canada\n"
+      ),
+      "magic-link email must carry the L-5 sender identification footer as its final line"
+    );
     const m = /redeem\?token=([A-Za-z0-9_-]+)/.exec(sent[0].text);
     assert.ok(m);
     const redeemed = await redeem(store, m[1], new Date(NOW.getTime() + 60_000));
