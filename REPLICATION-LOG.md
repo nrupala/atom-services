@@ -3935,3 +3935,55 @@ serving atom.** The replication program's deploy → test →
 document → gate cadence stands complete for every deployed atom;
 Guardian Mesh NOT RUN remains the sole standing NOT RUN class,
 and the six staged-held atoms await the Director's U-13 rulings.
+
+## AXIOMCODE-STANDARD UPLIFT — SKILL.md + does-not-cover + measured traces live (2026-11-18)
+
+Deployment `05e45fbcd64840a5867c256782868657`, certified sha256
+`66ec0fd355d5369102be61d60f82174c94f69a628421b07154905c0bca1b0e2a`,
+branch `deploy/uplift-2026-11-18` (tip `00de7c0`) on the Batch 23 +
+sanitizer-fix live base `6426eaf`; master counterparts `89f9464`
+(uplift) + `93d3b89` (fix round) + `e60141a` (traces mirror fix).
+Presentation layer only: the fleet SKILL.md is served at
+`GET /SKILL.md` (single-sourced from the repo file via
+`tools/sync-skill.mjs`), and every live atom's catalogue/feed row now
+carries its generated does-not-cover line (`tools/sync-limits.mjs`,
+from SERVICE.md) and measured trace (`tools/sync-traces.mjs`, from
+verification/results + the index + GATE-VERDICT records; Not run
+always names the Guardian Mesh disposition; Excluded only where the
+record supports it). Src delta vs the live base = index.ts,
+catalogue.ts + the three generated modules; uploaded modules 161 =
+live 158 + 3; frozen billing/store/callpath/validate byte-identical;
+held atoms' material entirely absent. Suite 6,423/6,423 on the exact
+deploy tree (previous live tree 6,418 + 5 presentation tests; the
+"6,710" in the uplift commit message was the master tree's count).
+Gate PASS WITH FINDINGS (pack
+`~/workspace/release-gate-runs/atoms-uplift-2026-11-18/` — supplement +
+probes + scan; only FAIL lines = carried F-G2 Low + the standing
+OPTIONAL artifact). Probes 36/37 PASS — feed 145 / 138 live / 7
+disabled with the new fields on exactly the 138 live rows; takedown
+regression full set PASS; held negatives ×6 PASS; golden full-pass
+READY + stamp; F-G3 headers PASS; live 404/422/503 shapes captured
+into `verification/error-shape-probes.json`. The one non-pass is an
+observation, not a defect of this change: the three Batch 23 atoms
+answer any valid key regardless of scopes (external-verification key
+holds no Batch 23 scopes; authorization code untouched — callpath.ts
+frozen) — routed to the Batch 23 lane via the pack supplement (F2).
+Pre-deploy audit caught and fixed, before anything went live: three
+materially false SKILL.md claims (key-gated MCP surface; disabled
+feed-row contents; verdict-artifact shape universalized over the
+deliverable atoms) and a limits-generator defect pair (`no [a-z]`
+negation regex; `\Z` matching a literal "Z" and truncating section
+captures) that had dropped material limits — Batch 23's three atoms
+among them; the same defects were mirrored out of sync-traces.mjs
+and the invariant `not_covered == LIMITS` re-proven 145/145. D1 read
+back: 145 registered / 138 serving / 7 disabled / 145 internal
+scopes; the kill-switch config table holds 142 rows (135 enabled /
+7 disabled) — Batch 23's three serve by the gateway's default-on
+rule, their lane's record-keeping noted in the supplement. No rate
+changes; STRIPE_MODE stayed `test`. **Guardian Mesh NOT RUN** (no GM
+work order covers the atoms surface; GMSI-157…184 filed and
+intake-acknowledged, not scheduled) — this entry records a
+gate-filed release candidate; shipped-status waits on the GM leg,
+and the fleet soak stands (graduations 2026-11-22 are the gate
+thread's act). OpenSSF: project 16859 at 91% In Progress, held —
+no criterion touched by a presentation change, no badge claimed.

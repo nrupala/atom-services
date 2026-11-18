@@ -40,6 +40,7 @@ import { mcpCall, restCall } from "./callpath.js";
 import { liveAtoms, resolveAtom, type AtomHandler } from "./atoms-registry.js";
 import { catalogueHtml, disabledAtoms, feedJson, isAtomDisabled } from "./catalogue.js";
 import { docPageHtml } from "./docs.js";
+import { SKILL_MD } from "./skill.generated.js";
 import {
   PACKS,
   StripeRefundError,
@@ -209,6 +210,16 @@ async function routeRequest(request: Request, env: Env, store: Store): Promise<R
     }
     if (request.method === "GET" && path === "/api.json") {
       return json(await feedJson(origin, store));
+    }
+    if (request.method === "GET" && path === "/SKILL.md") {
+      // Agent onboarding (2026-11-18 uplift): the served body is
+      // mechanically the repo-root SKILL.md (src/skill.generated.ts
+      // via tools/sync-skill.mjs) — the same file an agent finds in
+      // the repository, so the two can never drift.
+      return new Response(SKILL_MD, {
+        status: 200,
+        headers: { "content-type": "text/markdown; charset=utf-8" },
+      });
     }
     const docsMatch = /^\/docs\/([a-z0-9-]+)$/.exec(path);
     if (request.method === "GET" && docsMatch) {

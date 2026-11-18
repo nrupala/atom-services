@@ -9,6 +9,14 @@ One Cloudflare Worker serving every live product atom at
 - `GET /health` — ungated liveness.
 - `GET /` — the catalogue / pricing page; `GET /api.json` its
   machine-readable twin. Both render from the generated rate config.
+  Every live row also carries the atom's does-not-cover line and
+  measured trace (generated from the atoms' SERVICE.md records and
+  the recorded verification runs, incl. the not-run / excluded
+  legs); a disabled atom is absent from the page and status-only
+  in the feed.
+- `GET /SKILL.md` — agent onboarding: discovery, the key flow,
+  verdict reading, error shapes. Served verbatim from the
+  repo-root `SKILL.md` (generated module).
 - `POST /mcp/<atom-service>` — MCP streamable-HTTP face.
 - `POST /v1/<atom-service>` — plain HTTP face, same contract.
 - `POST /v1/signup` → magic-link sign-in → `POST /v1/keys {atom}`

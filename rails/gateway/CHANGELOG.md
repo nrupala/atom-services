@@ -1,5 +1,18 @@
 # Changelog — atoms gateway
 
+## Unreleased
+
+- **Agent onboarding + per-atom limits/traces (2026-11-18).**
+  `GET /SKILL.md` serves the repo-root SKILL.md verbatim (generated
+  module, `tools/sync-skill.mjs`). Catalogue rows and `/api.json`
+  rows for live atoms gain a generated does-not-cover line
+  (`tools/sync-limits.mjs`, verbatim from each atom's SERVICE.md)
+  and a measured trace (`tools/sync-traces.mjs`, from the recorded
+  verification runs) with Not run / Not covered / Excluded buckets.
+  Presentation layer only — billing, store, call path and input
+  validation are untouched; disabled atoms keep the status-only
+  takedown presentation.
+
 ## 1.1.0 — 2026-11-15
 
 - **Prorated refunds (owner's rule; REFUNDS-DESIGN.md).** A refund

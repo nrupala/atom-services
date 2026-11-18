@@ -46,6 +46,9 @@ services/    One directory per PUBLIC atom (162), generated from the
              contract.yaml, growth.md, retention.md, maintenance.md.
 tools/       generate.py — regenerates registry/PUBLIC-LIST.md and all
              service scaffolds from registry/register.yaml.
+SKILL.md     Agent onboarding for the fleet (discovery, key flow,
+             verdicts, error shapes) — served verbatim at
+             atoms.pipavia.com/SKILL.md.
 BUILD-LOG.md What was built, verified counts, test evidence, named gaps.
 CHARTER.md   The binding rules of this repo (read before changing anything).
 ```

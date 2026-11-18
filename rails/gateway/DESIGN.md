@@ -13,6 +13,8 @@ per-atom metering rows + per-atom kill switch.
 | `GET /health` | none | liveness + live atom list |
 | `GET /` | none | catalogue / pricing page (models.dev-style) |
 | `GET /api.json` | none | machine-readable catalogue feed |
+| `GET /SKILL.md` | none | agent onboarding — the repo-root SKILL.md, served verbatim (generated module) |
+| `GET /docs/<atom-service>` | none | per-atom documentation (404 for disabled / unknown / undocumented) |
 | `POST /mcp/<atom-service>` | gateway key + atom scope | MCP streamable-HTTP, Conduit envelope (initialize / ping / tools/list / tools/call) |
 | `POST /v1/<atom-service>` | gateway key + atom scope | plain HTTP face, same contract |
 | `POST /v1/signup` | none | {email} → magic sign-in link by email |
@@ -90,6 +92,31 @@ posture, rails/billing.md) and the catalogue shows "Free during
 trial — rate pending". When the owner rules a rate it lands in the
 contract, the config regenerates, and the drawdown path activates
 by config alone. No global blended rate; one rate record per atom.
+
+## Presentation records — limits, traces, skill (generated)
+
+Three more generated modules render beside the rates, each from
+its own record of truth, none hand-copied:
+
+- `src/limits.generated.ts` (`tools/sync-limits.mjs`) — one
+  "does not cover" clause per atom, extracted verbatim from the
+  atom's `SERVICE.md` record (Honest scoping first, with a recorded
+  fallback chain) and asserted at generation time to be a substring
+  of that record.
+- `src/traces.generated.ts` (`tools/sync-traces.mjs`) — one
+  measured trace per atom from the recorded verification runs
+  (`verification/results/<atom>.json`, TEST-REPORT check counts,
+  the atom's GATE-VERDICT buckets): what was run, the latest
+  verdict, and the Not run / Not covered / Excluded buckets, each
+  present only where the record carries it. The Guardian Mesh
+  disposition is NOT RUN fleet-wide and is named on every trace.
+- `src/skill.generated.ts` (`tools/sync-skill.mjs`) — the repo-root
+  `SKILL.md`, served at `GET /SKILL.md`.
+
+Both presentation surfaces (catalogue HTML + `/api.json`) attach
+the limits line and the trace to LIVE rows only: a kill-switch-
+disabled atom stays absent from the page and status-only in the
+feed, exactly as with the documentation link.
 
 ## Metering + rate limits
 
