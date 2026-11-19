@@ -8,6 +8,26 @@ VERDICT, a CHECK, a MAP, a STAMP, a REPORT — over API / MCP / agent /
 human endpoints, paid per unit delivered. Atoms never sell the
 underlying knowledge; they sell the artifact the knowledge produces.
 
+## Quick start (60 seconds)
+
+1. **Discover atoms.** Read the agent onboarding guide served at
+   https://atoms.pipavia.com/SKILL.md, or browse `registry/PUBLIC-LIST.md`.
+2. **Read one atom.** Every serving atom has `services/<atom>/SERVICE.md`
+   (what it returns, and what it does not cover), `DOCUMENTATION.md` and
+   `USER-GUIDE.md`.
+3. **Get a key.** Atoms are key-gated on the Conduit rails; the key flow
+   is described in `SKILL.md` and `rails/serving.md`.
+4. **Call it.** Each atom's contract (inputs, outputs, typed errors) is in
+   `services/<atom>/contract.yaml`. Responses carry a signed receipt.
+5. **Run the tests locally.** Each unit's tests live in
+   `services/<atom>/tests/`; the gateway suite lives in `rails/gateway/`.
+   CI runs both on every push and pull request.
+
+Security reports: see [SECURITY.md](SECURITY.md). Conduct:
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Contributing:
+[CONTRIBUTING.md](CONTRIBUTING.md). Licence: Apache-2.0, see
+[LICENSE](LICENSE) and [NOTICE](NOTICE).
+
 ## The model in plain words
 
 - **Independent atoms, one home.** Every atom is its own named service
